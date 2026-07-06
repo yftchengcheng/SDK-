@@ -1,11 +1,11 @@
 // ABOUTME: Vite integration for Express server
 // ABOUTME: Handles dev middleware and production static file serving
 
-import type { Application, Request, Response } from 'express';
+import type { Application, Request, Response, NextFunction } from 'express';
 import express from 'express';
 import path from 'path';
 import fs from 'fs';
-import { createServer as createViteServer } from 'vite';
+import { createServer as createViteServer, type ViteDevServer } from 'vite';
 import viteConfig from '../vite.config';
 
 const isDev = process.env.COZE_PROJECT_ENV !== 'PROD';
@@ -23,10 +23,18 @@ export async function setupViteMiddleware(app: Application) {
     appType: 'spa',
   });
 
-  // 使用 Vite middleware
-  app.use(vite.middlewares);
+  // Only use Vite middleware for non-API routes
+  app.use((req: Request, res: Response, next: NextFunction) => {
+    // Skip API routes - let Express handle them
+    if (req.path.startsWith('/api/')) {
+      next();
+      return;
+    }
+    // Let Vite handle everything else (static files, HMR, etc.)
+    vite.middlewares(req, res, next);
+  });
 
-  console.log('🚀 Vite dev server initialized');
+  console.log('Vite dev server initialized');
 }
 
 /**
@@ -36,7 +44,7 @@ export function setupStaticServer(app: Application) {
   const distPath = path.resolve(process.cwd(), 'dist');
 
   if (!fs.existsSync(distPath)) {
-    console.error('❌ dist folder not found. Please run "pnpm build" first.');
+    console.error('dist folder not found. Please run "pnpm build" first.');
     process.exit(1);
   }
 
@@ -52,7 +60,7 @@ export function setupStaticServer(app: Application) {
     res.sendFile(path.join(distPath, 'index.html'));
   });
 
-  console.log('📦 Serving static files from dist/');
+  console.log('Serving static files from dist/');
 }
 
 /**

@@ -1,0 +1,46 @@
+import { defineStore } from 'pinia';
+import { ref, computed } from 'vue';
+import request from '../utils/request';
+
+interface UserInfo {
+  developerId: string;
+  email: string;
+  company: string | null;
+  contactName: string | null;
+  phone: string | null;
+  accessType: number;
+  apiAccessToken: string | null;
+  status: number;
+}
+
+export const useUserStore = defineStore('user', () => {
+  const token = ref(localStorage.getItem('token') || '');
+  const userInfo = ref<UserInfo | null>(
+    localStorage.getItem('userInfo') ? JSON.parse(localStorage.getItem('userInfo')!) : null
+  );
+
+  const isLoggedIn = computed(() => !!token.value);
+
+  async function login(email: string, password: string) {
+    const res: any = await request.post('/api/v1/auth/login', { email, password });
+    token.value = res.data.token;
+    userInfo.value = res.data;
+    localStorage.setItem('token', res.data.token);
+    localStorage.setItem('userInfo', JSON.stringify(res.data));
+  }
+
+  function logout() {
+    token.value = '';
+    userInfo.value = null;
+    localStorage.removeItem('token');
+    localStorage.removeItem('userInfo');
+  }
+
+  async function fetchUserInfo() {
+    const res: any = await request.get('/api/v1/auth/me');
+    userInfo.value = res.data;
+    localStorage.setItem('userInfo', JSON.stringify(res.data));
+  }
+
+  return { token, userInfo, isLoggedIn, login, logout, fetchUserInfo };
+});

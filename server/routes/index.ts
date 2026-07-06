@@ -1,31 +1,45 @@
 import { Router } from 'express';
+import authRoutes from './auth';
+import appRoutes from './app';
+import placementRoutes from './placement';
+import adSourceRoutes from './ad-source';
+import waterfallRoutes from './waterfall';
+import trafficGroupRoutes from './traffic-group';
+import sdkRoutes from './sdk';
+import reportRoutes from './report';
+import dashboardRoutes from './dashboard';
+import reconciliationRoutes from './reconciliation';
+import messageRoutes from './message';
+import networkRoutes from './network';
+import profileRoutes from './profile';
 
 const router = Router();
 
-// API 路由示例
-router.get('/api/hello', (req, res) => {
-  res.json({
-    message: 'Hello from Express + Vite!',
-    timestamp: new Date().toISOString(),
-  });
+// Health check
+router.get('/api/health', (_req, res) => {
+  res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-router.post('/api/data', (req, res) => {
-  const requestData = req.body;
-  res.json({
-    success: true,
-    data: requestData,
-    receivedAt: new Date().toISOString(),
-  });
-});
+// Auth routes
+router.use('/api/v1/auth', authRoutes);
 
-// 健康检查接口
-router.get('/api/health', (req, res) => {
-  res.json({
-    status: 'ok',
-    env: process.env.COZE_PROJECT_ENV,
-    timestamp: new Date().toISOString(),
-  });
-});
+// Console routes (require auth)
+router.use('/api/v1/console/app', appRoutes);
+router.use('/api/v1/console/placement', placementRoutes);
+router.use('/api/v1/console/ad-source', adSourceRoutes);
+router.use('/api/v1/console/waterfall', waterfallRoutes);
+router.use('/api/v1/console/traffic-group', trafficGroupRoutes);
+router.use('/api/v1/console/dashboard', dashboardRoutes);
+router.use('/api/v1/console/report', reportRoutes);
+router.use('/api/v1/console/reconciliation', reconciliationRoutes);
+router.use('/api/v1/console/message', messageRoutes);
+router.use('/api/v1/console/network', networkRoutes);
+router.use('/api/v1/console/profile', profileRoutes);
+
+// Public SDK routes
+router.use('/api/v1/sdk', sdkRoutes);
+
+// Public report endpoint
+router.use('/api/v1/report', reportRoutes);
 
 export default router;
