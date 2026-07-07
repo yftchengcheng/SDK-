@@ -68,8 +68,8 @@
               <canvas
                 ref="captchaCanvas"
                 class="auth-captcha-canvas"
-                width="200"
-                height="56"
+                width="220"
+                height="64"
                 @click="refreshCaptcha"
               />
             </div>

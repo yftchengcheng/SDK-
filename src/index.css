@@ -388,7 +388,7 @@ body {
   line-height: 1;
 }
 .auth-form .el-input__wrapper {
-  height: var(--comp-height) !important;
+  height: var(--comp-height-lg) !important;  /* 32px — 认证页用 large 高度更舒适 */
   padding: 0 var(--space-md) !important;
   background-color: #FFFFFF;
   border-radius: var(--radius-md) !important;
@@ -402,16 +402,16 @@ body {
   box-shadow: 0 0 0 1px var(--color-primary-600) inset, 0 0 0 3px rgba(37,99,235,0.08) !important;
 }
 .auth-form .el-input__inner {
-  height: var(--comp-height);
-  line-height: var(--comp-height);
-  font-size: var(--text-base);
+  height: var(--comp-height-lg);  /* 32px — 与 wrapper 等高 */
+  line-height: var(--comp-height-lg);  /* 32px — 13px 文字垂直居中 */
+  font-size: var(--text-base);  /* 13px */
   color: var(--color-slate-900);
   text-align: left;
 }
 .auth-form .el-input__inner::placeholder {
-  font-size: var(--text-sm);
+  font-size: var(--text-sm);  /* 12px */
   color: var(--color-slate-400);
-  line-height: var(--comp-height);
+  line-height: var(--comp-height-lg);  /* 32px — 与 wrapper 等高，文字垂直居中 */
 }
 
 /* prefix 容器（保留通用规则以防后续添加） */
@@ -441,8 +441,8 @@ body {
 /* canvas: CSS显示100x28, 位图200x56(2x retina) */
 .auth-captcha-canvas {
   flex-shrink: 0;
-  width: 100px;
-  height: var(--comp-height);
+  width: 110px;
+  height: var(--comp-height-lg);
   border-radius: var(--radius-md);
   overflow: hidden;
   cursor: pointer;
