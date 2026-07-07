@@ -124,15 +124,15 @@ function initCharts() {
     charts.push(chart)
     const days = ['周一', '周二', '周三', '周四', '周五', '周六', '周日']
     chart.setOption({
-      tooltip: { trigger: 'axis', backgroundColor: '#fff', borderColor: '#E5E7EB', textStyle: { color: '#111827', fontSize: 13 } },
+      tooltip: { trigger: 'axis', backgroundColor: '#fff', borderColor: '#E2E8F0', textStyle: { color: '#0F172A', fontSize: 13 } },
       grid: { left: 48, right: 16, top: 16, bottom: 32 },
-      xAxis: { type: 'category', data: days, axisLine: { lineStyle: { color: '#E5E7EB' } }, axisLabel: { color: '#6B7280', fontSize: 12 }, axisTick: { show: false } },
-      yAxis: { type: 'value', splitLine: { lineStyle: { color: '#F3F4F6' } }, axisLabel: { color: '#6B7280', fontSize: 12, formatter: (v: number) => '¥' + (v / 1000).toFixed(0) + 'k' } },
+      xAxis: { type: 'category', data: days, axisLine: { lineStyle: { color: '#E2E8F0' } }, axisLabel: { color: '#64748B', fontSize: 12 }, axisTick: { show: false } },
+      yAxis: { type: 'value', splitLine: { lineStyle: { color: '#F1F5F9' } }, axisLabel: { color: '#64748B', fontSize: 12, formatter: (v: number) => '¥' + (v / 1000).toFixed(0) + 'k' } },
       series: [{
         type: 'line', smooth: true, symbol: 'circle', symbolSize: 6,
-        lineStyle: { color: '#2563EB', width: 2.5 },
-        itemStyle: { color: '#2563EB', borderWidth: 2, borderColor: '#fff' },
-        areaStyle: { color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [{ offset: 0, color: 'rgba(37,99,235,0.15)' }, { offset: 1, color: 'rgba(37,99,235,0.01)' }]) },
+        lineStyle: { color: '#1E40AF', width: 2.5 },
+        itemStyle: { color: '#1E40AF', borderWidth: 2, borderColor: '#fff' },
+        areaStyle: { color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [{ offset: 0, color: 'rgba(30,64,175,0.12)' }, { offset: 1, color: 'rgba(30,64,175,0.01)' }]) },
         data: [18200, 19500, 16800, 21400, 22300, 19800, 24500]
       }]
     })
@@ -143,15 +143,15 @@ function initCharts() {
     const chart = echarts.init(sourceChartRef.value)
     charts.push(chart)
     chart.setOption({
-      tooltip: { trigger: 'item', backgroundColor: '#fff', borderColor: '#E5E7EB', textStyle: { color: '#111827', fontSize: 13 } },
-      legend: { bottom: 0, itemWidth: 10, itemHeight: 10, textStyle: { color: '#6B7280', fontSize: 12 } },
+      tooltip: { trigger: 'item', backgroundColor: '#fff', borderColor: '#E2E8F0', textStyle: { color: '#0F172A', fontSize: 13 } },
+      legend: { bottom: 0, itemWidth: 10, itemHeight: 10, textStyle: { color: '#64748B', fontSize: 12 } },
       series: [{
         type: 'pie', radius: ['48%', '72%'], center: ['50%', '42%'],
         padAngle: 2, itemStyle: { borderRadius: 4 },
         label: { show: false },
-        emphasis: { label: { show: true, fontSize: 13, fontWeight: 600, color: '#111827' } },
+        emphasis: { label: { show: true, fontSize: 13, fontWeight: 600, color: '#0F172A' } },
         data: [
-          { value: 42, name: '穿山甲', itemStyle: { color: '#2563EB' } },
+          { value: 42, name: '穿山甲', itemStyle: { color: '#1E40AF' } },
           { value: 28, name: '优量汇', itemStyle: { color: '#3B82F6' } },
           { value: 18, name: '百青藤', itemStyle: { color: '#60A5FA' } },
           { value: 12, name: '其他', itemStyle: { color: '#BFDBFE' } }
@@ -166,13 +166,13 @@ function initCharts() {
     charts.push(chart)
     const days = ['周一', '周二', '周三', '周四', '周五', '周六', '周日']
     chart.setOption({
-      tooltip: { trigger: 'axis', backgroundColor: '#fff', borderColor: '#E5E7EB', textStyle: { color: '#111827', fontSize: 13 } },
-      legend: { top: 0, right: 0, itemWidth: 12, itemHeight: 8, textStyle: { color: '#6B7280', fontSize: 12 } },
+      tooltip: { trigger: 'axis', backgroundColor: '#fff', borderColor: '#E2E8F0', textStyle: { color: '#0F172A', fontSize: 13 } },
+      legend: { top: 0, right: 0, itemWidth: 12, itemHeight: 8, textStyle: { color: '#64748B', fontSize: 12 } },
       grid: { left: 48, right: 16, top: 32, bottom: 32 },
-      xAxis: { type: 'category', data: days, axisLine: { lineStyle: { color: '#E5E7EB' } }, axisLabel: { color: '#6B7280', fontSize: 12 }, axisTick: { show: false } },
+      xAxis: { type: 'category', data: days, axisLine: { lineStyle: { color: '#E2E8F0' } }, axisLabel: { color: '#64748B', fontSize: 12 }, axisTick: { show: false } },
       yAxis: [
-        { type: 'value', splitLine: { lineStyle: { color: '#F3F4F6' } }, axisLabel: { color: '#6B7280', fontSize: 12, formatter: (v: number) => (v / 10000).toFixed(0) + '万' } },
-        { type: 'value', splitLine: { show: false }, axisLabel: { color: '#6B7280', fontSize: 12 } }
+        { type: 'value', splitLine: { lineStyle: { color: '#F1F5F9' } }, axisLabel: { color: '#64748B', fontSize: 12, formatter: (v: number) => (v / 10000).toFixed(0) + '万' } },
+        { type: 'value', splitLine: { show: false }, axisLabel: { color: '#64748B', fontSize: 12 } }
       ],
       series: [
         {
@@ -183,8 +183,8 @@ function initCharts() {
         {
           name: '点击量', type: 'line', smooth: true, yAxisIndex: 1,
           symbol: 'circle', symbolSize: 5,
-          lineStyle: { color: '#F59E0B', width: 2 },
-          itemStyle: { color: '#F59E0B', borderWidth: 2, borderColor: '#fff' },
+          lineStyle: { color: '#059669', width: 2 },
+          itemStyle: { color: '#059669', borderWidth: 2, borderColor: '#fff' },
           data: [2100, 1900, 1750, 2300, 2400, 2050, 2600]
         }
       ]
@@ -196,16 +196,16 @@ function initCharts() {
     const chart = echarts.init(rankChartRef.value)
     charts.push(chart)
     chart.setOption({
-      tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' }, backgroundColor: '#fff', borderColor: '#E5E7EB', textStyle: { color: '#111827', fontSize: 13 } },
+      tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' }, backgroundColor: '#fff', borderColor: '#E2E8F0', textStyle: { color: '#0F172A', fontSize: 13 } },
       grid: { left: 72, right: 16, top: 8, bottom: 8 },
-      xAxis: { type: 'value', splitLine: { lineStyle: { color: '#F3F4F6' } }, axisLabel: { color: '#6B7280', fontSize: 12, formatter: (v: number) => '¥' + (v / 1000).toFixed(0) + 'k' } },
-      yAxis: { type: 'category', data: ['游戏助手', '天气通', '记账本', '阅读器', '壁纸达人'], axisLine: { show: false }, axisTick: { show: false }, axisLabel: { color: '#374151', fontSize: 13 } },
+      xAxis: { type: 'value', splitLine: { lineStyle: { color: '#F1F5F9' } }, axisLabel: { color: '#64748B', fontSize: 12, formatter: (v: number) => '¥' + (v / 1000).toFixed(0) + 'k' } },
+      yAxis: { type: 'category', data: ['游戏助手', '天气通', '记账本', '阅读器', '壁纸达人'], axisLine: { show: false }, axisTick: { show: false }, axisLabel: { color: '#334155', fontSize: 13 } },
       series: [{
         type: 'bar', barWidth: 14,
         itemStyle: {
           borderRadius: [0, 3, 3, 0],
           color: new echarts.graphic.LinearGradient(0, 0, 1, 0, [
-            { offset: 0, color: '#2563EB' },
+            { offset: 0, color: '#1E40AF' },
             { offset: 1, color: '#60A5FA' }
           ])
         },

@@ -38,11 +38,11 @@
         </div>
         <div class="hero-trust">
           <div class="hero-trust-item">
-            <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M8 1L10.5 5.5L15.5 6.3L11.75 9.9L12.6 14.9L8 12.5L3.4 14.9L4.25 9.9L0.5 6.3L5.5 5.5L8 1Z" fill="#F59E0B"/></svg>
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M8 1L10.5 5.5L15.5 6.3L11.75 9.9L12.6 14.9L8 12.5L3.4 14.9L4.25 9.9L0.5 6.3L5.5 5.5L8 1Z" fill="#60A5FA"/></svg>
             <span>穿山甲 · 优量汇 · 快手 · 百度 · Mintegral</span>
           </div>
           <div class="hero-trust-item">
-            <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M6 1H10L15 6V14C15 14.6 14.6 15 14 15H2C1.4 15 1 14.6 1 14V6L6 1Z" stroke="#10B981" stroke-width="1.5" fill="none"/><path d="M6 10H10" stroke="#10B981" stroke-width="1.5"/></svg>
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M6 1H10L15 6V14C15 14.6 14.6 15 14 15H2C1.4 15 1 14.6 1 14V6L6 1Z" stroke="#059669" stroke-width="1.5" fill="none"/><path d="M6 10H10" stroke="#059669" stroke-width="1.5"/></svg>
             <span>数据加密 · 金融级安全 · 7×24 监控</span>
           </div>
         </div>
@@ -172,7 +172,7 @@ const drawCaptcha = () => {
   }
 
   // 逐字绘制，每个字符有随机偏移和旋转
-  const colors = ['#1E293B', '#1E40AF', '#0F766E', '#9333EA'];
+  const colors = ['#1E293B', '#1E40AF', '#0F766E', '#1E3A8A'];
   for (let i = 0; i < captchaText.value.length; i++) {
     ctx.save();
     const x = 18 + i * 28;

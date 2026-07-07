@@ -3,14 +3,10 @@
     <aside class="sidebar" :class="{ collapsed: isCollapsed }">
       <div class="sidebar-header" @click="isCollapsed = !isCollapsed">
         <div class="sidebar-logo">
-          <svg width="28" height="28" viewBox="0 0 32 32" fill="none">
-            <rect width="32" height="32" rx="8" fill="#2563EB"/>
-            <path d="M8 12L14 8L24 14V22L14 28L8 24V12Z" fill="white" fill-opacity="0.9"/>
-            <path d="M14 8V16M14 16L24 14M14 16V28" stroke="#2563EB" stroke-width="1.5"/>
-          </svg>
+          <img src="/logo.png" alt="新义聚合" class="logo-img" />
         </div>
         <transition name="fade-text">
-          <span v-if="!isCollapsed" class="logo-text">AdFusion</span>
+          <span v-if="!isCollapsed" class="logo-text">新义聚合</span>
         </transition>
       </div>
       <nav class="sidebar-nav">
@@ -21,7 +17,7 @@
           :class="{ active: currentRoute === item.path }"
           @click="router.push(item.path)"
         >
-          <el-icon :size="18"><component :is="item.icon" /></el-icon>
+          <el-icon :size="14"><component :is="item.icon" /></el-icon>
           <transition name="fade-text">
             <span v-if="!isCollapsed" class="nav-label">{{ item.label }}</span>
           </transition>
@@ -29,7 +25,7 @@
       </nav>
       <div class="sidebar-footer">
         <div class="nav-item collapse-btn" @click="isCollapsed = !isCollapsed">
-          <el-icon :size="18"><component :is="isCollapsed ? 'DArrowRight' : 'DArrowLeft'" /></el-icon>
+          <el-icon :size="14"><component :is="isCollapsed ? 'DArrowRight' : 'DArrowLeft'" /></el-icon>
           <transition name="fade-text">
             <span v-if="!isCollapsed" class="nav-label">收起侧栏</span>
           </transition>
