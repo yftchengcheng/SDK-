@@ -621,13 +621,6 @@ body {
   box-shadow: 0 0 0 1px var(--color-primary-600) inset, 0 0 0 3px rgba(37,99,235,0.08);
 }
 
-.auth-form .el-input__prefix {
-  color: var(--color-slate-400);
-  margin-right: 4px;
-}
-.auth-form .el-input__prefix .el-icon {
-  font-size: 14px;
-}
 
 .auth-form-actions {
   margin-top: 8px;
