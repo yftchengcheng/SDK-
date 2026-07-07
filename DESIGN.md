@@ -218,11 +218,19 @@ B2B 企业级广告数据管理控制台。沉稳、专业、精准。蓝+灰+�
 ## 布局规范
 
 - 页面底色：#F8FAFC
-- 侧边栏渐变：#1E3A8A → #1E40AF
+- 侧边栏渐变：#0F172A → #1E293B（深炭灰，无蓝色倾向 — 极稳重）
 - 侧边栏宽度：200px（折叠 64px）
-- 顶部操作区：position: sticky; top: 0; z-index + 背景 #F8FAFC
+- 顶部操作区：position: sticky; top: 0; z-index + 背景 `#0F172A → #1E293B`（与侧边栏同色系，形成统一深色控制台框）
 - 底部操作栏：position: sticky; bottom: 0
-- Sticky 区域必须设置 background: #F8FAFC 防止穿透
+- Sticky 区域必须设置 background 防止穿透
+- **控制台表面色 Token**（2026-01 用户偏好升级 — 从深蓝改深炭灰）：
+  - `--surface-deep` = `#0F172A`（极深炭）
+  - `--surface-mid` = `#1E293B`（深炭）
+  - `--surface-low` = `#334155`（中炭）
+  - `--surface-edge` = `rgba(255,255,255,0.08)`（表面内分隔线）
+  - `--surface-edge-strong` = `rgba(255,255,255,0.14)`（表面内强分隔线）
+  - 三处使用：`.sidebar` / `.top-bar` / `.auth-hero-side` 同步使用
+  - **蓝色仅保留在 CTA / 主按钮 / 链接 / 激活态**（#1E40AF / #2563EB）
 
 ## 动效规范
 
@@ -274,7 +282,7 @@ B2B 企业级广告数据管理控制台。沉稳、专业、精准。蓝+灰+�
 ### 布局
 - 左表单(56%) + 右品牌(44%)，min-width 400px
 - 表单区背景: #FFFFFF（分屏布局纯白对比）
-- 品牌区背景: linear-gradient(135deg, #1E3A8A, #1E40AF)（同侧边栏渐变，2色，禁止3色）
+- 品牌区背景: `linear-gradient(180deg, #0F172A, #1E293B)`（与侧边栏同色系，2色，禁止3色；采用深炭灰不采用深蓝 — 沉稳中性，无品牌色偏向）
 
 ### 表单区
 - 表单宽度: max-width 380px
