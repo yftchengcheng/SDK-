@@ -367,11 +367,14 @@ const openWidget = () => {
 const hideToEdge = () => {
   // 收进侧边栏时，位置放在右侧边缘竖直居中（用户随后可自由拖动）
   if (typeof window !== 'undefined') {
-    pos.value.x = Math.max(0, window.innerWidth - 32)
-    pos.value.y = Math.max(0, window.innerHeight / 2 - 40)
+    const clamped = clampPos(window.innerWidth - 32, window.innerHeight / 2 - 40, true)
+    pos.x = clamped.x
+    pos.y = clamped.y
   }
   view.value = 'hidden'
   saveState()
+  pulse.value = true
+  setTimeout(() => { pulse.value = false }, 4000)
 }
 
 const expandFromEdge = () => {
@@ -399,8 +402,8 @@ const widgetStyle = computed(() => {
       right: 'auto',
       bottom: 'auto',
       transform: 'none',
-      left: `${pos.value.x}px`,
-      top: `${pos.value.y}px`,
+      left: `${pos.x}px`,
+      top: `${pos.y}px`,
     }
   }
   return {
