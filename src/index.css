@@ -1708,3 +1708,106 @@ html, body, #app {
   color: var(--color-slate-400, #94A3B8);
   line-height: 1.2;
 }
+
+/* Register page - compact 2-column grid layout */
+.auth-form--register .el-form-item {
+  margin-bottom: var(--space-md);
+}
+
+.auth-form--register .el-form-item__label {
+  padding-bottom: var(--space-xs);
+  line-height: 1.2;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--color-slate-700);
+}
+
+.auth-form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-md);
+}
+
+.auth-form-row > .el-form-item {
+  margin-bottom: var(--space-md);
+}
+
+.auth-form-row--captcha {
+  align-items: end;
+}
+
+.auth-privacy-wrap {
+  padding-bottom: var(--space-sm);
+  display: flex;
+  align-items: center;
+}
+
+.auth-privacy-wrap .el-checkbox {
+  height: var(--comp-height);
+}
+
+.auth-privacy-wrap .el-checkbox__label {
+  font-size: var(--text-sm);
+  color: var(--color-slate-600);
+}
+
+.auth-form--register .auth-privacy-content {
+  font-size: var(--text-sm);
+  color: var(--color-slate-600);
+}
+
+.auth-form--register .auth-privacy-link {
+  color: var(--color-primary-600);
+  font-weight: 500;
+}
+
+.auth-form--register .auth-privacy-link:hover {
+  color: var(--color-primary-700);
+}
+
+.auth-form--register .auth-captcha-row {
+  display: flex;
+  gap: var(--space-sm);
+  width: 100%;
+}
+
+.auth-form--register .auth-captcha-row .el-input {
+  flex: 1;
+}
+
+.auth-form--register .auth-captcha-canvas {
+  height: var(--comp-height);
+  width: 96px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-slate-200);
+  cursor: pointer;
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+}
+
+.auth-form--register .auth-access-type--inline {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-sm);
+  width: 100%;
+}
+
+.auth-form--register .auth-access-type-card {
+  padding: var(--space-sm) var(--space-md);
+  gap: var(--space-sm);
+}
+
+.auth-form--register .auth-access-type-icon {
+  width: 28px;
+  height: 28px;
+}
+
+.auth-form-item--submit {
+  margin-bottom: 0 !important;
+  margin-top: var(--space-md);
+}
+
+.auth-form--register .auth-submit-btn {
+  height: var(--comp-height-lg);
+  font-size: var(--text-base);
+  font-weight: 500;
+}

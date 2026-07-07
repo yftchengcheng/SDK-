@@ -19,109 +19,96 @@
           :model="form"
           :rules="rules"
           label-position="top"
-          class="auth-form"
+          class="auth-form auth-form--register"
           @submit.prevent="handleRegister"
         >
-          <!-- 公司名称 + 公司简称 -->
-          <el-form-item label="公司名称" prop="company">
-            <el-input
-              v-model="form.company"
-              placeholder="请输入公司全称"
-              clearable
-            />
-          </el-form-item>
+          <!-- 第 1 行：公司名称 + 公司简称 -->
+          <div class="auth-form-row">
+            <el-form-item label="公司名称" prop="company">
+              <el-input v-model="form.company" placeholder="请输入公司全称" clearable size="default" />
+            </el-form-item>
+            <el-form-item label="公司简称" prop="companyShortName">
+              <el-input v-model="form.companyShortName" placeholder="请输入公司简称" maxlength="10" clearable size="default" />
+            </el-form-item>
+          </div>
 
-          <el-form-item label="公司简称" prop="companyShortName">
-            <el-input
-              v-model="form.companyShortName"
-              placeholder="请输入公司简称（2-10字符）"
-              clearable
-            />
-          </el-form-item>
+          <!-- 第 2 行：联系人 + 联系电话 -->
+          <div class="auth-form-row">
+            <el-form-item label="联系人" prop="contactName">
+              <el-input v-model="form.contactName" placeholder="请输入联系人姓名" clearable size="default" />
+            </el-form-item>
+            <el-form-item label="联系电话" prop="phone">
+              <el-input v-model="form.phone" placeholder="请输入11位手机号" maxlength="11" clearable size="default" />
+            </el-form-item>
+          </div>
 
-          <!-- 联系人 + 联系电话 -->
-          <el-form-item label="联系人" prop="contactName">
-            <el-input
-              v-model="form.contactName"
-              placeholder="请输入联系人姓名"
-              clearable
-            />
-          </el-form-item>
-
-          <el-form-item label="联系电话" prop="phone">
-            <el-input
-              v-model="form.phone"
-              placeholder="请输入11位手机号"
-              clearable
-              maxlength="11"
-            />
-          </el-form-item>
-
-          <!-- 邮箱 -->
+          <!-- 第 3 行：邮箱（全宽） -->
           <el-form-item label="邮箱地址" prop="email">
-            <el-input
-              v-model="form.email"
-              placeholder="请输入注册邮箱"
-              clearable
-            />
+            <el-input v-model="form.email" placeholder="请输入注册邮箱" clearable size="default" />
           </el-form-item>
 
-          <!-- 对接方式 -->
+          <!-- 第 4 行：对接方式（全宽，水平卡片） -->
           <el-form-item label="对接方式" prop="accessType">
-            <el-radio-group v-model="form.accessType" class="auth-radio-group">
-              <el-radio-button :value="1">SDK 对接</el-radio-button>
-              <el-radio-button :value="2">API 对接</el-radio-button>
-            </el-radio-group>
-          </el-form-item>
-
-          <!-- 密码 + 确认密码 -->
-          <el-form-item label="密码" prop="password">
-            <el-input
-              v-model="form.password"
-              type="password"
-              placeholder="请设置密码（至少6位）"
-              show-password
-            />
-          </el-form-item>
-
-          <el-form-item label="确认密码" prop="confirmPassword">
-            <el-input
-              v-model="form.confirmPassword"
-              type="password"
-              placeholder="请再次输入密码"
-              show-password
-            />
-          </el-form-item>
-
-          <!-- 验证码 -->
-          <el-form-item label="验证码" prop="captcha">
-            <div class="auth-captcha-row">
-              <el-input
-                v-model="form.captcha"
-                placeholder="请输入验证码"
-                class="auth-captcha-input"
-                maxlength="4"
-              />
-              <canvas
-                ref="captchaCanvas"
-                class="auth-captcha-canvas"
-                width="110"
-                height="36"
-                @click="refreshCaptcha"
-              />
+            <div class="auth-access-type auth-access-type--inline">
+              <div
+                :class="['auth-access-type-card', { 'is-active': form.accessType === 1 }]"
+                @click="form.accessType = 1"
+              >
+                <el-icon class="auth-access-type-icon" :size="16"><Connection /></el-icon>
+                <div class="auth-access-type-info">
+                  <div class="auth-access-type-label">SDK 对接</div>
+                  <div class="auth-access-type-desc">嵌入 SDK 接入流量</div>
+                </div>
+              </div>
+              <div
+                :class="['auth-access-type-card', { 'is-active': form.accessType === 2 }]"
+                @click="form.accessType = 2"
+              >
+                <el-icon class="auth-access-type-icon" :size="16"><Link /></el-icon>
+                <div class="auth-access-type-info">
+                  <div class="auth-access-type-label">API 对接</div>
+                  <div class="auth-access-type-desc">服务端 API 接入</div>
+                </div>
+              </div>
             </div>
           </el-form-item>
 
-          <el-form-item>
-            <el-checkbox v-model="form.agreePrivacy" class="auth-privacy-check">
-              <span class="auth-privacy-content">
-                请阅读并勾选确认
-                <a href="javascript:void(0)" class="auth-privacy-link" @click.prevent="showPrivacy">《新义聚合平台隐私政策》</a>
-              </span>
-            </el-checkbox>
-          </el-form-item>
+          <!-- 第 5 行：密码 + 确认密码 -->
+          <div class="auth-form-row">
+            <el-form-item label="密码" prop="password">
+              <el-input v-model="form.password" type="password" placeholder="请设置密码（至少6位）" show-password size="default" />
+            </el-form-item>
+            <el-form-item label="确认密码" prop="confirmPassword">
+              <el-input v-model="form.confirmPassword" type="password" placeholder="请再次输入密码" show-password size="default" />
+            </el-form-item>
+          </div>
 
-          <el-form-item>
+          <!-- 第 6 行：验证码 + 协议（压缩为一行） -->
+          <div class="auth-form-row auth-form-row--captcha">
+            <el-form-item label="验证码" prop="captcha">
+              <div class="auth-captcha-row">
+                <el-input v-model="form.captcha" placeholder="请输入验证码" maxlength="4" size="default" />
+                <canvas
+                  ref="captchaCanvas"
+                  class="auth-captcha-canvas"
+                  width="96"
+                  height="28"
+                  @click="refreshCaptcha"
+                />
+              </div>
+            </el-form-item>
+            <div class="auth-privacy-wrap">
+              <el-checkbox v-model="form.agreePrivacy">
+                <span class="auth-privacy-content">
+                  我已阅读并同意
+                  <a href="javascript:void(0)" class="auth-privacy-link" @click.prevent="showPrivacy">《隐私政策》</a>
+                </span>
+              </el-checkbox>
+            </div>
+          </div>
+
+          <!-- 提交按钮 -->
+          <el-form-item class="auth-form-item--submit">
             <el-button
               type="primary"
               class="auth-submit-btn"
@@ -197,7 +184,7 @@
 import { ref, reactive, onMounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { TrendCharts, SetUp, DataAnalysis, CircleCheck } from '@element-plus/icons-vue'
+import { TrendCharts, SetUp, DataAnalysis, CircleCheck, Connection, Link } from '@element-plus/icons-vue'
 import request from '../../utils/request'
 
 const router = useRouter()
