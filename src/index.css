@@ -382,19 +382,17 @@ body {
 }
 
 /* ---- 输入框 — DESIGN.md Input 规范 ---- */
-/* 关键：同时覆盖 --el-input-height 和 line-height，
-   否则 EP 默认 32px line-height 会让 inner 在 28px wrapper 中垂直错位 */
+/* wrapper 控制高度和边框，inner 自然填充 */
 .auth-form .el-input {
-  --el-input-height: var(--comp-height);
-  --el-input-inner-height: calc(var(--comp-height) - 2px);
-  line-height: var(--comp-height) !important;
+  font-size: var(--text-base);
+  line-height: 1;
 }
 .auth-form .el-input__wrapper {
   height: var(--comp-height) !important;
-  border-radius: var(--radius-md) !important;
-  box-shadow: 0 0 0 1px var(--color-slate-200) inset !important;
   padding: 0 var(--space-md) !important;
   background-color: #FFFFFF;
+  border-radius: var(--radius-md) !important;
+  box-shadow: 0 0 0 1px var(--color-slate-200) inset !important;
   transition: box-shadow 150ms ease;
 }
 .auth-form .el-input__wrapper:hover {
@@ -403,15 +401,17 @@ body {
 .auth-form .el-input__wrapper.is-focus {
   box-shadow: 0 0 0 1px var(--color-primary-600) inset, 0 0 0 3px rgba(37,99,235,0.08) !important;
 }
-
-/* inner: 只设字号颜色，让EP通过--el-input-inner-height控制高度 */
 .auth-form .el-input__inner {
+  height: var(--comp-height);
+  line-height: var(--comp-height);
   font-size: var(--text-base);
   color: var(--color-slate-900);
+  text-align: left;
 }
 .auth-form .el-input__inner::placeholder {
   font-size: var(--text-sm);
   color: var(--color-slate-400);
+  line-height: var(--comp-height);
 }
 
 /* prefix 容器（保留通用规则以防后续添加） */
