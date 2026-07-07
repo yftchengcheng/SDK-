@@ -51,5 +51,10 @@ export const useUserStore = defineStore('user', () => {
     localStorage.setItem('userInfo', JSON.stringify(res.data));
   }
 
+  // 监听全局登出事件（request.ts 401 时触发）
+  if (typeof window !== 'undefined') {
+    window.addEventListener('auth:logout', logout);
+  }
+
   return { token, userInfo, isLoggedIn, login, logout, fetchUserInfo };
 });
