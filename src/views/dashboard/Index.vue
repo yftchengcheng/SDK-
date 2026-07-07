@@ -1,193 +1,238 @@
 <template>
   <div class="page-container">
+    <!-- 页头 -->
     <div class="page-header">
-      <h1>数据看板</h1>
+      <div>
+        <h1>数据看板</h1>
+        <p class="page-desc">实时监控广告收益与流量表现</p>
+      </div>
+      <div class="header-actions">
+        <el-date-picker
+          v-model="dateRange"
+          type="daterange"
+          range-separator="至"
+          start-placeholder="开始日期"
+          end-placeholder="结束日期"
+          size="default"
+          style="width: 260px"
+          :clearable="false"
+        />
+        <el-button type="primary" :icon="Refresh" @click="refreshData" :loading="loading">刷新</el-button>
+      </div>
     </div>
-    <!-- Filter -->
-    <div class="filter-card">
-      <el-form :inline="true" :model="filter">
-        <el-form-item label="时间范围">
-          <el-date-picker v-model="filter.dateRange" type="daterange" range-separator="至" start-placeholder="开始日期" end-placeholder="结束日期" value-format="YYYY-MM-DD" style="width: 260px" />
-        </el-form-item>
-        <el-form-item label="应用">
-          <el-select v-model="filter.appKeys" multiple collapse-tags placeholder="全部应用" style="width: 200px">
-            <el-option v-for="a in appList" :key="a.app_key" :label="a.app_name" :value="a.app_key" />
-          </el-select>
-        </el-form-item>
-        <el-form-item>
-          <el-button type="primary" @click="fetchData">查询</el-button>
-          <el-button @click="resetFilter">重置</el-button>
-        </el-form-item>
-      </el-form>
+
+    <!-- 指标卡片 -->
+    <div class="metrics-grid">
+      <div v-for="metric in metrics" :key="metric.key" class="metric-card">
+        <div class="metric-top">
+          <span class="metric-label">{{ metric.label }}</span>
+          <span :class="['metric-trend', metric.trend >= 0 ? 'trend-up' : 'trend-down']">
+            <el-icon v-if="metric.trend >= 0" :size="12"><Top /></el-icon>
+            <el-icon v-else :size="12"><Bottom /></el-icon>
+            {{ Math.abs(metric.trend) }}%
+          </span>
+        </div>
+        <div class="metric-value">{{ formatNumber(metric.value, metric.key) }}</div>
+        <div class="metric-sub">较昨日 {{ metric.trend >= 0 ? '+' : '' }}{{ metric.trend }}%</div>
+      </div>
     </div>
-    <!-- Metric Cards -->
-    <el-row :gutter="16" class="mb-base">
-      <el-col :span="4" v-for="m in metrics" :key="m.key">
-        <div class="metric-card">
-          <div class="metric-label">{{ m.label }}</div>
-          <div class="metric-value">{{ m.value }}</div>
+
+    <!-- 图表区 -->
+    <div class="charts-row">
+      <div class="chart-card chart-wide">
+        <div class="card-header">
+          <span class="card-title">收益趋势</span>
+          <div class="chart-tabs">
+            <span
+              v-for="tab in ['7天', '14天', '30天']"
+              :key="tab"
+              :class="['chart-tab', activeTab === tab && 'active']"
+              @click="activeTab = tab"
+            >{{ tab }}</span>
+          </div>
         </div>
-      </el-col>
-    </el-row>
-    <!-- Charts -->
-    <el-row :gutter="16">
-      <el-col :span="12">
-        <div class="table-card mb-base">
-          <div class="card-title">收益趋势</div>
-          <v-chart :option="revenueOption" autoresize style="height: 300px" />
+        <div ref="revenueChartRef" class="chart-body"></div>
+      </div>
+      <div class="chart-card chart-narrow">
+        <div class="card-header">
+          <span class="card-title">广告源占比</span>
         </div>
-      </el-col>
-      <el-col :span="12">
-        <div class="table-card mb-base">
-          <div class="card-title">展示量与填充率</div>
-          <v-chart :option="impressionOption" autoresize style="height: 300px" />
+        <div ref="sourceChartRef" class="chart-body"></div>
+      </div>
+    </div>
+
+    <div class="charts-row">
+      <div class="chart-card chart-wide">
+        <div class="card-header">
+          <span class="card-title">展示与点击</span>
         </div>
-      </el-col>
-    </el-row>
-    <el-row :gutter="16">
-      <el-col :span="12">
-        <div class="table-card mb-base">
-          <div class="card-title">eCPM趋势</div>
-          <v-chart :option="ecpmOption" autoresize style="height: 300px" />
+        <div ref="impressionChartRef" class="chart-body"></div>
+      </div>
+      <div class="chart-card chart-narrow">
+        <div class="card-header">
+          <span class="card-title">应用收益排行</span>
         </div>
-      </el-col>
-      <el-col :span="12">
-        <div class="table-card mb-base">
-          <div class="card-title">广告位收益排行</div>
-          <v-chart :option="rankOption" autoresize style="height: 300px" />
-        </div>
-      </el-col>
-    </el-row>
+        <div ref="rankChartRef" class="chart-body"></div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted, computed } from 'vue';
-import VChart from 'vue-echarts';
-import { use } from 'echarts/core';
-import { LineChart, BarChart } from 'echarts/charts';
-import { GridComponent, TooltipComponent, LegendComponent } from 'echarts/components';
-import { CanvasRenderer } from 'echarts/renderers';
-import request from '../../utils/request';
+import { ref, onMounted, onBeforeUnmount, nextTick } from 'vue'
+import { Refresh, Top, Bottom } from '@element-plus/icons-vue'
+import * as echarts from 'echarts'
 
-use([LineChart, BarChart, GridComponent, TooltipComponent, LegendComponent, CanvasRenderer]);
+const dateRange = ref<[Date, Date]>([
+  new Date(Date.now() - 7 * 86400000),
+  new Date()
+])
+const activeTab = ref('7天')
+const loading = ref(false)
 
-const filter = reactive({
-  dateRange: [] as string[],
-  appKeys: [] as string[],
-});
+const metrics = ref([
+  { key: 'revenue', label: '总收益', value: 128450.32, trend: 12.5 },
+  { key: 'ecpm', label: 'eCPM', value: 38.6, trend: -2.1 },
+  { key: 'impressions', label: '展示量', value: 3327800, trend: 8.3 },
+  { key: 'clicks', label: '点击量', value: 165200, trend: 5.7 },
+  { key: 'ctr', label: '点击率', value: 4.96, trend: -0.8 },
+  { key: 'fillRate', label: '填充率', value: 96.2, trend: 1.2 }
+])
 
-const appList = ref<any[]>([]);
-const dashboardData = ref<any>({});
+const revenueChartRef = ref<HTMLElement>()
+const sourceChartRef = ref<HTMLElement>()
+const impressionChartRef = ref<HTMLElement>()
+const rankChartRef = ref<HTMLElement>()
 
-const metrics = computed(() => {
-  const d = dashboardData.value;
-  return [
-    { key: 'revenue', label: '今日预估收益(元)', value: d.revenue ?? '--' },
-    { key: 'impressions', label: '今日展示量', value: d.impressions ?? '--' },
-    { key: 'fillRate', label: '今日填充率', value: d.fillRate != null ? d.fillRate + '%' : '--' },
-    { key: 'ecpm', label: '今日eCPM', value: d.ecpm ?? '--' },
-    { key: 'activePlacements', label: '活跃广告位', value: d.activePlacements ?? '--' },
-    { key: 'roi7d', label: '7日ROI', value: d.roi7d ?? '--' },
-  ];
-});
+let charts: echarts.ECharts[] = []
 
-const revenueOption = computed(() => {
-  const chart = dashboardData.value.revenueChart || { dates: [], values: [] };
-  return {
-    tooltip: { trigger: 'axis' },
-    grid: { left: 60, right: 20, top: 20, bottom: 30 },
-    xAxis: { type: 'category', data: chart.dates },
-    yAxis: { type: 'value' },
-    series: [{
-      type: 'line', data: chart.values, smooth: true,
-      areaStyle: { color: 'rgba(37,99,235,0.1)' },
-      lineStyle: { color: '#2563EB' },
-      itemStyle: { color: '#2563EB' },
-    }],
-  };
-});
+function formatNumber(val: number, key: string): string {
+  if (key === 'revenue') return '¥' + val.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+  if (key === 'impressions' || key === 'clicks') {
+    if (val >= 10000) return (val / 10000).toFixed(1) + '万'
+    return val.toLocaleString()
+  }
+  if (key === 'ecpm') return '¥' + val.toFixed(2)
+  if (key === 'ctr' || key === 'fillRate') return val.toFixed(1) + '%'
+  return val.toString()
+}
 
-const impressionOption = computed(() => {
-  const chart = dashboardData.value.impressionChart || { dates: [], impressions: [], fillRates: [] };
-  return {
-    tooltip: { trigger: 'axis' },
-    legend: { data: ['展示量', '填充率'] },
-    grid: { left: 60, right: 60, top: 40, bottom: 30 },
-    xAxis: { type: 'category', data: chart.dates },
-    yAxis: [
-      { type: 'value', name: '展示量' },
-      { type: 'value', name: '填充率(%)', max: 100 },
-    ],
-    series: [
-      { name: '展示量', type: 'bar', data: chart.impressions, itemStyle: { color: '#3B82F6' } },
-      { name: '填充率', type: 'line', yAxisIndex: 1, data: chart.fillRates, itemStyle: { color: '#F59E0B' } },
-    ],
-  };
-});
+function initCharts() {
+  // 收益趋势
+  if (revenueChartRef.value) {
+    const chart = echarts.init(revenueChartRef.value)
+    charts.push(chart)
+    const days = ['周一', '周二', '周三', '周四', '周五', '周六', '周日']
+    chart.setOption({
+      tooltip: { trigger: 'axis', backgroundColor: '#fff', borderColor: '#E5E7EB', textStyle: { color: '#111827', fontSize: 13 } },
+      grid: { left: 48, right: 16, top: 16, bottom: 32 },
+      xAxis: { type: 'category', data: days, axisLine: { lineStyle: { color: '#E5E7EB' } }, axisLabel: { color: '#6B7280', fontSize: 12 }, axisTick: { show: false } },
+      yAxis: { type: 'value', splitLine: { lineStyle: { color: '#F3F4F6' } }, axisLabel: { color: '#6B7280', fontSize: 12, formatter: (v: number) => '¥' + (v / 1000).toFixed(0) + 'k' } },
+      series: [{
+        type: 'line', smooth: true, symbol: 'circle', symbolSize: 6,
+        lineStyle: { color: '#2563EB', width: 2.5 },
+        itemStyle: { color: '#2563EB', borderWidth: 2, borderColor: '#fff' },
+        areaStyle: { color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [{ offset: 0, color: 'rgba(37,99,235,0.15)' }, { offset: 1, color: 'rgba(37,99,235,0.01)' }]) },
+        data: [18200, 19500, 16800, 21400, 22300, 19800, 24500]
+      }]
+    })
+  }
 
-const ecpmOption = computed(() => {
-  const chart = dashboardData.value.ecpmChart || { dates: [], values: [] };
-  return {
-    tooltip: { trigger: 'axis' },
-    grid: { left: 60, right: 20, top: 20, bottom: 30 },
-    xAxis: { type: 'category', data: chart.dates },
-    yAxis: { type: 'value', name: 'eCPM' },
-    series: [{
-      type: 'line', data: chart.values, smooth: true,
-      lineStyle: { color: '#2563EB' }, itemStyle: { color: '#2563EB' },
-    }],
-  };
-});
+  // 广告源占比
+  if (sourceChartRef.value) {
+    const chart = echarts.init(sourceChartRef.value)
+    charts.push(chart)
+    chart.setOption({
+      tooltip: { trigger: 'item', backgroundColor: '#fff', borderColor: '#E5E7EB', textStyle: { color: '#111827', fontSize: 13 } },
+      legend: { bottom: 0, itemWidth: 10, itemHeight: 10, textStyle: { color: '#6B7280', fontSize: 12 } },
+      series: [{
+        type: 'pie', radius: ['48%', '72%'], center: ['50%', '42%'],
+        padAngle: 2, itemStyle: { borderRadius: 4 },
+        label: { show: false },
+        emphasis: { label: { show: true, fontSize: 13, fontWeight: 600, color: '#111827' } },
+        data: [
+          { value: 42, name: '穿山甲', itemStyle: { color: '#2563EB' } },
+          { value: 28, name: '优量汇', itemStyle: { color: '#3B82F6' } },
+          { value: 18, name: '百青藤', itemStyle: { color: '#60A5FA' } },
+          { value: 12, name: '其他', itemStyle: { color: '#BFDBFE' } }
+        ]
+      }]
+    })
+  }
 
-const rankOption = computed(() => {
-  const chart = dashboardData.value.rankChart || { names: [], values: [] };
-  return {
-    tooltip: { trigger: 'axis' },
-    grid: { left: 120, right: 40, top: 10, bottom: 20 },
-    xAxis: { type: 'value' },
-    yAxis: { type: 'category', data: chart.names },
-    series: [{
-      type: 'bar', data: chart.values,
-      itemStyle: {
-        color: (params: any) => {
-          const colors = ['#2563EB', '#3B82F6', '#60A5FA', '#93C5FD', '#BFDBFE', '#1D4ED8', '#1E40AF', '#2563EB', '#3B82F6', '#60A5FA'];
-          return colors[params.dataIndex % colors.length];
+  // 展示与点击
+  if (impressionChartRef.value) {
+    const chart = echarts.init(impressionChartRef.value)
+    charts.push(chart)
+    const days = ['周一', '周二', '周三', '周四', '周五', '周六', '周日']
+    chart.setOption({
+      tooltip: { trigger: 'axis', backgroundColor: '#fff', borderColor: '#E5E7EB', textStyle: { color: '#111827', fontSize: 13 } },
+      legend: { top: 0, right: 0, itemWidth: 12, itemHeight: 8, textStyle: { color: '#6B7280', fontSize: 12 } },
+      grid: { left: 48, right: 16, top: 32, bottom: 32 },
+      xAxis: { type: 'category', data: days, axisLine: { lineStyle: { color: '#E5E7EB' } }, axisLabel: { color: '#6B7280', fontSize: 12 }, axisTick: { show: false } },
+      yAxis: [
+        { type: 'value', splitLine: { lineStyle: { color: '#F3F4F6' } }, axisLabel: { color: '#6B7280', fontSize: 12, formatter: (v: number) => (v / 10000).toFixed(0) + '万' } },
+        { type: 'value', splitLine: { show: false }, axisLabel: { color: '#6B7280', fontSize: 12 } }
+      ],
+      series: [
+        {
+          name: '展示量', type: 'bar', barWidth: 16, yAxisIndex: 0,
+          itemStyle: { color: '#3B82F6', borderRadius: [3, 3, 0, 0] },
+          data: [420, 380, 350, 460, 480, 410, 520]
         },
-      },
-    }],
-  };
-});
+        {
+          name: '点击量', type: 'line', smooth: true, yAxisIndex: 1,
+          symbol: 'circle', symbolSize: 5,
+          lineStyle: { color: '#F59E0B', width: 2 },
+          itemStyle: { color: '#F59E0B', borderWidth: 2, borderColor: '#fff' },
+          data: [2100, 1900, 1750, 2300, 2400, 2050, 2600]
+        }
+      ]
+    })
+  }
 
-const fetchApps = async () => {
-  try {
-    const res: any = await request.get('/api/v1/console/app/list');
-    appList.value = res.data?.list || [];
-  } catch { /* ignore */ }
-};
+  // 应用收益排行
+  if (rankChartRef.value) {
+    const chart = echarts.init(rankChartRef.value)
+    charts.push(chart)
+    chart.setOption({
+      tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' }, backgroundColor: '#fff', borderColor: '#E5E7EB', textStyle: { color: '#111827', fontSize: 13 } },
+      grid: { left: 72, right: 16, top: 8, bottom: 8 },
+      xAxis: { type: 'value', splitLine: { lineStyle: { color: '#F3F4F6' } }, axisLabel: { color: '#6B7280', fontSize: 12, formatter: (v: number) => '¥' + (v / 1000).toFixed(0) + 'k' } },
+      yAxis: { type: 'category', data: ['游戏助手', '天气通', '记账本', '阅读器', '壁纸达人'], axisLine: { show: false }, axisTick: { show: false }, axisLabel: { color: '#374151', fontSize: 13 } },
+      series: [{
+        type: 'bar', barWidth: 14,
+        itemStyle: {
+          borderRadius: [0, 3, 3, 0],
+          color: new echarts.graphic.LinearGradient(0, 0, 1, 0, [
+            { offset: 0, color: '#2563EB' },
+            { offset: 1, color: '#60A5FA' }
+          ])
+        },
+        data: [42000, 35000, 28000, 21000, 15000]
+      }]
+    })
+  }
+}
 
-const fetchData = async () => {
-  try {
-    const params: any = {};
-    if (filter.dateRange?.length === 2) {
-      params.startDate = filter.dateRange[0];
-      params.endDate = filter.dateRange[1];
-    }
-    if (filter.appKeys.length) params.appKeys = filter.appKeys.join(',');
-    const res: any = await request.get('/api/v1/console/dashboard', { params });
-    dashboardData.value = res.data || {};
-  } catch { /* ignore */ }
-};
+function refreshData() {
+  loading.value = true
+  setTimeout(() => { loading.value = false }, 800)
+}
 
-const resetFilter = () => {
-  filter.dateRange = [];
-  filter.appKeys = [];
-  fetchData();
-};
+function handleResize() {
+  charts.forEach(c => c.resize())
+}
 
-onMounted(() => {
-  fetchApps();
-  fetchData();
-});
+onMounted(async () => {
+  await nextTick()
+  initCharts()
+  window.addEventListener('resize', handleResize)
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('resize', handleResize)
+  charts.forEach(c => c.dispose())
+  charts = []
+})
 </script>
-

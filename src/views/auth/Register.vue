@@ -1,23 +1,34 @@
 <template>
   <div class="login-page">
     <div class="register-card">
-      <h1 class="login-title">创建账号</h1>
-      <p class="login-subtitle">注册广告SDK聚合平台</p>
+      <div class="login-brand">
+        <div class="brand-icon">
+          <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
+            <rect width="32" height="32" rx="8" fill="#2563EB"/>
+            <path d="M8 12L14 8L24 14V22L14 28L8 24V12Z" fill="white" fill-opacity="0.9"/>
+            <path d="M14 8V16M14 16L24 14M14 16V28" stroke="#2563EB" stroke-width="1.5"/>
+          </svg>
+        </div>
+        <h1 class="login-title">创建账号</h1>
+        <p class="login-subtitle">注册广告SDK聚合平台</p>
+      </div>
       <el-form ref="formRef" :model="form" :rules="rules" label-position="top" @submit.prevent="handleRegister">
         <el-form-item label="邮箱" prop="email">
-          <el-input v-model="form.email" placeholder="请输入邮箱" />
+          <el-input v-model="form.email" placeholder="请输入邮箱" size="large" />
         </el-form-item>
         <el-form-item label="密码" prop="password">
-          <el-input v-model="form.password" type="password" placeholder="8-20位，包含字母和数字" show-password />
+          <el-input v-model="form.password" type="password" placeholder="8-20位，包含字母和数字" show-password size="large" />
         </el-form-item>
-        <el-form-item label="公司名称" prop="company">
-          <el-input v-model="form.company" placeholder="请输入公司名称" />
-        </el-form-item>
-        <el-form-item label="联系人" prop="contactName">
-          <el-input v-model="form.contactName" placeholder="请输入联系人姓名" />
-        </el-form-item>
+        <div class="form-row">
+          <el-form-item label="公司名称" prop="company" class="form-row-item">
+            <el-input v-model="form.company" placeholder="请输入公司名称" size="large" />
+          </el-form-item>
+          <el-form-item label="联系人" prop="contactName" class="form-row-item">
+            <el-input v-model="form.contactName" placeholder="请输入联系人姓名" size="large" />
+          </el-form-item>
+        </div>
         <el-form-item label="联系电话" prop="phone">
-          <el-input v-model="form.phone" placeholder="请输入手机号" />
+          <el-input v-model="form.phone" placeholder="请输入手机号" size="large" />
         </el-form-item>
         <el-form-item label="接入方式" prop="accessType">
           <el-radio-group v-model="form.accessType">
@@ -26,7 +37,7 @@
           </el-radio-group>
         </el-form-item>
         <el-form-item>
-          <el-button type="primary" :loading="loading" style="width: 100%" native-type="submit">注册</el-button>
+          <el-button type="primary" :loading="loading" class="login-btn" native-type="submit">注册</el-button>
         </el-form-item>
       </el-form>
       <div class="login-footer">
@@ -82,4 +93,3 @@ const handleRegister = async () => {
   }
 };
 </script>
-
