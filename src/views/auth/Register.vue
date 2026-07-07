@@ -27,11 +27,7 @@
               v-model="form.name"
               placeholder="请输入开发者名称"
               class="auth-input"
-            >
-              <template #prefix>
-                <el-icon :size="14" class="auth-input-icon"><User /></el-icon>
-              </template>
-            </el-input>
+            />
           </el-form-item>
 
           <el-form-item label="邮箱地址" prop="email">
@@ -39,11 +35,7 @@
               v-model="form.email"
               placeholder="请输入注册邮箱"
               class="auth-input"
-            >
-              <template #prefix>
-                <el-icon :size="14" class="auth-input-icon"><Message /></el-icon>
-              </template>
-            </el-input>
+            />
           </el-form-item>
 
           <el-form-item label="密码" prop="password">
@@ -53,11 +45,7 @@
               placeholder="请设置密码（至少6位）"
               show-password
               class="auth-input"
-            >
-              <template #prefix>
-                <el-icon :size="14" class="auth-input-icon"><Lock /></el-icon>
-              </template>
-            </el-input>
+            />
           </el-form-item>
 
           <el-form-item label="确认密码" prop="confirmPassword">
@@ -67,11 +55,7 @@
               placeholder="请再次输入密码"
               show-password
               class="auth-input"
-            >
-              <template #prefix>
-                <el-icon :size="14" class="auth-input-icon"><Lock /></el-icon>
-              </template>
-            </el-input>
+            />
           </el-form-item>
 
           <el-form-item label="验证码" prop="captcha">
@@ -80,11 +64,7 @@
                 v-model="form.captcha"
                 placeholder="请输入验证码"
                 class="auth-input auth-captcha-input"
-              >
-                <template #prefix>
-                  <el-icon :size="14" class="auth-input-icon"><Key /></el-icon>
-                </template>
-              </el-input>
+              />
               <canvas
                 ref="captchaCanvas"
                 class="auth-captcha-canvas"
@@ -180,7 +160,7 @@
 import { ref, reactive, onMounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { User, Message, Lock, Key, TrendCharts, SetUp, DataAnalysis, CircleCheck } from '@element-plus/icons-vue'
+import { TrendCharts, SetUp, DataAnalysis, CircleCheck } from '@element-plus/icons-vue'
 import request from '../../utils/request'
 
 const router = useRouter()

@@ -414,19 +414,12 @@ body {
   color: var(--color-slate-400);
 }
 
-/* prefix图标: 14px */
+/* prefix 容器（保留通用规则以防后续添加） */
 .auth-form .el-input__prefix {
   padding: 0;
   margin-right: 4px;
   color: var(--color-slate-400);
   transition: color 150ms ease;
-}
-.auth-input-icon {
-  color: var(--color-slate-400) !important;
-  transition: color 150ms ease;
-}
-.auth-form .el-input.is-focus .auth-input-icon {
-  color: var(--color-primary-500) !important;
 }
 
 /* suffix */
