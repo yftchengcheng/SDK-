@@ -61,31 +61,223 @@
   --transition-slow: 300ms cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* ========== Login & Register ========== */
-.login-brand {
-  text-align: center;
-  margin-bottom: 32px;
+/* ========== Auth Pages (左右分屏) ========== */
+.auth-page {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  min-height: 100vh;
 }
-.brand-icon {
-  display: inline-flex;
+
+/* 左侧品牌区 */
+.auth-hero {
+  position: relative;
+  width: 45%;
+  min-width: 400px;
+  background: #0F172A;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: var(--sp-xl);
+  overflow: hidden;
+}
+
+.auth-hero-bg {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.hero-grid {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(37,99,235,0.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(37,99,235,0.06) 1px, transparent 1px);
+  background-size: 40px 40px;
+}
+
+.hero-glow {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(80px);
+}
+
+.hero-glow-1 {
+  width: 400px;
+  height: 400px;
+  top: -10%;
+  left: -10%;
+  background: rgba(37,99,235,0.2);
+}
+
+.hero-glow-2 {
+  width: 300px;
+  height: 300px;
+  bottom: 5%;
+  right: -5%;
+  background: rgba(16,185,129,0.12);
+}
+
+.auth-hero-content {
+  position: relative;
+  z-index: 1;
+  text-align: left;
+  max-width: 320px;
+  width: 100%;
+}
+
+.hero-logo {
+  margin-bottom: var(--sp-lg);
+}
+
+.hero-heading {
+  font: 600 28px/1.3 "PingFang SC", "Helvetica Neue", sans-serif;
+  color: #FFFFFF;
+  margin-bottom: var(--sp-md);
+}
+
+.hero-desc {
+  font: 400 14px/1.71 "PingFang SC", "Helvetica Neue", sans-serif;
+  color: #94A3B8;
+  margin-bottom: var(--sp-xl);
+}
+
+.hero-features {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-md);
+}
+
+.hero-feature {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-sm);
+  font: 400 13px/1 "PingFang SC", "Helvetica Neue", sans-serif;
+  color: #CBD5E1;
+}
+
+.feature-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #3B82F6;
+  flex-shrink: 0;
+}
+
+.auth-hero-footer {
+  position: absolute;
+  bottom: var(--sp-lg);
+  left: 0;
+  right: 0;
+  text-align: center;
+  font: 400 12px/1 "PingFang SC", "Helvetica Neue", sans-serif;
+  color: #475569;
+  z-index: 1;
+}
+
+/* 右侧表单区 */
+.auth-form-side {
+  flex: 1;
+  display: flex;
   align-items: center;
   justify-content: center;
-  margin-bottom: 16px;
+  background: #FFFFFF;
+  padding: var(--sp-xl);
 }
-.login-btn {
+
+.auth-form-container {
+  width: 100%;
+  max-width: 420px;
+}
+
+.auth-form-header {
+  margin-bottom: var(--sp-xl);
+}
+
+.auth-form-title {
+  font: 600 24px/1.3 "PingFang SC", "Helvetica Neue", sans-serif;
+  color: #111827;
+  margin-bottom: var(--sp-xs);
+}
+
+.auth-form-subtitle {
+  font: 400 14px/1 "PingFang SC", "Helvetica Neue", sans-serif;
+  color: #6B7280;
+}
+
+.auth-form .el-form-item {
+  margin-bottom: var(--sp-lg);
+}
+
+.auth-form .el-form-item__label {
+  font: 500 13px/1 "PingFang SC", "Helvetica Neue", sans-serif;
+  color: #374151;
+  padding-bottom: var(--sp-xs);
+}
+
+.auth-form-actions {
+  margin-top: var(--sp-sm);
+}
+
+.auth-submit-btn {
   width: 100%;
   height: 40px;
-  font-size: 14px;
-  font-weight: 500;
+  font: 500 14px/1 "PingFang SC", "Helvetica Neue", sans-serif;
   border-radius: 6px;
-  margin-top: 4px;
 }
-.form-row {
+
+.auth-form-row {
   display: flex;
-  gap: 16px;
+  gap: var(--sp-base);
 }
-.form-row-item {
+
+.auth-form-row-item {
   flex: 1;
+}
+
+.auth-form-footer {
+  text-align: center;
+  font: 400 13px/1 "PingFang SC", "Helvetica Neue", sans-serif;
+  color: #6B7280;
+  margin-top: var(--sp-lg);
+}
+
+.auth-link {
+  color: #2563EB;
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.auth-link:hover {
+  color: #1D4ED8;
+}
+
+/* 移动端适配 */
+@media (max-width: 860px) {
+  .auth-page {
+    flex-direction: column;
+  }
+  .auth-hero {
+    width: 100%;
+    min-width: unset;
+    min-height: 200px;
+    padding: var(--sp-xl) var(--sp-base);
+  }
+  .auth-hero-content {
+    max-width: unset;
+    text-align: center;
+  }
+  .hero-features {
+    display: none;
+  }
+  .auth-hero-footer {
+    display: none;
+  }
+  .auth-form-side {
+    padding: var(--sp-base);
+  }
 }
 
 /* ========== Main Layout ========== */
@@ -755,78 +947,7 @@ html, body, #app {
   height: 280px;
 }
 
-/* ========== 登录页 ========== */
-.login-page {
-  width: 100%;
-  height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: linear-gradient(145deg, #F0F4FF 0%, #F9FAFB 50%, #F0FDF4 100%);
-  position: relative;
-}
-
-.login-page::before {
-  content: '';
-  position: absolute;
-  top: -40%;
-  right: -20%;
-  width: 600px;
-  height: 600px;
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(37,99,235,0.06), transparent 70%);
-  pointer-events: none;
-}
-
-.login-card {
-  width: 400px;
-  background: #FFFFFF;
-  border-radius: 12px;
-  padding: 40px 36px;
-  box-shadow: var(--shadow-lg);
-  position: relative;
-  z-index: 1;
-  border: 1px solid rgba(255,255,255,0.8);
-}
-
-.login-title {
-  font: var(--fs-page-title);
-  color: #111827;
-  text-align: center;
-  margin-bottom: 6px;
-}
-
-.login-subtitle {
-  font: var(--fs-body);
-  color: #6B7280;
-  text-align: center;
-  margin-bottom: 28px;
-}
-
-.login-footer {
-  text-align: center;
-  font: var(--fs-small);
-  color: #6B7280;
-  margin-top: 20px;
-}
-
-/* ========== 注册页 ========== */
-.register-card {
-  width: 480px;
-  background: #FFFFFF;
-  border-radius: 12px;
-  padding: 36px;
-  box-shadow: var(--shadow-lg);
-  position: relative;
-  z-index: 1;
-  border: 1px solid rgba(255,255,255,0.8);
-  margin: 20px 0;
-}
-
-.register-page .login-card {
-  width: 480px;
-  margin: 20px 0;
-}
+/* ========== 登录页/注册页 - 已由 auth-page 分屏布局替代 ========== */
 
 /* ========== 危险文本 ========== */
 .text-danger {

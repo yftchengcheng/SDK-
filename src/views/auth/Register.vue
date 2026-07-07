@@ -1,47 +1,79 @@
 <template>
-  <div class="login-page">
-    <div class="register-card">
-      <div class="login-brand">
-        <div class="brand-icon">
-          <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
-            <rect width="32" height="32" rx="8" fill="#2563EB"/>
-            <path d="M8 12L14 8L24 14V22L14 28L8 24V12Z" fill="white" fill-opacity="0.9"/>
-            <path d="M14 8V16M14 16L24 14M14 16V28" stroke="#2563EB" stroke-width="1.5"/>
+  <div class="auth-page">
+    <!-- 左侧品牌区 -->
+    <div class="auth-hero">
+      <div class="auth-hero-bg">
+        <div class="hero-grid"></div>
+        <div class="hero-glow hero-glow-1"></div>
+        <div class="hero-glow hero-glow-2"></div>
+      </div>
+      <div class="auth-hero-content">
+        <div class="hero-logo">
+          <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
+            <rect width="48" height="48" rx="12" fill="rgba(255,255,255,0.15)"/>
+            <path d="M12 18L21 12L36 21V33L21 42L12 36V18Z" fill="white" fill-opacity="0.95"/>
+            <path d="M21 12V24M21 24L36 21M21 24V42" stroke="rgba(37,99,235,0.6)" stroke-width="1.5"/>
           </svg>
         </div>
-        <h1 class="login-title">创建账号</h1>
-        <p class="login-subtitle">注册广告SDK聚合平台</p>
-      </div>
-      <el-form ref="formRef" :model="form" :rules="rules" label-position="top" @submit.prevent="handleRegister">
-        <el-form-item label="邮箱" prop="email">
-          <el-input v-model="form.email" placeholder="请输入邮箱" size="large" />
-        </el-form-item>
-        <el-form-item label="密码" prop="password">
-          <el-input v-model="form.password" type="password" placeholder="8-20位，包含字母和数字" show-password size="large" />
-        </el-form-item>
-        <div class="form-row">
-          <el-form-item label="公司名称" prop="company" class="form-row-item">
-            <el-input v-model="form.company" placeholder="请输入公司名称" size="large" />
-          </el-form-item>
-          <el-form-item label="联系人" prop="contactName" class="form-row-item">
-            <el-input v-model="form.contactName" placeholder="请输入联系人姓名" size="large" />
-          </el-form-item>
+        <h2 class="hero-heading">广告SDK聚合平台</h2>
+        <p class="hero-desc">一站式广告源管理与流量变现解决方案<br/>精准配置 · 智能分发 · 数据驱动</p>
+        <div class="hero-features">
+          <div class="hero-feature">
+            <span class="feature-dot"></span>
+            <span>多广告源统一管理</span>
+          </div>
+          <div class="hero-feature">
+            <span class="feature-dot"></span>
+            <span>瀑布流策略精细化配置</span>
+          </div>
+          <div class="hero-feature">
+            <span class="feature-dot"></span>
+            <span>实时数据看板与对账</span>
+          </div>
         </div>
-        <el-form-item label="联系电话" prop="phone">
-          <el-input v-model="form.phone" placeholder="请输入手机号" size="large" />
-        </el-form-item>
-        <el-form-item label="接入方式" prop="accessType">
-          <el-radio-group v-model="form.accessType">
-            <el-radio :value="1">SDK接入</el-radio>
-            <el-radio :value="2">API接入</el-radio>
-          </el-radio-group>
-        </el-form-item>
-        <el-form-item>
-          <el-button type="primary" :loading="loading" class="login-btn" native-type="submit">注册</el-button>
-        </el-form-item>
-      </el-form>
-      <div class="login-footer">
-        已有账号？<router-link to="/login" class="text-link">立即登录</router-link>
+      </div>
+      <div class="auth-hero-footer">
+        <span>&copy; 2026 AdSDK Platform</span>
+      </div>
+    </div>
+    <!-- 右侧表单区 -->
+    <div class="auth-form-side">
+      <div class="auth-form-container">
+        <div class="auth-form-header">
+          <h1 class="auth-form-title">创建账号</h1>
+          <p class="auth-form-subtitle">注册广告SDK聚合平台</p>
+        </div>
+        <el-form ref="formRef" :model="form" :rules="rules" label-position="top" @submit.prevent="handleRegister" class="auth-form">
+          <el-form-item label="邮箱" prop="email">
+            <el-input v-model="form.email" placeholder="请输入邮箱" size="large" />
+          </el-form-item>
+          <el-form-item label="密码" prop="password">
+            <el-input v-model="form.password" type="password" placeholder="8-20位，包含字母和数字" show-password size="large" />
+          </el-form-item>
+          <div class="auth-form-row">
+            <el-form-item label="公司名称" prop="company" class="auth-form-row-item">
+              <el-input v-model="form.company" placeholder="请输入公司名称" size="large" />
+            </el-form-item>
+            <el-form-item label="联系人" prop="contactName" class="auth-form-row-item">
+              <el-input v-model="form.contactName" placeholder="请输入联系人" size="large" />
+            </el-form-item>
+          </div>
+          <el-form-item label="联系电话" prop="phone">
+            <el-input v-model="form.phone" placeholder="请输入手机号" size="large" />
+          </el-form-item>
+          <el-form-item label="接入方式" prop="accessType">
+            <el-radio-group v-model="form.accessType">
+              <el-radio :value="1">SDK接入</el-radio>
+              <el-radio :value="2">API接入</el-radio>
+            </el-radio-group>
+          </el-form-item>
+          <el-form-item class="auth-form-actions">
+            <el-button type="primary" :loading="loading" class="auth-submit-btn" native-type="submit">注册</el-button>
+          </el-form-item>
+        </el-form>
+        <div class="auth-form-footer">
+          已有账号？<router-link to="/login" class="auth-link">立即登录</router-link>
+        </div>
       </div>
     </div>
   </div>
