@@ -382,14 +382,17 @@ body {
 }
 
 /* ---- 输入框 — DESIGN.md Input 规范 ---- */
-/* wrapper: 28px高 + box-shadow边框 + 6px圆角 */
+/* 只覆盖视觉属性，不干预 Element Plus 的 flex 布局和尺寸计算 */
+.auth-form .el-input {
+  --el-input-inner-height: 26px; /* wrapper 28px - padding上下各1px */
+}
 .auth-form .el-input__wrapper {
   height: var(--comp-height) !important;
   border-radius: var(--radius-md) !important;
   box-shadow: 0 0 0 1px var(--color-slate-200) inset !important;
-  padding: 1px var(--space-md) !important;
-  transition: box-shadow 150ms ease;
+  padding: 1px 12px !important;
   background-color: #FFFFFF;
+  transition: box-shadow 150ms ease;
 }
 .auth-form .el-input__wrapper:hover {
   box-shadow: 0 0 0 1px var(--color-slate-300) inset !important;
@@ -398,22 +401,20 @@ body {
   box-shadow: 0 0 0 1px var(--color-primary-600) inset, 0 0 0 3px rgba(37,99,235,0.08) !important;
 }
 
-/* inner: 高度自适应wrapper减去上下padding */
+/* inner: 只设字号颜色，让EP通过--el-input-inner-height控制高度 */
 .auth-form .el-input__inner {
   font-size: var(--text-base);
   color: var(--color-slate-900);
-  height: calc(var(--comp-height) - 2px) !important;
-  line-height: calc(var(--comp-height) - 2px) !important;
 }
 .auth-form .el-input__inner::placeholder {
   font-size: var(--text-sm);
   color: var(--color-slate-400);
 }
 
-/* prefix图标: 14px, 不撑高wrapper */
+/* prefix图标: 14px */
 .auth-form .el-input__prefix {
-  margin-right: var(--space-xs);
   padding: 0;
+  margin-right: 4px;
   color: var(--color-slate-400);
   transition: color 150ms ease;
 }
