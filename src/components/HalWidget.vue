@@ -14,6 +14,7 @@ const view = ref<ViewState>('collapsed')
 const pos = reactive({ x: 0, y: 0 }) // 由 bottom/right 计算后的位置（px）
 const dragging = ref(false)
 const dragOffset = reactive({ x: 0, y: 0 })
+const pulse = ref(false) // 首次 / 隐藏后重新出现时的高亮脉动
 
 // 会话状态
 interface HalSession {
@@ -71,6 +72,25 @@ const defaultPos = () => {
   return { x: Math.max(16, w - 76), y: Math.max(16, h - 76) }
 }
 
+const defaultHiddenPos = () => {
+  if (typeof window === 'undefined') return { x: 0, y: 0 }
+  const w = window.innerWidth
+  const h = window.innerHeight
+  return { x: Math.max(4, w - 32), y: Math.max(4, Math.floor(h / 2) - 40) }
+}
+
+const clampPos = (x: number, y: number, isHidden: boolean) => {
+  if (typeof window === 'undefined') return { x, y }
+  const w = window.innerWidth
+  const h = window.innerHeight
+  const elW = isHidden ? 32 : 60
+  const elH = isHidden ? 88 : 60
+  return {
+    x: Math.min(Math.max(4, x), Math.max(4, w - elW)),
+    y: Math.min(Math.max(4, y), Math.max(4, h - elH)),
+  }
+}
+
 const loadState = () => {
   if (typeof window === 'undefined') return
   try {
@@ -80,14 +100,21 @@ const loadState = () => {
     if (p) {
       const parsed = JSON.parse(p) as { x: number; y: number }
       if (Number.isFinite(parsed.x) && Number.isFinite(parsed.y)) {
-        pos.x = parsed.x
-        pos.y = parsed.y
+        const clamped = clampPos(parsed.x, parsed.y, view.value === 'hidden')
+        pos.x = clamped.x
+        pos.y = clamped.y
         return
       }
     }
-    const d = defaultPos()
-    pos.x = d.x
-    pos.y = d.y
+    if (view.value === 'hidden') {
+      const d = defaultHiddenPos()
+      pos.x = d.x
+      pos.y = d.y
+    } else {
+      const d = defaultPos()
+      pos.x = d.x
+      pos.y = d.y
+    }
   } catch {
     /* ignore */
   }
@@ -101,10 +128,13 @@ const saveState = () => {
 
 const onWindowResize = () => {
   if (typeof window === 'undefined') return
+  const isHidden = view.value === 'hidden'
   const w = window.innerWidth
   const h = window.innerHeight
-  pos.x = Math.min(Math.max(16, pos.x), w - 76)
-  pos.y = Math.min(Math.max(16, pos.y), h - 76)
+  const elW = isHidden ? 32 : 60
+  const elH = isHidden ? 88 : 60
+  pos.x = Math.min(Math.max(4, pos.x), Math.max(4, w - elW))
+  pos.y = Math.min(Math.max(4, pos.y), Math.max(4, h - elH))
   saveState()
 }
 
@@ -345,8 +375,16 @@ const hideToEdge = () => {
 }
 
 const expandFromEdge = () => {
+  // 从边缘恢复：把浮标放回默认右下角（之前收进时 pos 已被推到右边缘）
+  if (typeof window !== 'undefined') {
+    const d = defaultPos()
+    pos.x = d.x
+    pos.y = d.y
+  }
   view.value = 'collapsed'
   saveState()
+  pulse.value = true
+  setTimeout(() => { pulse.value = false }, 4000)
 }
 
 const toggleClose = () => {
@@ -393,6 +431,9 @@ onMounted(() => {
   loadState()
   fetchConfig()
   window.addEventListener('resize', onWindowResize)
+  // 进入页面后先脉动两轮提示位置；用户拖拽 / 点击后会停止
+  pulse.value = true
+  setTimeout(() => { pulse.value = false }, 5200)
 })
 </script>
 
@@ -401,7 +442,7 @@ onMounted(() => {
   <div
     v-if="view === 'collapsed'"
     class="hal-fab"
-    :class="{ 'is-dragging': dragging }"
+    :class="{ 'is-dragging': dragging, 'hal-fab--pulse': pulse && !dragging }"
     :style="widgetStyle"
     @mousedown="onDragStart"
     @click="!dragging && openWidget()"
@@ -423,11 +464,17 @@ onMounted(() => {
   <div
     v-else-if="view === 'hidden'"
     class="hal-edge"
+    :class="{ 'is-dragging': dragging, 'hal-edge--pulse': pulse && !dragging }"
     :style="widgetStyle"
-    @click="expandFromEdge"
+    @mousedown="onDragStart"
+    @click="!dragging && expandFromEdge()"
     role="button"
     aria-label="展开 HAL"
+    title="拖动 / 点击展开 HAL"
   >
+    <span class="hal-edge-grip" aria-hidden="true">
+      <span></span><span></span><span></span>
+    </span>
     <el-icon :size="14"><ChatDotRound /></el-icon>
     <span class="hal-edge-label">HAL</span>
   </div>

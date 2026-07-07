@@ -1967,6 +1967,32 @@ html, body, #app {
   pointer-events: none;
 }
 
+/* 浮标出现时的高亮脉动 — 首次加载 / 用户主动隐藏后重新出现时触发 */
+.hal-fab--pulse .hal-fab-icon {
+  animation: halFabPulse 1.6s ease-out 3;
+}
+
+@keyframes halFabPulse {
+  0%   { box-shadow: 0 8px 20px rgba(15,23,42,0.4), 0 0 0 0   rgba(37,99,235,0.55); }
+  70%  { box-shadow: 0 8px 20px rgba(15,23,42,0.4), 0 0 0 18px rgba(37,99,235,0); }
+  100% { box-shadow: 0 8px 20px rgba(15,23,42,0.4), 0 0 0 0   rgba(37,99,235,0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hal-fab--pulse .hal-fab-icon { animation: none; }
+  .hal-edge--pulse { animation: none; }
+}
+
+/* 边缘竖条的脉动 — 收进侧边栏后也保持可见 */
+.hal-edge--pulse {
+  animation: halEdgePulse 2.2s ease-in-out 3;
+}
+
+@keyframes halEdgePulse {
+  0%, 100% { box-shadow: -2px 4px 12px rgba(15,23,42,0.3), 0 0 0 0 rgba(37,99,235,0); }
+  50%      { box-shadow: -2px 4px 12px rgba(15,23,42,0.3), 0 0 0 6px rgba(37,99,235,0.35); }
+}
+
 .hal-fab:hover .hal-fab-hint {
   opacity: 1;
 }
