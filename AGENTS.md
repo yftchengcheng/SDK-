@@ -186,9 +186,90 @@
 
 ### 数据库规范
 
-- 13 张表：`developer` / `app` / `placement` / `ad_source` / `waterfall_config` / `waterfall_layer` / `traffic_group` / `report_daily` / `message` / `custom_adapter_version` / `custom_network_report` / `app_network_binding` / `ad_network_def`
+- 13 张核心业务表 + 1 张健康检查表 = **14 张表**：
+  - 业务表：`developer` / `app` / `placement` / `ad_source` / `waterfall_config` / `waterfall_layer` / `traffic_group` / `report_daily` / `message` / `custom_adapter_version` / `custom_network_report` / `app_network_binding` / `ad_network_def`
+  - 辅助表：`health_check`（健康检查，PLAN 未列入）
+  - **⚠️ 待补表**：`ad_network_account`（广告网络账号管理，6 步对接流程步骤二需要）
 - 通过 Supabase 控制台手动建表（**无 migration 文件**，新环境需同步建表）
 - RLS **当前未启用**（用 service_role key 绕过），存在越权风险，未来需补
+
+## 实施差距分析（vs PLAN.md）
+
+### 1. 路由路径差异（命名习惯不同）
+
+| PLAN | 实际实现 | 备注 |
+|------|---------|------|
+| /apps | /app | 单数 |
+| /placements | /placement | 单数 |
+| /reports | /report | 单数 |
+| /messages | /message | 单数 |
+| /networks | /network | 单数 |
+| /networks/[id]/accounts | /network (tab 切换) | 子页改为 Tab |
+| /networks/[id]/adapters | /network (tab 切换) | 子页改为 Tab |
+| - | /ad-source | 独立页面（PLAN 整合到 waterfall） |
+
+### 2. 数据库表差距
+
+- **缺失 1 张表**：`ad_network_account`
+  - 用途：管理 6 步对接流程步骤二「广告网络账号」
+  - 字段预期：id, network_def_id, developer_id, account_name, app_id, credentials(JSON), status, created_at, updated_at
+  - 影响：步骤二账号管理功能无法落地
+
+### 3. API 接口差距（PLAN: 35 → 实际: ~50+，但缺 5 个核心）
+
+**已实现的核心接口**（覆盖 30/35）：
+- Auth: register/login/logout/me/profile/password/api-token（7）
+- App: list/create/update/delete/detail（6）
+- Placement: list/create/update/delete/detail（5）
+- AdSource: list/create/update/delete（4）
+- Waterfall: get/update/layers（3）
+- Traffic-Group: list/create/update/delete（4）
+- Network: custom (CRUD) + adapter (upload/versions/status) + report (upload/query) + app-binding（13+）
+- Report: overview/trend/source-comparison/placement-ranking/anomalies/daily（6）
+- Reconciliation: list/detail/export/confirm（4）
+- Message: list/read/unread-count（3+）
+- Profile / Dashboard / SDK: 完整
+
+**未实现的关键接口**（5 个）：
+| 接口 | 用途 | 优先级 |
+|------|------|--------|
+| `POST /api/v1/auth/verify` | JWT Token 验证 | 中 |
+| `POST /api/v1/console/adsource/create-custom` | 创建自定义广告源（关联自定义网络） | 高 |
+| `POST /api/v1/console/network/account/create` | 创建广告网络账号 | 高 |
+| `GET /api/v1/console/network/account/list` | 广告网络账号列表 | 高 |
+| `PATCH/DELETE /api/v1/console/network/account/[id]` | 编辑/删除账号 | 高 |
+
+### 4. 页面差距（PLAN: 14 → 实际: 13）
+
+- **未独立成页的 2 个**：
+  - `/networks/[id]/accounts` → 整合为 `/network` 的 Tab（账号管理）
+  - `/networks/[id]/adapters` → 整合为 `/network` 的 Tab（Adapter 管理）
+- 实际功能完整，但 URL 不够 RESTful
+
+### 5. 组件差距（PLAN 新增 2 个）
+
+- **未实现**：
+  - `KVEditor` - 键值对编辑器（用于凭证 JSON 输入）
+  - `AccountManager` - 账号管理组件（含凭证加密展示）
+- 替代方案：当前用 `el-form-item` + `el-input` 临时实现，但缺乏 JSON 可视化、加密、批量管理能力
+
+### 6. 6 步对接流程落地情况
+
+| 步骤 | 名称 | 落地状态 | 备注 |
+|------|------|---------|------|
+| 1 | 上传 Adapter | ✅ 已实现 | network.ts upload 接口 |
+| 2 | 广告网络账号 | ❌ 待补 | 缺表 + 缺 API + 缺 UI |
+| 3 | 数据上报格式 | ✅ 已实现 | custom/report/upload + custom_network_report 表 |
+| 4 | 联调测试 | ⚠️ 部分 | 缺 /adsource/create-custom（绑定到自定义网络） |
+| 5 | 上线 | ⚠️ 部分 | review 接口未独立，依赖现有 status 切换 |
+| 6 | 维护监控 | ✅ 已实现 | report/query + reconciliation |
+
+### 7. 优先级排序（待补工作）
+
+1. **【高】** 建表 `ad_network_account` + 5 个 API + 1 个页面 Tab
+2. **【中】** `KVEditor` 组件（为账号凭证输入准备）
+3. **【中】** `POST /api/v1/console/adsource/create-custom`
+4. **【低】** `POST /api/v1/auth/verify`（已有 me 接口可替代）
 
 ## 开发流程
 
