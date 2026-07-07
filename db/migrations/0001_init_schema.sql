@@ -45,15 +45,22 @@ CREATE TABLE developer (
 -- 2. app - 应用表
 -- =====================================================================
 CREATE TABLE app (
-  id           BIGSERIAL PRIMARY KEY,
-  developer_id TEXT NOT NULL REFERENCES developer(developer_id) ON DELETE CASCADE,
-  app_key      TEXT NOT NULL,
-  app_name     TEXT NOT NULL,
-  platform     TEXT NOT NULL,
-  package_name TEXT,
-  status       SMALLINT DEFAULT 1,
-  created_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+  id                    BIGSERIAL PRIMARY KEY,
+  developer_id          TEXT NOT NULL REFERENCES developer(developer_id) ON DELETE CASCADE,
+  app_key               TEXT NOT NULL,
+  app_name              TEXT NOT NULL,
+  platform              SMALLINT NOT NULL,
+  package_name          TEXT,
+  access_type           SMALLINT DEFAULT 1,
+  category              TEXT,
+  icon_url              TEXT,
+  timeout_ms            SMALLINT DEFAULT 1000,
+  store_url             VARCHAR(500),
+  wechat_app_id         VARCHAR(50),
+  wechat_universal_link VARCHAR(500),
+  status                SMALLINT DEFAULT 1,
+  created_at            TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at            TIMESTAMPTZ NOT NULL DEFAULT now(),
   UNIQUE(developer_id, app_key)
 );
 

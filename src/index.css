@@ -1811,3 +1811,38 @@ html, body, #app {
   font-size: var(--text-base);
   font-weight: 500;
 }
+
+/* ===== App create/edit dialog ===== */
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-md);
+}
+
+.form-row .el-form-item {
+  margin-bottom: var(--space-md);
+}
+
+.form-row-half {
+  margin-bottom: 0 !important;
+}
+
+.locked-access-type {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  height: var(--comp-height);
+  padding: 0 var(--space-md);
+  background: var(--color-slate-50);
+  border: 1px solid var(--color-slate-200);
+  border-radius: var(--radius-md);
+}
+
+.locked-access-type .el-tag {
+  font-weight: 500;
+}
+
+.locked-access-type .locked-tip {
+  font-size: var(--text-xs);
+  color: var(--color-slate-400);
+}
