@@ -2,7 +2,7 @@
   <div class="auth-page">
     <!-- 左侧：表单区 -->
     <div class="auth-form-side">
-      <div class="auth-form-container">
+      <div class="auth-form-container auth-form-container--wide">
         <!-- Logo -->
         <div class="auth-form-logo">
           <img src="/logo.png" alt="新义聚合" class="auth-form-logo-img" />
@@ -22,20 +22,59 @@
           class="auth-form"
           @submit.prevent="handleRegister"
         >
-          <el-form-item label="开发者名称" prop="name">
+          <!-- 公司名称 + 公司简称 -->
+          <el-form-item label="公司名称" prop="company">
             <el-input
-              v-model="form.name"
-              placeholder="请输入开发者名称"
+              v-model="form.company"
+              placeholder="请输入公司全称"
+              clearable
             />
           </el-form-item>
 
+          <el-form-item label="公司简称" prop="companyShortName">
+            <el-input
+              v-model="form.companyShortName"
+              placeholder="请输入公司简称（2-10字符）"
+              clearable
+            />
+          </el-form-item>
+
+          <!-- 联系人 + 联系电话 -->
+          <el-form-item label="联系人" prop="contactName">
+            <el-input
+              v-model="form.contactName"
+              placeholder="请输入联系人姓名"
+              clearable
+            />
+          </el-form-item>
+
+          <el-form-item label="联系电话" prop="phone">
+            <el-input
+              v-model="form.phone"
+              placeholder="请输入11位手机号"
+              clearable
+              maxlength="11"
+            />
+          </el-form-item>
+
+          <!-- 邮箱 -->
           <el-form-item label="邮箱地址" prop="email">
             <el-input
               v-model="form.email"
               placeholder="请输入注册邮箱"
+              clearable
             />
           </el-form-item>
 
+          <!-- 对接方式 -->
+          <el-form-item label="对接方式" prop="accessType">
+            <el-radio-group v-model="form.accessType" class="auth-radio-group">
+              <el-radio-button :value="1">SDK 对接</el-radio-button>
+              <el-radio-button :value="2">API 对接</el-radio-button>
+            </el-radio-group>
+          </el-form-item>
+
+          <!-- 密码 + 确认密码 -->
           <el-form-item label="密码" prop="password">
             <el-input
               v-model="form.password"
@@ -54,18 +93,20 @@
             />
           </el-form-item>
 
+          <!-- 验证码 -->
           <el-form-item label="验证码" prop="captcha">
             <div class="auth-captcha-row">
               <el-input
                 v-model="form.captcha"
                 placeholder="请输入验证码"
                 class="auth-captcha-input"
+                maxlength="4"
               />
               <canvas
                 ref="captchaCanvas"
                 class="auth-captcha-canvas"
-                width="220"
-                height="64"
+                width="110"
+                height="36"
                 @click="refreshCaptcha"
               />
             </div>
@@ -166,8 +207,12 @@ const loading = ref(false)
 const captchaText = ref('')
 
 const form = reactive({
-  name: '',
+  company: '',
+  companyShortName: '',
+  contactName: '',
+  phone: '',
   email: '',
+  accessType: 1,
   password: '',
   confirmPassword: '',
   captcha: '',
@@ -182,18 +227,41 @@ const validateConfirmPassword = (_rule: unknown, value: string, callback: (err?:
   }
 }
 
+const validatePhone = (_rule: unknown, value: string, callback: (err?: Error) => void): void => {
+  if (!/^1[3-9]\d{9}$/.test(value)) {
+    callback(new Error('请输入有效的11位手机号'))
+  } else {
+    callback()
+  }
+}
+
 const rules = {
-  name: [
-    { required: true, message: '请输入开发者名称', trigger: 'blur' },
-    { min: 2, max: 30, message: '名称长度2-30个字符', trigger: 'blur' }
+  company: [
+    { required: true, message: '请输入公司名称', trigger: 'blur' },
+    { min: 2, max: 50, message: '公司名称长度2-50字符', trigger: 'blur' }
+  ],
+  companyShortName: [
+    { required: true, message: '请输入公司简称', trigger: 'blur' },
+    { min: 2, max: 10, message: '公司简称长度2-10字符', trigger: 'blur' }
+  ],
+  contactName: [
+    { required: true, message: '请输入联系人姓名', trigger: 'blur' },
+    { min: 2, max: 20, message: '姓名长度2-20字符', trigger: 'blur' }
+  ],
+  phone: [
+    { required: true, message: '请输入联系电话', trigger: 'blur' },
+    { validator: validatePhone, trigger: 'blur' }
   ],
   email: [
     { required: true, message: '请输入邮箱地址', trigger: 'blur' },
     { type: 'email' as const, message: '请输入有效的邮箱地址', trigger: 'blur' }
   ],
+  accessType: [
+    { required: true, message: '请选择对接方式', trigger: 'change' }
+  ],
   password: [
     { required: true, message: '请设置密码', trigger: 'blur' },
-    { min: 6, message: '密码长度至少6位', trigger: 'blur' }
+    { min: 6, max: 20, message: '密码长度6-20位', trigger: 'blur' }
   ],
   confirmPassword: [
     { required: true, message: '请再次输入密码', trigger: 'blur' },
@@ -227,7 +295,7 @@ function drawCaptcha(): void {
   ctx.fillStyle = '#F1F5F9'
   ctx.fillRect(0, 0, w, h)
 
-  for (let i = 0; i < 4; i++) {
+  for (let i = 0; i < 3; i++) {
     ctx.strokeStyle = `rgba(148,163,184,${0.3 + Math.random() * 0.3})`
     ctx.lineWidth = 1
     ctx.beginPath()
@@ -236,17 +304,17 @@ function drawCaptcha(): void {
     ctx.stroke()
   }
 
-  for (let i = 0; i < 20; i++) {
+  for (let i = 0; i < 15; i++) {
     ctx.fillStyle = `rgba(148,163,184,${0.3 + Math.random() * 0.4})`
     ctx.fillRect(Math.random() * w, Math.random() * h, 2, 2)
   }
 
-  ctx.font = '600 28px "Inter", monospace'
+  ctx.font = '600 22px "Inter", monospace'
   ctx.textBaseline = 'middle'
   for (let i = 0; i < captchaText.value.length; i++) {
     ctx.fillStyle = `rgba(30,58,138,${0.7 + Math.random() * 0.3})`
     ctx.save()
-    ctx.translate(30 + i * 40, h / 2 + (Math.random() - 0.5) * 8)
+    ctx.translate(20 + i * 22, h / 2 + (Math.random() - 0.5) * 4)
     ctx.rotate((Math.random() - 0.5) * 0.3)
     ctx.fillText(captchaText.value[i], 0, 0)
     ctx.restore()
@@ -280,8 +348,12 @@ async function handleRegister(): Promise<void> {
   loading.value = true
   try {
     const res = await request.post('/api/v1/auth/register', {
-      name: form.name,
+      company: form.company,
+      companyShortName: form.companyShortName,
+      contactName: form.contactName,
+      phone: form.phone,
       email: form.email,
+      accessType: form.accessType,
       password: form.password
     })
     if (res.data?.token) {

@@ -10,9 +10,9 @@ const router = Router();
 // Register
 router.post('/register', async (req: express.Request, res: express.Response) => {
   try {
-    const { email, password, company, contactName, phone, accessType } = req.body;
+    const { email, password, company, companyShortName, contactName, phone, accessType } = req.body;
 
-    if (!email || !password || !company || !contactName || !phone) {
+    if (!email || !password || !company || !companyShortName || !contactName || !phone) {
       fail(res, 400, '缺少必填字段');
       return;
     }
@@ -47,6 +47,7 @@ router.post('/register', async (req: express.Request, res: express.Response) => 
       email,
       password: hashedPassword,
       company,
+      company_short_name: companyShortName,
       contact_name: contactName,
       phone,
       access_type: accessType || 1,
@@ -61,7 +62,10 @@ router.post('/register', async (req: express.Request, res: express.Response) => 
       email,
       token,
       company: company || null,
+      companyShortName: companyShortName || null,
       contactName: contactName || null,
+      phone: phone || null,
+      accessType: accessType || 1,
     }, '注册成功');
   } catch (err) {
     console.error('Register error:', err);

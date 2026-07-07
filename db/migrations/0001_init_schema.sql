@@ -25,13 +25,20 @@ DROP TABLE IF EXISTS health_check CASCADE;
 -- 1. developer - 开发者表
 -- =====================================================================
 CREATE TABLE developer (
-  developer_id  TEXT PRIMARY KEY,
-  email         TEXT UNIQUE NOT NULL,
-  password_hash TEXT NOT NULL,
-  company_name  TEXT,
-  status        SMALLINT DEFAULT 1,
-  created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+  id                BIGSERIAL PRIMARY KEY,
+  developer_id      TEXT UNIQUE NOT NULL,
+  email             TEXT UNIQUE NOT NULL,
+  password          TEXT NOT NULL,
+  company           TEXT,
+  company_short_name VARCHAR(50),
+  contact_name      TEXT,
+  phone             TEXT,
+  access_type       SMALLINT DEFAULT 1,
+  api_access_token  TEXT,
+  api_token_expire  TIMESTAMPTZ,
+  status            SMALLINT DEFAULT 1,
+  created_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at        TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 -- =====================================================================

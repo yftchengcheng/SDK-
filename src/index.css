@@ -1630,3 +1630,81 @@ html, body, #app {
 .status-tag--matched { background: #D1FAE5; color: #047857; }
 .status-tag--disputed { background: #FEE2E2; color: #991B1B; }
 .status-tag--resolved { background: #DBEAFE; color: #1E3A8A; }
+
+/* Register form - wider than login */
+.auth-form-container--register {
+  max-width: 480px;
+}
+
+.auth-form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-md);
+}
+
+.auth-access-type {
+  display: flex;
+  gap: var(--space-md);
+  width: 100%;
+}
+
+.auth-access-type-card {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-md) var(--space-lg);
+  border: 1px solid var(--color-slate-200);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  background: #fff;
+}
+
+.auth-access-type-card:hover {
+  border-color: var(--color-primary-200, #BFDBFE);
+  background: var(--color-primary-50, #EFF6FF);
+}
+
+.auth-access-type-card.is-active {
+  border-color: var(--color-primary-600, #2563EB);
+  background: var(--color-primary-50, #EFF6FF);
+  box-shadow: 0 0 0 1px var(--color-primary-600, #2563EB) inset;
+}
+
+.auth-access-type-icon {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-md);
+  background: var(--color-primary-50, #EFF6FF);
+  color: var(--color-primary-600, #2563EB);
+  flex-shrink: 0;
+}
+
+.auth-access-type-card.is-active .auth-access-type-icon {
+  background: var(--color-primary-600, #2563EB);
+  color: #fff;
+}
+
+.auth-access-type-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+}
+
+.auth-access-type-label {
+  font-size: var(--text-base, 13px);
+  font-weight: 500;
+  color: var(--color-slate-900, #0F172A);
+  line-height: 1.2;
+}
+
+.auth-access-type-desc {
+  font-size: var(--text-xs, 11px);
+  color: var(--color-slate-400, #94A3B8);
+  line-height: 1.2;
+}
