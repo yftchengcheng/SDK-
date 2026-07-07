@@ -3,33 +3,69 @@
     <!-- 左侧品牌区 -->
     <div class="auth-hero">
       <div class="auth-hero-bg">
+        <!-- 装饰层：大圆弧 -->
+        <div class="hero-arc"></div>
+        <!-- 装饰层：网格 -->
         <div class="hero-grid"></div>
+        <!-- 装饰层：光晕 -->
         <div class="hero-glow hero-glow-1"></div>
         <div class="hero-glow hero-glow-2"></div>
+        <div class="hero-glow hero-glow-3"></div>
+        <!-- 装饰层：浮动数据卡片 -->
+        <div class="hero-float-card hero-float-card-1">
+          <span class="float-card-icon">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M2 4L6 2L14 6V12L6 16L2 14V4Z" fill="#3B82F6" opacity="0.8"/></svg>
+          </span>
+          <div class="float-card-body">
+            <span class="float-card-label">填充率</span>
+            <span class="float-card-value">96.8%</span>
+          </div>
+        </div>
+        <div class="hero-float-card hero-float-card-2">
+          <span class="float-card-icon">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="1" y="4" width="4" height="10" rx="1" fill="#10B981" opacity="0.8"/><rect x="6" y="2" width="4" height="12" rx="1" fill="#10B981" opacity="0.6"/><rect x="11" y="6" width="4" height="8" rx="1" fill="#10B981" opacity="0.4"/></svg>
+          </span>
+          <div class="float-card-body">
+            <span class="float-card-label">eCPM</span>
+            <span class="float-card-value">¥42.6</span>
+          </div>
+        </div>
+        <div class="hero-float-card hero-float-card-3">
+          <span class="float-card-icon">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6" stroke="#F59E0B" stroke-width="1.5" fill="none" opacity="0.8"/><path d="M8 5V8L10 10" stroke="#F59E0B" stroke-width="1.5" stroke-linecap="round"/></svg>
+          </span>
+          <div class="float-card-body">
+            <span class="float-card-label">实时请求</span>
+            <span class="float-card-value">1.2K/s</span>
+          </div>
+        </div>
       </div>
       <div class="auth-hero-content">
         <div class="hero-logo">
-          <img src="/logo.png" alt="新义聚合平台" class="hero-logo-img" />
+          <img src="/logo.png" alt="新义聚合" class="hero-logo-img" />
         </div>
-        <h2 class="hero-heading">新义聚合平台</h2>
-        <p class="hero-desc">一站式广告源管理与流量变现解决方案<br/>精准配置 · 智能分发 · 数据驱动</p>
-        <div class="hero-features">
-          <div class="hero-feature">
-            <span class="feature-dot"></span>
-            <span>多广告源统一管理</span>
+        <h2 class="hero-heading">新义聚合</h2>
+        <p class="hero-desc">广告SDK聚合平台 — 一站式流量变现解决方案</p>
+        <div class="hero-divider"></div>
+        <div class="hero-stats">
+          <div class="hero-stat">
+            <span class="hero-stat-value">50+</span>
+            <span class="hero-stat-label">广告网络</span>
           </div>
-          <div class="hero-feature">
-            <span class="feature-dot"></span>
-            <span>瀑布流策略精细化配置</span>
+          <div class="hero-stat-sep"></div>
+          <div class="hero-stat">
+            <span class="hero-stat-value">99.9%</span>
+            <span class="hero-stat-label">服务可用</span>
           </div>
-          <div class="hero-feature">
-            <span class="feature-dot"></span>
-            <span>实时数据看板与对账</span>
+          <div class="hero-stat-sep"></div>
+          <div class="hero-stat">
+            <span class="hero-stat-value">&lt;50ms</span>
+            <span class="hero-stat-label">配置延迟</span>
           </div>
         </div>
       </div>
       <div class="auth-hero-footer">
-        <span>&copy; 2026 新义聚合平台</span>
+        <span>&copy; 2026 新义聚合平台 · All rights reserved</span>
       </div>
     </div>
     <!-- 右侧表单区 -->
@@ -135,7 +171,7 @@ const drawCaptcha = () => {
   captchaAnswer.value = captcha.answer;
 
   // 背景
-  ctx.fillStyle = '#F0F4FF';
+  ctx.fillStyle = '#EFF6FF';
   ctx.fillRect(0, 0, 120, 40);
 
   // 干扰线
@@ -143,21 +179,21 @@ const drawCaptcha = () => {
     ctx.beginPath();
     ctx.moveTo(Math.random() * 120, Math.random() * 40);
     ctx.lineTo(Math.random() * 120, Math.random() * 40);
-    ctx.strokeStyle = `rgba(37,99,235,${0.15 + Math.random() * 0.15})`;
+    ctx.strokeStyle = `rgba(37,99,235,${0.12 + Math.random() * 0.12})`;
     ctx.lineWidth = 1;
     ctx.stroke();
   }
 
   // 干扰点
-  for (let i = 0; i < 30; i++) {
+  for (let i = 0; i < 25; i++) {
     ctx.beginPath();
     ctx.arc(Math.random() * 120, Math.random() * 40, 1, 0, 2 * Math.PI);
-    ctx.fillStyle = `rgba(37,99,235,${0.2 + Math.random() * 0.2})`;
+    ctx.fillStyle = `rgba(37,99,235,${0.15 + Math.random() * 0.15})`;
     ctx.fill();
   }
 
   // 文字
-  ctx.font = 'bold 18px "PingFang SC", "Helvetica Neue", monospace';
+  ctx.font = 'bold 17px "PingFang SC", "Helvetica Neue", monospace';
   ctx.fillStyle = '#1E293B';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
