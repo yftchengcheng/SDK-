@@ -999,7 +999,7 @@ body {
 html, body, #app {
   width: 100%;
   height: 100%;
-  font: var(--fs-body);
+  font: var(--text-base);
   color: var(--el-text-color-primary);
   background: var(--el-bg-color-page);
   -webkit-font-smoothing: antialiased;
@@ -1078,7 +1078,7 @@ html, body, #app {
 }
 
 .el-pagination {
-  margin-top: var(--sp-base);
+  margin-top: var(--space-lg);
   justify-content: flex-end;
 }
 
@@ -1200,7 +1200,7 @@ html, body, #app {
 .sidebar .el-menu {
   border-right: none;
   background: transparent;
-  padding: var(--sp-sm) 0;
+  padding: var(--space-sm) 0;
 }
 
 .sidebar .el-menu-item {
@@ -1260,7 +1260,7 @@ html, body, #app {
 .top-bar-right {
   display: flex;
   align-items: center;
-  gap: var(--sp-lg);
+  gap: var(--space-lg);
 }
 
 .msg-icon {
@@ -1276,7 +1276,7 @@ html, body, #app {
 .user-info {
   display: flex;
   align-items: center;
-  gap: var(--sp-sm);
+  gap: var(--space-sm);
   cursor: pointer;
   color: var(--el-text-color-primary);
   padding: 4px 8px;
@@ -1288,7 +1288,7 @@ html, body, #app {
 }
 
 .user-name {
-  font: var(--fs-body);
+  font: var(--text-base);
   font-weight: 500;
 }
 
@@ -1327,7 +1327,7 @@ html, body, #app {
 .header-actions {
   display: flex;
   align-items: center;
-  gap: var(--sp-md);
+  gap: var(--space-md);
 }
 
 .metrics-grid {
@@ -1541,7 +1541,7 @@ html, body, #app {
 /* ========== 空状态 ========== */
 .el-empty__description p {
   color: var(--el-text-color-placeholder);
-  font: var(--fs-body);
+  font: var(--text-base);
 }
 
 /* ========== MainLayout 侧边栏 + 顶栏 ========== */
@@ -1638,9 +1638,9 @@ html, body, #app {
   cursor: pointer;
   display: flex;
   align-items: center;
-  gap: var(--sp-xs);
+  gap: var(--space-xs);
   color: var(--el-text-color-primary);
-  font-size: var(--fs-body);
+  font-size: var(--text-base);
   transition: color 0.2s;
 }
 
