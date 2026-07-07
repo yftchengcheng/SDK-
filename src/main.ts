@@ -14,6 +14,21 @@ import './index.css';
 
 console.log('[main.ts] All imports resolved');
 
+// ============================================================
+//  Vite HMR 防整页刷新（main.ts 层兜底）
+//  index.html 的 dev-guard 已通过 WebSocket 拦截做了一层防护；
+//  此处再通过 import.meta.hot 阻断 vite:beforeFullReload 事件，
+//  防止 WebSocket 拦截漏掉的场景（如动态创建的 HMR 连接）。
+// ============================================================
+if (import.meta.hot) {
+  import.meta.hot.on('vite:beforeFullReload', (payload: unknown) => {
+    const w = window as unknown as { __devGuard?: { count: () => number; force: () => void } };
+    if (typeof w.__devGuard?.force === 'function') {
+      console.warn('[main.ts] 收到 vite:beforeFullReload。payload:', payload);
+    }
+  });
+}
+
 const app = createApp(App);
 
 // Register Element Plus icons globally

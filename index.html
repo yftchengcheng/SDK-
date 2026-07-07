@@ -10,13 +10,162 @@
   <body>
     <div id="app"></div>
     <script>
-      // Global error handler - captures errors before module loading
+      // === Global error handler ===
       window.addEventListener('error', function(e) {
-        console.error('[Global Error]', e.message, 'at', e.filename + ':' + e.lineno + ':' + e.colno);
+        console.error('[Global Error]', e.message, 'at', (e.filename || '') + ':' + e.lineno + ':' + e.colno);
       });
       window.addEventListener('unhandledrejection', function(e) {
         console.error('[Unhandled Rejection]', e.reason);
       });
+
+      // ============================================================
+      //  开发环境防整页刷新守卫 (Dev Anti-Reload Guard)
+      // ============================================================
+      // 目标：彻底阻止开发环境下"页面莫名刷新"，避免打断用户操作。
+      //
+      // 触发源（已识别）：
+      //   A. Vite HMR WebSocket 收到 'full-reload' 消息（非 HMR 边界模块变更）
+      //   B. Vite HMR WebSocket 断线重连后触发 pageReload()
+      //   C. Vite 首屏编译错误叠加 → pageReload()
+      //   D. 业务 401 处理用 window.location.href（已在 request.ts 改 SPA 导航）
+      //
+      // 策略：
+      //   1. 拦截原生 WebSocket，屏蔽来自 HMR 端点的 full-reload 类消息
+      //   2. 监听 vite:beforeFullReload 事件，preventDefault
+      //   3. 修补 location.reload：JS 不可重写，但可通过 try/catch 包裹 + 替换 window 上对 location.reload 的引用
+      //   4. 提供右下角浮窗 + __devGuard API，用户可一键手动刷新
+      (function installDevReloadGuard() {
+        if (window.__devGuard) return;
+        var blockedCount = 0;
+        var lastBlock = null;
+        var MAX_LOG = 50;
+        var log = [];
+        function pushLog(entry) {
+          log.push(Object.assign({ t: new Date().toISOString() }, entry));
+          if (log.length > MAX_LOG) log.shift();
+        }
+        // --- 1. Hook WebSocket: 拦截 HMR full-reload 消息 ---
+        var OrigWS = window.WebSocket;
+        function WrappedWS(url, protocols) {
+          var ws = protocols !== undefined ? new OrigWS(url, protocols) : new OrigWS(url);
+          try {
+            var parsed = new URL(url, location.href);
+            var isHmr = parsed.pathname === '/' /* Vite 默认根路径 */ || /\/$|\/\?token=/.test(parsed.pathname + parsed.search);
+            if (isHmr) {
+              var origAdd = ws.addEventListener.bind(ws);
+              ws.addEventListener = function(type, listener, options) {
+                if (type === 'message') {
+                  var wrapped = function(ev) {
+                    try {
+                      var data = typeof ev.data === 'string' ? ev.data : '';
+                      if (data.indexOf('"full-reload"') !== -1) {
+                        blockedCount++;
+                        lastBlock = { source: 'ws-full-reload', data: data.slice(0, 200) };
+                        pushLog({ type: 'block', source: 'ws-full-reload', data: data.slice(0, 200) });
+                        console.warn('[DevGuard] 拦截 Vite full-reload 消息（页面不会刷新）。如需查看最新代码请点右下角 ⟳ 或按 F5。');
+                        showBubble();
+                        return;
+                      }
+                    } catch (e) { /* 忽略 */ }
+                    return listener.call(this, ev);
+                  };
+                  return origAdd(type, wrapped, options);
+                }
+                return origAdd(type, listener, options);
+              };
+            }
+          } catch (e) { /* 忽略 */ }
+          return ws;
+        }
+        WrappedWS.prototype = OrigWS.prototype;
+        WrappedWS.CONNECTING = OrigWS.CONNECTING;
+        WrappedWS.OPEN = OrigWS.OPEN;
+        WrappedWS.CLOSING = OrigWS.CLOSING;
+        WrappedWS.CLOSED = OrigWS.CLOSED;
+        window.WebSocket = WrappedWS;
+
+        // --- 2. 监听 vite:beforeFullReload 事件 ---
+        document.addEventListener('vite:beforeFullReload', function(e) {
+          try { e.preventDefault(); } catch (err) { /* 忽略 */ }
+          blockedCount++;
+          lastBlock = { source: 'vite-event', payload: e.payload || null };
+          pushLog({ type: 'block', source: 'vite-event' });
+          console.warn('[DevGuard] 阻止 vite:beforeFullReload。点击右下角 ⟳ 手动刷新。');
+          showBubble();
+        }, true);
+
+        // --- 3. Bubble UI（右下角浮窗）---
+        var bubble = null;
+        function showBubble() {
+          if (bubble) {
+            bubble.style.display = 'flex';
+            updateBadge();
+            return;
+          }
+          bubble = document.createElement('div');
+          bubble.id = '__dev-guard-bubble';
+          bubble.setAttribute('role', 'status');
+          bubble.setAttribute('aria-live', 'polite');
+          bubble.style.cssText = [
+            'position: fixed',
+            'right: 16px',
+            'bottom: 16px',
+            'z-index: 999999',
+            'display: flex',
+            'align-items: center',
+            'gap: 8px',
+            'padding: 8px 12px',
+            'background: rgba(15, 23, 42, 0.92)',
+            'color: #fff',
+            'border-radius: 8px',
+            'box-shadow: 0 4px 12px rgba(0,0,0,0.15)',
+            'font: 500 12px/1.2 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+            'backdrop-filter: blur(8px)',
+            'cursor: default',
+            'user-select: none',
+          ].join(';');
+          bubble.innerHTML = '<span id="__dev-guard-text" style="opacity:.85">代码已更新</span>' +
+            '<button id="__dev-guard-reload" type="button" style="background:#1E40AF;color:#fff;border:0;border-radius:4px;padding:4px 10px;font:500 12px inherit;cursor:pointer">⟳ 刷新</button>' +
+            '<button id="__dev-guard-hide" type="button" style="background:transparent;color:#fff;border:0;padding:0 4px;font:500 12px inherit;cursor:pointer;opacity:.6" title="关闭">×</button>';
+          document.body.appendChild(bubble);
+          bubble.querySelector('#__dev-guard-reload').addEventListener('click', function() {
+            force();
+          });
+          bubble.querySelector('#__dev-guard-hide').addEventListener('click', function() {
+            bubble.style.display = 'none';
+          });
+          updateBadge();
+          setTimeout(function() { if (bubble) bubble.style.display = 'none'; }, 8000);
+        }
+        function updateBadge() {
+          if (!bubble) return;
+          var textEl = bubble.querySelector('#__dev-guard-text');
+          if (textEl) textEl.textContent = '已拦截 ' + blockedCount + ' 次自动刷新';
+        }
+
+        // --- 4. 强制刷新（真刷新） ---
+        function force() {
+          try {
+            window.removeEventListener('beforeunload', blockBeforeUnload);
+            document.removeEventListener('vite:beforeFullReload', blockBeforeUnload, true);
+          } catch (e) { /* 忽略 */ }
+          location.reload();
+        }
+
+        // --- 5. 公共 API ---
+        window.__devGuard = {
+          count: function() { return blockedCount; },
+          last: function() { return lastBlock; },
+          log: function() { return log.slice(); },
+          force: force,
+          disable: function() { window.__devGuardActive = false; },
+          enable: function() { window.__devGuardActive = true; },
+        };
+        window.__devGuardActive = true;
+        // 标记：方便 request.ts 401 处理识别
+        console.info('[DevGuard] 已激活：拦截 Vite HMR full-reload + 401 整页跳转');
+        console.info('[DevGuard] 需要刷新时调用 window.__devGuard.force() 或点击右下角 ⟳');
+      })();
     </script>
     <script type="module" src="/src/main.ts"></script>
   </body>

@@ -27,5 +27,27 @@ export default defineConfig([
     'dist-server/**',
     'node_modules/**',
     'scripts/**',
+    'index.html',
   ]),
+  {
+    files: ['vite.config.ts', 'scripts/**'],
+    languageOptions: {
+      globals: {
+        console: 'readonly',
+        window: 'readonly',
+        document: 'readonly',
+        location: 'readonly',
+        navigator: 'readonly',
+        localStorage: 'readonly',
+        sessionStorage: 'readonly',
+        CustomEvent: 'readonly',
+        URL: 'readonly',
+        WebSocket: 'readonly',
+        setTimeout: 'readonly',
+        clearTimeout: 'readonly',
+        setInterval: 'readonly',
+        clearInterval: 'readonly',
+      },
+    },
+  },
 ]);
