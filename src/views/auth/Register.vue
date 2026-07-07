@@ -1,45 +1,12 @@
 <template>
   <div class="auth-page">
-    <!-- 左侧品牌区 -->
-    <div class="auth-hero">
-      <div class="auth-hero-grid"></div>
-      <div class="auth-hero-glow auth-hero-glow--1"></div>
-      <div class="auth-hero-glow auth-hero-glow--2"></div>
-      <div class="auth-hero-content">
-        <div class="auth-hero-logo">
-          <img src="/logo.png" alt="新义聚合" class="auth-hero-logo-img" />
-          <div class="auth-hero-logo-text">
-            <span class="auth-hero-logo-name">新义聚合</span>
-            <span class="auth-hero-logo-sub">Xinyi Aggregation</span>
-          </div>
-        </div>
-        <h2 class="auth-hero-title">广告SDK聚合平台</h2>
-        <p class="auth-hero-desc">一站式流量变现解决方案</p>
-        <div class="auth-hero-metrics">
-          <div class="auth-hero-metric">
-            <span class="auth-hero-metric-val">50+</span>
-            <span class="auth-hero-metric-label">广告网络</span>
-          </div>
-          <div class="auth-hero-metric">
-            <span class="auth-hero-metric-val">99.9%</span>
-            <span class="auth-hero-metric-label">服务可用</span>
-          </div>
-          <div class="auth-hero-metric">
-            <span class="auth-hero-metric-val">&lt;50ms</span>
-            <span class="auth-hero-metric-label">配置延迟</span>
-          </div>
-        </div>
-        <div class="auth-hero-trust">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-          <span>企业级数据安全 · 等保三级认证</span>
-        </div>
-      </div>
-      <div class="auth-hero-footer">© 2026 新义聚合平台 · All rights reserved</div>
-    </div>
-
-    <!-- 右侧表单区 -->
+    <!-- 左侧表单区 -->
     <div class="auth-form-side">
       <div class="auth-form-wrap">
+        <div class="auth-form-logo">
+          <img src="/logo.png" alt="新义聚合" class="auth-form-logo-img" />
+          <span class="auth-form-logo-name">新义聚合</span>
+        </div>
         <h1 class="auth-form-title">创建账号</h1>
         <p class="auth-form-subtitle">开启高效流量变现之旅</p>
 
@@ -51,76 +18,61 @@
           @submit.prevent="handleRegister"
         >
           <!-- 公司名称 -->
-          <el-form-item label="公司名称" prop="company">
-            <el-input
-              v-model="form.company"
-              placeholder="请输入公司名称"
-            />
+          <el-form-item prop="company">
+            <div class="auth-field">
+              <svg class="auth-field-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 21h18M3 7v14m18 0V7m-9-4L3 7l9 4 9-4z"/></svg>
+              <el-input v-model="form.company" placeholder="请输入公司名称" />
+            </div>
           </el-form-item>
 
           <!-- 联系人 -->
-          <el-form-item label="联系人" prop="contactName">
-            <el-input
-              v-model="form.contactName"
-              placeholder="请输入联系人姓名"
-            />
+          <el-form-item prop="contactName">
+            <div class="auth-field">
+              <svg class="auth-field-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+              <el-input v-model="form.contactName" placeholder="请输入联系人姓名" />
+            </div>
           </el-form-item>
 
           <!-- 邮箱 -->
-          <el-form-item label="邮箱" prop="email">
-            <el-input
-              v-model="form.email"
-              type="email"
-              placeholder="请输入邮箱地址"
-              autocomplete="email"
-            />
+          <el-form-item prop="email">
+            <div class="auth-field">
+              <svg class="auth-field-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M22 4L12 13 2 4"/></svg>
+              <el-input v-model="form.email" type="email" placeholder="请输入邮箱地址" autocomplete="email" />
+            </div>
           </el-form-item>
 
           <!-- 手机号 -->
-          <el-form-item label="手机号" prop="phone">
-            <el-input
-              v-model="form.phone"
-              placeholder="请输入手机号"
-            />
+          <el-form-item prop="phone">
+            <div class="auth-field">
+              <svg class="auth-field-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12" y2="18.01" stroke-width="2"/></svg>
+              <el-input v-model="form.phone" placeholder="请输入手机号" />
+            </div>
           </el-form-item>
 
           <!-- 密码 -->
-          <el-form-item label="密码" prop="password">
-            <el-input
-              v-model="form.password"
-              type="password"
-              placeholder="请设置密码（至少6位）"
-              show-password
-              autocomplete="new-password"
-            />
+          <el-form-item prop="password">
+            <div class="auth-field">
+              <svg class="auth-field-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+              <el-input v-model="form.password" type="password" placeholder="请设置密码（至少6位）" show-password autocomplete="new-password" />
+            </div>
           </el-form-item>
 
           <!-- 确认密码 -->
-          <el-form-item label="确认密码" prop="confirmPassword">
-            <el-input
-              v-model="form.confirmPassword"
-              type="password"
-              placeholder="请再次输入密码"
-              show-password
-              autocomplete="new-password"
-            />
+          <el-form-item prop="confirmPassword">
+            <div class="auth-field">
+              <svg class="auth-field-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/><circle cx="12" cy="16" r="1"/></svg>
+              <el-input v-model="form.confirmPassword" type="password" placeholder="请再次输入密码" show-password autocomplete="new-password" />
+            </div>
           </el-form-item>
 
           <!-- 验证码 -->
-          <el-form-item label="验证码" prop="captcha">
+          <el-form-item prop="captcha">
             <div class="auth-captcha-row">
-              <el-input
-                v-model="form.captcha"
-                placeholder="请输入验证码"
-                @keyup.enter="handleRegister"
-              />
-              <canvas
-                ref="captchaCanvas"
-                class="auth-captcha-canvas"
-                width="120"
-                height="36"
-                @click="generateCaptcha"
-              ></canvas>
+              <div class="auth-field auth-field--flex">
+                <svg class="auth-field-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 2a3 3 0 0 0-3 3v4a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10a7 7 0 0 1-14 0"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+                <el-input v-model="form.captcha" placeholder="请输入验证码" @keyup.enter="handleRegister" />
+              </div>
+              <canvas ref="captchaCanvas" class="auth-captcha-canvas" width="120" height="36" @click="generateCaptcha"></canvas>
             </div>
           </el-form-item>
 
@@ -128,7 +80,7 @@
           <el-form-item class="auth-form-item-policy">
             <el-checkbox v-model="agreed" class="auth-checkbox">
               <span class="auth-policy-text">
-                请阅读并勾选确认
+                请阅读并确认
                 <a class="auth-policy-link" @click.prevent="showPrivacy = true">《新义聚合平台隐私政策》</a>
               </span>
             </el-checkbox>
@@ -136,13 +88,7 @@
 
           <!-- 注册按钮 -->
           <el-form-item class="auth-form-item-btn">
-            <el-button
-              type="primary"
-              class="auth-submit-btn"
-              :loading="loading"
-              :disabled="!agreed"
-              @click="handleRegister"
-            >
+            <el-button type="primary" class="auth-submit-btn" :loading="loading" :disabled="!agreed" @click="handleRegister">
               注 册
             </el-button>
           </el-form-item>
@@ -153,6 +99,54 @@
           <router-link to="/login" class="auth-link">立即登录</router-link>
         </div>
       </div>
+    </div>
+
+    <!-- 右侧品牌区 -->
+    <div class="auth-hero">
+      <div class="auth-hero-bg"></div>
+      <div class="auth-hero-content">
+        <h2 class="auth-hero-title">智能聚合，高效变现</h2>
+        <p class="auth-hero-desc">全方位广告SDK聚合管理平台，助力开发者实现精准流量分配与数据驱动决策</p>
+        <div class="auth-hero-features">
+          <div class="auth-hero-feature">
+            <div class="auth-hero-feature-icon">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 3v18h18"/><path d="M7 16l4-8 4 4 6-10"/></svg>
+            </div>
+            <div class="auth-hero-feature-text">
+              <span class="auth-hero-feature-name">实时数据洞察</span>
+              <span class="auth-hero-feature-desc">多维度数据分析</span>
+            </div>
+          </div>
+          <div class="auth-hero-feature">
+            <div class="auth-hero-feature-icon">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="3"/><path d="M12 1v2m0 18v2m-9-11h2m18 0h2m-3.3-7.7l-1.4 1.4M5.7 18.3l-1.4 1.4m0-15.4l1.4 1.4m12.6 12.6l1.4 1.4"/></svg>
+            </div>
+            <div class="auth-hero-feature-text">
+              <span class="auth-hero-feature-name">智能瀑布流</span>
+              <span class="auth-hero-feature-desc">自动优化填充率</span>
+            </div>
+          </div>
+          <div class="auth-hero-feature">
+            <div class="auth-hero-feature-icon">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 20V10m0 0l-3 3m3-3l3 3"/><path d="M3 20h18"/></svg>
+            </div>
+            <div class="auth-hero-feature-text">
+              <span class="auth-hero-feature-name">多维报表分析</span>
+              <span class="auth-hero-feature-desc">收入趋势一目了然</span>
+            </div>
+          </div>
+          <div class="auth-hero-feature">
+            <div class="auth-hero-feature-icon">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+            </div>
+            <div class="auth-hero-feature-text">
+              <span class="auth-hero-feature-name">安全合规</span>
+              <span class="auth-hero-feature-desc">企业级数据保护</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="auth-hero-footer">© 2026 新义聚合平台 · All rights reserved</div>
     </div>
 
     <!-- 隐私政策弹窗 -->

@@ -289,7 +289,7 @@ body {
 .el-dialog__body { padding: 0 !important; }
 .el-dialog__footer { background: var(--color-slate-50); border-top: 1px solid var(--color-slate-200); padding: 12px 20px !important; }
 
-/* ========== Auth Pages (左右分屏 - 精致版) ========== */
+/* ========== Auth Pages (左表单 / 右品牌 - 精致版) ========== */
 .auth-page {
   display: flex;
   width: 100%;
@@ -298,484 +298,362 @@ body {
   background: #FFFFFF;
 }
 
-/* ---- 左侧品牌区 ---- */
-.auth-hero {
-  position: relative;
-  width: 46%;
-  min-width: 420px;
-  height: 100vh;
-  background: var(--color-slate-900);
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  padding: 48px 44px;
-  overflow: hidden;
-  flex-shrink: 0;
-}
-
-.auth-hero-bg {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-}
-
-/* 网格纹理 - 细密精致 */
-.hero-mesh {
-  position: absolute;
-  inset: 0;
-  background-image:
-    linear-gradient(rgba(59,130,246,0.06) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(59,130,246,0.06) 1px, transparent 1px);
-  background-size: 40px 40px;
-  mask-image: radial-gradient(ellipse 70% 60% at 50% 50%, black 30%, transparent 80%);
-  -webkit-mask-image: radial-gradient(ellipse 70% 60% at 50% 50%, black 30%, transparent 80%);
-}
-
-/* 光晕 - 蓝+蓝绿（禁止紫色） */
-.hero-glow {
-  position: absolute;
-  border-radius: 50%;
-  filter: blur(120px);
-  animation: hero-glow-pulse 10s ease-in-out infinite alternate;
-}
-
-.hero-glow-1 {
-  width: 400px;
-  height: 400px;
-  top: -12%;
-  left: -10%;
-  background: rgba(37, 99, 235, 0.22);
-}
-
-.hero-glow-2 {
-  width: 300px;
-  height: 300px;
-  bottom: 5%;
-  right: -5%;
-  background: rgba(5, 150, 105, 0.12);
-  animation-delay: 4s;
-}
-
-@keyframes hero-glow-pulse {
-  0% { opacity: 0.75; transform: scale(1); }
-  100% { opacity: 1; transform: scale(1.08); }
-}
-
-/* 轨道环 - 科技感 */
-.hero-orbit {
-  position: absolute;
-  border-radius: 50%;
-  border: 1px solid rgba(59, 130, 246, 0.07);
-  right: -60px;
-  top: 50%;
-}
-
-.hero-orbit-1 {
-  width: 500px;
-  height: 500px;
-  transform: translateY(-50%);
-}
-
-.hero-orbit-2 {
-  width: 360px;
-  height: 360px;
-  transform: translateY(-50%);
-  border-color: rgba(59, 130, 246, 0.05);
-}
-
-.hero-orbit-3 {
-  width: 220px;
-  height: 220px;
-  transform: translateY(-50%);
-  border-color: rgba(5, 150, 105, 0.08);
-}
-
-/* 轨道上的小点 */
-.hero-orbit-1::after,
-.hero-orbit-2::after {
-  content: '';
-  position: absolute;
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: #3B82F6;
-  box-shadow: 0 0 8px rgba(59, 130, 246, 0.5);
-}
-
-.hero-orbit-1::after {
-  top: 24px;
-  right: 80px;
-}
-
-.hero-orbit-2::after {
-  bottom: 30px;
-  left: 40px;
-  width: 4px;
-  height: 4px;
-  background: #059669;
-  box-shadow: 0 0 6px rgba(5, 150, 105, 0.5);
-}
-
-/* 品牌区内容 */
-.auth-hero-content {
-  position: relative;
-  z-index: 2;
-  max-width: 380px;
-  width: 100%;
-}
-
-/* Logo + 品牌名 组合 */
-.hero-brand {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 36px;
-}
-
-.hero-logo-img {
-  height: 40px;
-  width: 40px;
-  object-fit: contain;
-  border-radius: 8px;
-  flex-shrink: 0;
-}
-
-.hero-brand-text {
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-}
-
-.hero-brand-name {
-  font: 600 18px/1.2 "Inter", "PingFang SC", "Helvetica Neue", sans-serif;
-  color: var(--color-slate-100);
-  letter-spacing: 0.5px;
-}
-
-.hero-brand-tag {
-  font: 400 var(--text-xs)/1 "Inter", "PingFang SC", "Helvetica Neue", sans-serif;
-  color: var(--color-slate-500);
-  letter-spacing: 1px;
-  text-transform: uppercase;
-}
-
-.hero-heading {
-  font: 700 24px/1.5 "Inter", "PingFang SC", "Helvetica Neue", sans-serif;
-  color: #FFFFFF;
-  margin-bottom: 12px;
-  letter-spacing: -0.01em;
-}
-
-.hero-desc {
-  font: 400 var(--text-md)/1.7 "Inter", "PingFang SC", "Helvetica Neue", sans-serif;
-  color: var(--color-slate-400);
-  margin-bottom: 28px;
-}
-
-/* 数据指标横排 */
-.hero-metrics {
-  display: flex;
-  align-items: center;
-  gap: 0;
-  margin-bottom: 28px;
-  padding: 16px 20px;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  border-radius: 8px;
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-}
-
-.hero-metric {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
-}
-
-.hero-metric-value {
-  font: 700 22px/1 "Inter", "PingFang SC", "Helvetica Neue", sans-serif;
-  color: var(--color-slate-100);
-  letter-spacing: -0.01em;
-}
-
-.hero-metric-unit {
-  font-size: var(--text-md);
-  font-weight: 500;
-  color: var(--color-slate-400);
-}
-
-.hero-metric-label {
-  font: 400 var(--text-sm)/1 "Inter", "PingFang SC", "Helvetica Neue", sans-serif;
-  color: var(--color-slate-500);
-}
-
-.hero-metric-divider {
-  width: 1px;
-  height: 32px;
-  background: rgba(255, 255, 255, 0.08);
-  flex-shrink: 0;
-}
-
-/* 信任标识 */
-.hero-trust {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.hero-trust-item {
-  display: flex;
-  align-items: center;
-  gap: var(--space-sm);
-  font: 400 var(--text-sm)/1 "Inter", "PingFang SC", "Helvetica Neue", sans-serif;
-  color: var(--color-slate-500);
-}
-
-.hero-trust-item svg {
-  flex-shrink: 0;
-}
-
-.auth-hero-footer {
-  position: absolute;
-  bottom: 24px;
-  left: 44px;
-  right: 44px;
-  font: 400 var(--text-xs)/1 "Inter", "PingFang SC", "Helvetica Neue", sans-serif;
-  color: var(--color-slate-600);
-  z-index: 2;
-}
-
-/* ---- 右侧表单区 ---- */
+/* ---- 左侧表单区 ---- */
 .auth-form-side {
   flex: 1;
   height: 100vh;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--color-slate-50);
+  background: #FFFFFF;
   padding: 48px;
   overflow-y: auto;
   position: relative;
 }
 
-/* 右上角装饰光晕 */
-.auth-form-side::before {
-  content: '';
-  position: absolute;
-  top: -80px;
-  right: -80px;
-  width: 280px;
-  height: 280px;
-  background: radial-gradient(circle, rgba(37, 99, 235, 0.04) 0%, transparent 65%);
-  pointer-events: none;
-}
-
-.auth-form-container {
+.auth-form-wrap {
   width: 100%;
-  max-width: 420px;
+  max-width: 400px;
   position: relative;
   z-index: 1;
 }
 
-.auth-form-header {
-  margin-bottom: 32px;
+/* Logo + 品牌名 */
+.auth-form-logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 36px;
+}
+.auth-form-logo-img {
+  height: 36px;
+  width: 36px;
+  object-fit: contain;
+  border-radius: var(--radius-md);
+  flex-shrink: 0;
+}
+.auth-form-logo-name {
+  font: 600 var(--text-lg)/1 "Inter", "PingFang SC", sans-serif;
+  color: var(--color-slate-900);
+  letter-spacing: -0.01em;
 }
 
 .auth-form-title {
-  font: 600 24px/1.3 "Inter", "PingFang SC", "Helvetica Neue", sans-serif;
+  font: 600 var(--text-3xl)/1.3 "Inter", "PingFang SC", sans-serif;
   color: var(--color-slate-900);
-  margin-bottom: 6px;
+  margin-bottom: 4px;
   letter-spacing: -0.01em;
 }
 
 .auth-form-subtitle {
-  font: 400 13px/1 "Inter", "PingFang SC", "Helvetica Neue", sans-serif;
+  font: 400 var(--text-base)/1 "Inter", "PingFang SC", sans-serif;
   color: var(--color-slate-400);
+  margin-bottom: 32px;
 }
 
-/* 表单精细调整 */
+/* 表单项 */
 .auth-form .el-form-item {
-  margin-bottom: 20px;
+  margin-bottom: 18px;
 }
-
 .auth-form .el-form-item__label {
-  font: 600 var(--text-sm)/1 "Inter", "PingFang SC", "Helvetica Neue", sans-serif;
-  color: var(--color-slate-700);
-  padding-bottom: 6px;
+  display: none;
+}
+.auth-form .el-form-item__error {
+  font-size: var(--text-xs);
+  padding-top: 2px;
 }
 
+/* 输入框+图标容器 */
+.auth-field {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+.auth-field--flex {
+  flex: 1;
+  min-width: 0;
+}
+.auth-field-icon {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--color-slate-400);
+  z-index: 1;
+  pointer-events: none;
+  flex-shrink: 0;
+}
+
+/* 输入框精细调整 - 带左图标 */
 .auth-form .el-input__wrapper {
   border-radius: var(--radius-md);
   box-shadow: 0 0 0 1px var(--color-slate-200) inset;
-  padding: 2px 12px;
-  transition: box-shadow 0.15s ease;
-  height: var(--comp-height);
+  padding: 1px 12px;
+  transition: box-shadow var(--transition-fast);
+  height: var(--comp-height-lg);
 }
-
+.auth-field .el-input__wrapper {
+  padding-left: 36px;
+}
 .auth-form .el-input__inner {
   font-size: var(--text-base);
+  color: var(--color-slate-900);
 }
-
 .auth-form .el-input__inner::placeholder {
   font-size: var(--text-sm);
   color: var(--color-slate-400);
 }
-
 .auth-form .el-input__wrapper:hover {
   box-shadow: 0 0 0 1px var(--color-slate-300) inset;
 }
-
 .auth-form .el-input__wrapper.is-focus {
   box-shadow: 0 0 0 1px var(--color-primary-600) inset, 0 0 0 3px rgba(37,99,235,0.08);
 }
-
-
-.auth-form-actions {
-  margin-top: 8px;
+.auth-form .el-input__wrapper.is-focus + .auth-field-icon,
+.auth-field:focus-within .auth-field-icon {
+  color: var(--color-primary-500);
 }
 
-/* 登录/注册按钮 - 实心蓝色 */
+/* 密码显示切换 */
+.auth-form .el-input__suffix {
+  height: var(--comp-height-lg);
+}
+
+/* 验证码行 */
+.auth-captcha-row {
+  display: flex;
+  gap: 10px;
+  width: 100%;
+  align-items: center;
+}
+.auth-captcha-canvas {
+  flex-shrink: 0;
+  width: 120px;
+  height: var(--comp-height-lg);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  cursor: pointer;
+  box-shadow: 0 0 0 1px var(--color-slate-200) inset;
+  transition: box-shadow var(--transition-fast);
+}
+.auth-captcha-canvas:hover {
+  box-shadow: 0 0 0 1px var(--color-primary-400) inset, 0 0 0 3px rgba(37,99,235,0.06);
+}
+
+/* 隐私政策 */
+.auth-form-item-policy {
+  margin-bottom: 8px !important;
+}
+.auth-checkbox {
+  font: 400 var(--text-sm)/1.5 "Inter", "PingFang SC", sans-serif;
+  color: var(--color-slate-600);
+}
+.auth-checkbox .el-checkbox__label {
+  white-space: normal;
+  line-height: 1.5;
+  font-size: var(--text-sm);
+}
+.auth-policy-text {
+  color: var(--color-slate-600);
+}
+.auth-policy-link {
+  color: var(--color-primary-600);
+  text-decoration: none;
+  font-weight: 500;
+  cursor: pointer;
+  transition: color var(--transition-fast);
+}
+.auth-policy-link:hover {
+  color: var(--color-primary-700);
+  text-decoration: underline;
+}
+
+/* 登录/注册按钮 */
+.auth-form-item-btn {
+  margin-bottom: 0 !important;
+  margin-top: 4px;
+}
 .auth-submit-btn {
   width: 100%;
-  height: var(--comp-height-lg);
-  font: 500 var(--text-base)/1 "Inter", "PingFang SC", "Helvetica Neue", sans-serif;
-  border-radius: var(--radius-md);
-  background: var(--color-primary-800);
-  border-color: var(--color-primary-800);
-  color: #FFFFFF;
-  transition: all 0.15s ease;
+  height: var(--comp-height-lg) !important;
+  font: 500 var(--text-base)/1 "Inter", "PingFang SC", sans-serif !important;
+  border-radius: var(--radius-md) !important;
+  background: var(--color-primary-800) !important;
+  border-color: var(--color-primary-800) !important;
+  color: #FFFFFF !important;
+  transition: all var(--transition-fast);
+  letter-spacing: 0.05em;
 }
-
 .auth-submit-btn:not(:disabled):hover {
-  background: var(--color-primary-700);
-  border-color: var(--color-primary-700);
+  background: var(--color-primary-700) !important;
+  border-color: var(--color-primary-700) !important;
   box-shadow: 0 2px 8px rgba(30, 64, 175, 0.25);
 }
-
 .auth-submit-btn:not(:disabled):active {
-  background: var(--color-primary-900);
-  border-color: var(--color-primary-900);
-  box-shadow: none;
+  background: var(--color-primary-900) !important;
+  border-color: var(--color-primary-900) !important;
 }
-
 .auth-submit-btn:disabled {
-  background: var(--color-primary-300);
-  border-color: var(--color-primary-300);
-  color: #FFFFFF;
+  background: var(--color-primary-300) !important;
+  border-color: var(--color-primary-300) !important;
   cursor: not-allowed;
 }
 
-.auth-form-row {
-  display: flex;
-  gap: 16px;
-}
-
-.auth-form-row-item {
-  flex: 1;
-}
-
+/* 底部链接 */
 .auth-form-footer {
   text-align: center;
-  font: 400 var(--text-base)/1 "Inter", "PingFang SC", "Helvetica Neue", sans-serif;
+  font: 400 var(--text-sm)/1 "Inter", "PingFang SC", sans-serif;
   color: var(--color-slate-400);
   margin-top: 24px;
   padding-top: 20px;
   border-top: 1px solid var(--color-slate-100);
 }
-
 .auth-link {
   color: var(--color-primary-600);
   text-decoration: none;
   font-weight: 500;
-  transition: color 0.15s ease;
+  transition: color var(--transition-fast);
+  margin-left: 4px;
 }
-
 .auth-link:hover {
   color: var(--color-primary-700);
 }
 
-/* 验证码 */
-.captcha-row {
-  display: flex;
-  gap: 10px;
-  width: 100%;
+/* 隐私政策弹窗内容 */
+.auth-privacy-content {
+  padding: var(--space-xl);
 }
-
-.captcha-input {
-  flex: 1;
-}
-
-.captcha-canvas {
-  flex-shrink: 0;
-  width: 110px;
-  height: var(--comp-height);
-  border-radius: var(--radius-md);
-  overflow: hidden;
-  cursor: pointer;
-  box-shadow: 0 0 0 1px var(--color-slate-200) inset;
-  transition: box-shadow 0.15s ease;
-}
-
-.captcha-canvas:hover {
-  box-shadow: 0 0 0 1px var(--color-primary-400) inset, 0 0 0 3px rgba(37,99,235,0.06);
-}
-
-.captcha-canvas canvas {
-  display: block;
-  width: 110px;
-  height: var(--comp-height);
-}
-
-/* 隐私政策 */
-.privacy-check {
-  width: 100%;
-}
-
-.privacy-check .el-checkbox {
-  align-items: flex-start;
-  font: 400 var(--text-base)/1.57 "Inter", "PingFang SC", "Helvetica Neue", sans-serif;
-  color: var(--color-slate-600);
-}
-
-.privacy-check .el-checkbox__label {
-  white-space: normal;
-  line-height: 1.57;
-}
-
-.privacy-link {
-  color: var(--color-primary-600);
-  text-decoration: none;
-  font-weight: 500;
-  transition: color 0.15s ease;
-}
-
-.privacy-link:hover {
-  color: var(--color-primary-700);
-  text-decoration: underline;
-}
-
-.privacy-content h4 {
-  font: 600 var(--text-md)/1.57 "Inter", "PingFang SC", "Helvetica Neue", sans-serif;
+.auth-privacy-content h4 {
+  font: 600 var(--text-md)/1.5 "Inter", "PingFang SC", sans-serif;
   color: var(--color-slate-900);
   margin: 16px 0 4px;
 }
-
-.privacy-content h4:first-child {
-  margin-top: 0;
-}
-
-.privacy-content p {
-  font: 400 var(--text-base)/1.71 "Inter", "PingFang SC", "Helvetica Neue", sans-serif;
+.auth-privacy-content p {
+  font: 400 var(--text-base)/1.7 "Inter", "PingFang SC", sans-serif;
   color: var(--color-slate-500);
   margin: 0 0 8px;
+}
+
+/* ---- 右侧品牌区 ---- */
+.auth-hero {
+  position: relative;
+  width: 44%;
+  min-width: 400px;
+  height: 100vh;
+  background: linear-gradient(135deg, var(--color-primary-900) 0%, var(--color-primary-800) 60%, var(--color-primary-700) 100%);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 60px 48px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+/* 背景装饰 */
+.auth-hero-bg {
+  position: absolute;
+  inset: 0;
+  background-image:
+    radial-gradient(ellipse 80% 50% at 70% 40%, rgba(59,130,246,0.15) 0%, transparent 60%),
+    radial-gradient(ellipse 60% 40% at 20% 80%, rgba(5,150,105,0.08) 0%, transparent 50%);
+  pointer-events: none;
+}
+.auth-hero-bg::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
+  background-size: 48px 48px;
+}
+
+/* 品牌区内容 */
+.auth-hero-content {
+  position: relative;
+  z-index: 2;
+  max-width: 420px;
+  width: 100%;
+}
+
+.auth-hero-title {
+  font: 700 28px/1.3 "Inter", "PingFang SC", sans-serif;
+  color: #FFFFFF;
+  margin-bottom: 12px;
+  letter-spacing: -0.01em;
+}
+
+.auth-hero-desc {
+  font: 400 var(--text-md)/1.7 "Inter", "PingFang SC", sans-serif;
+  color: rgba(255,255,255,0.6);
+  margin-bottom: 36px;
+}
+
+/* 功能特性卡片 */
+.auth-hero-features {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.auth-hero-feature {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: var(--radius-lg);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  transition: all var(--transition-fast);
+}
+.auth-hero-feature:hover {
+  background: rgba(255,255,255,0.1);
+  border-color: rgba(255,255,255,0.15);
+}
+
+.auth-hero-feature-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-md);
+  background: rgba(255,255,255,0.08);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: rgba(255,255,255,0.8);
+}
+
+.auth-hero-feature-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.auth-hero-feature-name {
+  font: 500 var(--text-md)/1.2 "Inter", "PingFang SC", sans-serif;
+  color: rgba(255,255,255,0.95);
+}
+.auth-hero-feature-desc {
+  font: 400 var(--text-xs)/1.2 "Inter", "PingFang SC", sans-serif;
+  color: rgba(255,255,255,0.45);
+}
+
+.auth-hero-footer {
+  position: absolute;
+  bottom: 24px;
+  left: 48px;
+  right: 48px;
+  font: 400 var(--text-xs)/1 "Inter", "PingFang SC", sans-serif;
+  color: rgba(255,255,255,0.25);
+  z-index: 2;
 }
 
 /* 移动端适配 */
 @media (max-width: 860px) {
   .auth-page {
-    flex-direction: column;
+    flex-direction: column-reverse;
     height: auto;
     min-height: 100vh;
   }
@@ -788,12 +666,15 @@ body {
   .auth-hero-content {
     max-width: unset;
   }
-  .hero-metrics {
-    justify-content: center;
+  .auth-hero-features {
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 8px;
   }
-  .hero-orbit,
-  .hero-trust {
-    display: none;
+  .auth-hero-feature {
+    flex: 1 1 calc(50% - 4px);
+    min-width: 140px;
+    padding: 10px 12px;
   }
   .auth-hero-footer {
     display: none;
@@ -801,9 +682,6 @@ body {
   .auth-form-side {
     height: auto;
     padding: 24px;
-  }
-  .auth-form-side::before {
-    display: none;
   }
 }
 

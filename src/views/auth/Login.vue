@@ -1,45 +1,12 @@
 <template>
   <div class="auth-page">
-    <!-- 左侧品牌区 -->
-    <div class="auth-hero">
-      <div class="auth-hero-grid"></div>
-      <div class="auth-hero-glow auth-hero-glow--1"></div>
-      <div class="auth-hero-glow auth-hero-glow--2"></div>
-      <div class="auth-hero-content">
-        <div class="auth-hero-logo">
-          <img src="/logo.png" alt="新义聚合" class="auth-hero-logo-img" />
-          <div class="auth-hero-logo-text">
-            <span class="auth-hero-logo-name">新义聚合</span>
-            <span class="auth-hero-logo-sub">Xinyi Aggregation</span>
-          </div>
-        </div>
-        <h2 class="auth-hero-title">广告SDK聚合平台</h2>
-        <p class="auth-hero-desc">一站式流量变现解决方案</p>
-        <div class="auth-hero-metrics">
-          <div class="auth-hero-metric">
-            <span class="auth-hero-metric-val">50+</span>
-            <span class="auth-hero-metric-label">广告网络</span>
-          </div>
-          <div class="auth-hero-metric">
-            <span class="auth-hero-metric-val">99.9%</span>
-            <span class="auth-hero-metric-label">服务可用</span>
-          </div>
-          <div class="auth-hero-metric">
-            <span class="auth-hero-metric-val">&lt;50ms</span>
-            <span class="auth-hero-metric-label">配置延迟</span>
-          </div>
-        </div>
-        <div class="auth-hero-trust">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-          <span>企业级数据安全 · 等保三级认证</span>
-        </div>
-      </div>
-      <div class="auth-hero-footer">© 2026 新义聚合平台 · All rights reserved</div>
-    </div>
-
-    <!-- 右侧表单区 -->
+    <!-- 左侧表单区 -->
     <div class="auth-form-side">
       <div class="auth-form-wrap">
+        <div class="auth-form-logo">
+          <img src="/logo.png" alt="新义聚合" class="auth-form-logo-img" />
+          <span class="auth-form-logo-name">新义聚合</span>
+        </div>
         <h1 class="auth-form-title">欢迎回来</h1>
         <p class="auth-form-subtitle">登录管理控制台</p>
 
@@ -51,34 +18,43 @@
           @submit.prevent="handleLogin"
         >
           <!-- 邮箱 -->
-          <el-form-item label="邮箱" prop="email">
-            <el-input
-              v-model="form.email"
-              type="email"
-              placeholder="请输入注册邮箱"
-              autocomplete="email"
-            />
+          <el-form-item prop="email">
+            <div class="auth-field">
+              <svg class="auth-field-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M22 4L12 13 2 4"/></svg>
+              <el-input
+                v-model="form.email"
+                type="email"
+                placeholder="请输入注册邮箱"
+                autocomplete="email"
+              />
+            </div>
           </el-form-item>
 
           <!-- 密码 -->
-          <el-form-item label="密码" prop="password">
-            <el-input
-              v-model="form.password"
-              type="password"
-              placeholder="请输入密码"
-              show-password
-              autocomplete="current-password"
-            />
+          <el-form-item prop="password">
+            <div class="auth-field">
+              <svg class="auth-field-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+              <el-input
+                v-model="form.password"
+                type="password"
+                placeholder="请输入密码"
+                show-password
+                autocomplete="current-password"
+              />
+            </div>
           </el-form-item>
 
           <!-- 验证码 -->
-          <el-form-item label="验证码" prop="captcha">
+          <el-form-item prop="captcha">
             <div class="auth-captcha-row">
-              <el-input
-                v-model="form.captcha"
-                placeholder="请输入验证码"
-                @keyup.enter="handleLogin"
-              />
+              <div class="auth-field auth-field--flex">
+                <svg class="auth-field-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 2a3 3 0 0 0-3 3v4a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10a7 7 0 0 1-14 0"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+                <el-input
+                  v-model="form.captcha"
+                  placeholder="请输入验证码"
+                  @keyup.enter="handleLogin"
+                />
+              </div>
               <canvas
                 ref="captchaCanvas"
                 class="auth-captcha-canvas"
@@ -93,7 +69,7 @@
           <el-form-item class="auth-form-item-policy">
             <el-checkbox v-model="agreed" class="auth-checkbox">
               <span class="auth-policy-text">
-                请阅读并勾选确认
+                请阅读并确认
                 <a class="auth-policy-link" @click.prevent="showPrivacy = true">《新义聚合平台隐私政策》</a>
               </span>
             </el-checkbox>
@@ -118,6 +94,54 @@
           <router-link to="/register" class="auth-link">立即注册</router-link>
         </div>
       </div>
+    </div>
+
+    <!-- 右侧品牌区 -->
+    <div class="auth-hero">
+      <div class="auth-hero-bg"></div>
+      <div class="auth-hero-content">
+        <h2 class="auth-hero-title">智能聚合，高效变现</h2>
+        <p class="auth-hero-desc">全方位广告SDK聚合管理平台，助力开发者实现精准流量分配与数据驱动决策</p>
+        <div class="auth-hero-features">
+          <div class="auth-hero-feature">
+            <div class="auth-hero-feature-icon">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 3v18h18"/><path d="M7 16l4-8 4 4 6-10"/></svg>
+            </div>
+            <div class="auth-hero-feature-text">
+              <span class="auth-hero-feature-name">实时数据洞察</span>
+              <span class="auth-hero-feature-desc">多维度数据分析</span>
+            </div>
+          </div>
+          <div class="auth-hero-feature">
+            <div class="auth-hero-feature-icon">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="3"/><path d="M12 1v2m0 18v2m-9-11h2m18 0h2m-3.3-7.7l-1.4 1.4M5.7 18.3l-1.4 1.4m0-15.4l1.4 1.4m12.6 12.6l1.4 1.4"/></svg>
+            </div>
+            <div class="auth-hero-feature-text">
+              <span class="auth-hero-feature-name">智能瀑布流</span>
+              <span class="auth-hero-feature-desc">自动优化填充率</span>
+            </div>
+          </div>
+          <div class="auth-hero-feature">
+            <div class="auth-hero-feature-icon">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 20V10m0 0l-3 3m3-3l3 3"/><path d="M3 20h18"/></svg>
+            </div>
+            <div class="auth-hero-feature-text">
+              <span class="auth-hero-feature-name">多维报表分析</span>
+              <span class="auth-hero-feature-desc">收入趋势一目了然</span>
+            </div>
+          </div>
+          <div class="auth-hero-feature">
+            <div class="auth-hero-feature-icon">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+            </div>
+            <div class="auth-hero-feature-text">
+              <span class="auth-hero-feature-name">安全合规</span>
+              <span class="auth-hero-feature-desc">企业级数据保护</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="auth-hero-footer">© 2026 新义聚合平台 · All rights reserved</div>
     </div>
 
     <!-- 隐私政策弹窗 -->
@@ -182,11 +206,9 @@ function generateCaptcha(): void {
   const w = canvas.width
   const h = canvas.height
 
-  // 背景
   ctx.fillStyle = '#F1F5F9'
   ctx.fillRect(0, 0, w, h)
 
-  // 干扰线
   for (let i = 0; i < 4; i++) {
     ctx.strokeStyle = `rgba(148,163,184,${0.3 + Math.random() * 0.3})`
     ctx.lineWidth = 1
@@ -196,13 +218,11 @@ function generateCaptcha(): void {
     ctx.stroke()
   }
 
-  // 干扰点
   for (let i = 0; i < 20; i++) {
     ctx.fillStyle = `rgba(148,163,184,${0.3 + Math.random() * 0.4})`
     ctx.fillRect(Math.random() * w, Math.random() * h, 2, 2)
   }
 
-  // 随机字符
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
   let code = ''
   const colors = ['#1E40AF', '#2563EB', '#0F172A', '#334155']
