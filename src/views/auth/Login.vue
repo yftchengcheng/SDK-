@@ -26,7 +26,6 @@
             <el-input
               v-model="form.email"
               placeholder="请输入注册邮箱"
-              class="auth-input"
             />
           </el-form-item>
 
@@ -36,7 +35,6 @@
               type="password"
               placeholder="请输入密码"
               show-password
-              class="auth-input"
             />
           </el-form-item>
 
@@ -45,7 +43,7 @@
               <el-input
                 v-model="form.captcha"
                 placeholder="请输入验证码"
-                class="auth-input auth-captcha-input"
+                class="auth-captcha-input"
               />
               <canvas
                 ref="captchaCanvas"

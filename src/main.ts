@@ -2,6 +2,10 @@ console.log('[main.ts] Starting imports...');
 
 import { createApp } from 'vue';
 import ElementPlus from 'element-plus';
+// 通过 index.css 顶部 @import 引入 EP CSS（见 index.css 第 2 行）
+// 原因：viteCssAcceptFix 插件会移除 Accept 中的 text/css，
+// 在 main.ts 中直接 import 'element-plus/dist/index.css' 会被 Vite 视为
+// JS 模块并注入 &direct 参数返回原始 CSS，浏览器以 ES module 加载会报 SyntaxError。
 import * as ElementPlusIconsVue from '@element-plus/icons-vue';
 import App from './App.vue';
 import router from './router';

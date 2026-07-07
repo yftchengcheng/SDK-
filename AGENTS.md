@@ -105,6 +105,22 @@ pnpm lint             # ESLint 检查
 - `getDeveloper(req)` 辅助函数从 req 获取当前开发者信息
 - 前端 API 调用统一通过 `src/utils/request.ts` 封装的 axios 实例
 
+## 关键避坑（Critical Pitfalls）
+
+### 1. Element Plus CSS 必须显式引入 [CRITICAL]
+- **症状**：所有 EP 组件无默认样式（输入框无 `display: inline-flex`、inner 无 `width: 100%`），导致布局错乱、出现"两输入框"重叠效果
+- **原因**：`main.ts` 只 import 了 `element-plus` 的 JS，未 import CSS
+- **修复**：`src/index.css` 第 2 行通过 `@import "element-plus/theme-chalk/index.css";` 引入
+- **不能**在 `main.ts` 里 `import 'element-plus/dist/index.css'`，因为 `viteCssAcceptFix` 插件会移除 `text/css` Accept 头，导致 Vite 返回原始 CSS 触发 SyntaxError
+
+### 2. Vue SFC 禁止 `<style>` 块 [CRITICAL]
+- **原因**：CDN（volc-dcdn）拦截 `.vue?type=style` 请求，将 Vite 编译后的 JS 模块响应体替换为原始 CSS
+- **修复**：所有样式集中在 `src/index.css`（全局唯一 CSS 文件）
+
+### 3. 布局 Flex 陷阱
+- **症状**：`flex: 56 0 0` + 兄弟元素 `min-width: 340px` 会让前者被挤到 0 宽
+- **修复**：使用 `flex: 0 0 56%` / `flex: 0 0 44%` 显式百分比分配
+
 ## 设计规范
 
 详见 `DESIGN.md`，核心约束：

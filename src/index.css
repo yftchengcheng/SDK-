@@ -1,4 +1,8 @@
 @import "https://fonts.googleapis.cn/css2?family=Inter:wght@400;500;600;700&display=swap";
+
+/* Element Plus 基础 CSS（必须前置以确保 EP 变量和基础组件样式生效） */
+@import "element-plus/theme-chalk/index.css";
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -311,7 +315,8 @@ body {
 
 /* ---- 左侧表单区 (56%) ---- */
 .auth-form-side {
-  flex: 56 0 0;
+  flex: 0 0 56%;
+  min-width: 0;
   height: 100vh;
   display: flex;
   align-items: center;
@@ -364,7 +369,11 @@ body {
   margin: 0 0 var(--space-2xl);
 }
 
-/* ---- 表单项 ---- */
+/* ---- 表单 ---- */
+.auth-form {
+  width: 100%;
+}
+
 .auth-form .el-form-item {
   margin-bottom: var(--space-xl);
 }
@@ -537,8 +546,8 @@ body {
 /* ---- 右侧品牌区 (44%) ---- */
 .auth-hero-side {
   position: relative;
-  flex: 44 0 0;
-  min-width: 340px;
+  flex: 0 0 44%;
+  min-width: 0;
   height: 100vh;
   background: linear-gradient(135deg, var(--color-primary-900), var(--color-primary-800));
   display: flex;
@@ -546,7 +555,6 @@ body {
   justify-content: center;
   padding: var(--space-2xl) calc(var(--space-2xl) * 1.5);
   overflow: hidden;
-  flex-shrink: 0;
 }
 
 /* 背景网格纹理 */
