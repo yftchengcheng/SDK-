@@ -123,8 +123,13 @@ const onDragMove = (e: MouseEvent) => {
   if (!dragging.value) return
   const w = window.innerWidth
   const h = window.innerHeight
-  pos.x = Math.min(Math.max(16, e.clientX - dragOffset.x), w - 76)
-  pos.y = Math.min(Math.max(16, e.clientY - dragOffset.y), h - 76)
+  // 根据当前形态选用不同边距：隐藏态的边条 28x80，允许更贴近边缘
+  const isHidden = view.value === 'hidden'
+  const margin = isHidden ? 4 : 16
+  const maxW = isHidden ? 32 : 76
+  const maxH = isHidden ? 88 : 76
+  pos.x = Math.min(Math.max(margin, e.clientX - dragOffset.x), w - maxW)
+  pos.y = Math.min(Math.max(margin, e.clientY - dragOffset.y), h - maxH)
 }
 
 const onDragEnd = () => {
@@ -330,6 +335,11 @@ const openWidget = () => {
 }
 
 const hideToEdge = () => {
+  // 收进侧边栏时，位置放在右侧边缘竖直居中（用户随后可自由拖动）
+  if (typeof window !== 'undefined') {
+    pos.value.x = Math.max(0, window.innerWidth - 32)
+    pos.value.y = Math.max(0, window.innerHeight / 2 - 40)
+  }
   view.value = 'hidden'
   saveState()
 }
@@ -346,12 +356,13 @@ const toggleClose = () => {
 
 const widgetStyle = computed(() => {
   if (view.value === 'hidden') {
+    // 收进侧边栏：使用 pos 让用户可自由拖动，初始收起到右侧边缘
     return {
-      right: '0px',
-      top: '50%',
-      transform: 'translateY(-50%)',
-      left: 'auto',
+      right: 'auto',
       bottom: 'auto',
+      transform: 'none',
+      left: `${pos.value.x}px`,
+      top: `${pos.value.y}px`,
     }
   }
   return {
