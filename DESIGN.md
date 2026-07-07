@@ -269,6 +269,38 @@ B2B 企业级广告数据管理控制台。沉稳、专业、精准。蓝+灰+�
 - 筛选变化：自动刷新
 - 消息铃铛：未读红点, >99显示"99+"
 
+## 登录/注册页设计
+
+### 布局
+- 左表单(56%) + 右品牌(44%)，min-width 400px
+- 表单区背景: #FFFFFF（分屏布局纯白对比）
+- 品牌区背景: linear-gradient(135deg, #1E3A8A, #1E40AF)（同侧边栏渐变，2色，禁止3色）
+
+### 表单区
+- 表单宽度: max-width 380px
+- Logo区: gap --space-md / margin-bottom --space-2xl / 图标 32×32px / 文字 --text-lg weight 600
+- 标题: --text-2xl (20px) / weight 700 / --color-slate-900 / margin-bottom --space-xs
+- 副标题: --text-base (13px) / weight 400 / --color-slate-400 / margin-bottom --space-2xl
+- 表单标签: --text-sm (12px) / weight 600 / --color-slate-700 / padding-bottom --space-xs
+- 输入框: --comp-height (28px) / 圆角 --radius-md / 字号 --text-base / placeholder --text-sm --color-slate-400
+- 输入框图标: Element Plus Icons via #prefix slot / el-icon size=14 / color --color-slate-400 / focus时 --color-primary-500
+- 表单项间距: margin-bottom --space-xl (20px)
+- 验证码canvas: 高度同输入框 --comp-height (28px) / 宽度 100px / 圆角 --radius-md
+- 隐私政策: --text-sm / --color-slate-600 / 链接 --color-primary-600 weight 500
+- 提交按钮: width 100% / height --comp-height-lg (32px, CTA用large) / --text-base / weight 500 / 背景 --color-primary-800 / hover --color-primary-700 / active --color-primary-900 / 禁用 --color-primary-200
+- 底部链接: --text-sm / --color-slate-400 / margin-top --space-2xl / padding-top --space-xl / border-top --color-slate-100
+
+### 品牌区
+- 内边距: --space-2xl × 2 (48px) 改用 --space-2xl × 2
+- 大标题: --text-3xl (24px) / weight 700 / #FFFFFF / margin-bottom --space-md
+- 描述: --text-md (14px) / weight 400 / rgba(255,255,255,0.6) / margin-bottom --space-2xl
+- 特性列表gap: --space-md (12px)
+- 特性卡片: padding --space-md --space-lg (12px 16px) / gap --space-md / 背景 rgba(255,255,255,0.06) / 边框 rgba(255,255,255,0.08) / 圆角 --radius-lg / hover rgba(255,255,255,0.1)
+- 特性图标: 32×32px / 圆角 --radius-md / 背景 rgba(255,255,255,0.08) / SVG 16px
+- 特性名称: --text-sm (12px) / weight 500 / rgba(255,255,255,0.95)
+- 特性描述: --text-xs (11px) / weight 400 / rgba(255,255,255,0.45)
+- 版权: --text-xs / rgba(255,255,255,0.25) / absolute bottom --space-2xl
+
 ## 设计禁忌
 
 - 禁止琥珀黄/橙色作为装饰色或强调色
