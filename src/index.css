@@ -382,17 +382,14 @@ body {
 }
 
 /* ---- 输入框 — DESIGN.md Input 规范 ---- */
-/* wrapper: 28px高 + box-shadow边框 + 6px圆角 + 内部flex居中 */
+/* wrapper: 28px高 + box-shadow边框 + 6px圆角 */
 .auth-form .el-input__wrapper {
   height: var(--comp-height) !important;
-  display: inline-flex !important;
-  align-items: center !important;
   border-radius: var(--radius-md) !important;
   box-shadow: 0 0 0 1px var(--color-slate-200) inset !important;
-  padding: 0 var(--space-md) !important;
+  padding: 1px var(--space-md) !important;
   transition: box-shadow 150ms ease;
   background-color: #FFFFFF;
-  overflow: hidden;
 }
 .auth-form .el-input__wrapper:hover {
   box-shadow: 0 0 0 1px var(--color-slate-300) inset !important;
@@ -401,30 +398,24 @@ body {
   box-shadow: 0 0 0 1px var(--color-primary-600) inset, 0 0 0 3px rgba(37,99,235,0.08) !important;
 }
 
-/* inner: height auto, 让wrapper的align-items:center控制垂直居中 */
+/* inner: 高度自适应wrapper减去上下padding */
 .auth-form .el-input__inner {
   font-size: var(--text-base);
   color: var(--color-slate-900);
-  height: auto;
-  line-height: 1;
-  flex: 1;
-  min-width: 0;
+  height: calc(var(--comp-height) - 2px) !important;
+  line-height: calc(var(--comp-height) - 2px) !important;
 }
 .auth-form .el-input__inner::placeholder {
   font-size: var(--text-sm);
   color: var(--color-slate-400);
 }
 
-/* prefix图标: 14px, 垂直居中, 不撑高wrapper */
+/* prefix图标: 14px, 不撑高wrapper */
 .auth-form .el-input__prefix {
-  display: flex;
-  align-items: center;
   margin-right: var(--space-xs);
   padding: 0;
-  height: 100%;
   color: var(--color-slate-400);
   transition: color 150ms ease;
-  flex-shrink: 0;
 }
 .auth-input-icon {
   color: var(--color-slate-400) !important;
@@ -434,12 +425,9 @@ body {
   color: var(--color-primary-500) !important;
 }
 
-/* suffix: 垂直居中 */
+/* suffix */
 .auth-form .el-input__suffix {
-  height: 100%;
-  display: flex;
-  align-items: center;
-  flex-shrink: 0;
+  color: var(--color-slate-400);
 }
 
 /* ---- 验证码行 ---- */
