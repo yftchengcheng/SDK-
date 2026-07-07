@@ -1,131 +1,90 @@
-# 广告SDK聚合平台 - AGENTS.md
+# AGENTS.md — SDK聚合系统 项目规范
 
 ## 项目概览
 
-广告SDK聚合平台管理控制台，面向开发者提供应用管理、广告位配置、瀑布流策略、流量分组、数据看板、对账管理等功能。
+广告SDK聚合平台管理后台，支持开发者管理应用、广告位、瀑布流配置、流量分组、数据报表，以及自定义广告网络的线上对接流程（Adapter上传/审核/版本管理/应用关联）。
 
-## 技术栈
+## 版本技术栈
 
-- **前端**: Vue 3 + TypeScript + Vite + Element Plus + ECharts + Vue Router + Pinia
-- **后端**: Node.js + Express + TypeScript + Supabase Client (PostgREST)
-- **数据库**: PostgreSQL (via Supabase, RLS 已禁用)
-- **认证**: JWT (7天有效期, HS256)
-- **密码**: bcryptjs 加密
+- **Framework**: Next.js 16 (App Router)
+- **Core**: React 19
+- **Language**: TypeScript 5
+- **UI 组件**: shadcn/ui (基于 Radix UI)
+- **Styling**: Tailwind CSS 4
+- **State**: Zustand
+- **Charts**: Recharts (CSR only)
+- **Database**: Supabase (PostgreSQL) + Drizzle迁移
+- **Auth**: JWT (jose库 + HttpOnly Cookie)
 
 ## 目录结构
 
 ```
-├── server/                      # 后端
-│   ├── server.ts                # Express 入口 + Vite 中间件
-│   ├── vite.ts                  # Vite 开发中间件（仅处理非 /api 请求）
-│   ├── db.ts                    # Supabase 客户端封装
-│   ├── middleware/
-│   │   └── auth.ts              # JWT 认证中间件
-│   ├── routes/
-│   │   ├── index.ts             # 路由注册汇总
-│   │   ├── auth.ts              # 注册/登录/登出/个人信息
-│   │   ├── app.ts               # 应用 CRUD
-│   │   ├── placement.ts         # 广告位 CRUD
-│   │   ├── ad-source.ts         # 广告源 CRUD
-│   │   ├── waterfall.ts         # 瀑布流配置
-│   │   ├── traffic-group.ts     # 流量分组
-│   │   ├── sdk.ts               # SDK 配置下发
-│   │   ├── report.ts            # 数据上报 + 日报表查询
-│   │   ├── dashboard.ts         # Dashboard 指标/图表
-│   │   ├── reconciliation.ts    # 对账管理
-│   │   ├── message.ts           # 消息中心
-│   │   ├── network.ts           # 自定义广告网络
-│   │   └── profile.ts           # 个人中心/API Token
-│   └── utils/
-│       ├── id-generator.ts      # Base62 Token 生成器 (dev_/app_/pl_/api_)
-│       ├── response.ts          # 统一响应封装
-│       └── supabase-client.ts   # Supabase 客户端初始化
-├── src/                         # 前端
-│   ├── main.ts                  # Vue 入口
-│   ├── App.vue                  # 根组件
-│   ├── index.css                # 全局样式 + Element Plus 主题覆盖
-│   ├── router/index.ts          # 路由配置
-│   ├── stores/user.ts           # 用户状态管理 (Pinia)
-│   ├── utils/request.ts         # Axios 封装 (Token 拦截器)
-│   ├── layout/
-│   │   └── MainLayout.vue       # 主布局 (侧边栏+顶栏)
-│   └── views/
-│       ├── auth/                # 登录/注册
-│       ├── dashboard/           # 数据看板
-│       ├── app/                 # 应用管理
-│       ├── placement/           # 广告位管理
-│       ├── ad-source/           # 广告源管理
-│       ├── waterfall/           # 瀑布流配置
-│       ├── traffic-group/       # 流量分组
-│       ├── report/              # 日报表
-│       ├── reconciliation/      # 对账管理
-│       ├── message/             # 消息中心
-│       ├── profile/             # 个人中心
-│       └── network/             # 自定义网络
-├── scripts/                     # 构建与启动脚本
-├── index.html                   # 入口 HTML
-├── DESIGN.md                    # UI/UX 设计规范
-└── package.json
+├── public/                 # 静态资源
+├── src/
+│   ├── app/                # 页面路由与布局
+│   │   ├── (auth)/         # 认证页面组（登录/注册）
+│   │   ├── (console)/      # 控制台页面组（需认证）
+│   │   └── api/            # API路由
+│   │       └── v1/         # v1版本API
+│   ├── components/         # 组件
+│   │   ├── ui/             # shadcn/ui基础组件
+│   │   └── shared/         # 业务公共组件
+│   ├── hooks/              # 自定义Hooks
+│   ├── lib/                # 工具库
+│   │   ├── utils.ts        # 通用工具
+│   │   ├── id-generator.ts # Token生成器
+│   │   └── jwt.ts          # JWT工具
+│   ├── stores/             # Zustand状态仓库
+│   └── storage/database/   # Supabase数据库
+│       ├── supabase-client.ts
+│       └── shared/schema.ts
+├── PLAN.md                 # 开发计划（基准文档）
+├── DESIGN.md               # UI/UX设计规范
+└── AGENTS.md               # 本文件
 ```
 
-## 构建和测试命令
+## 包管理规范
 
-```bash
-pnpm install          # 安装依赖
-pnpm run dev          # 启动开发服务器 (coze dev)
-pnpm run build        # 构建生产版本
-pnpm run start        # 启动生产服务
-pnpm ts-check         # TypeScript 类型检查
-pnpm lint             # ESLint 检查
-```
+**仅允许使用 pnpm**，严禁 npm 或 yarn。
 
-## API 路由前缀
+## 开发规范
 
-| 前缀 | 用途 |
-|------|------|
-| `/api/health` | 健康检查 |
-| `/api/v1/auth` | 认证（无需Token） |
-| `/api/v1/console/*` | 管理后台（需JWT） |
-| `/api/v1/sdk/config` | SDK配置下发（app_key鉴权） |
-| `/api/v1/report` | 数据上报（Body含三级Token） |
+### 编码规范
 
-## 数据库关键约束
+- TypeScript strict 模式，禁止隐式 any / as any
+- 函数参数、返回值、事件对象必须标注类型
+- 禁止引用未声明标识符
+- 字段名统一 snake_case（Supabase要求）
 
-- 所有 13 张表的 RLS 已禁用
-- `developer_id`, `app_key`, `placement_id` 为唯一索引
-- Token 格式: `dev_`/`app_`/`pl_` + 16位Base62, `api_` + 32位Base62
-- Supabase PostgREST 存在最终一致性，写后立即读需加重试逻辑
+### Hydration问题防范
 
-## 编码规范
+- 严禁JSX中直接使用 typeof window / Date.now() / Math.random()
+- 动态内容必须 'use client' + useEffect + useState
+- 图表组件（Recharts）必须 'use client'
+- 严禁非法HTML嵌套（如 p 嵌套 div）
 
-- TypeScript strict 模式，禁止隐式 any
-- Supabase 查询结果需类型断言（`.maybeSingle()` 返回 untyped）
-- 统一使用 `success(res, data)` / `fail(res, code, msg)` 封装响应
-- 认证中间件: `authMiddleware`，从 JWT 解析 `developerId`
-- `getDeveloper(req)` 辅助函数从 req 获取当前开发者信息
-- 前端 API 调用统一通过 `src/utils/request.ts` 封装的 axios 实例
+### next.config配置
 
-## 关键避坑（Critical Pitfalls）
+- 路径不写死绝对路径，使用 path.resolve / import.meta.dirname / process.cwd()
 
-### 1. Element Plus CSS 必须显式引入 [CRITICAL]
-- **症状**：所有 EP 组件无默认样式（输入框无 `display: inline-flex`、inner 无 `width: 100%`），导致布局错乱、出现"两输入框"重叠效果
-- **原因**：`main.ts` 只 import 了 `element-plus` 的 JS，未 import CSS
-- **修复**：`src/index.css` 第 2 行通过 `@import "element-plus/theme-chalk/index.css";` 引入
-- **不能**在 `main.ts` 里 `import 'element-plus/dist/index.css'`，因为 `viteCssAcceptFix` 插件会移除 `text/css` Accept 头，导致 Vite 返回原始 CSS 触发 SyntaxError
+### UI设计规范
 
-### 2. Vue SFC 禁止 `<style>` 块 [CRITICAL]
-- **原因**：CDN（volc-dcdn）拦截 `.vue?type=style` 请求，将 Vite 编译后的 JS 模块响应体替换为原始 CSS
-- **修复**：所有样式集中在 `src/index.css`（全局唯一 CSS 文件）
+- 严格遵循 DESIGN.md 中的配色、字号、间距、圆角、阴影、组件规范
+- 页面底色 #F8FAFC，侧边栏蓝渐变 #1E3A8A→#1E40AF
+- 图标使用 Lucide React，禁止 Emoji
+- 状态标签配色见 DESIGN.md 状态标签配色表
 
-### 3. 布局 Flex 陷阱
-- **症状**：`flex: 56 0 0` + 兄弟元素 `min-width: 340px` 会让前者被挤到 0 宽
-- **修复**：使用 `flex: 0 0 56%` / `flex: 0 0 44%` 显式百分比分配
+### 数据库规范
 
-## 设计规范
+- 所有表操作使用 Supabase SDK（client.from()），不用 Drizzle ORM 语法
+- 每次调用检查 { data, error }，error 必须 throw
+- .delete() / .update() 必须带 filter
+- 字段名 snake_case
 
-详见 `DESIGN.md`，核心约束：
-- 强制配色白名单（6组合法搭配）
-- 6档字号枚举绑定
-- 6档间距系统
-- Element Plus CSS 变量覆盖
-- 3种标准页面模板（列表/详情/表单）
+## 开发流程
+
+1. 每次开发前读取 PLAN.md，确认当前阶段待办
+2. 严格按 DESIGN.md 的UI/UX规范实现界面
+3. 完成后更新 PLAN.md 对应步骤状态为 ✅
+4. 如发现偏差，记录到 PLAN.md 偏差记录表
+5. 交付前通过 test_run 执行静态检查 + API冒烟测试
