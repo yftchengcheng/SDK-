@@ -309,3 +309,5 @@ const handleDelete = async (row: any) => {
 };
 
 onMounted(fetchList);
+
+</script>
