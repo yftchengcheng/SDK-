@@ -1,7 +1,7 @@
 import express, { Router } from 'express';
 import { db } from '../db';
 import { genPlacementId } from '../utils/id-generator';
-import { authMiddleware, getDeveloper } from '../middleware/auth';
+import { authMiddleware, getDeveloper, getDeveloperContext } from '../middleware/auth';
 import { success, fail } from '../utils/response';
 
 const router = Router();
@@ -42,8 +42,11 @@ router.get('/list', authMiddleware, async (req: express.Request, res: express.Re
 // Create placement
 router.post('/create', authMiddleware, async (req: express.Request, res: express.Response) => {
   try {
-    const { developerId } = getDeveloper(req);
-    const { appKey, name, format } = req.body;
+    const { developerId, accessType } = await getDeveloperContext(req);
+    const {
+      appKey, name, format,
+      biddingType, screenOrientation, adSize, materialType, videoMute, autoPlay, templateStyle,
+    } = req.body;
 
     if (!appKey || !name || !format) {
       fail(res, 400, '缺少必填字段');
@@ -59,12 +62,23 @@ router.post('/create', authMiddleware, async (req: express.Request, res: express
 
     const placementId = genPlacementId();
 
-    const { data, error } = await db.from('placement').insert({
+    // API 接入(accessType=2) 时不允许填写 screen_orientation / video_mute / auto_play
+    const isSDK = accessType !== 2;
+    const insertData: Record<string, unknown> = {
       app_key: appKey,
       placement_id: placementId,
       name,
       format,
-    }).select().single();
+    };
+    if (biddingType !== undefined && biddingType !== null) insertData.bidding_type = biddingType;
+    if (isSDK && screenOrientation !== undefined && screenOrientation !== null) insertData.screen_orientation = screenOrientation;
+    if (adSize !== undefined && adSize !== null) insertData.ad_size = adSize;
+    if (materialType !== undefined && materialType !== null) insertData.material_type = materialType;
+    if (isSDK && videoMute !== undefined && videoMute !== null) insertData.video_mute = videoMute;
+    if (isSDK && autoPlay !== undefined && autoPlay !== null) insertData.auto_play = autoPlay;
+    if (templateStyle !== undefined && templateStyle !== null) insertData.template_style = templateStyle;
+
+    const { data, error } = await db.from('placement').insert(insertData).select().single();
     if (error) throw new Error(`Insert failed: ${error.message}`);
 
     success(res, data, '创建成功');
@@ -102,16 +116,28 @@ router.get('/detail', authMiddleware, async (req: express.Request, res: express.
 // Update placement
 router.put('/update', authMiddleware, async (req: express.Request, res: express.Response) => {
   try {
-    const { placementId, name, status } = req.body;
+    const { accessType } = await getDeveloperContext(req);
+    const {
+      placementId, name, status,
+      biddingType, screenOrientation, adSize, materialType, videoMute, autoPlay, templateStyle,
+    } = req.body;
 
     if (!placementId) {
       fail(res, 400, '缺少placementId');
       return;
     }
 
+    const isSDK = accessType !== 2;
     const updateData: Record<string, unknown> = { updated_at: new Date().toISOString() };
     if (name !== undefined) updateData.name = name;
     if (status !== undefined) updateData.status = status;
+    if (biddingType !== undefined) updateData.bidding_type = biddingType;
+    if (isSDK && screenOrientation !== undefined) updateData.screen_orientation = screenOrientation;
+    if (adSize !== undefined) updateData.ad_size = adSize;
+    if (materialType !== undefined) updateData.material_type = materialType;
+    if (isSDK && videoMute !== undefined) updateData.video_mute = videoMute;
+    if (isSDK && autoPlay !== undefined) updateData.auto_play = autoPlay;
+    if (templateStyle !== undefined) updateData.template_style = templateStyle;
 
     const { error } = await db.from('placement').update(updateData).eq('placement_id', placementId);
     if (error) throw new Error(`Update failed: ${error.message}`);

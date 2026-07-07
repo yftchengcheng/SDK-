@@ -2482,3 +2482,76 @@ html, body, #app {
   color: var(--color-slate-500);
 }
 
+/* ============================================
+ * 广告位管理 — 创建/编辑表单
+ * ============================================ */
+.placement-form {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 60vh;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.placement-form-section {
+  background: #FFFFFF;
+  border: 1px solid var(--color-slate-200);
+  border-radius: var(--radius-lg);
+  padding: 14px 18px 4px;
+  margin-bottom: 12px;
+  transition: border-color 0.15s ease;
+}
+
+.placement-form-section:hover {
+  border-color: var(--color-primary-200);
+}
+
+.placement-form-section-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-slate-800);
+  margin-bottom: 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--color-slate-100);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.placement-form-section-title::before {
+  content: '';
+  display: inline-block;
+  width: 3px;
+  height: 12px;
+  background: var(--color-primary-600);
+  border-radius: 2px;
+}
+
+.placement-form-section :deep(.el-form-item) {
+  margin-bottom: 16px;
+}
+
+.placement-form-section :deep(.el-form-item:last-child) {
+  margin-bottom: 8px;
+}
+
+.placement-form-tip {
+  display: block;
+  font-size: 11px;
+  color: var(--color-slate-400);
+  margin-top: 2px;
+  line-height: 1.5;
+}
+
+.placement-form-section--api {
+  background: var(--color-primary-50);
+  border-color: var(--color-primary-200);
+  padding: 12px 18px;
+}
+
+.placement-form-section--api :deep(.el-alert__title) {
+  font-size: 12px;
+  font-weight: 500;
+}
+

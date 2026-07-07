@@ -6,6 +6,7 @@ interface UserInfo {
   developerId: string;
   email: string;
   company: string | null;
+  companyShortName: string | null;
   contactName: string | null;
   phone: string | null;
   accessType: number;
