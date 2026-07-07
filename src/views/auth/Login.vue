@@ -18,7 +18,7 @@
             <span class="hero-brand-tag">Ad SDK Aggregation</span>
           </div>
         </div>
-        <h2 class="hero-heading">一站式流量变现<br/>解决方案</h2>
+        <h2 class="hero-heading">一站式流量变现解决方案</h2>
         <p class="hero-desc">聚合 50+ 主流广告网络，智能瀑布流与流量分组策略，最大化您的广告收益</p>
         <div class="hero-metrics">
           <div class="hero-metric">
@@ -60,14 +60,14 @@
         </div>
         <el-form ref="formRef" :model="form" :rules="rules" label-position="top" @submit.prevent="handleLogin" class="auth-form">
           <el-form-item label="邮箱" prop="email">
-            <el-input v-model="form.email" placeholder="请输入注册邮箱" size="large" prefix-icon="Message" />
+            <el-input v-model="form.email" placeholder="请输入注册邮箱" prefix-icon="Message" />
           </el-form-item>
           <el-form-item label="密码" prop="password">
-            <el-input v-model="form.password" type="password" placeholder="请输入密码" show-password size="large" prefix-icon="Lock" />
+            <el-input v-model="form.password" type="password" placeholder="请输入密码" show-password prefix-icon="Lock" />
           </el-form-item>
           <el-form-item label="验证码" prop="captcha">
             <div class="captcha-row">
-              <el-input v-model="form.captcha" placeholder="请输入验证码" size="large" class="captcha-input" prefix-icon="Key" />
+              <el-input v-model="form.captcha" placeholder="请输入验证码" class="captcha-input" prefix-icon="Key" />
               <div class="captcha-canvas" @click="refreshCaptcha" title="点击刷新验证码">
                 <canvas ref="captchaCanvas" width="130" height="40"></canvas>
               </div>
