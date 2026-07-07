@@ -12,18 +12,81 @@
 
 ## 一、技术栈确认
 
-| 层级 | 技术选型 | 说明 |
+> 与 `AGENTS.md` 保持一致；以下为已落地实现版本（Vue 3 + Express + Supabase）。
+
+### 1.1 前端
+
+| 类别 | 技术选型 | 版本 | 说明 |
+|------|---------|------|------|
+| **Framework** | Vue 3 (Composition API) | 3.x | `<script setup lang="ts">` |
+| **构建工具** | Vite | 7 | dev server 端口固定 5000 |
+| **Language** | TypeScript | 5.6 | strict + noImplicitAny |
+| **UI 组件** | Element Plus + @element-plus/icons-vue | 2.14 | CSS 从 `index.css` 顶部 `@import` |
+| **样式** | Tailwind CSS | 3.4 | Design Tokens 见 `DESIGN.md` |
+| **State** | Pinia | 3 | 持久化 token + userInfo |
+| **Router** | vue-router | 4 | 13 个路由 + 全局守卫 |
+| **Charts** | ECharts + vue-echarts | 6 | `'use client'` 避免 SSR |
+| **HTTP** | axios | — | 自动注入 JWT，401 跳转 |
+| **日期** | dayjs | — | — |
+| **字体** | Inter | — | DESIGN.md 指定 |
+| **图标** | @element-plus/icons-vue | — | SVG 矢量，**禁止 Emoji** |
+
+### 1.2 后端
+
+| 类别 | 技术选型 | 版本 | 说明 |
+|------|---------|------|------|
+| **Runtime** | Node.js | 20+ | Express 4 |
+| **Language** | TypeScript | 5.6 | strict 模式 |
+| **运行（开发）** | tsx (watch) | — | `tsx watch server/server.ts` |
+| **运行（生产）** | tsup (CJS) | — | `tsup server/server.ts --format cjs` |
+| **Web 框架** | Express | 4 | HTTP + Vite dev middleware |
+| **Auth** | jsonwebtoken | — | HS256 / 7 天过期 / Bearer Token |
+| **密码哈希** | bcryptjs | — | — |
+| **Cache** | node-cache | — | 验证码 token |
+| **ID** | uuid | v4 | — |
+| **Database** | Supabase (PostgreSQL) | — | `@supabase/supabase-js`（service_role 直连） |
+| **对象存储** | S3 兼容 | — | Adapter 文件上传至 CDN（待集成） |
+
+### 1.3 工具链
+
+| 类别 | 技术选型 | 说明 |
 |------|---------|------|
-| 前端框架 | Next.js 16 (App Router) + React 19 | 已初始化 |
-| UI组件库 | shadcn/ui (Radix UI) | 已预装 |
-| 样式方案 | Tailwind CSS 4 | 按DESIGN.md规范定制Design Tokens |
-| 状态管理 | Zustand | 轻量级中后台状态管理 |
-| 图表库 | Recharts | 折线图/柱状图/双轴图，'use client'避免SSR |
-| 数据库 | Supabase (PostgreSQL) | 平台托管，Drizzle管理迁移 |
-| 字体 | Inter | 设计规范指定 |
-| 图标 | Lucide React | SVG矢量图标，禁止Emoji |
-| 文件上传 | 对象存储（S3兼容） | Adapter文件上传至CDN |
-| JWT | jose库 + HttpOnly Cookie | 7天有效期，自签方案 |
+| **包管理** | pnpm | **唯一允许**，严禁 npm / yarn |
+| **Lint** | ESLint 9 + typescript-eslint 8 | `pnpm lint` |
+| **类型检查** | vue-tsc | `pnpm ts-check` |
+| **测试** | puppeteer | 截图回归（已用） |
+| **SDK** | coze-coding-dev-sdk | 集成能力（可选） |
+
+### 1.4 目录结构
+
+```
+.
+├── public/                 # 静态资源
+├── assets/                 # 设计资源
+├── src/                    # 前端源码
+│   ├── App.vue / main.ts
+│   ├── index.css           # 唯一全局样式（@import EP CSS + Tailwind）
+│   ├── router/             # vue-router 配置（13 个路由）
+│   ├── stores/             # Pinia
+│   ├── utils/              # axios 封装
+│   ├── layout/             # MainLayout.vue
+│   └── views/              # 13 个业务页面
+├── server/                 # Express 后端
+│   ├── server.ts / db.ts / vite.ts
+│   ├── middleware/auth.ts  # JWT 鉴权
+│   ├── routes/             # 13 个 REST 路由
+│   └── utils/              # supabase-client / response / id-generator
+├── scripts/                # 生命周期脚本
+├── .coze                   # 沙箱配置
+├── vite.config.ts
+├── tailwind.config.js
+├── tsconfig.json
+├── eslint.config.mjs
+├── package.json
+├── PLAN.md
+├── DESIGN.md
+└── AGENTS.md
+```
 
 ---
 
@@ -192,7 +255,7 @@
 | 步骤 | 内容 | 产出 | 状态 |
 |------|------|------|------|
 | 1.1 | 编写 DESIGN.md | DESIGN.md | ✅ |
-| 1.2 | 创建全部13张数据库表（Drizzle schema → db upgrade → RLS） | 13张表 + RLS策略 | ⬜ |
+| 1.2 | 创建全部 13 张数据库表（Supabase 控制台手动建表，SQL 见 `db/migrations/0001_init_schema.sql`） | 13 张表 + RLS 策略（RLS 当前未启用，未来需补） | ✅ |
 | 1.3 | Supabase Client + ID生成器 + JWT工具 | supabase-client.ts, id-generator.ts, jwt.ts | ⬜ |
 | 1.4 | 全局样式定制（Design Tokens + 自定义组件样式 + Inter字体） | globals.css改造 | ⬜ |
 
@@ -251,16 +314,26 @@
 
 | 决策点 | 方案 | 理由 |
 |--------|------|------|
-| JWT实现 | 自签JWT（jose库），HttpOnly Cookie | 无需外部Auth服务，适合中后台 |
-| Token生成 | 服务端 SecureRandom + Base62 | 严格遵循PRD规范，碰撞概率 ≈ 1/4.7×10²⁸ |
-| 瀑布流编辑 | 前端拖拽排序 + 三层可视化 | 直观配置Bidding/Standard/Fallback |
-| 图表渲染 | Recharts（CSR only，'use client'） | 避免SSR hydration问题 |
-| 数据隔离 | Supabase RLS + developer_id API层过滤 | 双重保障 |
-| Adapter文件存储 | 对象存储（S3兼容） | CDN分发，SDK按配置拉取指定版本 |
+| 前端框架 | Vue 3 + Vite + TypeScript + Element Plus + Tailwind 3 | 与 AGENTS.md 一致，已落地 |
+| 后端框架 | Express 4 + tsx (dev) + tsup (prod CJS) + TypeScript | 与 AGENTS.md 一致 |
+| JWT实现 | 自签JWT（jsonwebtoken），HS256，7天过期 | Bearer Token + Authorization header；7 天有效期符合中后台 |
+| 鉴权方案 | 除登录/注册/验证码外，所有 `/api/v1/console/*` 必须经 `authMiddleware` | 统一 JWT 解码 → req.developerId |
+| 密码哈希 | bcryptjs | Node 原生支持，零依赖 |
+| 状态管理 | Pinia + localStorage 持久化 | token / userInfo 刷新不丢失 |
+| 图表 | ECharts 6 + vue-echarts（onMounted 初始化） | 避免 SSR hydration 问题，Element Plus 生态兼容 |
+| HTTP 客户端 | axios（自动注入 JWT + 401 拦截 → SPA 跳转 login） | 统一错误处理 |
+| 数据库 | Supabase PostgreSQL（service_role 直连，RLS **当前未启用**） | 简单直接，未来需补 RLS 防越权 |
+| Element Plus CSS 加载 | `src/index.css` 顶部 `@import "element-plus/theme-chalk/index.css"` | 避开 `viteCssAcceptFix` 触发的 CDN 拦截 |
+| 样式隔离 | **禁止**在 `.vue` 中写 `<style scoped>`；统一在 `src/index.css` | 避免火山引擎 CDN 拦截 `.vue?type=style` |
+| Token生成 | 服务端 uuid v4 | app_key / placement_id 等 |
+| 瀑布流编辑 | 前端拖拽排序 + 三层可视化 | 直观配置 Bidding / Standard / Fallback |
+| 数据隔离 | API 层强制注入 `developer_id` 过滤 | 当前 RLS 未启用，依赖 API 层 |
+| Adapter文件存储 | 对象存储（S3 兼容） | CDN 分发，SDK 按配置拉取指定版本 |
 | Adapter审核流程 | 状态机：待审核→审核通过→已上线→已下架 | 确保安全与质量 |
-| 配置下发改造 | /api/v1/sdk/config 响应增加 customAdapters | SDK动态下载加载自定义Adapter |
+| 配置下发改造 | /api/v1/sdk/config 响应增加 customAdapters | SDK 动态下载加载自定义 Adapter |
 | 页面底色 | #F8FAFC（slate-50） | 设计规范 |
-| 侧边栏 | 蓝渐变 #1E3A8A → #1E40AF，宽200px | 设计规范 |
+| 侧边栏 | 蓝渐变 #1E3A8A → #1E40AF，宽 200px | 设计规范 |
+| HMR 防自动刷新 | `index.html` 注入 DevGuard（劫持 WebSocket 拦截 full-reload） | 避免开发期页面莫名刷新 |
 
 ---
 
@@ -268,14 +341,13 @@
 
 | 风险 | 应对 | 状态 |
 |------|------|------|
-| Supabase RLS配置复杂 | 严格按skill文档场景选择，逐步验证 | — |
-| 瀑布流拖拽排序实现 | 原生HTML5 Drag&Drop，避免额外依赖 | — |
-| Recharts SSR问题 | 图表组件'use client' + 动态import | — |
-| JWT安全 | HttpOnly + Secure + SameSite=Strict，7天有效期 | — |
-| Adapter文件上传大文件 | 对象存储支持分片上传，前端进度条+MD5校验 | — |
-| 自定义网络审核并发 | 乐观锁（版本号）防重复审核 | — |
-| 30个API接口易遗漏 | 按清单逐一测试，确保100%覆盖 | — |
-| SDK配置下发性能 | 配置缓存+增量更新（isFullUpdate标记） | — |
+| Supabase RLS 当前未启用 | 全部依赖 service_role + API 层 developer_id 注入；存在越权风险，未来需补 RLS | 🆕 高 |
+| 样式必须集中在 index.css | 禁止 .vue 内 `<style scoped>` 块，否则触发火山 CDN 拦截导致 SyntaxError | 🆕 中 |
+| Element Plus CSS 加载位置 | 必须从 `index.css` 第 2 行 `@import` 引入，main.ts 不能 import | 🆕 中 |
+| 注册表单字段数 | 已 9 字段（公司/简称/联系人/电话/邮箱/对接方式/密码/确认密码/验证码），用 2 列网格避免溢出 | 🆕 中 |
+| 应用创建条件字段 | 微信 APP ID 仅 SDK 出现，Universal Link 仅 iOS+SDK 出现；后端校验对应"Universal Link 必填" | 🆕 低 |
+| 开发期页面自动刷新 | index.html 注入 DevGuard，劫持 HMR WebSocket 拦截 full-reload 消息 + 监听 vite:beforeFullReload 事件 | 🆕 中 |
+| tsx watch 不自动重启 | 修改 server 文件后偶发不触发，需手动 pkill 后通过 scripts/dev.sh 重启 | 🆕 低 |
 
 ---
 
