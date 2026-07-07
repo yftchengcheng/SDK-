@@ -382,28 +382,33 @@ body {
 }
 
 /* ---- 输入框 — DESIGN.md Input 规范 ---- */
-/* wrapper: 28px高 + box-shadow边框 + 6px圆角 */
+/* wrapper: 28px高 + box-shadow边框 + 6px圆角 + 内部flex居中 */
 .auth-form .el-input__wrapper {
-  height: var(--comp-height);
-  border-radius: var(--radius-md);
-  box-shadow: 0 0 0 1px var(--color-slate-200) inset;
-  padding: 0 var(--space-md);
+  height: var(--comp-height) !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  border-radius: var(--radius-md) !important;
+  box-shadow: 0 0 0 1px var(--color-slate-200) inset !important;
+  padding: 0 var(--space-md) !important;
   transition: box-shadow 150ms ease;
   background-color: #FFFFFF;
+  overflow: hidden;
 }
 .auth-form .el-input__wrapper:hover {
-  box-shadow: 0 0 0 1px var(--color-slate-300) inset;
+  box-shadow: 0 0 0 1px var(--color-slate-300) inset !important;
 }
 .auth-form .el-input__wrapper.is-focus {
-  box-shadow: 0 0 0 1px var(--color-primary-600) inset, 0 0 0 3px rgba(37,99,235,0.08);
+  box-shadow: 0 0 0 1px var(--color-primary-600) inset, 0 0 0 3px rgba(37,99,235,0.08) !important;
 }
 
-/* inner: 不要设固定height, 让wrapper控制, 用line-height居中 */
+/* inner: height auto, 让wrapper的align-items:center控制垂直居中 */
 .auth-form .el-input__inner {
   font-size: var(--text-base);
   color: var(--color-slate-900);
   height: auto;
-  line-height: var(--comp-height);
+  line-height: 1;
+  flex: 1;
+  min-width: 0;
 }
 .auth-form .el-input__inner::placeholder {
   font-size: var(--text-sm);
@@ -416,9 +421,10 @@ body {
   align-items: center;
   margin-right: var(--space-xs);
   padding: 0;
-  height: var(--comp-height);
+  height: 100%;
   color: var(--color-slate-400);
   transition: color 150ms ease;
+  flex-shrink: 0;
 }
 .auth-input-icon {
   color: var(--color-slate-400) !important;
@@ -430,9 +436,10 @@ body {
 
 /* suffix: 垂直居中 */
 .auth-form .el-input__suffix {
-  height: var(--comp-height);
+  height: 100%;
   display: flex;
   align-items: center;
+  flex-shrink: 0;
 }
 
 /* ---- 验证码行 ---- */
@@ -569,7 +576,7 @@ body {
   pointer-events: none;
   z-index: 0;
 }
-/* 光晕 */
+/* 光晕 — 使用深蓝避免浅蓝色块 */
 .auth-hero-side::after {
   content: '';
   position: absolute;
@@ -577,7 +584,7 @@ body {
   right: -8%;
   width: 55%;
   height: 55%;
-  background: radial-gradient(ellipse, rgba(59,130,246,0.12) 0%, transparent 70%);
+  background: radial-gradient(ellipse, rgba(23,37,84,0.35) 0%, transparent 70%);
   pointer-events: none;
   z-index: 0;
 }
