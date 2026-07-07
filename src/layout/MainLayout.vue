@@ -67,20 +67,22 @@
         <router-view />
       </main>
     </div>
+    <HalWidget />
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted, type Component } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { useUserStore } from '../stores/user';
-import request from '../utils/request';
+import { useUserStore } from '@/stores/user';
+import request from '@/utils/request';
 import {
-  DataAnalysis, Cellphone, PictureFilled, Connection,
-  SetUp, Filter, TrendCharts, DocumentChecked,
-  Share, Bell, User, ArrowDown, SwitchButton,
+  DataAnalysis, Cellphone, PictureFilled, Connection, SetUp, Filter,
+  TrendCharts, DocumentChecked, Share, Bell, User, ArrowDown,
+  ChatLineSquare, SwitchButton, Refresh, Close, Operation,
   DArrowLeft, DArrowRight,
 } from '@element-plus/icons-vue';
+import HalWidget from '@/components/HalWidget.vue';
 
 interface MenuItem {
   path: string;
