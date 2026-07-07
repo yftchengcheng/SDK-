@@ -1,8 +1,9 @@
 import express, { Router } from 'express';
 import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
 import { db } from '../db';
 import { genDeveloperId, genApiAccessToken } from '../utils/id-generator';
-import { generateToken, authMiddleware, getDeveloper } from '../middleware/auth';
+import { generateToken, authMiddleware, getDeveloper, JWT_SECRET } from '../middleware/auth';
 import { success, fail } from '../utils/response';
 
 const router = Router();
@@ -233,6 +234,28 @@ router.post('/api-token', authMiddleware, async (req: express.Request, res: expr
   } catch (err) {
     console.error('Generate API token error:', err);
     fail(res, 500, '生成Token失败');
+  }
+});
+
+// Verify JWT token (lightweight check, no DB hit)
+router.post('/verify', (req: express.Request, res: express.Response) => {
+  try {
+    const authHeader = req.headers.authorization || '';
+    const token = authHeader.replace(/^Bearer\s+/i, '').trim();
+    if (!token) return fail(res, 401, 'Token 不能为空');
+
+    const decoded = jwt.verify(token, JWT_SECRET) as { developerId: string; email: string; iat: number; exp: number };
+    success(res, {
+      developerId: decoded.developerId,
+      email: decoded.email,
+      iat: decoded.iat,
+      exp: decoded.exp,
+      valid: true,
+    });
+  } catch (err) {
+    if (err instanceof jwt.TokenExpiredError) return fail(res, 401, 'Token 已过期');
+    if (err instanceof jwt.JsonWebTokenError) return fail(res, 401, 'Token 无效');
+    fail(res, 500, 'Token 验证失败');
   }
 });
 

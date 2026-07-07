@@ -1,7 +1,7 @@
 import type { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'ad-sdk-aggregation-secret-key-2024';
+export const JWT_SECRET = process.env.JWT_SECRET || 'ad-sdk-aggregation-secret-key-2024';
 const JWT_EXPIRES_IN = '7d';
 
 export interface JwtPayload {

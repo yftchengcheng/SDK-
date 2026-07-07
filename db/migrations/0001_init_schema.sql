@@ -20,6 +20,7 @@ DROP TABLE IF EXISTS placement CASCADE;
 DROP TABLE IF EXISTS app CASCADE;
 DROP TABLE IF EXISTS developer CASCADE;
 DROP TABLE IF EXISTS health_check CASCADE;
+DROP TABLE IF EXISTS ad_network_account CASCADE;
 
 -- =====================================================================
 -- 1. developer - 开发者表
@@ -257,7 +258,37 @@ CREATE TABLE ad_network_def (
 );
 
 -- =====================================================================
--- 14. health_check - 健康检查表（监控 SDK 上报）
+-- 14. ad_network_account - 广告网络账号表（6 步对接流程步骤二）
+-- =====================================================================
+CREATE TABLE ad_network_account (
+  id              BIGSERIAL PRIMARY KEY,
+  developer_id    TEXT NOT NULL,
+  network_def_id  BIGINT NOT NULL,
+  app_id          BIGINT,
+  account_name    VARCHAR(100) NOT NULL,
+  account_id      VARCHAR(200),
+  credentials     JSONB DEFAULT '{}'::jsonb,
+  status          SMALLINT DEFAULT 1,
+  remark          TEXT,
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX idx_ad_network_account_developer ON ad_network_account(developer_id);
+CREATE INDEX idx_ad_network_account_network ON ad_network_account(network_def_id);
+CREATE INDEX idx_ad_network_account_app ON ad_network_account(app_id);
+
+COMMENT ON TABLE ad_network_account IS '广告网络账号表 - 6 步对接流程步骤二';
+COMMENT ON COLUMN ad_network_account.developer_id IS '开发者 ID';
+COMMENT ON COLUMN ad_network_account.network_def_id IS '广告网络定义 ID';
+COMMENT ON COLUMN ad_network_account.app_id IS '应用 ID（可选）';
+COMMENT ON COLUMN ad_network_account.account_name IS '账号名称（用户自定义）';
+COMMENT ON COLUMN ad_network_account.account_id IS '广告网络侧的账号 ID';
+COMMENT ON COLUMN ad_network_account.credentials IS '凭证 JSON';
+COMMENT ON COLUMN ad_network_account.status IS '状态：1=启用 2=停用';
+COMMENT ON COLUMN ad_network_account.remark IS '备注';
+
+-- =====================================================================
+-- 15. health_check - 健康检查表（监控 SDK 上报）
 -- =====================================================================
 CREATE TABLE health_check (
   id           BIGSERIAL PRIMARY KEY,
@@ -270,6 +301,9 @@ CREATE TABLE health_check (
 -- =====================================================================
 -- 索引优化
 -- =====================================================================
+CREATE INDEX idx_ad_network_account_developer ON ad_network_account(developer_id);
+CREATE INDEX idx_ad_network_account_network ON ad_network_account(network_def_id);
+CREATE INDEX idx_ad_network_account_app ON ad_network_account(app_id);
 CREATE INDEX idx_app_developer ON app(developer_id);
 CREATE INDEX idx_placement_app ON placement(app_id);
 CREATE INDEX idx_waterfall_layer_wid ON waterfall_layer(waterfall_id);
@@ -285,4 +319,4 @@ CREATE INDEX idx_app_binding_app ON app_network_binding(app_key);
 -- =====================================================================
 
 -- 完成
-COMMENT ON DATABASE postgres IS '新义SDK聚合系统 - 初始化完成 (14 张表)';
+COMMENT ON DATABASE postgres IS '新义SDK聚合系统 - 初始化完成 (15 张表)';

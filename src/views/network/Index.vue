@@ -2,48 +2,66 @@
   <div class="page-container">
     <div class="page-header">
       <h1>广告网络</h1>
-      <el-button type="primary" @click="openCreate">创建自定义网络</el-button>
     </div>
 
-    <!-- Preset Networks -->
-    <div class="table-card mb-base">
-      <div class="card-title">预置网络</div>
-      <el-table :data="presetNetworks" stripe style="width: 100%; margin-top: 12px">
-        <el-table-column prop="network_code" label="网络代码" width="120" />
-        <el-table-column prop="network_name" label="网络名称" min-width="140" />
-        <el-table-column prop="supports_bidding" label="支持Bidding" width="120">
-          <template #default="{ row }">{{ row.supports_bidding ? '是' : '否' }}</template>
-        </el-table-column>
-        <el-table-column label="类型" width="100">
-          <template #default><el-tag type="info" size="small">预置</el-tag></template>
-        </el-table-column>
-      </el-table>
-    </div>
+    <el-tabs v-model="activeTab" class="network-tabs">
+      <!-- 网络管理 Tab -->
+      <el-tab-pane label="网络管理" name="manage">
+        <div class="tab-toolbar">
+          <el-button type="primary" @click="openCreate">创建自定义网络</el-button>
+        </div>
 
-    <!-- Custom Networks -->
-    <div class="table-card">
-      <div class="card-title">自定义网络</div>
-      <el-table :data="customNetworks" v-loading="loading" stripe style="width: 100%; margin-top: 12px">
-        <el-table-column prop="network_code" label="网络代码" width="160" />
-        <el-table-column prop="network_name" label="网络名称" min-width="140" />
-        <el-table-column prop="supports_bidding" label="支持Bidding" width="120">
-          <template #default="{ row }">{{ row.supports_bidding ? '是' : '否' }}</template>
-        </el-table-column>
-        <el-table-column prop="status" label="状态" width="80">
-          <template #default="{ row }">
-            <el-tag :type="row.status === 1 ? 'success' : 'info'" size="small">{{ row.status === 1 ? '启用' : '禁用' }}</el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column label="操作" width="280" fixed="right">
-          <template #default="{ row }">
-            <el-button link type="primary" size="small" @click="openAdapterManager(row)">Adapter管理</el-button>
-            <el-button link type="primary" size="small" @click="openAppBinding(row)">应用关联</el-button>
-            <el-button link type="primary" size="small" @click="handleEdit(row)">编辑</el-button>
-            <el-button link type="danger" size="small" @click="handleDelete(row)">删除</el-button>
-          </template>
-        </el-table-column>
-      </el-table>
-    </div>
+        <!-- Preset Networks -->
+        <div class="table-card mb-base">
+          <div class="card-title">预置网络</div>
+          <el-table :data="presetNetworks" stripe style="width: 100%; margin-top: 12px">
+            <el-table-column prop="network_code" label="网络代码" width="120" />
+            <el-table-column prop="network_name" label="网络名称" min-width="140" />
+            <el-table-column prop="supports_bidding" label="支持Bidding" width="120">
+              <template #default="{ row }">{{ row.supports_bidding ? '是' : '否' }}</template>
+            </el-table-column>
+            <el-table-column label="类型" width="100">
+              <template #default><el-tag type="info" size="small">预置</el-tag></template>
+            </el-table-column>
+          </el-table>
+        </div>
+
+        <!-- Custom Networks -->
+        <div class="table-card">
+          <div class="card-title">自定义网络</div>
+          <el-table :data="customNetworks" v-loading="loading" stripe style="width: 100%; margin-top: 12px">
+            <el-table-column prop="network_code" label="网络代码" width="160" />
+            <el-table-column prop="network_name" label="网络名称" min-width="140" />
+            <el-table-column prop="supports_bidding" label="支持Bidding" width="120">
+              <template #default="{ row }">{{ row.supports_bidding ? '是' : '否' }}</template>
+            </el-table-column>
+            <el-table-column prop="status" label="状态" width="80">
+              <template #default="{ row }">
+                <el-tag :type="row.status === 1 ? 'success' : 'info'" size="small">{{ row.status === 1 ? '启用' : '禁用' }}</el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column label="操作" width="280" fixed="right">
+              <template #default="{ row }">
+                <el-button link type="primary" size="small" @click="openAdapterManager(row)">Adapter管理</el-button>
+                <el-button link type="primary" size="small" @click="openAppBinding(row)">应用关联</el-button>
+                <el-button link type="primary" size="small" @click="handleEdit(row)">编辑</el-button>
+                <el-button link type="danger" size="small" @click="handleDelete(row)">删除</el-button>
+              </template>
+            </el-table-column>
+          </el-table>
+        </div>
+      </el-tab-pane>
+
+      <!-- 广告网络账号 Tab -->
+      <el-tab-pane label="广告网络账号" name="accounts">
+        <div class="tab-toolbar-info">
+          <el-text type="info" size="small">
+            管理各广告网络的账号凭证，支持 JSON 键值对存储与敏感字段脱敏
+          </el-text>
+        </div>
+        <AccountManager />
+      </el-tab-pane>
+    </el-tabs>
 
     <!-- Create/Edit Dialog -->
     <el-dialog v-model="showDialog" :title="editForm.id ? '编辑自定义网络' : '创建自定义网络'" width="560px" destroy-on-close>
@@ -214,6 +232,9 @@ import { ref, reactive, onMounted, computed } from 'vue';
 import request from '../../utils/request';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import type { FormInstance, FormRules } from 'element-plus';
+import AccountManager from '../../components/AccountManager.vue';
+
+const activeTab = ref<'manage' | 'accounts'>('manage');
 
 const loading = ref(false);
 const allNetworks = ref<any[]>([]);

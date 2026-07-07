@@ -376,4 +376,131 @@ router.get('/custom/report/query', authMiddleware, async (req: express.Request, 
   }
 });
 
+// ============== 广告网络账号（6 步对接流程 步骤 2） ==============
+
+// Create network account
+router.post('/account/create', authMiddleware, async (req: express.Request, res: express.Response) => {
+  try {
+    const { developerId } = getDeveloper(req);
+    const { networkDefId, appId, accountName, accountId, credentials, status, remark } = req.body as Record<string, unknown>;
+
+    if (!networkDefId) return fail(res, 400, '网络定义 ID 不能为空');
+    if (!accountName) return fail(res, 400, '账号名称不能为空');
+
+    const insertData = {
+      developer_id: developerId,
+      network_def_id: Number(networkDefId),
+      app_id: appId ? Number(appId) : null,
+      account_name: String(accountName),
+      account_id: accountId ? String(accountId) : null,
+      credentials: credentials || {},
+      status: status ? Number(status) : 1,
+      remark: remark ? String(remark) : null,
+    };
+
+    const { data, error } = await db.from('ad_network_account').insert(insertData).select().single();
+    if (error) throw new Error(`Insert failed: ${error.message}`);
+
+    success(res, data);
+  } catch (err) {
+    console.error('Create network account error:', err);
+    fail(res, 500, '创建账号失败');
+  }
+});
+
+// List network accounts
+router.get('/account/list', authMiddleware, async (req: express.Request, res: express.Response) => {
+  try {
+    const { developerId } = getDeveloper(req);
+    const { networkDefId, appId, status, page = 1, pageSize = 20 } = req.query as Record<string, string>;
+
+    let query = db.from('ad_network_account').select('*', { count: 'exact' }).eq('developer_id', developerId);
+    if (networkDefId) query = query.eq('network_def_id', Number(networkDefId));
+    if (appId) query = query.eq('app_id', Number(appId));
+    if (status) query = query.eq('status', Number(status));
+
+    const p = Number(page);
+    const ps = Number(pageSize);
+    const { data, count, error } = await query.order('created_at', { ascending: false }).range((p - 1) * ps, p * ps - 1);
+    if (error) throw new Error(`Query failed: ${error.message}`);
+
+    success(res, { list: data, total: count, page: p, pageSize: ps });
+  } catch (err) {
+    console.error('List network accounts error:', err);
+    fail(res, 500, '获取账号列表失败');
+  }
+});
+
+// Get network account detail
+router.get('/account/detail', authMiddleware, async (req: express.Request, res: express.Response) => {
+  try {
+    const { developerId } = getDeveloper(req);
+    const { id } = req.query as Record<string, string>;
+    if (!id) return fail(res, 400, '账号 ID 不能为空');
+
+    const { data, error } = await db.from('ad_network_account')
+      .select('*')
+      .eq('id', Number(id))
+      .eq('developer_id', developerId)
+      .single();
+    if (error) throw new Error(`Query failed: ${error.message}`);
+
+    success(res, data);
+  } catch (err) {
+    console.error('Detail network account error:', err);
+    fail(res, 500, '获取账号详情失败');
+  }
+});
+
+// Update network account
+router.patch('/account/:id', authMiddleware, async (req: express.Request, res: express.Response) => {
+  try {
+    const { developerId } = getDeveloper(req);
+    const { id } = req.params;
+    const { accountName, accountId, credentials, status, appId, remark } = req.body as Record<string, unknown>;
+    if (!id) return fail(res, 400, '账号 ID 不能为空');
+
+    const updateData: Record<string, unknown> = { updated_at: new Date().toISOString() };
+    if (accountName !== undefined) updateData.account_name = String(accountName);
+    if (accountId !== undefined) updateData.account_id = accountId ? String(accountId) : null;
+    if (credentials !== undefined) updateData.credentials = credentials;
+    if (status !== undefined) updateData.status = Number(status);
+    if (appId !== undefined) updateData.app_id = appId ? Number(appId) : null;
+    if (remark !== undefined) updateData.remark = remark ? String(remark) : null;
+
+    const { data, error } = await db.from('ad_network_account')
+      .update(updateData)
+      .eq('id', Number(id))
+      .eq('developer_id', developerId)
+      .select()
+      .single();
+    if (error) throw new Error(`Update failed: ${error.message}`);
+
+    success(res, data);
+  } catch (err) {
+    console.error('Update network account error:', err);
+    fail(res, 500, '更新账号失败');
+  }
+});
+
+// Delete network account
+router.delete('/account/:id', authMiddleware, async (req: express.Request, res: express.Response) => {
+  try {
+    const { developerId } = getDeveloper(req);
+    const { id } = req.params;
+    if (!id) return fail(res, 400, '账号 ID 不能为空');
+
+    const { error } = await db.from('ad_network_account')
+      .delete()
+      .eq('id', Number(id))
+      .eq('developer_id', developerId);
+    if (error) throw new Error(`Delete failed: ${error.message}`);
+
+    success(res, { id: Number(id) });
+  } catch (err) {
+    console.error('Delete network account error:', err);
+    fail(res, 500, '删除账号失败');
+  }
+});
+
 export default router;

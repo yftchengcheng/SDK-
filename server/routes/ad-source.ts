@@ -119,4 +119,46 @@ router.get('/networks', authMiddleware, async (_req: express.Request, res: expre
   }
 });
 
+// Create custom ad source (associated with custom network, step 4 of 6-step integration)
+router.post('/create-custom', authMiddleware, async (req: express.Request, res: express.Response) => {
+  try {
+    const { developerId } = getDeveloper(req);
+    const { networkDefId, sourceName, thirdAppId, thirdPlacementId, appId, placementId, extra } = req.body as Record<string, unknown>;
+
+    if (!networkDefId) return fail(res, 400, '自定义网络 ID 不能为空');
+    if (!sourceName) return fail(res, 400, '广告源名称不能为空');
+    if (!thirdAppId) return fail(res, 400, '广告网络应用 ID 不能为空');
+    if (!thirdPlacementId) return fail(res, 400, '广告网络广告位 ID 不能为空');
+
+    // Fetch custom network info
+    const { data: network, error: netErr } = await db.from('ad_network_def')
+      .select('*').eq('id', Number(networkDefId)).single();
+    if (netErr || !network) return fail(res, 400, '自定义网络不存在');
+
+    // Build network_code from custom network id
+    const networkCode = `custom_${networkDefId}`;
+
+    const insertData: Record<string, unknown> = {
+      developer_id: developerId,
+      network_code: networkCode,
+      network_name: network.network_name,
+      source_name: sourceName,
+      third_app_id: thirdAppId,
+      third_placement_id: thirdPlacementId,
+      app_id: appId ? Number(appId) : null,
+      placement_id: placementId ? Number(placementId) : null,
+      extra: extra || null,
+      is_custom: true,
+    };
+
+    const { data, error } = await db.from('ad_source').insert(insertData).select().single();
+    if (error) throw new Error(`Insert failed: ${error.message}`);
+
+    success(res, data);
+  } catch (err) {
+    console.error('Create custom ad source error:', err);
+    fail(res, 500, '创建自定义广告源失败');
+  }
+});
+
 export default router;

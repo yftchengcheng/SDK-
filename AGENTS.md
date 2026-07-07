@@ -258,18 +258,18 @@
 | 步骤 | 名称 | 落地状态 | 备注 |
 |------|------|---------|------|
 | 1 | 上传 Adapter | ✅ 已实现 | network.ts upload 接口 |
-| 2 | 广告网络账号 | ❌ 待补 | 缺表 + 缺 API + 缺 UI |
+| 2 | 广告网络账号 | ✅ 已实现 | ad_network_account 表 + 5 个 API + /network Tab + AccountManager 组件 |
 | 3 | 数据上报格式 | ✅ 已实现 | custom/report/upload + custom_network_report 表 |
-| 4 | 联调测试 | ⚠️ 部分 | 缺 /adsource/create-custom（绑定到自定义网络） |
-| 5 | 上线 | ⚠️ 部分 | review 接口未独立，依赖现有 status 切换 |
+| 4 | 联调测试 | ✅ 已实现 | /ad-source/create-custom（绑定到自定义网络）|
+| 5 | 上线 | ✅ 已实现 | /custom/adapter/status + review 接口（PASS/REJECT） |
 | 6 | 维护监控 | ✅ 已实现 | report/query + reconciliation |
 
-### 7. 优先级排序（待补工作）
+### 7. 优先级排序（已全部完成）
 
-1. **【高】** 建表 `ad_network_account` + 5 个 API + 1 个页面 Tab
-2. **【中】** `KVEditor` 组件（为账号凭证输入准备）
-3. **【中】** `POST /api/v1/console/adsource/create-custom`
-4. **【低】** `POST /api/v1/auth/verify`（已有 me 接口可替代）
+1. **【完成】** 建表 `ad_network_account` + 5 个 API + 1 个页面 Tab
+2. **【完成】** `KVEditor` 组件（用于账号凭证 JSON 输入）
+3. **【完成】** `POST /api/v1/console/ad-source/create-custom`
+4. **【完成】** `POST /api/v1/auth/verify`
 
 ## 开发流程
 
