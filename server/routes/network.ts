@@ -5,6 +5,28 @@ import { success, fail } from '../utils/response';
 
 const router = Router();
 
+// List all networks (builtin + custom)
+router.get('/list', authMiddleware, async (req: express.Request, res: express.Response) => {
+  try {
+    const { developerId } = getDeveloper(req);
+
+    // Get builtin networks (network_type=1) + user's custom networks (network_type=2)
+    const { data, error } = await db.from('ad_network_def')
+      .select('*')
+      .or(`network_type.eq.1,created_by.eq.${developerId}`)
+      .eq('status', 1)
+      .order('network_type', { ascending: true })
+      .order('created_at', { ascending: false });
+
+    if (error) throw new Error(`Query failed: ${error.message}`);
+
+    success(res, { list: data || [] });
+  } catch (err) {
+    console.error('List networks error:', err);
+    fail(res, 500, '获取网络列表失败');
+  }
+});
+
 // List custom networks
 router.get('/custom/list', authMiddleware, async (req: express.Request, res: express.Response) => {
   try {

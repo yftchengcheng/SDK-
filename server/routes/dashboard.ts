@@ -46,6 +46,49 @@ router.get('/overview', authMiddleware, async (req: express.Request, res: expres
   }
 });
 
+// Unified trend data (for frontend dashboard)
+router.get('/trend', authMiddleware, async (req: express.Request, res: express.Response) => {
+  try {
+    const { developerId } = getDeveloper(req);
+    const { appKey, placementId, startDate, endDate } = req.query as Record<string, string>;
+
+    const today = new Date();
+    const start = startDate || new Date(today.getTime() - 7 * 86400000).toISOString().split('T')[0];
+    const end = endDate || today.toISOString().split('T')[0];
+
+    let query = db.from('report_daily').select('stat_date, revenue, impressions, requests, fills, clicks').eq('developer_id', developerId).gte('stat_date', start).lte('stat_date', end);
+    if (appKey) query = query.eq('app_key', appKey);
+    if (placementId) query = query.eq('placement_id', placementId);
+
+    const { data, error } = await query.order('stat_date', { ascending: true });
+    if (error) throw new Error(`Query failed: ${error.message}`);
+
+    const dateMap: Record<string, { revenue: number; impressions: number; requests: number; fills: number; clicks: number }> = {};
+    for (const row of (data || [])) {
+      const date = row.stat_date as string;
+      if (!dateMap[date]) dateMap[date] = { revenue: 0, impressions: 0, requests: 0, fills: 0, clicks: 0 };
+      dateMap[date].revenue += Number(row.revenue || 0);
+      dateMap[date].impressions += Number(row.impressions || 0);
+      dateMap[date].requests += Number(row.requests || 0);
+      dateMap[date].fills += Number(row.fills || 0);
+      dateMap[date].clicks += Number(row.clicks || 0);
+    }
+
+    const result = Object.entries(dateMap).map(([date, d]) => ({
+      date,
+      revenue: Number(d.revenue.toFixed(2)),
+      impressions: d.impressions,
+      fillRate: d.requests > 0 ? Number((d.fills / d.requests * 100).toFixed(2)) : 0,
+      eCPM: d.impressions > 0 ? Number((d.revenue / d.impressions * 1000).toFixed(2)) : 0,
+      clicks: d.clicks,
+    }));
+    success(res, result);
+  } catch (err) {
+    console.error('Dashboard trend error:', err);
+    fail(res, 500, '获取趋势数据失败');
+  }
+});
+
 // Revenue trend
 router.get('/revenue-trend', authMiddleware, async (req: express.Request, res: express.Response) => {
   try {

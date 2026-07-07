@@ -37,12 +37,19 @@ async function startServer(): Promise<Server> {
   await setupVite(app);
 
   // 全局错误处理
-  app.use((err: Error, req: express.Request, res: express.Response) => {
+  app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
     console.error('Server error:', err);
-    const status = 'status' in err ? (err as { status?: number }).status ?? 500 : 500;
-    res.status(status).json({
-      error: err.message || 'Internal server error',
-    });
+    try {
+      const status = 'status' in err ? (err as { status?: number }).status ?? 500 : 500;
+      res.status(status).json({
+        error: err.message || 'Internal server error',
+      });
+    } catch {
+      // res may already be sent by Vite middleware
+      if (!res.headersSent) {
+        res.end('Internal server error');
+      }
+    }
   });
 
   server.once('error', err => {
