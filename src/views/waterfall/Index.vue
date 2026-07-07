@@ -154,15 +154,3 @@ const saveConfig = async () => {
 onMounted(() => { fetchPlacements(); fetchAdSources(); });
 </script>
 
-<style scoped>
-.card-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 12px;
-}
-.card-title {
-  font: var(--fs-section-title);
-  color: #111827;
-}
-</style>

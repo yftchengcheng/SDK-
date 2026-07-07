@@ -151,9 +151,3 @@ const handleDelete = async (row: any) => {
 onMounted(fetchList);
 </script>
 
-<style scoped>
-.card-title {
-  font: var(--fs-section-title);
-  color: #111827;
-}
-</style>

@@ -132,3 +132,202 @@ html, body, #app {
 .copy-btn:hover {
   color: var(--el-color-primary);
 }
+
+/* ========== 组件样式（原 scoped，改为全局） ========== */
+
+/* --- MainLayout --- */
+.main-layout {
+  display: flex;
+  width: 100%;
+  height: 100%;
+}
+
+.sidebar {
+  width: var(--sidebar-width);
+  background: #1E293B;
+  height: 100%;
+  transition: width 0.2s;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.sidebar.collapsed {
+  width: var(--sidebar-collapsed-width);
+}
+
+.sidebar-logo {
+  height: var(--header-height);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+}
+
+.logo-text {
+  color: #FFFFFF;
+  font: 600 16px/1 "PingFang SC", "Helvetica Neue", sans-serif;
+  white-space: nowrap;
+}
+
+.sidebar .el-menu {
+  border-right: none;
+}
+
+.sidebar .el-menu-item.is-active {
+  background-color: rgba(37, 99, 235, 0.2) !important;
+  border-left: 3px solid #2563EB;
+}
+
+.sidebar .el-menu-item {
+  border-left: 3px solid transparent;
+}
+
+.sidebar .el-menu-item:hover {
+  background-color: rgba(255,255,255,0.05) !important;
+}
+
+.main-area {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.top-bar {
+  height: var(--header-height);
+  background: var(--el-bg-color);
+  border-bottom: 1px solid var(--el-border-color);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 var(--sp-lg);
+  flex-shrink: 0;
+}
+
+.top-bar-right {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-lg);
+}
+
+.msg-icon {
+  cursor: pointer;
+  color: var(--el-text-color-secondary);
+}
+
+.msg-icon:hover {
+  color: var(--el-color-primary);
+}
+
+.user-info {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-sm);
+  cursor: pointer;
+  color: var(--el-text-color-primary);
+}
+
+.user-name {
+  font: var(--fs-body);
+}
+
+.content-area {
+  flex: 1;
+  overflow-y: auto;
+  background: var(--el-bg-color-page);
+}
+
+/* --- Dashboard --- */
+.metric-card {
+  background: #FFFFFF;
+  border-radius: 8px;
+  padding: 20px;
+  border: 1px solid var(--el-border-color-light);
+}
+
+.metric-label {
+  font: var(--fs-small);
+  color: #6B7280;
+  margin-bottom: 8px;
+}
+
+.metric-value {
+  font: var(--fs-number);
+  color: #111827;
+}
+
+/* --- Login --- */
+.login-page {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #F9FAFB;
+}
+
+.login-card {
+  width: 400px;
+  background: #FFFFFF;
+  border-radius: 8px;
+  padding: 40px 32px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.login-title {
+  font: var(--fs-page-title);
+  color: #111827;
+  text-align: center;
+  margin-bottom: 8px;
+}
+
+.login-subtitle {
+  font: var(--fs-body);
+  color: #6B7280;
+  text-align: center;
+  margin-bottom: 24px;
+}
+
+.login-footer {
+  text-align: center;
+  font: var(--fs-body);
+  color: #6B7280;
+  margin-top: 16px;
+}
+
+/* --- Register --- */
+.register-card {
+  width: 480px;
+  background: #FFFFFF;
+  border-radius: 8px;
+  padding: 40px 32px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  margin: 20px 0;
+}
+
+/* Register 继承 login-page 的样式，额外覆盖 register-card 的宽度 */
+.register-page .login-card {
+  width: 480px;
+  margin: 20px 0;
+}
+
+/* --- Waterfall --- */
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+/* --- Network / Profile / Reconciliation --- */
+.card-title {
+  font: var(--fs-section-title);
+  color: #111827;
+  margin-bottom: 12px;
+}
+
+.text-danger {
+  color: #DC2626;
+  font-weight: 600;
+}

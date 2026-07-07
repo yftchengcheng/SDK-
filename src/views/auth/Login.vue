@@ -56,38 +56,3 @@ const handleLogin = async () => {
 };
 </script>
 
-<style scoped>
-.login-page {
-  width: 100%;
-  height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: #F9FAFB;
-}
-.login-card {
-  width: 400px;
-  background: #FFFFFF;
-  border-radius: 8px;
-  padding: 40px 32px;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-}
-.login-title {
-  font: var(--fs-page-title);
-  color: #111827;
-  text-align: center;
-  margin-bottom: 8px;
-}
-.login-subtitle {
-  font: var(--fs-body);
-  color: #6B7280;
-  text-align: center;
-  margin-bottom: 24px;
-}
-.login-footer {
-  text-align: center;
-  font: var(--fs-body);
-  color: #6B7280;
-  margin-top: 16px;
-}
-</style>

@@ -96,6 +96,3 @@ const exportExcel = async () => {
 onMounted(fetchList);
 </script>
 
-<style scoped>
-.text-danger { color: #DC2626; font-weight: 600; }
-</style>

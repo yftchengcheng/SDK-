@@ -34,7 +34,8 @@ async function startServer(): Promise<Server> {
   app.use(router);
 
   // 集成 Vite（开发模式）或静态文件服务（生产模式）
-  await setupVite(app);
+  // 传入 HTTP server 以支持 HMR WebSocket
+  await setupVite(app, server);
 
   // 全局错误处理
   app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {

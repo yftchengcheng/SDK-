@@ -15,9 +15,16 @@ interface UserInfo {
 
 export const useUserStore = defineStore('user', () => {
   const token = ref(localStorage.getItem('token') || '');
-  const userInfo = ref<UserInfo | null>(
-    localStorage.getItem('userInfo') ? JSON.parse(localStorage.getItem('userInfo')!) : null
-  );
+  const getStoredUserInfo = (): UserInfo | null => {
+    try {
+      const raw = localStorage.getItem('userInfo');
+      return raw ? JSON.parse(raw) : null;
+    } catch {
+      return null;
+    }
+  };
+
+  const userInfo = ref<UserInfo | null>(getStoredUserInfo());
 
   const isLoggedIn = computed(() => !!token.value);
 

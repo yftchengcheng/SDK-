@@ -191,25 +191,3 @@ onMounted(() => {
 });
 </script>
 
-<style scoped>
-.metric-card {
-  background: #FFFFFF;
-  border-radius: 8px;
-  padding: 20px;
-  border: 1px solid var(--el-border-color-light);
-}
-.metric-label {
-  font: var(--fs-small);
-  color: #6B7280;
-  margin-bottom: 8px;
-}
-.metric-value {
-  font: var(--fs-number);
-  color: #111827;
-}
-.card-title {
-  font: var(--fs-section-title);
-  color: #111827;
-  margin-bottom: 12px;
-}
-</style>

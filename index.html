@@ -8,6 +8,15 @@
   </head>
   <body>
     <div id="app"></div>
+    <script>
+      // Global error handler - captures errors before module loading
+      window.addEventListener('error', function(e) {
+        console.error('[Global Error]', e.message, 'at', e.filename + ':' + e.lineno + ':' + e.colno);
+      });
+      window.addEventListener('unhandledrejection', function(e) {
+        console.error('[Unhandled Rejection]', e.reason);
+      });
+    </script>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

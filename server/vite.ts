@@ -9,17 +9,27 @@ import { createServer as createViteServer, type ViteDevServer } from 'vite';
 
 const isDev = process.env.COZE_PROJECT_ENV !== 'PROD';
 
+let viteDevServer: ViteDevServer | null = null;
+
 /**
  * 集成 Vite 开发服务器（中间件模式）
+ * 需要传入 HTTP server 以支持 HMR WebSocket
  */
-export async function setupViteMiddleware(app: Application) {
+export async function setupViteMiddleware(app: Application, httpServer?: import('http').Server) {
   const vite = await createViteServer({
     server: {
       middlewareMode: true,
+      hmr: httpServer
+        ? {
+            server: httpServer,
+          }
+        : false,
     },
     appType: 'spa',
     root: process.cwd(),
   });
+
+  viteDevServer = vite;
 
   // Only use Vite middleware for non-API routes
   app.use((req: Request, res: Response, next: NextFunction) => {
@@ -28,11 +38,12 @@ export async function setupViteMiddleware(app: Application) {
       next();
       return;
     }
+
     // Let Vite handle everything else (static files, HMR, etc.)
     vite.middlewares(req, res, next);
   });
 
-  console.log('Vite dev server initialized');
+  console.log('Vite dev server initialized (HMR ' + (httpServer ? 'enabled via shared server' : 'disabled') + ')');
 }
 
 /**
@@ -50,10 +61,6 @@ export function setupStaticServer(app: Application) {
   app.use(express.static(distPath));
 
   // 2. SPA fallback - 所有未处理的请求返回 index.html
-  // 到达这里的请求说明：
-  //   - 不是 API 请求（已被前面注册的路由处理）
-  //   - 不是静态文件（express.static 未找到对应文件）
-  //   - 需要返回 index.html 让前端路由处理
   app.use((_req: Request, res: Response) => {
     res.sendFile(path.join(distPath, 'index.html'));
   });
@@ -64,10 +71,17 @@ export function setupStaticServer(app: Application) {
 /**
  * 根据环境设置 Vite
  */
-export async function setupVite(app: Application) {
+export async function setupVite(app: Application, httpServer?: import('http').Server) {
   if (isDev) {
-    await setupViteMiddleware(app);
+    await setupViteMiddleware(app, httpServer);
   } else {
     setupStaticServer(app);
   }
+}
+
+/**
+ * 获取 Vite 开发服务器实例
+ */
+export function getViteDevServer(): ViteDevServer | null {
+  return viteDevServer;
 }

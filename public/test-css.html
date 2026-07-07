@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8"><title>CSS Module Test</title></head>
+<body>
+<h1>CSS Module Test</h1>
+<div id="result"></div>
+<script type="module">
+const r = document.getElementById('result');
+try {
+  await import('/src/views/dashboard/Index.vue?vue&type=style&index=0&scoped=37dcd34e&lang.css');
+  r.textContent = 'CSS module loaded OK!';
+} catch (e) {
+  r.textContent = 'CSS module FAILED: ' + e.message + ' at ' + e.filename + ':' + e.lineno + ':' + e.colno;
+  console.error('CSS Error:', e);
+}
+</script>
+</body>
+</html>
