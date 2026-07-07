@@ -88,8 +88,8 @@
               <canvas
                 ref="captchaCanvas"
                 class="auth-captcha-canvas"
-                width="100"
-                height="28"
+                width="200"
+                height="56"
                 @click="refreshCaptcha"
               />
             </div>
@@ -251,7 +251,7 @@ function drawCaptcha(): void {
   ctx.fillStyle = '#F1F5F9'
   ctx.fillRect(0, 0, w, h)
 
-  for (let i = 0; i < 3; i++) {
+  for (let i = 0; i < 4; i++) {
     ctx.strokeStyle = `rgba(148,163,184,${0.3 + Math.random() * 0.3})`
     ctx.lineWidth = 1
     ctx.beginPath()
@@ -260,17 +260,17 @@ function drawCaptcha(): void {
     ctx.stroke()
   }
 
-  for (let i = 0; i < 12; i++) {
+  for (let i = 0; i < 20; i++) {
     ctx.fillStyle = `rgba(148,163,184,${0.3 + Math.random() * 0.4})`
     ctx.fillRect(Math.random() * w, Math.random() * h, 2, 2)
   }
 
-  ctx.font = '600 15px "Inter", monospace'
+  ctx.font = '600 28px "Inter", monospace'
   ctx.textBaseline = 'middle'
   for (let i = 0; i < captchaText.value.length; i++) {
     ctx.fillStyle = `rgba(30,58,138,${0.7 + Math.random() * 0.3})`
     ctx.save()
-    ctx.translate(16 + i * 20, h / 2 + (Math.random() - 0.5) * 4)
+    ctx.translate(30 + i * 40, h / 2 + (Math.random() - 0.5) * 8)
     ctx.rotate((Math.random() - 0.5) * 0.3)
     ctx.fillText(captchaText.value[i], 0, 0)
     ctx.restore()
