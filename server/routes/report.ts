@@ -1,6 +1,7 @@
 import express, { Router } from 'express';
 import { db } from '../db';
 import { success, fail } from '../utils/response';
+import { authMiddleware, AuthRequest } from '../middleware/auth';
 
 const router = Router();
 
@@ -92,14 +93,16 @@ router.post('/', async (req: express.Request, res: express.Response) => {
 });
 
 // Daily report query
-router.get('/daily', async (req: express.Request, res: express.Response) => {
+router.get('/daily', authMiddleware, async (req: express.Request, res: express.Response) => {
   try {
-    const { developerId, appKey, placementId, startDate, endDate, page = 1, pageSize = 20 } = req.query as Record<string, string>;
+    const developerId = (req as AuthRequest).developerId as string | undefined;
 
     if (!developerId) {
-      fail(res, 400, '缺少developerId');
+      fail(res, 400, '缺少开发者身份');
       return;
     }
+
+    const { appKey, placementId, startDate, endDate, page = 1, pageSize = 20 } = req.query as Record<string, string | undefined>;
 
     let query = db.from('report_daily').select('*', { count: 'exact' }).eq('developer_id', developerId);
 
@@ -117,6 +120,67 @@ router.get('/daily', async (req: express.Request, res: express.Response) => {
   } catch (err) {
     console.error('Daily report error:', err);
     fail(res, 500, '获取日报表失败');
+  }
+});
+
+// CSV export endpoint - exports daily report as CSV
+router.get('/export', authMiddleware, async (req: express.Request, res: express.Response) => {
+  try {
+    const developerId = (req as AuthRequest).developerId as string | undefined;
+    const { appKey, placementId, startDate, endDate } = req.query as Record<string, string | undefined>;
+
+    if (!developerId) {
+      fail(res, 400, '缺少开发者身份');
+      return;
+    }
+
+    let query = db.from('report_daily').select('*').eq('developer_id', developerId);
+    if (appKey) query = query.eq('app_key', appKey);
+    if (placementId) query = query.eq('placement_id', placementId);
+    if (startDate) query = query.gte('stat_date', startDate);
+    if (endDate) query = query.lte('stat_date', endDate);
+
+    const { data, error } = await query.order('stat_date', { ascending: false }).limit(10000);
+    if (error) throw new Error(`Query failed: ${error.message}`);
+
+    // Build CSV
+    const header = ['日期', '应用Key', '广告位ID', '广告源ID', '请求数', '填充数', '展示数', '点击数', '收益(元)', '填充率', '点击率'];
+    const rows = (data || []).map((r) => {
+      const requests = Number(r.requests || 0);
+      const fills = Number(r.fills || 0);
+      const impressions = Number(r.impressions || 0);
+      const clicks = Number(r.clicks || 0);
+      const revenue = Number(r.revenue || 0);
+      const fillRate = requests > 0 ? (fills / requests * 100).toFixed(2) : '0.00';
+      const ctr = impressions > 0 ? (clicks / impressions * 100).toFixed(2) : '0.00';
+      return [
+        r.stat_date as string,
+        r.app_key as string,
+        r.placement_id as string,
+        r.ad_source_id as string,
+        requests, fills, impressions, clicks,
+        revenue.toFixed(4), `${fillRate}%`, `${ctr}%`,
+      ];
+    });
+
+    // Add UTF-8 BOM so Excel correctly recognizes Chinese characters
+    const BOM = '\uFEFF';
+    const csvContent = BOM + [header, ...rows].map((row) => row.map((cell) => {
+      const s = String(cell ?? '');
+      // Escape quotes and wrap in quotes if contains comma/quote/newline
+      if (s.includes(',') || s.includes('"') || s.includes('\n')) {
+        return `"${s.replace(/"/g, '""')}"`;
+      }
+      return s;
+    }).join(',')).join('\n');
+
+    const filename = `report_${startDate || 'all'}_${endDate || 'all'}.csv`;
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.send(csvContent);
+  } catch (err) {
+    console.error('CSV export error:', err);
+    fail(res, 500, '导出CSV失败');
   }
 });
 

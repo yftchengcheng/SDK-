@@ -16,6 +16,8 @@
         <el-form-item>
           <el-button type="primary" @click="fetchList">查询</el-button>
           <el-button @click="resetFilter">重置</el-button>
+          <el-button type="primary" plain @click="exportCsv">导出CSV</el-button>
+          <el-button :icon="DownloadIcon" @click="exportCsv">导出 CSV</el-button>
         </el-form-item>
       </el-form>
     </div>
@@ -45,6 +47,9 @@
 import { ref, reactive, onMounted } from 'vue';
 import request from '../../utils/request';
 import dayjs from 'dayjs';
+import { Download } from '@element-plus/icons-vue';
+
+const DownloadIcon = Download;
 
 const loading = ref(false);
 const tableData = ref<any[]>([]);
@@ -76,6 +81,26 @@ const fetchList = async () => {
 };
 
 const resetFilter = () => { filter.dateRange = []; filter.appKey = ''; fetchList(); };
+
+const exportCsv = async () => {
+  try {
+    const params: URLSearchParams = new URLSearchParams();
+    if (filter.dateRange?.length === 2) { params.append('startDate', filter.dateRange[0]); params.append('endDate', filter.dateRange[1]); }
+    else { params.append('startDate', dayjs().subtract(7, 'day').format('YYYY-MM-DD')); params.append('endDate', dayjs().format('YYYY-MM-DD')); }
+    if (filter.appKey) params.append('appKey', filter.appKey);
+    const token = localStorage.getItem('token') || '';
+    const url = `/api/v1/console/report/export?${params.toString()}`;
+    const resp = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+    if (!resp.ok) { alert('导出失败'); return; }
+    const blob = await resp.blob();
+    const blobUrl = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = blobUrl;
+    a.download = `report_${params.get('startDate')}_${params.get('endDate')}.csv`;
+    a.click();
+    URL.revokeObjectURL(blobUrl);
+  } catch (e) { /* ignore */ }
+};
 
 onMounted(() => { fetchApps(); fetchList(); });
 </script>

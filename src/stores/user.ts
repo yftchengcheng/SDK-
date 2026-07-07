@@ -29,6 +29,7 @@ export const useUserStore = defineStore('user', () => {
   const isLoggedIn = computed(() => !!token.value);
 
   async function login(email: string, password: string) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const res: any = await request.post('/api/v1/auth/login', { email, password });
     token.value = res.data.token;
     userInfo.value = res.data;
@@ -44,6 +45,7 @@ export const useUserStore = defineStore('user', () => {
   }
 
   async function fetchUserInfo() {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const res: any = await request.get('/api/v1/auth/me');
     userInfo.value = res.data;
     localStorage.setItem('userInfo', JSON.stringify(res.data));

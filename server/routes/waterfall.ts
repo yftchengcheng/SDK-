@@ -1,6 +1,6 @@
 import express, { Router } from 'express';
 import { db } from '../db';
-import { authMiddleware, getDeveloper } from '../middleware/auth';
+import { authMiddleware } from '../middleware/auth';
 import { success, fail } from '../utils/response';
 
 const router = Router();

@@ -75,29 +75,57 @@
         <div ref="rankChartRef" class="chart-body"></div>
       </div>
     </div>
+
+    <!-- 异常提醒 -->
+    <div v-if="anomalies.length" class="chart-card anomaly-card">
+      <div class="card-header">
+        <span class="card-title">异常检测</span>
+        <span class="anomaly-tag">共 {{ anomalies.length }} 条</span>
+      </div>
+      <div class="anomaly-list">
+        <div v-for="(item, idx) in anomalies" :key="idx" class="anomaly-item">
+          <span class="anomaly-name">{{ getPlacementName(item.placementId) }}</span>
+          <span class="anomaly-type">{{ item.type }}</span>
+          <span class="anomaly-change">{{ item.change }}%</span>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onBeforeUnmount, nextTick } from 'vue'
+import { ref, onMounted, onBeforeUnmount, nextTick, watch } from 'vue'
 import { Refresh, Top, Bottom } from '@element-plus/icons-vue'
 import * as echarts from 'echarts'
+import request from '@/utils/request'
 
+interface DashboardTrendItem { date: string; revenue: number; impressions: number; fillRate: number; eCPM: number; clicks: number }
+interface SourceCompareItem { sourceId: string; name: string; revenue: number; impressions: number; clicks: number; ctr: number; fillRate: number; eCPM: number }
+interface AppItem { id: string; appKey: string; appName: string }
+interface PlacementItem { id: string; appKey: string; placementName: string }
+interface PlacementRankingItem { placementId: string; revenue: number; impressions: number }
+interface AnomalyItem { placementId: string; type: string; change: number; recent: number; baseline: number }
+
+const activeTab = ref('7天')
 const dateRange = ref<[Date, Date]>([
   new Date(Date.now() - 7 * 86400000),
   new Date()
 ])
-const activeTab = ref('7天')
 const loading = ref(false)
-
-const metrics = ref([
-  { key: 'revenue', label: '总收益', value: 128450.32, trend: 12.5 },
-  { key: 'ecpm', label: 'eCPM', value: 38.6, trend: -2.1 },
-  { key: 'impressions', label: '展示量', value: 3327800, trend: 8.3 },
-  { key: 'clicks', label: '点击量', value: 165200, trend: 5.7 },
-  { key: 'ctr', label: '点击率', value: 4.96, trend: -0.8 },
-  { key: 'fillRate', label: '填充率', value: 96.2, trend: 1.2 }
+const metrics = ref<{ key: string; label: string; value: number; trend: number }[]>([
+  { key: 'revenue', label: '总收益', value: 0, trend: 0 },
+  { key: 'ecpm', label: 'eCPM', value: 0, trend: 0 },
+  { key: 'impressions', label: '展示量', value: 0, trend: 0 },
+  { key: 'clicks', label: '点击量', value: 0, trend: 0 },
+  { key: 'ctr', label: '点击率', value: 0, trend: 0 },
+  { key: 'fillRate', label: '填充率', value: 0, trend: 0 }
 ])
+const trendData = ref<DashboardTrendItem[]>([])
+const sourceCompare = ref<SourceCompareItem[]>([])
+const placementRanking = ref<PlacementRankingItem[]>([])
+const anomalies = ref<AnomalyItem[]>([])
+const apps = ref<AppItem[]>([])
+const placements = ref<PlacementItem[]>([])
 
 const revenueChartRef = ref<HTMLElement>()
 const sourceChartRef = ref<HTMLElement>()
@@ -122,18 +150,19 @@ function initCharts() {
   if (revenueChartRef.value) {
     const chart = echarts.init(revenueChartRef.value)
     charts.push(chart)
-    const days = ['周一', '周二', '周三', '周四', '周五', '周六', '周日']
+    const dates = trendData.value.map((t) => t.date.slice(5))
+    const revenues = trendData.value.map((t) => Number(t.revenue || 0))
     chart.setOption({
       tooltip: { trigger: 'axis', backgroundColor: '#fff', borderColor: '#E2E8F0', textStyle: { color: '#0F172A', fontSize: 13 } },
       grid: { left: 48, right: 16, top: 16, bottom: 32 },
-      xAxis: { type: 'category', data: days, axisLine: { lineStyle: { color: '#E2E8F0' } }, axisLabel: { color: '#64748B', fontSize: 12 }, axisTick: { show: false } },
-      yAxis: { type: 'value', splitLine: { lineStyle: { color: '#F1F5F9' } }, axisLabel: { color: '#64748B', fontSize: 12, formatter: (v: number) => '¥' + (v / 1000).toFixed(0) + 'k' } },
+      xAxis: { type: 'category', data: dates.length ? dates : [''], axisLine: { lineStyle: { color: '#E2E8F0' } }, axisLabel: { color: '#64748B', fontSize: 12 }, axisTick: { show: false } },
+      yAxis: { type: 'value', splitLine: { lineStyle: { color: '#F1F5F9' } }, axisLabel: { color: '#64748B', fontSize: 12, formatter: (v: number) => '¥' + (v / 1).toFixed(0) } },
       series: [{
         type: 'line', smooth: true, symbol: 'circle', symbolSize: 6,
         lineStyle: { color: '#1E40AF', width: 2.5 },
         itemStyle: { color: '#1E40AF', borderWidth: 2, borderColor: '#fff' },
         areaStyle: { color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [{ offset: 0, color: 'rgba(30,64,175,0.12)' }, { offset: 1, color: 'rgba(30,64,175,0.01)' }]) },
-        data: [18200, 19500, 16800, 21400, 22300, 19800, 24500]
+        data: revenues.length ? revenues : [0]
       }]
     })
   }
@@ -142,6 +171,7 @@ function initCharts() {
   if (sourceChartRef.value) {
     const chart = echarts.init(sourceChartRef.value)
     charts.push(chart)
+    const sourceData = sourceCompare.value.map((s) => ({ value: Number(s.revenue || 0), name: s.name }))
     chart.setOption({
       tooltip: { trigger: 'item', backgroundColor: '#fff', borderColor: '#E2E8F0', textStyle: { color: '#0F172A', fontSize: 13 } },
       legend: { bottom: 0, itemWidth: 10, itemHeight: 10, textStyle: { color: '#64748B', fontSize: 12 } },
@@ -150,12 +180,8 @@ function initCharts() {
         padAngle: 2, itemStyle: { borderRadius: 4 },
         label: { show: false },
         emphasis: { label: { show: true, fontSize: 13, fontWeight: 600, color: '#0F172A' } },
-        data: [
-          { value: 42, name: '穿山甲', itemStyle: { color: '#1E40AF' } },
-          { value: 28, name: '优量汇', itemStyle: { color: '#3B82F6' } },
-          { value: 18, name: '百青藤', itemStyle: { color: '#60A5FA' } },
-          { value: 12, name: '其他', itemStyle: { color: '#BFDBFE' } }
-        ]
+        data: sourceData.length ? sourceData : [{ value: 0, name: '暂无数据' }],
+        color: ['#1E40AF', '#3B82F6', '#60A5FA', '#93C5FD', '#BFDBFE']
       }]
     })
   }
@@ -164,28 +190,30 @@ function initCharts() {
   if (impressionChartRef.value) {
     const chart = echarts.init(impressionChartRef.value)
     charts.push(chart)
-    const days = ['周一', '周二', '周三', '周四', '周五', '周六', '周日']
+    const dates = trendData.value.map((t) => t.date.slice(5))
+    const imps = trendData.value.map((t) => Number(t.impressions || 0))
+    const clks = trendData.value.map((t) => Number(t.clicks || 0))
     chart.setOption({
       tooltip: { trigger: 'axis', backgroundColor: '#fff', borderColor: '#E2E8F0', textStyle: { color: '#0F172A', fontSize: 13 } },
       legend: { top: 0, right: 0, itemWidth: 12, itemHeight: 8, textStyle: { color: '#64748B', fontSize: 12 } },
-      grid: { left: 48, right: 16, top: 32, bottom: 32 },
-      xAxis: { type: 'category', data: days, axisLine: { lineStyle: { color: '#E2E8F0' } }, axisLabel: { color: '#64748B', fontSize: 12 }, axisTick: { show: false } },
+      grid: { left: 48, right: 48, top: 32, bottom: 32 },
+      xAxis: { type: 'category', data: dates.length ? dates : [''], axisLine: { lineStyle: { color: '#E2E8F0' } }, axisLabel: { color: '#64748B', fontSize: 12 }, axisTick: { show: false } },
       yAxis: [
-        { type: 'value', splitLine: { lineStyle: { color: '#F1F5F9' } }, axisLabel: { color: '#64748B', fontSize: 12, formatter: (v: number) => (v / 10000).toFixed(0) + '万' } },
+        { type: 'value', splitLine: { lineStyle: { color: '#F1F5F9' } }, axisLabel: { color: '#64748B', fontSize: 12 } },
         { type: 'value', splitLine: { show: false }, axisLabel: { color: '#64748B', fontSize: 12 } }
       ],
       series: [
         {
           name: '展示量', type: 'bar', barWidth: 16, yAxisIndex: 0,
           itemStyle: { color: '#3B82F6', borderRadius: [3, 3, 0, 0] },
-          data: [420, 380, 350, 460, 480, 410, 520]
+          data: imps.length ? imps : [0]
         },
         {
           name: '点击量', type: 'line', smooth: true, yAxisIndex: 1,
           symbol: 'circle', symbolSize: 5,
           lineStyle: { color: '#059669', width: 2 },
           itemStyle: { color: '#059669', borderWidth: 2, borderColor: '#fff' },
-          data: [2100, 1900, 1750, 2300, 2400, 2050, 2600]
+          data: clks.length ? clks : [0]
         }
       ]
     })
@@ -195,11 +223,13 @@ function initCharts() {
   if (rankChartRef.value) {
     const chart = echarts.init(rankChartRef.value)
     charts.push(chart)
+    const names = placementRanking.value.map((r) => r.placementId || '匿名')
+    const revs = placementRanking.value.map((r) => Number(r.revenue || 0))
     chart.setOption({
       tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' }, backgroundColor: '#fff', borderColor: '#E2E8F0', textStyle: { color: '#0F172A', fontSize: 13 } },
       grid: { left: 72, right: 16, top: 8, bottom: 8 },
-      xAxis: { type: 'value', splitLine: { lineStyle: { color: '#F1F5F9' } }, axisLabel: { color: '#64748B', fontSize: 12, formatter: (v: number) => '¥' + (v / 1000).toFixed(0) + 'k' } },
-      yAxis: { type: 'category', data: ['游戏助手', '天气通', '记账本', '阅读器', '壁纸达人'], axisLine: { show: false }, axisTick: { show: false }, axisLabel: { color: '#334155', fontSize: 13 } },
+      xAxis: { type: 'value', splitLine: { lineStyle: { color: '#F1F5F9' } }, axisLabel: { color: '#64748B', fontSize: 12, formatter: (v: number) => '¥' + v.toFixed(0) } },
+      yAxis: { type: 'category', data: names.length ? names : ['暂无数据'], axisLine: { show: false }, axisTick: { show: false }, axisLabel: { color: '#334155', fontSize: 13 } },
       series: [{
         type: 'bar', barWidth: 14,
         itemStyle: {
@@ -209,16 +239,69 @@ function initCharts() {
             { offset: 1, color: '#60A5FA' }
           ])
         },
-        data: [42000, 35000, 28000, 21000, 15000]
+        data: revs.length ? revs : [0]
       }]
     })
   }
 }
 
-function refreshData() {
+function loadDashboardData() {
+  const days = activeTab.value === '7天' ? 7 : activeTab.value === '14天' ? 14 : 30
   loading.value = true
-  setTimeout(() => { loading.value = false }, 800)
+  Promise.all([
+    request.get<any>('/api/v1/console/dashboard/overview', { params: { days } }),
+    request.get<any>('/api/v1/console/dashboard/trend', { params: { days } }),
+    request.get<any>('/api/v1/console/dashboard/source-comparison', { params: { days } }),
+    request.get<any>('/api/v1/console/dashboard/placement-ranking', { params: { days } }),
+    request.get<any>('/api/v1/console/dashboard/anomalies', { params: { days } }),
+    request.get<any>('/api/v1/console/app/list', { params: { pageSize: 200 } }),
+    request.get<any>('/api/v1/console/placement/list', { params: { pageSize: 500 } })
+  ])
+    .then(([overviewRes, trendRes, sourceRes, rankingRes, anomalyRes, appsRes, placementsRes]) => {
+      const ov = overviewRes.data || {}
+      const todayRevenue = Number(ov.todayRevenue || 0)
+      const todayImpressions = Number(ov.todayImpressions || 0)
+      const fillRate = Number(ov.fillRate || 0)
+      const eCPM = Number(ov.eCPM || 0)
+      const clicks = trendRes.data?.reduce((s: number, t: DashboardTrendItem) => s + Number(t.clicks || 0), 0) || 0
+      const ctr = todayImpressions > 0 ? (clicks / todayImpressions) * 100 : 0
+      metrics.value = [
+        { key: 'revenue', label: '总收益', value: todayRevenue, trend: 0 },
+        { key: 'ecpm', label: 'eCPM', value: eCPM, trend: 0 },
+        { key: 'impressions', label: '展示量', value: todayImpressions, trend: 0 },
+        { key: 'clicks', label: '点击量', value: clicks, trend: 0 },
+        { key: 'ctr', label: '点击率', value: Number(ctr.toFixed(2)), trend: 0 },
+        { key: 'fillRate', label: '填充率', value: fillRate, trend: 0 }
+      ]
+      trendData.value = trendRes.data || []
+      sourceCompare.value = sourceRes.data || []
+      placementRanking.value = rankingRes.data || []
+      anomalies.value = anomalyRes.data || []
+      apps.value = appsRes.data?.list || []
+      placements.value = placementsRes.data?.list || []
+      nextTick(() => initCharts())
+    })
+    .catch(() => { /* ignore */ })
+    .finally(() => { loading.value = false })
 }
+
+function refreshData() {
+  loadDashboardData()
+}
+
+function getPlacementName(placementId: string): string {
+  const p = placements.value.find((x) => x.id === placementId)
+  return p ? p.placementName : placementId
+}
+
+function getAppName(placementId: string): string {
+  const p = placements.value.find((x) => x.id === placementId)
+  if (!p) return ''
+  const app = apps.value.find((a) => a.appKey === p.appKey)
+  return app ? app.appName : p.appKey
+}
+
+watch(activeTab, () => loadDashboardData())
 
 function handleResize() {
   charts.forEach(c => c.resize())
@@ -227,6 +310,7 @@ function handleResize() {
 onMounted(async () => {
   await nextTick()
   initCharts()
+  loadDashboardData()
   window.addEventListener('resize', handleResize)
 })
 

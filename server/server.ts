@@ -38,7 +38,9 @@ async function startServer(): Promise<Server> {
   await setupVite(app, server);
 
   // 全局错误处理
+
   app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+    void _next;
     console.error('Server error:', err);
     try {
       const status = 'status' in err ? (err as { status?: number }).status ?? 500 : 500;

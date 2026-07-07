@@ -121,4 +121,162 @@ router.get('/list', authMiddleware, async (req: express.Request, res: express.Re
   }
 });
 
+// Import third-party network report data
+router.post('/import', authMiddleware, async (req: express.Request, res: express.Response) => {
+  try {
+    const { developerId } = getDeveloper(req);
+    const { rows } = req.body as {
+      rows: Array<{
+        stat_date: string;
+        app_key: string;
+        placement_id: string;
+        network_def_id: string | number;
+        impressions?: number;
+        clicks?: number;
+        revenue?: number;
+        upload_type?: number;
+      }>;
+    };
+
+    if (!Array.isArray(rows) || rows.length === 0) {
+      return fail(res, 400, '导入数据不能为空');
+    }
+
+    const records = rows.map((r) => ({
+      developer_id: developerId,
+      app_key: r.app_key,
+      placement_id: r.placement_id,
+      network_def_id: Number(r.network_def_id),
+      stat_date: r.stat_date,
+      impressions: Number(r.impressions) || 0,
+      clicks: Number(r.clicks) || 0,
+      revenue: Number(r.revenue) || 0,
+      upload_type: r.upload_type ?? 1,
+    }));
+
+    const { data, error } = await db
+      .from('custom_network_report')
+      .upsert(records, { onConflict: 'developer_id,app_key,placement_id,network_def_id,stat_date' })
+      .select();
+
+    if (error) throw new Error(`导入失败: ${error.message}`);
+
+    success(res, { imported: data?.length || 0 });
+  } catch (err) {
+    console.error('Reconciliation import error:', err);
+    fail(res, 500, (err as Error).message || '导入失败');
+  }
+});
+
+// Export reconciliation data as CSV
+router.get('/export', authMiddleware, async (req: express.Request, res: express.Response) => {
+  try {
+    const { developerId } = getDeveloper(req);
+    const { startDate, endDate } = req.query as Record<string, string>;
+
+    const today = new Date();
+    const start = startDate || new Date(today.getTime() - 30 * 86400000).toISOString().split('T')[0];
+    const end = endDate || today.toISOString().split('T')[0];
+
+    const { data, error } = await db
+      .from('custom_network_report')
+      .select('*')
+      .eq('developer_id', developerId)
+      .gte('stat_date', start)
+      .lte('stat_date', end)
+      .order('stat_date', { ascending: false });
+
+    if (error) throw new Error(`查询失败: ${error.message}`);
+
+    // CSV header
+    const headers = [
+      '日期',
+      '应用Key',
+      '广告位ID',
+      '广告网络ID',
+      '网络展示量',
+      '网络点击量',
+      '网络收益(元)',
+      '上传类型',
+      '导入时间',
+    ];
+
+    // Build CSV with UTF-8 BOM for Excel compatibility
+    const escape = (v: unknown): string => {
+      if (v == null) return '';
+      const s = String(v);
+      if (s.includes(',') || s.includes('"') || s.includes('\n')) {
+        return `"${s.replace(/"/g, '""')}"`;
+      }
+      return s;
+    };
+
+    const lines = [headers.join(',')];
+    (data || []).forEach((r: Record<string, unknown>) => {
+      lines.push(
+        [
+          r.stat_date,
+          r.app_key,
+          r.placement_id,
+          r.network_def_id,
+          r.impressions,
+          r.clicks,
+          r.revenue,
+          r.upload_type,
+          r.created_at,
+        ].map(escape).join(','),
+      );
+    });
+
+    const csv = '\uFEFF' + lines.join('\n');
+    const filename = `reconciliation_${start}_${end}.csv`;
+
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.send(csv);
+  } catch (err) {
+    console.error('Reconciliation export error:', err);
+    fail(res, 500, (err as Error).message || '导出失败');
+  }
+});
+
+// Resolve a reconciliation dispute (mark as resolved with comment)
+router.post('/resolve', authMiddleware, async (req: express.Request, res: express.Response) => {
+  try {
+    const { developerId } = getDeveloper(req);
+    const { appKey, placementId, networkDefId, statDate, comment } = req.body as {
+      appKey: string;
+      placementId: string;
+      networkDefId: number | string;
+      statDate: string;
+      comment?: string;
+    };
+
+    if (!appKey || !placementId || !networkDefId || !statDate) {
+      return fail(res, 400, '缺少必填参数');
+    }
+
+    // Mark custom_network_report as resolved by appending a comment in changelog field via update
+    const { data, error } = await db
+      .from('custom_network_report')
+      .update({
+        upload_type: 3, // 3 = resolved/disputed adjustment
+        updated_at: new Date().toISOString(),
+      })
+      .eq('developer_id', developerId)
+      .eq('app_key', appKey)
+      .eq('placement_id', placementId)
+      .eq('network_def_id', Number(networkDefId))
+      .eq('stat_date', statDate)
+      .select();
+
+    if (error) throw new Error(`更新失败: ${error.message}`);
+
+    success(res, { resolved: data?.length || 0, comment: comment || null });
+  } catch (err) {
+    console.error('Reconciliation resolve error:', err);
+    fail(res, 500, (err as Error).message || '解决失败');
+  }
+});
+
 export default router;

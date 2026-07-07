@@ -192,4 +192,130 @@ router.get('/placement-ranking', authMiddleware, async (req: express.Request, re
   }
 });
 
+// Ad source comparison (revenue & impressions per source)
+router.get('/source-comparison', authMiddleware, async (req: express.Request, res: express.Response) => {
+  try {
+    const { developerId } = getDeveloper(req);
+    const { appKey, startDate, endDate } = req.query as Record<string, string>;
+
+    const today = new Date();
+    const start = startDate || new Date(today.getTime() - 7 * 86400000).toISOString().split('T')[0];
+    const end = endDate || today.toISOString().split('T')[0];
+
+    let query = db.from('report_daily')
+      .select('ad_source_id, revenue, impressions, clicks, requests, fills')
+      .eq('developer_id', developerId)
+      .gte('stat_date', start)
+      .lte('stat_date', end);
+    if (appKey) query = query.eq('app_key', appKey);
+
+    const { data, error } = await query;
+    if (error) throw new Error(`Query failed: ${error.message}`);
+
+    const sourceMap: Record<string, { revenue: number; impressions: number; clicks: number; requests: number; fills: number }> = {};
+    for (const row of (data || [])) {
+      const sid = (row.ad_source_id as string) || 'unknown';
+      if (!sourceMap[sid]) sourceMap[sid] = { revenue: 0, impressions: 0, clicks: 0, requests: 0, fills: 0 };
+      sourceMap[sid].revenue += Number(row.revenue || 0);
+      sourceMap[sid].impressions += Number(row.impressions || 0);
+      sourceMap[sid].clicks += Number(row.clicks || 0);
+      sourceMap[sid].requests += Number(row.requests || 0);
+      sourceMap[sid].fills += Number(row.fills || 0);
+    }
+
+    // Lookup source names
+    const sourceIds = Object.keys(sourceMap);
+    const nameMap: Record<string, string> = {};
+    if (sourceIds.length > 0) {
+      const { data: sources } = await db.from('ad_source').select('id, name').in('id', sourceIds);
+      for (const s of (sources || [])) {
+        nameMap[s.id as string] = (s.name as string) || s.id as string;
+      }
+    }
+
+    const ranking = Object.entries(sourceMap)
+      .map(([sourceId, d]) => ({
+        sourceId,
+        name: nameMap[sourceId] || sourceId,
+        revenue: Number(d.revenue.toFixed(2)),
+        impressions: d.impressions,
+        clicks: d.clicks,
+        ctr: d.impressions > 0 ? Number((d.clicks / d.impressions * 100).toFixed(2)) : 0,
+        fillRate: d.requests > 0 ? Number((d.fills / d.requests * 100).toFixed(2)) : 0,
+        eCPM: d.impressions > 0 ? Number((d.revenue / d.impressions * 1000).toFixed(2)) : 0,
+      }))
+      .sort((a, b) => b.revenue - a.revenue);
+
+    success(res, ranking);
+  } catch (err) {
+    console.error('Source comparison error:', err);
+    fail(res, 500, '获取广告源对比失败');
+  }
+});
+
+// Anomaly detection: sudden drops in revenue or fill rate
+router.get('/anomalies', authMiddleware, async (req: express.Request, res: express.Response) => {
+  try {
+    const { developerId } = getDeveloper(req);
+
+    // Compare last 3 days vs prior 7 days baseline
+    const today = new Date();
+    const last3End = today.toISOString().split('T')[0];
+    const last3Start = new Date(today.getTime() - 2 * 86400000).toISOString().split('T')[0];
+    const baselineStart = new Date(today.getTime() - 9 * 86400000).toISOString().split('T')[0];
+    const baselineEnd = new Date(today.getTime() - 3 * 86400000).toISOString().split('T')[0];
+
+    const { data: recentRows, error: e1 } = await db.from('report_daily')
+      .select('placement_id, revenue, impressions, requests, fills')
+      .eq('developer_id', developerId)
+      .gte('stat_date', last3Start)
+      .lte('stat_date', last3End);
+    if (e1) throw new Error(`Query failed: ${e1.message}`);
+
+    const { data: baselineRows, error: e2 } = await db.from('report_daily')
+      .select('placement_id, revenue, impressions, requests, fills')
+      .eq('developer_id', developerId)
+      .gte('stat_date', baselineStart)
+      .lte('stat_date', baselineEnd);
+    if (e2) throw new Error(`Query failed: ${e2.message}`);
+
+    const aggregate = (rows: Array<Record<string, unknown>>) => {
+      const m: Record<string, { revenue: number; impressions: number; requests: number; fills: number }> = {};
+      for (const r of rows) {
+        const pid = r.placement_id as string;
+        if (!m[pid]) m[pid] = { revenue: 0, impressions: 0, requests: 0, fills: 0 };
+        m[pid].revenue += Number(r.revenue || 0);
+        m[pid].impressions += Number(r.impressions || 0);
+        m[pid].requests += Number(r.requests || 0);
+        m[pid].fills += Number(r.fills || 0);
+      }
+      return m;
+    };
+
+    const recent = aggregate(recentRows || []);
+    const baseline = aggregate(baselineRows || []);
+
+    const anomalies: Array<{ placementId: string; type: string; change: number; recent: number; baseline: number }> = [];
+    for (const pid of Object.keys(recent)) {
+      const r = recent[pid];
+      const b = baseline[pid];
+      if (!b || b.revenue === 0) continue;
+      const revenueDrop = (r.revenue - b.revenue / 7 * 3) / (b.revenue / 7 * 3) * 100;
+      const recentFillRate = r.requests > 0 ? (r.fills / r.requests * 100) : 0;
+      const baselineFillRate = b.requests > 0 ? (b.fills / b.requests * 100) : 0;
+      if (revenueDrop < -30) {
+        anomalies.push({ placementId: pid, type: 'revenue_drop', change: Number(revenueDrop.toFixed(1)), recent: Number(r.revenue.toFixed(2)), baseline: Number((b.revenue / 7 * 3).toFixed(2)) });
+      }
+      if (baselineFillRate - recentFillRate > 20 && recentFillRate < 50) {
+        anomalies.push({ placementId: pid, type: 'fill_rate_drop', change: Number((recentFillRate - baselineFillRate).toFixed(1)), recent: Number(recentFillRate.toFixed(2)), baseline: Number(baselineFillRate.toFixed(2)) });
+      }
+    }
+
+    success(res, anomalies.slice(0, 10));
+  } catch (err) {
+    console.error('Anomaly detection error:', err);
+    fail(res, 500, '获取异常数据失败');
+  }
+});
+
 export default router;
