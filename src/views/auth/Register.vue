@@ -61,24 +61,24 @@
         <el-form ref="formRef" :model="form" :rules="rules" label-position="top" @submit.prevent="handleRegister" class="auth-form">
           <div class="auth-form-row">
             <el-form-item label="公司名称" prop="company" class="auth-form-row-item">
-              <el-input v-model="form.company" placeholder="请输入公司名称"  prefix-icon="OfficeBuilding" />
+              <el-input v-model="form.company" placeholder="请输入公司名称"  :prefix-icon="OfficeBuilding" />
             </el-form-item>
             <el-form-item label="联系人" prop="contactName" class="auth-form-row-item">
-              <el-input v-model="form.contactName" placeholder="请输入联系人"  prefix-icon="User" />
+              <el-input v-model="form.contactName" placeholder="请输入联系人"  :prefix-icon="User" />
             </el-form-item>
           </div>
           <el-form-item label="邮箱" prop="email">
-            <el-input v-model="form.email" placeholder="请输入邮箱"  prefix-icon="Message" />
+            <el-input v-model="form.email" placeholder="请输入邮箱"  :prefix-icon="Message" />
           </el-form-item>
           <el-form-item label="密码" prop="password">
-            <el-input v-model="form.password" type="password" placeholder="请输入密码（6位以上）" show-password  prefix-icon="Lock" />
+            <el-input v-model="form.password" type="password" placeholder="请输入密码（6位以上）" show-password  :prefix-icon="Lock" />
           </el-form-item>
           <el-form-item label="确认密码" prop="confirmPassword">
-            <el-input v-model="form.confirmPassword" type="password" placeholder="请再次输入密码" show-password  prefix-icon="Lock" />
+            <el-input v-model="form.confirmPassword" type="password" placeholder="请再次输入密码" show-password  :prefix-icon="Lock" />
           </el-form-item>
           <el-form-item label="验证码" prop="captcha">
             <div class="captcha-row">
-              <el-input v-model="form.captcha" placeholder="请输入验证码"  class="captcha-input" prefix-icon="Key" />
+              <el-input v-model="form.captcha" placeholder="请输入验证码"  class="captcha-input" :prefix-icon="Key" />
               <div class="captcha-canvas" @click="refreshCaptcha" title="点击刷新验证码">
                 <canvas ref="captchaCanvas" width="130" height="40"></canvas>
               </div>
@@ -123,6 +123,7 @@ import { ref, reactive, onMounted, nextTick } from 'vue';
 import { useRouter } from 'vue-router';
 import { useUserStore } from '../../stores/user';
 import { ElMessage } from 'element-plus';
+import { OfficeBuilding, User, Message, Lock, Key } from '@element-plus/icons-vue';
 import type { FormInstance, FormRules } from 'element-plus';
 
 const router = useRouter();

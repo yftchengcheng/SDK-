@@ -60,14 +60,14 @@
         </div>
         <el-form ref="formRef" :model="form" :rules="rules" label-position="top" @submit.prevent="handleLogin" class="auth-form">
           <el-form-item label="邮箱" prop="email">
-            <el-input v-model="form.email" placeholder="请输入注册邮箱" prefix-icon="Message" />
+            <el-input v-model="form.email" placeholder="请输入注册邮箱" :prefix-icon="Message" />
           </el-form-item>
           <el-form-item label="密码" prop="password">
-            <el-input v-model="form.password" type="password" placeholder="请输入密码" show-password prefix-icon="Lock" />
+            <el-input v-model="form.password" type="password" placeholder="请输入密码" show-password :prefix-icon="Lock" />
           </el-form-item>
           <el-form-item label="验证码" prop="captcha">
             <div class="captcha-row">
-              <el-input v-model="form.captcha" placeholder="请输入验证码" class="captcha-input" prefix-icon="Key" />
+              <el-input v-model="form.captcha" placeholder="请输入验证码" class="captcha-input" :prefix-icon="Key" />
               <div class="captcha-canvas" @click="refreshCaptcha" title="点击刷新验证码">
                 <canvas ref="captchaCanvas" width="130" height="40"></canvas>
               </div>
@@ -112,6 +112,7 @@ import { ref, reactive, onMounted, nextTick } from 'vue';
 import { useRouter } from 'vue-router';
 import { useUserStore } from '../../stores/user';
 import { ElMessage } from 'element-plus';
+import { Message, Lock, Key } from '@element-plus/icons-vue';
 import type { FormInstance, FormRules } from 'element-plus';
 
 const router = useRouter();
