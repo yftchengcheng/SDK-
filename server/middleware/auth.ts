@@ -90,5 +90,10 @@ export function setAuthCookie(res: Response, token: string): void {
 }
 
 export function clearAuthCookie(res: Response): void {
-  res.clearCookie('auth_token', { path: '/' });
+  res.clearCookie('auth_token', {
+    httpOnly: true,
+    secure: process.env.COZE_PROJECT_ENV === 'PROD',
+    sameSite: 'strict',
+    path: '/',
+  });
 }
