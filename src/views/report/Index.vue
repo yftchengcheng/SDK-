@@ -1,42 +1,73 @@
 <template>
-  <div class="page-container">
+  <div class="page-shell">
     <div class="page-header">
-      <h1>数据报表</h1>
+      <div class="page-header-left">
+        <div class="page-header-icon"><el-icon><DataAnalysis /></el-icon></div>
+        <div class="page-header-titles">
+          <h1 class="page-header-title">数据报表</h1>
+          <p class="page-header-subtitle">按日期 / 应用 / 广告位聚合的请求、填充、展示、点击与收益</p>
+        </div>
+      </div>
+      <div class="page-header-actions">
+        <el-button :icon="Download" @click="exportCsv">导出 CSV</el-button>
+      </div>
     </div>
-    <div class="filter-card">
-      <el-form :inline="true" :model="filter">
+    <div class="page-filter">
+      <el-form :inline="true" :model="filter" class="page-filter-form" @submit.prevent>
         <el-form-item label="时间范围">
-          <el-date-picker v-model="filter.dateRange" type="daterange" range-separator="至" start-placeholder="开始" end-placeholder="结束" value-format="YYYY-MM-DD" style="width: 260px" />
+          <el-date-picker v-model="filter.dateRange" type="daterange" range-separator="至" start-placeholder="开始" end-placeholder="结束" value-format="YYYY-MM-DD" />
         </el-form-item>
         <el-form-item label="应用">
-          <el-select v-model="filter.appKey" placeholder="全部应用" clearable style="width: 180px">
+          <el-select v-model="filter.appKey" placeholder="全部应用" clearable>
             <el-option v-for="a in appList" :key="a.app_key" :label="a.app_name" :value="a.app_key" />
           </el-select>
         </el-form-item>
-        <el-form-item>
-          <el-button type="primary" @click="fetchList">查询</el-button>
-          <el-button @click="resetFilter">重置</el-button>
-          <el-button type="primary" plain @click="exportCsv">导出CSV</el-button>
-          <el-button :icon="DownloadIcon" @click="exportCsv">导出 CSV</el-button>
+        <el-form-item label="粒度">
+          <el-select v-model="filter.granularity" placeholder="日">
+            <el-option label="日" value="day" />
+            <el-option label="小时" value="hour" />
+          </el-select>
         </el-form-item>
       </el-form>
+      <div class="page-filter-actions">
+        <el-button @click="resetFilter">重置</el-button>
+        <el-button type="primary" :icon="Search" @click="fetchList">查询</el-button>
+      </div>
     </div>
-    <div class="table-card">
-      <el-table :data="tableData" v-loading="loading" stripe style="width: 100%">
-        <el-table-column prop="stat_date" label="日期" width="120" />
-        <el-table-column prop="app_name" label="应用" min-width="120" />
-        <el-table-column prop="placement_name" label="广告位" min-width="120" />
-        <el-table-column prop="requests" label="请求数" width="100" />
-        <el-table-column prop="fills" label="填充数" width="100" />
-        <el-table-column prop="impressions" label="展示数" width="100" />
-        <el-table-column prop="clicks" label="点击数" width="100" />
-        <el-table-column prop="revenue" label="收益(元)" width="120" />
-        <el-table-column prop="fill_rate" label="填充率" width="100">
-          <template #default="{ row }">{{ row.fill_rate != null ? row.fill_rate + '%' : '--' }}</template>
-        </el-table-column>
-        <el-table-column prop="ecpm" label="eCPM" width="100" />
-      </el-table>
-      <div class="pagination-wrapper">
+    <div class="page-card">
+      <div class="page-table-wrap">
+        <el-table :data="tableData" v-loading="loading" stripe style="width: 100%">
+          <el-table-column prop="stat_date" label="日期" width="120" />
+          <el-table-column prop="app_name" label="应用" min-width="120">
+            <template #default="{ row }"><div class="cell-name">{{ row.app_name || '—' }}</div></template>
+          </el-table-column>
+          <el-table-column prop="placement_name" label="广告位" min-width="120">
+            <template #default="{ row }"><div class="cell-name">{{ row.placement_name || '—' }}</div></template>
+          </el-table-column>
+          <el-table-column prop="requests" label="请求数" width="100" align="right">
+            <template #default="{ row }"><span class="cell-num">{{ formatNum(row.requests) }}</span></template>
+          </el-table-column>
+          <el-table-column prop="fills" label="填充数" width="100" align="right">
+            <template #default="{ row }"><span class="cell-num">{{ formatNum(row.fills) }}</span></template>
+          </el-table-column>
+          <el-table-column prop="impressions" label="展示数" width="100" align="right">
+            <template #default="{ row }"><span class="cell-num">{{ formatNum(row.impressions) }}</span></template>
+          </el-table-column>
+          <el-table-column prop="clicks" label="点击数" width="100" align="right">
+            <template #default="{ row }"><span class="cell-num">{{ formatNum(row.clicks) }}</span></template>
+          </el-table-column>
+          <el-table-column prop="revenue" label="收益(元)" width="120" align="right">
+            <template #default="{ row }"><span class="cell-num">¥{{ Number(row.revenue || 0).toFixed(2) }}</span></template>
+          </el-table-column>
+          <el-table-column prop="fill_rate" label="填充率" width="100" align="right">
+            <template #default="{ row }"><span class="cell-num">{{ row.fill_rate != null ? row.fill_rate + '%' : '--' }}</span></template>
+          </el-table-column>
+          <el-table-column prop="ecpm" label="eCPM" width="100" align="right">
+            <template #default="{ row }"><span class="cell-num">{{ row.ecpm != null ? '¥' + Number(row.ecpm).toFixed(2) : '--' }}</span></template>
+          </el-table-column>
+        </el-table>
+      </div>
+      <div class="page-pagination">
         <el-pagination v-model:current-page="page" v-model:page-size="pageSize" :total="total" :page-sizes="[10,20,50,100]" layout="total, sizes, prev, pager, next" @change="fetchList" />
       </div>
     </div>

@@ -1,24 +1,43 @@
 <template>
-  <div class="page-container">
+  <div class="page-shell">
     <div class="page-header">
-      <h1>广告源管理</h1>
+      <div class="page-header-left">
+        <div class="page-header-icon"><el-icon><Connection /></el-icon></div>
+        <div class="page-header-titles">
+          <h1 class="page-header-title">广告源管理</h1>
+          <p class="page-header-subtitle">管理接入的广告网络代码位与三方账号映射</p>
+        </div>
+      </div>
       <div class="page-header-actions">
         <el-button @click="openCustomCreate">创建自定义广告源</el-button>
-        <el-button type="primary" @click="openCreate">创建标准广告源</el-button>
+        <el-button type="primary" :icon="Plus" @click="openCreate">创建标准广告源</el-button>
       </div>
     </div>
     <!-- Filter -->
-    <div class="filter-card">
-      <el-form :inline="true" :model="filter">
+    <div class="page-filter">
+      <el-form :inline="true" :model="filter" class="page-filter-form" @submit.prevent>
         <el-form-item label="广告网络">
-          <el-select v-model="filter.networkCode" placeholder="全部网络" clearable style="width: 160px" @change="fetchList">
+          <el-select v-model="filter.networkCode" placeholder="全部网络" clearable @change="onSearch">
             <el-option v-for="n in networks" :key="n.network_code" :label="n.network_name" :value="n.network_code" />
           </el-select>
         </el-form-item>
+        <el-form-item label="状态">
+          <el-select v-model="filter.status" placeholder="全部" clearable @change="onSearch">
+            <el-option label="启用" :value="1" />
+            <el-option label="禁用" :value="0" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="关键词">
+          <el-input v-model="filter.keyword" placeholder="搜索名称 / 三方ID" clearable @keyup.enter="onSearch" @clear="onSearch" />
+        </el-form-item>
       </el-form>
+      <div class="page-filter-actions">
+        <el-button @click="onReset">重置</el-button>
+        <el-button type="primary" :icon="Search" @click="onSearch">查询</el-button>
+      </div>
     </div>
     <!-- Table -->
-    <div class="table-card">
+    <div class="page-card"><div class="page-table-wrap">
       <el-table :data="tableData" v-loading="loading" stripe style="width: 100%">
         <el-table-column prop="source_name" label="广告源名称" min-width="160" />
         <el-table-column prop="network_name" label="广告网络" width="120" />
@@ -26,7 +45,7 @@
         <el-table-column prop="third_placement_id" label="三方代码位ID" min-width="160" />
         <el-table-column prop="status" label="状态" width="80">
           <template #default="{ row }">
-            <el-tag :type="row.status === 1 ? 'success' : 'info'" size="small">{{ row.status === 1 ? '启用' : '禁用' }}</el-tag>
+            <span class="status-tag" :class="row.status === 1 ? 'status-tag--active' : 'status-tag--paused'">{{ row.status === 1 ? '启用' : '禁用' }}</span>
           </template>
         </el-table-column>
         <el-table-column prop="created_at" label="创建时间" width="170">
@@ -39,7 +58,7 @@
           </template>
         </el-table-column>
       </el-table>
-      <div class="pagination-wrapper">
+      </div><div class="page-pagination">
         <el-pagination v-model:current-page="page" v-model:page-size="pageSize" :total="total" :page-sizes="[10,20,50,100]" layout="total, sizes, prev, pager, next" @change="fetchList" />
       </div>
     </div>
@@ -109,6 +128,7 @@ import request from '../../utils/request';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import type { FormInstance, FormRules } from 'element-plus';
 import dayjs from 'dayjs';
+import { Plus, Connection, Search } from '@element-plus/icons-vue';
 
 const formatTime = (t: string) => t ? dayjs(t).format('YYYY-MM-DD HH:mm:ss') : '--';
 
@@ -118,7 +138,20 @@ const page = ref(1);
 const pageSize = ref(20);
 const total = ref(0);
 const networks = ref<any[]>([]);
-const filter = reactive({ networkCode: '' });
+const filter = reactive({ networkCode: '', status: '', keyword: '' });
+
+const onSearch = () => {
+  page.value = 1;
+  fetchList();
+};
+
+const onReset = () => {
+  filter.networkCode = '';
+  filter.status = '';
+  filter.keyword = '';
+  page.value = 1;
+  fetchList();
+};
 
 const showDialog = ref(false);
 const showCustomDialog = ref(false);
@@ -154,7 +187,7 @@ const fetchNetworks = async () => {
   try { const res: any = await request.get('/api/v1/console/network/list'); networks.value = res.data?.list || []; } catch { /* ignore */ }
 };
 
-const fetchList = async () => {
+const _orig_fetchList = async () => {
   loading.value = true;
   try {
     const params: any = { page: page.value, pageSize: pageSize.value };

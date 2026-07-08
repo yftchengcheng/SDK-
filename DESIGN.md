@@ -232,6 +232,99 @@ B2B 企业级广告数据管理控制台。沉稳、专业、精准。蓝+灰+�
   - 三处使用：`.sidebar` / `.top-bar` / `.auth-hero-side` 同步使用
   - **蓝色仅保留在 CTA / 主按钮 / 链接 / 激活态**（#1E40AF / #2563EB）
 
+## 列表页统一规范（2026-07 用户要求：所有列表页严格统一）
+
+### 整体三段式布局
+
+```
+┌──────────────────────────────────────────────────────────────┐
+│  Page Header（页面标题 + 主操作）                              │  ← .page-header
+├──────────────────────────────────────────────────────────────┤
+│  Filter Bar（筛选区）                                          │  ← .page-filter
+├──────────────────────────────────────────────────────────────┤
+│                                                              │
+│  Table Card（数据表 + 内嵌分页）                               │  ← .page-card
+│                                                              │
+└──────────────────────────────────────────────────────────────┘
+```
+
+三段都用 .page-card 容器（白底 / 8px 圆角 / 1px #E2E8F0 / shadow-sm / padding 0），
+上下间距 16px，左右紧贴内容区（24px 边距）。
+
+### Page Header
+
+- 高度：60-72px
+- 内部布局：`display: flex; align-items: center; justify-content: space-between;`
+- 左侧区 `.page-header-left`：
+  - **图标徽章** 36×36 / 圆角 8 / 背景 #EFF6FF / 颜色 #2563EB / Element Plus Icon
+  - **标题组**：
+    - 主标题 `--text-xl` (18px) / weight 700 / #0F172A
+    - 副标题（可选）`--text-sm` (12px) / #94A3B8 / max-width 60ch
+- 右侧区 `.page-header-actions`：
+  - 按钮组，gap 8px，主操作在前
+  - 主操作：`<el-button type="primary" :icon="Plus">新建 XXX</el-button>`
+  - 次操作：`<el-button :icon="Refresh">刷新</el-button>`
+
+### Filter Bar
+
+- **必须有**（即便当前只有一个搜索框）—— 视觉节奏统一
+- 内部布局：`display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap`
+- 左侧区 `.page-filter-form`：el-form `:inline` 表单
+  - 每个条件：`el-form-item label="XX"`，label 字号 12px / 字重 600 / #334155
+  - 输入/选择框宽度：120-200px（按字段长度调整）
+  - 状态/平台/类型等枚举：宽度 120px；时间范围：宽度 240px
+- 右侧区 `.page-filter-actions`：操作按钮组
+  - `<el-button type="primary" :icon="Search" @click="onSearch">查询</el-button>`
+  - `<el-button :icon="RefreshLeft" @click="onReset">重置</el-button>`
+  - 可选：`<el-button :icon="Download" plain @click="onExport">导出</el-button>`
+- 高度：56px（多行可换），padding：12px 20px
+- 背景：白色（与 .page-card 同）；分割线：底部 1px #F1F5F9
+
+### Table Card
+
+- padding：0
+- 内部：el-table + el-pagination
+- el-pagination 位置：**右下角内嵌**
+  - padding：12px 20px
+  - 顶部 1px #F1F5F9 分割线
+  - `<el-pagination v-model:current-page="page" v-model:page-size="pageSize" :total="total" :page-sizes="[10,20,50]" layout="total, sizes, prev, pager, next, jumper" @current-change="fetchList" @size-change="fetchList" small background />`
+- el-table 配置（统一）：
+  - `stripe` / `:header-cell-style="{ background: '#F8FAFC', color: '#334155', fontWeight: 600 }"`
+  - `:cell-style="{ color: '#475569' }"`
+  - 操作列 `width="160" fixed="right" label="操作"`
+  - 状态列 `width="80"` 配合 `.status-tag` 组件
+  - 时间列 `width="170"` Element Plus 默认格式 `YYYY-MM-DD HH:mm:ss`
+- 空数据：使用 el-table 默认 empty slot，居中显示 `-` 或描述文案
+
+### 状态标签 .status-tag
+
+| 状态值 | 背景 | 文字 | 圆角 |
+|--------|------|------|------|
+| active / 1 / 启用 | #D1FAE5 | #047857 | 4px |
+| paused / 0 / 停用 | #F1F5F9 | #64748B | 4px |
+| pending / 审核中 | #DBEAFE | #1E3A8A | 4px |
+| error / 失败 | #FEE2E2 | #991B1B | 4px |
+| warning | #FEF3C7 | #92400E | 4px |
+
+- 高度 22px / 内边距 2px 8px / 字号 12px / 字重 500
+- 实现：`<span class="status-tag" :class="`status-tag--${variant}`">{{ label }}</span>`
+
+### 操作列按钮规范
+
+- 主操作：`<el-button link type="primary" :icon="Edit">编辑</el-button>`
+- 次操作：`<el-button link type="primary" :icon="View">查看</el-button>`
+- 危险操作：`<el-button link type="danger" :icon="Delete">删除</el-button>`
+- 多个按钮用 el-space 隔开，gap 4px
+- 操作列固定右侧，width 160px（3-4 个操作）
+
+### 命名与代码规范
+
+- 容器类名空间：`.page-header` / `.page-filter` / `.page-card` / `.page-table-wrap` / `.page-pagination`
+- 内部子元素：`.page-header-left` / `.page-header-actions` / `.page-filter-form` / `.page-filter-actions`
+- 状态标签：`.status-tag` + `.status-tag--active` 等修饰类
+- 筛选 form：`:model="filter"`（统一用 filter 变量名）
+- 分页：`page` / `pageSize` / `total`（统一变量名）
+
 ## 动效规范
 
 | 类型 | 时长 | 曲线 |

@@ -1,23 +1,44 @@
 <template>
-  <div class="page-container">
+  <div class="page-shell">
     <div class="page-header">
-      <h1>消息中心</h1>
-      <el-button @click="markAllRead">全部已读</el-button>
+      <div class="page-header-left">
+        <div class="page-header-icon"><el-icon><Bell /></el-icon></div>
+        <div class="page-header-titles">
+          <h1 class="page-header-title">消息中心</h1>
+          <p class="page-header-subtitle">系统通知、运营公告、收益提醒与异常告警</p>
+        </div>
+      </div>
+      <div class="page-header-actions">
+        <el-button @click="markAllRead">全部已读</el-button>
+      </div>
     </div>
-    <div class="filter-card">
-      <el-form :inline="true" :model="filter">
+    <div class="page-filter">
+      <el-form :inline="true" :model="filter" class="page-filter-form" @submit.prevent>
         <el-form-item label="消息类型">
-          <el-select v-model="filter.type" placeholder="全部" clearable style="width: 140px" @change="fetchList">
+          <el-select v-model="filter.type" placeholder="全部" clearable @change="onSearch">
             <el-option label="系统通知" :value="1" />
             <el-option label="运营公告" :value="2" />
             <el-option label="收益提醒" :value="3" />
             <el-option label="异常告警" :value="4" />
           </el-select>
         </el-form-item>
+        <el-form-item label="状态">
+          <el-select v-model="filter.isRead" placeholder="全部" clearable @change="onSearch">
+            <el-option label="未读" :value="0" />
+            <el-option label="已读" :value="1" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="关键词">
+          <el-input v-model="filter.keyword" placeholder="搜索消息标题" clearable @keyup.enter="onSearch" @clear="onSearch" />
+        </el-form-item>
       </el-form>
+      <div class="page-filter-actions">
+        <el-button @click="onReset">重置</el-button>
+        <el-button type="primary" :icon="Search" @click="onSearch">查询</el-button>
+      </div>
     </div>
-    <div class="table-card">
-      <el-table :data="tableData" v-loading="loading" stripe style="width: 100%">
+    <div class="page-card">
+      <div class="page-table-wrap"><el-table :data="tableData" v-loading="loading" stripe style="width: 100%">
         <el-table-column prop="is_read" label="" width="40">
           <template #default="{ row }">
             <span v-if="!row.is_read" style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#DC2626"></span>
@@ -30,7 +51,13 @@
         </el-table-column>
         <el-table-column prop="type" label="类型" width="120">
           <template #default="{ row }">
-            <el-tag :type="typeTagMap[row.type] || 'info'" size="small">{{ typeLabelMap[row.type] || '未知' }}</el-tag>
+            <span class="status-tag" :class="{
+                'status-tag--info': row.type === 1,
+                'status-tag--pending': row.type === 2,
+                'status-tag--active': row.type === 3,
+                'status-tag--error': row.type === 4,
+                'status-tag--neutral': ![1,2,3,4].includes(row.type)
+              }">{{ typeLabelMap[row.type] || '未知' }}</span>
           </template>
         </el-table-column>
         <el-table-column prop="created_at" label="时间" width="170">
@@ -42,7 +69,7 @@
           </template>
         </el-table-column>
       </el-table>
-      <div class="pagination-wrapper">
+      </div><div class="page-pagination">
         <el-pagination v-model:current-page="page" v-model:page-size="pageSize" :total="total" :page-sizes="[10,20,50]" layout="total, sizes, prev, pager, next" @change="fetchList" />
       </div>
     </div>
@@ -60,6 +87,7 @@
 import { ref, reactive, onMounted } from 'vue';
 import request from '../../utils/request';
 import dayjs from 'dayjs';
+import { Bell, Search } from '@element-plus/icons-vue';
 
 const typeLabelMap: Record<number, string> = { 1: '系统通知', 2: '运营公告', 3: '收益提醒', 4: '异常告警' };
 const typeTagMap: Record<number, string> = { 1: 'info', 2: '', 3: 'success', 4: 'danger' };
@@ -69,7 +97,10 @@ const tableData = ref<any[]>([]);
 const page = ref(1);
 const pageSize = ref(20);
 const total = ref(0);
-const filter = reactive({ type: null as number | null });
+const filter = reactive({ type: null as number | null, isRead: null as number | null, keyword: '' });
+
+const onSearch = () => { page.value = 1; fetchList(); };
+const onReset = () => { filter.type = null; filter.isRead = null; filter.keyword = ''; page.value = 1; fetchList(); };
 
 const showDetail = ref(false);
 const currentMsg = reactive({ title: '', content: '' });

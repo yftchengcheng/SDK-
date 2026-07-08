@@ -1,72 +1,142 @@
 <template>
-  <div class="page-container">
+  <div class="page-shell">
+    <!-- Page Header -->
     <div class="page-header">
-      <h1>应用管理</h1>
-      <el-button type="primary" @click="openCreateDialog">创建应用</el-button>
+      <div class="page-header-left">
+        <div class="page-header-icon">
+          <el-icon :size="18"><Cellphone /></el-icon>
+        </div>
+        <div class="page-header-titles">
+          <h1 class="page-header-title">应用管理</h1>
+          <p class="page-header-subtitle">管理你的 SDK 接入应用，应用创建后用于广告位与数据上报的关联</p>
+        </div>
+      </div>
+      <div class="page-header-actions">
+        <el-button type="primary" :icon="Plus" @click="openCreateDialog">创建应用</el-button>
+      </div>
     </div>
-    <!-- Table -->
-    <div class="table-card">
-      <el-table :data="tableData" v-loading="loading" stripe style="width: 100%">
-        <el-table-column label="图标" width="72" align="center">
-          <template #default="{ row }">
-            <div class="app-icon-cell">
-              <img
-                v-if="row.iconUrlResolved"
-                :src="row.iconUrlResolved"
-                :alt="row.app_name"
-                class="app-icon-thumb"
-                @error="onIconThumbError"
-              />
-              <div
-                v-else
-                class="app-icon-default"
-                :class="{ 'app-icon-default-placeholder': !row.iconUrlResolved }"
-              >
-                <el-icon :size="18"><Picture /></el-icon>
+
+    <!-- Filter Bar -->
+    <div class="page-filter">
+      <el-form :inline="true" class="page-filter-form" @submit.prevent>
+        <el-form-item label="应用名称">
+          <el-input v-model="filters.keyword" placeholder="搜索应用名称 / 包名 / AppKey" clearable @keyup.enter="onSearch" />
+        </el-form-item>
+        <el-form-item label="系统">
+          <el-select v-model="filters.platform" placeholder="全部" clearable>
+            <el-option label="Android" :value="1" />
+            <el-option label="iOS" :value="2" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="对接方式">
+          <el-select v-model="filters.accessType" placeholder="全部" clearable>
+            <el-option label="SDK" :value="1" />
+            <el-option label="API" :value="2" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="状态">
+          <el-select v-model="filters.status" placeholder="全部" clearable>
+            <el-option label="启用" :value="1" />
+            <el-option label="禁用" :value="0" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="创建时间">
+          <el-date-picker
+            v-model="filters.dateRange"
+            type="daterange"
+            range-separator="至"
+            start-placeholder="开始日期"
+            end-placeholder="结束日期"
+            value-format="YYYY-MM-DD"
+          />
+        </el-form-item>
+      </el-form>
+      <div class="page-filter-actions">
+        <el-button @click="onReset">重置</el-button>
+        <el-button type="primary" :icon="Search" @click="onSearch">搜索</el-button>
+      </div>
+    </div>
+
+    <!-- Table Card -->
+    <div class="page-card">
+      <div class="page-table-wrap">
+        <el-table :data="tableData" v-loading="loading" row-key="app_key">
+          <el-table-column label="应用" min-width="240" fixed>
+            <template #default="{ row }">
+              <div class="cell-icon-text">
+                <div class="icon">
+                  <img v-if="row.iconUrlResolved" :src="row.iconUrlResolved" :alt="row.app_name" @error="onIconThumbError" />
+                  <el-icon v-else :size="16"><Picture /></el-icon>
+                </div>
+                <div class="cell-text">
+                  <div class="cell-name">{{ row.app_name }}</div>
+                  <div class="cell-sub">{{ row.package_name }}</div>
+                </div>
               </div>
-            </div>
-          </template>
-        </el-table-column>
-        <el-table-column prop="app_name" label="应用名称" min-width="140" />
-        <el-table-column prop="app_key" label="应用TOKEN" min-width="200">
-          <template #default="{ row }">
-            <span class="text-primary">{{ row.app_key }}</span>
-            <el-icon class="copy-btn" @click="copyText(row.app_key)"><CopyDocument /></el-icon>
-          </template>
-        </el-table-column>
-        <el-table-column prop="platform" label="系统" width="80">
-          <template #default="{ row }">{{ row.platform === 1 ? 'Android' : 'iOS' }}</template>
-        </el-table-column>
-        <el-table-column label="对接方式" width="100">
-          <template #default="{ row }">
-            <el-tag :type="row.access_type === 1 ? 'primary' : 'success'" size="small">
-              {{ row.access_type === 1 ? 'SDK' : 'API' }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column prop="package_name" label="包名" min-width="160" />
-        <el-table-column prop="category" label="分类" width="100" />
-        <el-table-column prop="timeout_ms" label="超时(ms)" width="100" />
-        <el-table-column prop="status" label="状态" width="80">
-          <template #default="{ row }">
-            <el-tag :type="row.status === 1 ? 'success' : 'info'" size="small">{{ row.status === 1 ? '启用' : '禁用' }}</el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column prop="created_at" label="创建时间" width="170">
-          <template #default="{ row }">{{ formatTime(row.created_at) }}</template>
-        </el-table-column>
-        <el-table-column label="操作" width="180" fixed="right">
-          <template #default="{ row }">
-            <el-button link type="primary" size="small" @click="openEditDialog(row)">编辑</el-button>
-            <el-button link :type="row.status === 1 ? 'warning' : 'success'" size="small" @click="handleToggleStatus(row)">
-              {{ row.status === 1 ? '禁用' : '启用' }}
-            </el-button>
-            <el-button link type="danger" size="small" @click="handleDelete(row)">删除</el-button>
-          </template>
-        </el-table-column>
-      </el-table>
-      <div class="pagination-wrapper">
-        <el-pagination v-model:current-page="page" v-model:page-size="pageSize" :total="total" :page-sizes="[10,20,50,100]" layout="total, sizes, prev, pager, next" @change="fetchList" />
+            </template>
+          </el-table-column>
+          <el-table-column label="AppKey" min-width="220">
+            <template #default="{ row }">
+              <div class="cell-icon-text" @click="copyText(row.app_key)">
+                <span class="cell-num cell-link">{{ row.app_key }}</span>
+                <el-icon :size="12" color="#94A3B8"><CopyDocument /></el-icon>
+              </div>
+            </template>
+          </el-table-column>
+          <el-table-column label="系统" width="90">
+            <template #default="{ row }">
+              <span class="status-tag" :class="row.platform === 1 ? 'status-tag--info' : 'status-tag--neutral'">
+                {{ row.platform === 1 ? 'Android' : 'iOS' }}
+              </span>
+            </template>
+          </el-table-column>
+          <el-table-column label="对接方式" width="100">
+            <template #default="{ row }">
+              <span class="status-tag" :class="row.access_type === 1 ? 'status-tag--info' : 'status-tag--success'">
+                {{ row.access_type === 1 ? 'SDK' : 'API' }}
+              </span>
+            </template>
+          </el-table-column>
+          <el-table-column label="分类" prop="category" width="120" />
+          <el-table-column label="超时" prop="timeout_ms" width="90">
+            <template #default="{ row }">
+              <span class="cell-num">{{ row.timeout_ms }} ms</span>
+            </template>
+          </el-table-column>
+          <el-table-column label="状态" width="90">
+            <template #default="{ row }">
+              <span class="status-tag" :class="row.status === 1 ? 'status-tag--active' : 'status-tag--paused'">
+                {{ row.status === 1 ? '启用' : '禁用' }}
+              </span>
+            </template>
+          </el-table-column>
+          <el-table-column label="创建时间" width="170">
+            <template #default="{ row }">{{ formatTime(row.created_at) }}</template>
+          </el-table-column>
+          <el-table-column label="操作" width="180" fixed="right" align="right">
+            <template #default="{ row }">
+              <div class="cell-actions">
+                <el-button link type="primary" size="small" @click="openEditDialog(row)">编辑</el-button>
+                <el-button link :type="row.status === 1 ? 'warning' : 'success'" size="small" @click="handleToggleStatus(row)">
+                  {{ row.status === 1 ? '禁用' : '启用' }}
+                </el-button>
+                <el-button link type="danger" size="small" @click="handleDelete(row)">删除</el-button>
+              </div>
+            </template>
+          </el-table-column>
+        </el-table>
+        <div class="page-pagination">
+          <el-pagination
+            v-model:current-page="page"
+            v-model:page-size="pageSize"
+            :total="total"
+            :page-sizes="[10, 20, 50, 100]"
+            background
+            layout="total, sizes, prev, pager, next, jumper"
+            @current-change="fetchList"
+            @size-change="fetchList"
+          />
+        </div>
       </div>
     </div>
 
@@ -216,7 +286,7 @@ import { ref, reactive, computed, onMounted } from 'vue';
 import request from '../../utils/request';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import type { FormInstance, FormRules } from 'element-plus';
-import { CopyDocument, Plus, Picture, Delete, Refresh, Loading } from '@element-plus/icons-vue';
+import { Cellphone, CopyDocument, Plus, Picture, Delete, Refresh, Loading, Upload, WarningFilled, Search, Filter } from '@element-plus/icons-vue';
 import dayjs from 'dayjs';
 import { useUserStore } from '../../stores/user';
 
@@ -229,6 +299,33 @@ const tableData = ref<any[]>([]);
 const page = ref(1);
 const pageSize = ref(20);
 const total = ref(0);
+
+const filters = ref<{
+  keyword: string;
+  platform: number | null;
+  accessType: number | null;
+  status: number | null;
+  dateRange: [string, string] | null;
+}>({
+  keyword: '',
+  platform: null,
+  accessType: null,
+  status: null,
+  dateRange: null,
+});
+
+const onSearch = (): void => {
+  page.value = 1;
+  fetchList();
+};
+const onReset = (): void => {
+  filters.value = { keyword: '', platform: null, accessType: null, status: null, dateRange: null };
+  page.value = 1;
+  fetchList();
+};
+const onIconThumbError = (e: Event): void => {
+  (e.target as HTMLImageElement).style.display = 'none';
+};
 
 const showCreateDialog = ref(false);
 const submitting = ref(false);
@@ -317,7 +414,16 @@ const copyText = (text: string) => {
 const fetchList = async () => {
   loading.value = true;
   try {
-    const res: any = await request.get('/api/v1/console/app/list', { params: { page: page.value, pageSize: pageSize.value } });
+    const params: Record<string, unknown> = { page: page.value, pageSize: pageSize.value };
+    if (filters.value.keyword.trim()) params.keyword = filters.value.keyword.trim();
+    if (filters.value.platform !== null) params.platform = filters.value.platform;
+    if (filters.value.accessType !== null) params.accessType = filters.value.accessType;
+    if (filters.value.status !== null) params.status = filters.value.status;
+    if (filters.value.dateRange && filters.value.dateRange.length === 2) {
+      params.startDate = filters.value.dateRange[0];
+      params.endDate = filters.value.dateRange[1];
+    }
+    const res: any = await request.get('/api/v1/console/app/list', { params });
     tableData.value = res.data?.list || [];
     total.value = res.data?.total || 0;
   } catch { /* ignore */ } finally {
@@ -511,22 +617,6 @@ const clearIcon = () => {
   form.iconUrl = '';
   iconError.value = '';
 };
-
-// 图片加载失败处理（预签名 URL 过期 / TOS 404）：用 fallback 占位
-function onIconPreviewError(event: Event) {
-  const img = event.target as HTMLImageElement;
-  iconError.value = '图标链接已过期，请重新上传';
-  form.iconUrl = '';
-  img.src = '';
-}
-
-function onIconThumbError(event: Event) {
-  const img = event.target as HTMLImageElement;
-  // 列表缩略图：隐藏 img 节点，让 .app-icon-default 占位浮现
-  img.style.display = 'none';
-  const placeholder = img.parentElement?.querySelector('.app-icon-default-placeholder') as HTMLElement | null;
-  if (placeholder) placeholder.style.display = 'flex';
-}
 
 onMounted(fetchList);
 

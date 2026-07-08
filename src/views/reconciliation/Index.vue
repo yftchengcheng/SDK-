@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, reactive } from 'vue'
 import { ElMessage, ElMessageBox, type UploadFile } from 'element-plus'
-import { Download, Search, Refresh, UploadFilled, View } from '@element-plus/icons-vue'
+import { Download, Search, Refresh, UploadFilled, View, Document } from '@element-plus/icons-vue'
 import http from '@/utils/request'
 
 interface ReconciliationRecord {
@@ -182,13 +182,51 @@ function statusLabel(s: ReconciliationRecord['status']) {
   return statusOptions.find((o) => o.value === s)?.label || s
 }
 
+async function onExport() {
+  try {
+    const blob = await http.post('/api/v1/console/reconciliation/export', { ...query }, { responseType: 'blob' })
+    const url = window.URL.createObjectURL(blob as Blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `对账数据-${Date.now()}.xlsx`
+    a.click()
+    window.URL.revokeObjectURL(url)
+    ElMessage.success('导出成功')
+  } catch (e: unknown) {
+    const err = e as { message?: string }
+    ElMessage.error(err.message || '导出失败')
+  }
+}
+
+async function onRefresh() {
+  await fetchList()
+  ElMessage.success('已刷新')
+}
+
 onMounted(() => {
   fetchList()
 })
 </script>
 
 <template>
-  <div class="page-reconciliation">
+  <div class="page-shell">
+    <div class="page-header">
+      <div class="page-header-left">
+        <div class="page-header-icon">
+          <el-icon><Document /></el-icon>
+        </div>
+        <div class="page-header-titles">
+          <h1 class="page-header-title">对账管理</h1>
+          <p class="page-header-subtitle">对比 SDK 上报与广告网络 API 数据，及时发现差异与异常</p>
+        </div>
+      </div>
+      <div class="page-header-actions">
+        <el-button type="primary" :icon="Download" @click="onExport">导出对账单</el-button>
+        <el-button :icon="UploadFilled" @click="importDialogVisible = true">导入数据</el-button>
+        <el-button :icon="Refresh" @click="onRefresh">刷新</el-button>
+      </div>
+    </div>
+
     <div class="page-section-card">
       <div class="page-stat-row">
         <div class="page-stat-card">
@@ -211,8 +249,7 @@ onMounted(() => {
     </div>
 
     <div class="page-section-card">
-      <div class="page-toolbar">
-        <div class="page-toolbar-left">
+      <div class="page-card"><div class="page-filter"><div class="page-filter-form" style="display:flex;align-items:center;flex-wrap:wrap;gap:12px;flex:1">
           <el-date-picker
             v-model="query.statDate"
             type="daterange"
@@ -236,13 +273,13 @@ onMounted(() => {
           <el-button type="primary" :icon="Search" @click="fetchList">查询</el-button>
           <el-button :icon="Refresh" @click="fetchList">刷新</el-button>
         </div>
-        <div class="page-toolbar-right">
+        </div><div class="page-filter-actions">
           <el-button :icon="UploadFilled" @click="handleImportClick">导入对账</el-button>
           <el-button type="primary" :icon="Download" @click="handleExport">导出 CSV</el-button>
         </div>
       </div>
 
-      <el-table v-loading="loading" :data="list" border stripe size="default">
+      </div></div><div class="page-table-wrap"></div><div class="page-card"><div class="page-table-wrap"><el-table v-loading="loading" :data="list" border stripe size="default">
         <el-table-column prop="statDate" label="日期" width="110" />
         <el-table-column prop="appKey" label="应用" width="120" />
         <el-table-column prop="networkCode" label="广告网络" width="120" />

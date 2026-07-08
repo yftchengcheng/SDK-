@@ -1,61 +1,97 @@
 <template>
-  <div class="page-container">
+  <div class="page-shell">
     <div class="page-header">
-      <h1>广告位管理</h1>
-      <el-button type="primary" @click="openCreate">创建广告位</el-button>
+      <div class="page-header-left">
+        <div class="page-header-icon"><el-icon><Histogram /></el-icon></div>
+        <div class="page-header-titles">
+          <h1 class="page-header-title">广告位管理</h1>
+          <p class="page-header-subtitle">管理应用下的广告位、广告形式与竞价类型，决定 SDK 请求时的可用位</p>
+        </div>
+      </div>
+      <div class="page-header-actions">
+        <el-button type="primary" :icon="Plus" @click="openCreate">创建广告位</el-button>
+      </div>
     </div>
-    <!-- Filter -->
-    <div class="filter-card">
-      <el-form :inline="true" :model="filter">
+    <div class="page-filter">
+      <el-form :inline="true" :model="filter" class="page-filter-form">
+        <el-form-item label="关键字">
+          <el-input v-model="filter.keyword" placeholder="按名称/TOKEN 搜索" clearable :prefix-icon="Search" @keyup.enter="onSearch" @clear="onSearch" />
+        </el-form-item>
         <el-form-item label="应用">
-          <el-select v-model="filter.appKey" placeholder="全部应用" clearable style="width: 200px" @change="fetchList">
+          <el-select v-model="filter.appKey" placeholder="全部应用" clearable @change="onSearch">
             <el-option v-for="a in appList" :key="a.app_key" :label="a.app_name" :value="a.app_key" />
           </el-select>
         </el-form-item>
         <el-form-item label="广告形式">
-          <el-select v-model="filter.format" placeholder="全部形式" clearable style="width: 140px" @change="fetchList">
+          <el-select v-model="filter.format" placeholder="全部形式" clearable @change="onSearch">
             <el-option v-for="f in formatOptions" :key="f.value" :label="f.label" :value="f.value" />
           </el-select>
         </el-form-item>
+        <el-form-item label="状态">
+          <el-select v-model="filter.status" placeholder="全部" clearable @change="onSearch">
+            <el-option label="启用" :value="1" />
+            <el-option label="禁用" :value="0" />
+          </el-select>
+        </el-form-item>
       </el-form>
+      <div class="page-filter-actions">
+        <el-button @click="onReset">重置</el-button>
+        <el-button type="primary" :icon="Search" @click="onSearch">搜索</el-button>
+      </div>
     </div>
-    <!-- Table -->
-    <div class="table-card">
-      <el-table :data="tableData" v-loading="loading" stripe style="width: 100%">
-        <el-table-column prop="placement_id" label="广告位TOKEN" min-width="200">
-          <template #default="{ row }">
-            <span class="text-primary">{{ row.placement_id }}</span>
-            <el-icon class="copy-btn" @click="copyText(row.placement_id)"><CopyDocument /></el-icon>
-          </template>
-        </el-table-column>
-        <el-table-column prop="name" label="广告位名称" min-width="140" />
-        <el-table-column prop="app_name" label="所属应用" min-width="120" />
-        <el-table-column prop="format" label="广告形式" width="100">
-          <template #default="{ row }">{{ formatLabel(row.format) }}</template>
-        </el-table-column>
-        <el-table-column prop="bidding_type" label="竞价类型" width="90">
-          <template #default="{ row }">{{ biddingLabel(row.bidding_type) }}</template>
-        </el-table-column>
-        <el-table-column prop="status" label="状态" width="80">
-          <template #default="{ row }">
-            <el-tag :type="row.status === 1 ? 'success' : 'info'" size="small">{{ row.status === 1 ? '启用' : '禁用' }}</el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column prop="created_at" label="创建时间" width="170">
-          <template #default="{ row }">{{ formatTime(row.created_at) }}</template>
-        </el-table-column>
-        <el-table-column label="操作" width="200" fixed="right">
-          <template #default="{ row }">
-            <el-button link type="primary" size="small" @click="handleEdit(row)">编辑</el-button>
-            <el-button link :type="row.status === 1 ? 'warning' : 'success'" size="small" @click="handleToggleStatus(row)">
-              {{ row.status === 1 ? '禁用' : '启用' }}
-            </el-button>
-            <el-button link type="danger" size="small" @click="handleDelete(row)">删除</el-button>
-          </template>
-        </el-table-column>
-      </el-table>
-      <div class="pagination-wrapper">
-        <el-pagination v-model:current-page="page" v-model:page-size="pageSize" :total="total" :page-sizes="[10,20,50,100]" layout="total, sizes, prev, pager, next" @change="fetchList" />
+    <div class="page-card">
+      <div class="page-table-wrap">
+        <el-table :data="tableData" v-loading="loading">
+          <el-table-column prop="placement_id" label="广告位TOKEN" min-width="200">
+            <template #default="{ row }">
+              <div class="cell-icon-text">
+                <span class="cell-link" @click="copyText(row.placement_id)">{{ row.placement_id }}</span>
+                <el-icon class="copy-btn" @click="copyText(row.placement_id)"><CopyDocument /></el-icon>
+              </div>
+            </template>
+          </el-table-column>
+          <el-table-column prop="name" label="广告位名称" min-width="140">
+            <template #default="{ row }">
+              <div class="cell-name">{{ row.name }}</div>
+              <div v-if="row.placement_id" class="cell-sub">ID: {{ row.placement_id }}</div>
+            </template>
+          </el-table-column>
+          <el-table-column prop="app_name" label="所属应用" min-width="120">
+            <template #default="{ row }">
+              <div class="cell-name">{{ row.app_name }}</div>
+            </template>
+          </el-table-column>
+          <el-table-column prop="format" label="广告形式" width="100">
+            <template #default="{ row }"><span class="status-tag status-tag--neutral">{{ formatLabel(row.format) }}</span></template>
+          </el-table-column>
+          <el-table-column prop="bidding_type" label="竞价类型" width="90">
+            <template #default="{ row }">{{ biddingLabel(row.bidding_type) }}</template>
+          </el-table-column>
+          <el-table-column prop="status" label="状态" width="80">
+            <template #default="{ row }">
+              <span :class="['status-tag', row.status === 1 ? 'status-tag--active' : 'status-tag--paused']">
+                {{ row.status === 1 ? '启用' : '禁用' }}
+              </span>
+            </template>
+          </el-table-column>
+          <el-table-column prop="created_at" label="创建时间" width="170">
+            <template #default="{ row }">{{ formatTime(row.created_at) }}</template>
+          </el-table-column>
+          <el-table-column label="操作" width="200" fixed="right">
+            <template #default="{ row }">
+              <div class="cell-actions">
+                <el-button link type="primary" size="small" @click="handleEdit(row)">编辑</el-button>
+                <el-button link :type="row.status === 1 ? 'warning' : 'success'" size="small" @click="handleToggleStatus(row)">
+                  {{ row.status === 1 ? '禁用' : '启用' }}
+                </el-button>
+                <el-button link type="danger" size="small" @click="handleDelete(row)">删除</el-button>
+              </div>
+            </template>
+          </el-table-column>
+        </el-table>
+      </div>
+      <div class="page-pagination">
+        <el-pagination v-model:current-page="page" v-model:page-size="pageSize" :total="total" :page-sizes="[10,20,50,100]" layout="total, sizes, prev, pager, next" @current-change="fetchList" @size-change="fetchList" />
       </div>
     </div>
     <!-- Dialog -->
@@ -238,7 +274,10 @@ const page = ref(1);
 const pageSize = ref(20);
 const total = ref(0);
 const appList = ref<any[]>([]);
-const filter = reactive({ appKey: '', format: null as number | null });
+const filter = reactive({ appKey: '', format: null as number | null, keyword: '', status: null as number | null });
+
+const onSearch = () => { page.value = 1; fetchList(); };
+const onReset = () => { filter.appKey = ''; filter.format = null; filter.keyword = ''; filter.status = null; onSearch(); };
 
 const showDialog = ref(false);
 const submitting = ref(false);
@@ -322,6 +361,8 @@ const fetchList = async () => {
     const params: any = { page: page.value, pageSize: pageSize.value };
     if (filter.appKey) params.appKey = filter.appKey;
     if (filter.format) params.format = filter.format;
+    if (filter.keyword) params.keyword = filter.keyword;
+    if (filter.status !== null) params.status = filter.status;
     const res: any = await request.get('/api/v1/console/placement/list', { params });
     tableData.value = res.data?.list || [];
     total.value = res.data?.total || 0;

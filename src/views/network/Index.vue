@@ -1,19 +1,28 @@
 <template>
-  <div class="page-container">
+  <div class="page-shell">
     <div class="page-header">
-      <h1>广告网络</h1>
+      <div class="page-header-left">
+        <div class="page-header-icon"><el-icon><Connection /></el-icon></div>
+        <div class="page-header-titles">
+          <h1 class="page-header-title">广告网络</h1>
+          <p class="page-header-subtitle">管理预置与自定义广告网络、账号凭证与 Adapter 接入</p>
+        </div>
+      </div>
     </div>
 
     <el-tabs v-model="activeTab" class="network-tabs">
       <!-- 网络管理 Tab -->
       <el-tab-pane label="网络管理" name="manage">
-        <div class="tab-toolbar">
-          <el-button type="primary" @click="openCreate">创建自定义网络</el-button>
+        <div class="page-filter">
+          <div class="page-filter-form"></div>
+          <div class="page-filter-actions">
+            <el-button type="primary" :icon="Plus" @click="openCreate">创建自定义网络</el-button>
+          </div>
         </div>
 
         <!-- Preset Networks -->
-        <div class="table-card mb-base">
-          <div class="card-title">预置网络</div>
+        <div class="page-card"><div class="page-table-wrap">
+          <div class="page-card-header"><div class="page-card-title">预置网络（系统内置）</div></div>
           <el-table :data="presetNetworks" stripe style="width: 100%; margin-top: 12px">
             <el-table-column prop="network_code" label="网络代码" width="120" />
             <el-table-column prop="network_name" label="网络名称" min-width="140" />
@@ -21,14 +30,13 @@
               <template #default="{ row }">{{ row.supports_bidding ? '是' : '否' }}</template>
             </el-table-column>
             <el-table-column label="类型" width="100">
-              <template #default><el-tag type="info" size="small">预置</el-tag></template>
+              <template #default><span class="status-tag status-tag--neutral">预置</span></template>
             </el-table-column>
-          </el-table>
-        </div>
+          </el-table></div></div>
 
         <!-- Custom Networks -->
-        <div class="table-card">
-          <div class="card-title">自定义网络</div>
+        <div class="page-card"><div class="page-table-wrap">
+          <div class="page-card-header"><div class="page-card-title">自定义网络</div></div>
           <el-table :data="customNetworks" v-loading="loading" stripe style="width: 100%; margin-top: 12px">
             <el-table-column prop="network_code" label="网络代码" width="160" />
             <el-table-column prop="network_name" label="网络名称" min-width="140" />
@@ -37,19 +45,15 @@
             </el-table-column>
             <el-table-column prop="status" label="状态" width="80">
               <template #default="{ row }">
-                <el-tag :type="row.status === 1 ? 'success' : 'info'" size="small">{{ row.status === 1 ? '启用' : '禁用' }}</el-tag>
+                <span class="status-tag" :class="row.status === 1 ? 'status-tag--active' : 'status-tag--paused'">{{ row.status === 1 ? '启用' : '禁用' }}</span>
               </template>
             </el-table-column>
             <el-table-column label="操作" width="280" fixed="right">
               <template #default="{ row }">
-                <el-button link type="primary" size="small" @click="openAdapterManager(row)">Adapter管理</el-button>
-                <el-button link type="primary" size="small" @click="openAppBinding(row)">应用关联</el-button>
-                <el-button link type="primary" size="small" @click="handleEdit(row)">编辑</el-button>
-                <el-button link type="danger" size="small" @click="handleDelete(row)">删除</el-button>
+                <div class="cell-actions"><el-button link type="primary" @click="openAdapterManager(row)">Adapter</el-button><el-button link type="primary" @click="openAppBinding(row)">应用</el-button><el-button link type="primary" @click="handleEdit(row)">编辑</el-button><el-button link type="danger" @click="handleDelete(row)">删除</el-button></div>
               </template>
             </el-table-column>
-          </el-table>
-        </div>
+          </el-table></div></div>
       </el-tab-pane>
 
       <!-- 广告网络账号 Tab -->
