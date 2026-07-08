@@ -50,4 +50,20 @@ router.onError((error: Error) => {
   console.error('[Router Error]', error.message);
 });
 
+// ============================================================
+//  Unhandled Rejection 兜底：屏蔽 Vite HMR WebSocket 在反向代理
+//  下"已关闭"导致的 reject 噪音（功能不受影响）。
+// ============================================================
+window.addEventListener('unhandledrejection', (event: PromiseRejectionEvent) => {
+  const reason = event.reason as { message?: string } | null;
+  const msg = reason?.message ?? String(reason);
+  if (
+    msg.includes('WebSocket closed without opened') ||
+    msg.includes('WebSocket connection') ||
+    msg.includes('@vite/client')
+  ) {
+    event.preventDefault();
+  }
+});
+
 app.mount('#app');

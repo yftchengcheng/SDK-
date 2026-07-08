@@ -15,6 +15,19 @@
         console.error('[Global Error]', e.message, 'at', (e.filename || '') + ':' + e.lineno + ':' + e.colno);
       });
       window.addEventListener('unhandledrejection', function(e) {
+        // 过滤 Vite HMR WebSocket 在外部代理环境下被拒绝的报错（不影响功能）
+        var reason = e.reason;
+        var msg = (reason && (reason.message || String(reason))) || '';
+        if (
+          msg.indexOf('WebSocket closed without opened') !== -1 ||
+          msg.indexOf('@vite/client') !== -1 ||
+          msg.indexOf('ws://') !== -1 ||
+          msg.indexOf('wss://') !== -1
+        ) {
+          e.preventDefault();
+          e.stopImmediatePropagation && e.stopImmediatePropagation();
+          return;
+        }
         console.error('[Unhandled Rejection]', e.reason);
       });
 

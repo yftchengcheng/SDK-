@@ -41,20 +41,21 @@ function viteCssAcceptFix(): Plugin {
  *   3. 编译错误叠加首屏
  * 这些场景在 tsx watch 重启后端 / 长时间无操作时会出现「页面莫名刷新」。
  *
- * 解决：移除 HMR overlay（不再因首屏错误触发 reload）；
- *       通过 index.html 注入的 client-hmr-guard 拦截 HMR WebSocket 消息
- *       并阻断 location.reload() 调用路径。
+ * 解决：仅关闭 HMR overlay（不再因首屏错误触发 reload）；
+ *       HMR 连接配置（server/port/protocol）由 server/vite.ts 负责，
+ *       此插件不能覆盖，否则会让 HMR 走独立端口而不是共享 HTTP server。
+ *       通过 index.html 注入的 client-hmr-guard 阻断 location.reload() 调用路径。
  */
 function disableHmrFullReload(): Plugin {
   return {
     name: 'disable-hmr-full-reload',
     config(_, { command }) {
       if (command === 'serve') {
+        // 仅配置 overlay，不触碰 hmr.server/port/protocol
         return {
           server: {
             hmr: {
               overlay: false,
-              clientPort: 5000,
             },
           },
         };
@@ -81,6 +82,11 @@ export default defineConfig({
   server: {
     port: 5000,
     host: '0.0.0.0',
+    // 在沙箱/反向代理环境下，HMR WebSocket 经过外网代理会立即被关闭（报
+    // `[Unhandled Rejection] WebSocket closed without opened.`）。开发时
+    // 用 tsx watch + Vite 静态服务的热更已经够用，HMR 可由浏览器原生刷新
+    // 兜底；显式禁用以消除控制台错误。
+    hmr: false,
     allowedHosts: true,
     headers: {
       'Cache-Control': 'no-store',
