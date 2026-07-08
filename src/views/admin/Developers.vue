@@ -1,5 +1,5 @@
 <template>
-  <div class="page-container">
+  <div class="page-admin-developers page-container">
     <div class="page-header">
       <h1>开发者管理</h1>
       <span class="page-header-hint">超级管理员视图 · 当前共 {{ total }} 位开发者</span>
@@ -227,34 +227,3 @@ onMounted(() => {
 })
 </script>
 
-<style scoped>
-.page-container { padding: 0; }
-.page-header {
-  display: flex; align-items: baseline; gap: 12px;
-  margin-bottom: 16px;
-}
-.page-header h1 { font-size: var(--text-2xl, 20px); font-weight: 700; color: var(--color-slate-900, #0F172A); margin: 0; }
-.page-header-hint { font-size: var(--text-sm, 12px); color: var(--color-slate-400, #94A3B8); }
-
-.filter-bar {
-  display: flex; gap: 12px; align-items: center; margin-bottom: 16px;
-}
-.filter-input { width: 280px; }
-.filter-select { width: 160px; }
-
-.table-card { background: #fff; border: 1px solid var(--color-slate-200, #E2E8F0); border-radius: 8px; padding: 16px 20px; }
-.pagination-bar { display: flex; justify-content: flex-end; margin-top: 16px; }
-
-.text-secondary { color: var(--color-slate-500, #64748B); font-family: ui-monospace, SFMono-Regular, monospace; font-size: 12px; }
-
-.role-dialog-body { padding: 8px 4px; }
-.role-dialog-row { display: flex; align-items: center; margin-bottom: 16px; }
-.role-dialog-label { width: 72px; font-size: 13px; color: var(--color-slate-700, #334155); }
-.role-dialog-value { color: var(--color-slate-900, #0F172A); font-weight: 500; }
-.role-dialog-warn {
-  display: flex; align-items: center; gap: 6px;
-  margin-top: 12px; padding: 8px 12px;
-  background: #FEF3C7; color: #92400E;
-  border-radius: 6px; font-size: 12px;
-}
-</style>

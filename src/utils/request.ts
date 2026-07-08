@@ -2,9 +2,6 @@ import axios from 'axios';
 import type { AxiosInstance, InternalAxiosRequestConfig, AxiosResponse } from 'axios';
 import { ElMessage } from 'element-plus';
 
-// 防重入：避免多个 401 并发时反复跳登录
-let redirectingToLogin = false;
-
 function clearAuth(): void {
   localStorage.removeItem('token');
   localStorage.removeItem('userInfo');
@@ -16,7 +13,8 @@ function handleUnauthorized(): void {
   // 触发全局事件，由 main.ts 中的监听器统一执行跳转 + stores/user.ts 同步状态
   window.dispatchEvent(new CustomEvent('auth:logout'));
   // 跳转逻辑：dispatch 'auth:redirect-login' 事件，由 main.ts 处理
-  window.dispatchEvent(new CustomEvent('auth:redirect-login', { detail: { inProgress: redirectingToLogin } }));
+// 跳转逻辑：dispatch 'auth:redirect-login' 事件，由 main.ts 处理
+  window.dispatchEvent(new CustomEvent('auth:redirect-login'));
 }
 
 const request: AxiosInstance = axios.create({

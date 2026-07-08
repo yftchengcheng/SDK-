@@ -13,9 +13,9 @@ let viteDevServer: ViteDevServer | null = null;
 
 /**
  * 集成 Vite 开发服务器（中间件模式）
- * 需要传入 HTTP server 以支持 HMR WebSocket
+ * HMR 已禁用（沙箱代理环境兼容），代码更新通过 tsx watch 自动重启后端
  */
-export async function setupViteMiddleware(app: Application, httpServer?: import('http').Server) {
+export async function setupViteMiddleware(app: Application) {
   const vite = await createViteServer({
     server: {
       middlewareMode: true,
@@ -75,9 +75,9 @@ export function setupStaticServer(app: Application) {
 /**
  * 根据环境设置 Vite
  */
-export async function setupVite(app: Application, httpServer?: import('http').Server) {
+export async function setupVite(app: Application) {
   if (isDev) {
-    await setupViteMiddleware(app, httpServer);
+    await setupViteMiddleware(app);
   } else {
     setupStaticServer(app);
   }

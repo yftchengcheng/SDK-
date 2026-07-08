@@ -178,6 +178,12 @@ function formatNumber(val: number, key: string): string {
 }
 
 function initCharts() {
+  // 关键：每次重新初始化前先释放旧实例，避免内存泄漏导致浏览器卡死
+  charts.forEach((c) => {
+    try { c.dispose() } catch (e) { /* noop */ }
+  })
+  charts.length = 0
+
   // 收益趋势
   if (revenueChartRef.value) {
     const chart = echarts.init(revenueChartRef.value)

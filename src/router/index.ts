@@ -103,6 +103,12 @@ const routes: RouteRecordRaw[] = [
         component: Profile,
         meta: { title: '个人中心', icon: 'UserFilled' },
       },
+      {
+        path: 'admin/developers',
+        name: 'AdminDevelopers',
+        component: AdminDevelopers,
+        meta: { title: '开发者管理', icon: 'OfficeBuilding', requiresAdmin: true },
+      },
     ],
   },
 ];
@@ -121,11 +127,23 @@ router.beforeEach((to, _from, next) => {
   const token = localStorage.getItem('token');
   if (!to.meta.noAuth && !token) {
     next({ name: 'Login' });
-  } else if (to.meta.noAuth && token) {
-    next({ name: 'Dashboard' });
-  } else {
-    next();
+    return;
   }
+  if (to.meta.noAuth && token) {
+    next({ name: 'Dashboard' });
+    return;
+  }
+
+  // Admin-only routes: 拦截非 admin 用户
+  if (to.meta.requiresAdmin) {
+    const userStore = useUserStore();
+    if (userStore.role !== 'admin') {
+      next({ name: 'Dashboard' });
+      return;
+    }
+  }
+
+  next();
 });
 
 export default router;

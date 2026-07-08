@@ -3090,3 +3090,55 @@ html, body, #app {
   color: #94A3B8;
   margin-right: 4px;
 }
+
+/* ============ 开发者管理页面（admin） ============ */
+.page-admin-developers { padding: 0; }
+.page-admin-developers .page-header {
+  display: flex; align-items: baseline; gap: 12px;
+  margin-bottom: 16px;
+}
+.page-admin-developers .page-header h1 {
+  font-size: var(--text-2xl, 20px);
+  font-weight: 700;
+  color: var(--color-slate-900, #0F172A);
+  margin: 0;
+}
+.page-admin-developers .page-header-hint {
+  font-size: var(--text-sm, 12px);
+  color: var(--color-slate-400, #94A3B8);
+}
+.page-admin-developers .filter-bar {
+  display: flex; gap: 12px; align-items: center; margin-bottom: 16px;
+}
+.page-admin-developers .filter-input { width: 280px; }
+.page-admin-developers .filter-select { width: 160px; }
+.page-admin-developers .table-card {
+  background: #fff;
+  border: 1px solid var(--color-slate-200, #E2E8F0);
+  border-radius: 8px;
+  padding: 16px 20px;
+}
+.page-admin-developers .pagination-bar {
+  display: flex; justify-content: flex-end; margin-top: 16px;
+}
+.page-admin-developers .text-secondary {
+  color: var(--color-slate-500, #64748B);
+  font-family: ui-monospace, SFMono-Regular, monospace;
+  font-size: 12px;
+}
+.page-admin-developers .role-dialog-body { padding: 8px 4px; }
+.page-admin-developers .role-dialog-row {
+  display: flex; align-items: center; margin-bottom: 16px;
+}
+.page-admin-developers .role-dialog-label {
+  width: 72px; font-size: 13px; color: var(--color-slate-700, #334155);
+}
+.page-admin-developers .role-dialog-value {
+  color: var(--color-slate-900, #0F172A); font-weight: 500;
+}
+.page-admin-developers .role-dialog-warn {
+  display: flex; align-items: center; gap: 6px;
+  margin-top: 12px; padding: 8px 12px;
+  background: #FEF3C7; color: #92400E;
+  border-radius: 6px; font-size: 12px;
+}
