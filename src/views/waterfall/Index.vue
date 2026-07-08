@@ -106,6 +106,7 @@
       </div>
     </section>
 
+    <template v-if="currentPlacement">
       <!-- Layers -->
       <div v-for="layer in layers" :key="layer.type" class="table-card mb-base">
         <div class="card-header">
