@@ -5,6 +5,28 @@ import { success, fail } from '../utils/response';
 
 const router = Router();
 
+/**
+ * 把日期范围内每一天都补一条记录，无数据的日期用 fillDefaults 补 0。
+ * 用于趋势类接口：保证前端 ECharts X 轴连续不出现"只显示一个日期"。
+ */
+function fillDateRange<T extends { date: string }>(
+  rows: T[],
+  start: string,
+  end: string,
+  fillDefaults: Omit<T, 'date'>,
+): T[] {
+  const map = new Map(rows.map(r => [r.date, r]));
+  const filled: T[] = [];
+  const startMs = new Date(start + 'T00:00:00Z').getTime();
+  const endMs = new Date(end + 'T00:00:00Z').getTime();
+  for (let t = startMs; t <= endMs; t += 86400000) {
+    const d = new Date(t).toISOString().split('T')[0];
+    const found = map.get(d);
+    filled.push(found || ({ date: d, ...fillDefaults } as T));
+  }
+  return filled;
+}
+
 // Dashboard overview
 router.get('/overview', authMiddleware, async (req: express.Request, res: express.Response) => {
   try {
@@ -82,7 +104,9 @@ router.get('/trend', authMiddleware, async (req: express.Request, res: express.R
       eCPM: d.impressions > 0 ? Number((d.revenue / d.impressions * 1000).toFixed(2)) : 0,
       clicks: d.clicks,
     }));
-    success(res, result);
+
+    // 补齐日期范围：每一天都生成一条记录（无数据补 0），保证前端 chart X 轴连续
+    success(res, fillDateRange(result, start, end, { revenue: 0, impressions: 0, fillRate: 0, eCPM: 0, clicks: 0 }));
   } catch (err) {
     console.error('Dashboard trend error:', err);
     fail(res, 500, '获取趋势数据失败');
@@ -113,7 +137,7 @@ router.get('/revenue-trend', authMiddleware, async (req: express.Request, res: e
     }
 
     const result = Object.entries(dateMap).map(([date, revenue]) => ({ date, revenue: Number(revenue.toFixed(2)) }));
-    success(res, result);
+    success(res, fillDateRange(result, start, end, { revenue: 0 }));
   } catch (err) {
     console.error('Revenue trend error:', err);
     fail(res, 500, '获取收益趋势失败');
@@ -150,7 +174,7 @@ router.get('/impressions-trend', authMiddleware, async (req: express.Request, re
       impressions: d.impressions,
       fillRate: d.requests > 0 ? Number((d.fills / d.requests * 100).toFixed(2)) : 0,
     }));
-    success(res, result);
+    success(res, fillDateRange(result, start, end, { impressions: 0, fillRate: 0 }));
   } catch (err) {
     console.error('Impressions trend error:', err);
     fail(res, 500, '获取展示趋势失败');

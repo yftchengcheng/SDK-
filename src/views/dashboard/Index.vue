@@ -122,8 +122,26 @@ function buildDateParams(): Record<string, string> {
       endDate: dayjs(end).format('YYYY-MM-DD'),
     }
   }
+  // 总是计算 startDate/endDate（后端不支持 days 形参，必须传具体起止日期）
   const days = activeTab.value === '7天' ? 7 : activeTab.value === '14天' ? 14 : 30
-  return { days: String(days) }
+  const end = dayjs()
+  const start = end.subtract(days - 1, 'day')
+  return {
+    startDate: start.format('YYYY-MM-DD'),
+    endDate: end.format('YYYY-MM-DD'),
+  }
+}
+
+/** 把 buildDateParams 的逻辑镜像到 startStr/endStr（用于前端防御性补齐） */
+function resolveDateRange(): { startStr: string; endStr: string } {
+  const [s, e] = dateRange.value || []
+  if (s && e) {
+    return { startStr: dayjs(s).format('YYYY-MM-DD'), endStr: dayjs(e).format('YYYY-MM-DD') }
+  }
+  const days = activeTab.value === '7天' ? 7 : activeTab.value === '14天' ? 14 : 30
+  const end = dayjs()
+  const start = end.subtract(days - 1, 'day')
+  return { startStr: start.format('YYYY-MM-DD'), endStr: end.format('YYYY-MM-DD') }
 }
 const loading = ref(false)
 const metrics = ref<{ key: string; label: string; value: number; trend: number }[]>([
@@ -259,6 +277,32 @@ function initCharts() {
   }
 }
 
+/**
+ * 防御性补齐：万一后端某天只返回部分日期（或者降级为 mock），前端用 0 补齐日期范围，
+ * 避免 ECharts X 轴只画一个点。
+ */
+function fillDateRange<T extends { date: string }>(
+  rows: T[],
+  start: string,
+  end: string,
+  fillDefaults: Omit<T, 'date'>,
+): T[] {
+  const map = new Map(rows.map(r => [r.date, r]))
+  const out: T[] = []
+  const cur = dayjs(start)
+  const last = dayjs(end)
+  while (cur.isBefore(last) || cur.isSame(last, 'day')) {
+    const d = cur.format('YYYY-MM-DD')
+    out.push(map.get(d) || ({ date: d, ...fillDefaults } as T))
+    cur.add(1, 'day')
+  }
+  return out
+}
+
+const DEFAULT_TREND_ITEM = { revenue: 0, impressions: 0, fillRate: 0, eCPM: 0, clicks: 0 }
+const DEFAULT_REVENUE_ITEM = { revenue: 0 }
+const DEFAULT_IMPRESSIONS_ITEM = { impressions: 0, fillRate: 0 }
+
 function loadDashboardData() {
   const params = buildDateParams()
   loading.value = true
@@ -287,7 +331,8 @@ function loadDashboardData() {
         { key: 'ctr', label: '点击率', value: Number(ctr.toFixed(2)), trend: 0 },
         { key: 'fillRate', label: '填充率', value: fillRate, trend: 0 }
       ]
-      trendData.value = trendRes.data || []
+      const { startStr, endStr } = resolveDateRange()
+      trendData.value = fillDateRange(trendRes.data || [], startStr, endStr, DEFAULT_TREND_ITEM)
       sourceCompare.value = sourceRes.data || []
       placementRanking.value = rankingRes.data || []
       anomalies.value = anomalyRes.data || []
