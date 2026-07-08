@@ -8,6 +8,7 @@ import {
   buildAppIconKey,
   parseBase64Image,
   detectImageExt,
+  generatePresignedUrlCached,
 } from '../utils/storage';
 
 const router = Router();
@@ -72,8 +73,8 @@ router.post('/upload-icon', authMiddleware, async (req: express.Request, res: ex
     const s3 = getStorage();
     await s3.uploadFile({ fileContent: buffer, fileName: key, contentType });
 
-    // 生成 7 天有效的访问 URL（用于前端展示）
-    const iconUrl = await s3.generatePresignedUrl({ key, expireTime: 7 * 24 * 3600 });
+    // 生成 7 天有效的访问 URL（用于前端展示，缓存以加速后续访问）
+    const iconUrl = await generatePresignedUrlCached(key, 7 * 24 * 3600);
 
     success(res, { key, iconUrl }, '上传成功');
   } catch (err) {
@@ -99,13 +100,12 @@ router.get('/list', authMiddleware, async (req: express.Request, res: express.Re
     const { data, count, error } = await query.order('created_at', { ascending: false }).range((p - 1) * ps, p * ps - 1);
     if (error) throw new Error(`Query failed: ${error.message}`);
 
-    // 为 icon_url 生成 7 天有效的预签名 URL（若有）
-    const s3 = getStorage();
+    // 为 icon_url 生成 7 天有效的预签名 URL（缓存命中，跳过 S3 往返）
     const list = await Promise.all(
       (data || []).map(async (row: Record<string, unknown>) => {
         if (row.icon_url) {
           try {
-            const signedUrl = await s3.generatePresignedUrl({ key: String(row.icon_url), expireTime: 7 * 24 * 3600 });
+            const signedUrl = await generatePresignedUrlCached(String(row.icon_url), 7 * 24 * 3600);
             return { ...row, iconUrlResolved: signedUrl };
           } catch {
             return row;
@@ -218,11 +218,11 @@ router.get('/detail', authMiddleware, async (req: express.Request, res: express.
       return;
     }
 
-    // 解析 icon_url 为 presigned URL
+    // 解析 icon_url 为 presigned URL（缓存命中）
     if (data.icon_url) {
       try {
         const iconKey = String(data.icon_url);
-        data.iconUrlResolved = await getStorage().generatePresignedUrl({ key: iconKey, expireTime: 86400 });
+        data.iconUrlResolved = await generatePresignedUrlCached(iconKey, 86400);
       } catch (e) {
         console.warn('presign icon failed:', e);
       }

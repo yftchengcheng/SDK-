@@ -1,6 +1,5 @@
 import { randomUUID } from 'node:crypto';
 import { S3Storage } from 'coze-coding-dev-sdk';
-import type { Request } from 'express';
 
 let _storage: S3Storage | null = null;
 
@@ -9,6 +8,25 @@ export function getStorage(): S3Storage {
     _storage = new S3Storage();
   }
   return _storage;
+}
+
+/**
+ * 预签名 URL 内存缓存（key → { url, expiresAt }）
+ * - 同一 key 6 小时内复用同一 URL，避免每次列表都触发 N 次 S3 网络往返
+ * - 自动剔除过期项
+ */
+const PRESIGN_CACHE_TTL_MS = 6 * 60 * 60 * 1000; // 6h（远小于 7d 有效期，安全）
+const presignCache = new Map<string, { url: string; expiresAt: number }>();
+
+export async function generatePresignedUrlCached(key: string, expireTime: number = 7 * 24 * 3600): Promise<string> {
+  const cached = presignCache.get(key);
+  const now = Date.now();
+  if (cached && cached.expiresAt > now) {
+    return cached.url;
+  }
+  const url = await getStorage().generatePresignedUrl({ key, expireTime });
+  presignCache.set(key, { url, expiresAt: now + PRESIGN_CACHE_TTL_MS });
+  return url;
 }
 
 export function buildAppIconKey(developerId: string, appKey?: string, ext: string = 'png'): string {

@@ -19,11 +19,9 @@ export async function setupViteMiddleware(app: Application, httpServer?: import(
   const vite = await createViteServer({
     server: {
       middlewareMode: true,
-      hmr: httpServer
-        ? {
-            server: httpServer,
-          }
-        : false,
+      // 沙箱代理环境下 WebSocket 立即被关闭，HMR 会触发页面整页刷新；
+      // 彻底禁用以保证页面稳定。代码更新通过 tsx watch 自动重启后端。
+      hmr: false,
     },
     appType: 'spa',
     root: process.cwd(),
@@ -39,11 +37,17 @@ export async function setupViteMiddleware(app: Application, httpServer?: import(
       return;
     }
 
+    // 对 .vue/.ts/.css 等模块禁用缓存（开发态下内容经常变），
+    // 但对 index.html 等静态资源允许 30s 内存缓存，显著提升页面刷新速度
+    if (req.path === '/' || req.path.endsWith('.html')) {
+      res.setHeader('Cache-Control', 'public, max-age=30');
+    }
+
     // Let Vite handle everything else (static files, HMR, etc.)
     vite.middlewares(req, res, next);
   });
 
-  console.log('Vite dev server initialized (HMR ' + (httpServer ? 'enabled via shared server' : 'disabled') + ')');
+  console.log('Vite dev server initialized (HMR disabled for proxy compatibility)');
 }
 
 /**
