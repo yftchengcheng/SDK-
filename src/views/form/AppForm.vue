@@ -322,7 +322,7 @@ async function loadEditData() {
   if (!isEdit.value) return;
   const id = route.params.id as string;
   try {
-    const res: any = await request.get(`/api/v1/console/app/${id}`);
+    const res: any = await request.get('/api/v1/console/app/detail', { params: { appKey: id } });
     if (res.code === 0) {
       const d = res.data;
       form.app_name = d.app_name;
@@ -347,21 +347,21 @@ async function handleSubmit() {
   submitting.value = true;
   try {
     const payload = {
-      app_name: form.app_name,
-      package_name: form.package_name,
+      appName: form.app_name,
+      packageName: form.package_name,
       platform: form.platform,
       category: form.category,
-      timeout_ms: form.timeout_ms,
-      store_url: form.store_url,
-      icon_url: form.iconUrl,
-      wechat_app_id: form.wechat_app_id,
-      wechat_universal_link: form.wechat_universal_link,
+      timeoutMs: form.timeout_ms,
+      storeUrl: form.store_url,
+      iconUrl: form.iconUrl,
+      wechatAppId: form.wechat_app_id,
+      wechatUniversalLink: form.wechat_universal_link,
     };
     let res: any;
     if (isEdit.value) {
-      res = await request.put(`/api/v1/console/app/${route.params.id}`, payload);
+      res = await request.put('/api/v1/console/app/update', { ...payload, appKey: route.params.id });
     } else {
-      res = await request.post('/api/v1/console/app', payload);
+      res = await request.post('/api/v1/console/app/create', payload);
     }
     if (res.code === 0) {
       ElMessage.success(isEdit.value ? '保存成功' : '创建成功');

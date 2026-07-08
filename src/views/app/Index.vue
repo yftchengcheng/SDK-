@@ -153,6 +153,10 @@ import dayjs from 'dayjs';
 
 const router = useRouter();
 
+const goCreate = (): void => { router.push('/app/create'); };
+const goEdit = (row: any): void => { router.push(`/app/edit/${row.appKey || row.app_key || row.id}`); };
+const onBack = (): void => { if (window.history.length > 1) router.back(); else router.push('/app'); };
+
 const loading = ref(false);
 const tableData = ref<any[]>([]);
 const page = ref(1);
@@ -209,9 +213,9 @@ const handleDelete = async (row: any) => {
 const fetchList = async (): Promise<void> => {
   loading.value = true;
   try {
-    const res: any = await request.get('/api/v1/console/app', { params: { page: page.value, pageSize: pageSize.value, ...filters.value } });
+    const res: any = await request.get('/api/v1/console/app/list', { params: { page: page.value, pageSize: pageSize.value, ...filters.value } });
     if (res.code === 0) {
-      list.value = res.data?.list || [];
+      tableData.value = res.data?.list || [];
       total.value = res.data?.total || 0;
     } else {
       ElMessage.error(res.message || '加载失败');
@@ -221,6 +225,15 @@ const fetchList = async (): Promise<void> => {
   } finally {
     loading.value = false;
   }
+};
+
+
+const formatTime = (ts: number | string | undefined | null): string => {
+  if (!ts) return '-';
+  const d = new Date(typeof ts === 'number' ? ts * (ts.toString().length <= 10 ? 1000 : 1) : ts);
+  if (isNaN(d.getTime())) return '-';
+  const pad = (n: number) => n.toString().padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
 };
 
 onMounted(fetchList);
