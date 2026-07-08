@@ -62,13 +62,32 @@
         }
         // --- 1. Hook WebSocket: 拦截 HMR 通道（Vite dev 服务器未开 HMR，避免 connect 失败抛 unhandledrejection）---
         var OrigWS = window.WebSocket;
+        // 沙箱代理域名后缀：所有写到 *.<suffix> 的 WebSocket 全部走 fakeWS。
+        // 同时，Vite 默认 HMR 端口 24678（独立于 dev server 5000）也走 fakeWS，
+        // 沙箱不会暴露这个端口，落到真实通道会一直 pending。
+        var SANDBOX_HOST_RE = /\.(dev\.coze\.site|coze\.site|coze\.cn)$/i;
+        var VITE_DEFAULT_HMR_PORTS = [24678, 24679, 24680, 24681, 24682, 24683, 24684, 24685, 24686, 24687, 24688];
         function isHmrUrl(url) {
           try {
             var parsed = new URL(url, location.href);
-            return (
-              parsed.pathname === '/' /* Vite 默认根路径 */ ||
-              /\/$|\/\?token=/.test(parsed.pathname + parsed.search)
-            );
+            var path = parsed.pathname + parsed.search;
+            // 判定 1：Vite 默认根路径 / 携带 ?token=
+            if (parsed.pathname === '/') return true;
+            if (/\/\?token=/.test(path)) return true;
+            if (/[?&]token=[^&]*$/.test(path)) return true;
+            // 判定 2：subprotocol 是 vite-hmr（Vite 7 client 强制传 'vite-hmr' 作为第二个参数）
+            //   实际上我们这里拿不到 protocols 参数，留个钩子：从 URL 末尾 ?token=xxx 推断
+            // 判定 3：host 落在沙箱代理域 + URL 形态像 HMR 通道（path 是 / 或 /@vite/*）
+            if (SANDBOX_HOST_RE.test(parsed.hostname) && /^(\/|@vite\/)/.test(parsed.pathname)) return true;
+            // 判定 4：沙箱代理域 + 端口是 5xxx（沙箱约定端口） + 路径短
+            if (SANDBOX_HOST_RE.test(parsed.hostname) && /^[45]\d{3}$/.test(parsed.port) && parsed.pathname.length < 30) return true;
+            // 判定 5（关键）：Vite 默认 HMR 端口（24678 等）+ localhost/127.0.0.1
+            //   沙箱不会暴露这些端口，真发出去会一直 pending
+            if ((parsed.hostname === 'localhost' || parsed.hostname === '127.0.0.1' || SANDBOX_HOST_RE.test(parsed.hostname))
+                && VITE_DEFAULT_HMR_PORTS.indexOf(parseInt(parsed.port, 10)) !== -1) {
+              return true;
+            }
+            return false;
           } catch (e) { return false; }
         }
         function makeFakeWS() {
@@ -106,9 +125,14 @@
         function WrappedWS(url, protocols) {
           if (isHmrUrl(url)) {
             // HMR 通道：返回伪造 WebSocket，Vite 不会再去尝试连接真实端口
+            console.info('[DevGuard] HMR WebSocket 拦截成功:', String(url).slice(0, 120), 'protocols=', String(protocols));
             return makeFakeWS();
           }
           // 业务 WebSocket：放行，必要时拦截 full-reload 消息
+          // 如果是 Vite HMR 但 isHmrUrl 漏判，给一条醒目警告（说明 URL 形态不在我们预设的规则里）
+          if (protocols === 'vite-hmr' || (typeof url === 'string' && /[?&]token=/.test(url))) {
+            console.warn('[DevGuard] HMR WebSocket 漏判 → 走真实通道（可能被沙箱代理关闭）:', String(url).slice(0, 200));
+          }
           var ws = protocols !== undefined ? new OrigWS(url, protocols) : new OrigWS(url);
           try {
             var origAdd = ws.addEventListener.bind(ws);
