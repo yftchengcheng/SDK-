@@ -95,50 +95,56 @@
     <div class="list-grid">
       <div v-loading="loading" class="page-card page-list-card">
         <div class="list-title">广告源对比</div>
-        <div v-if="sourceRows.length" class="list-body">
-          <div v-for="(row, idx) in sourceRows" :key="row.sourceId" class="list-row">
-            <div class="row-rank">{{ idx + 1 }}</div>
-            <div class="row-name">{{ row.name || row.sourceId }}</div>
-            <div class="row-bar-track">
-              <div class="row-bar-fill" :style="{ width: row.barPct + '%' }" />
+        <div class="list-body">
+          <div v-if="sourceRows.length">
+            <div v-for="(row, idx) in sourceRows" :key="row.sourceId" class="list-row">
+              <div class="row-rank">{{ idx + 1 }}</div>
+              <div class="row-name">{{ row.name || row.sourceId }}</div>
+              <div class="row-bar-track">
+                <div class="row-bar-fill" :style="{ width: row.barPct + '%' }" />
+              </div>
+              <div class="row-value">¥{{ row.revenue.toFixed(2) }}</div>
             </div>
-            <div class="row-value">¥{{ row.revenue.toFixed(2) }}</div>
           </div>
+          <el-empty v-else description="暂无数据" :image-size="50" />
         </div>
-        <el-empty v-else description="暂无数据" :image-size="50" />
       </div>
 
       <div v-loading="loading" class="page-card page-list-card">
         <div class="list-title">广告位收益排行</div>
-        <div v-if="placementRows.length" class="list-body">
-          <div v-for="(row, idx) in placementRows" :key="row.placementId" class="list-row">
-            <div class="row-rank">{{ idx + 1 }}</div>
-            <div class="row-name">{{ row.placementId }}</div>
-            <div class="row-bar-track">
-              <div class="row-bar-fill" :style="{ width: row.barPct + '%' }" />
+        <div class="list-body">
+          <div v-if="placementRows.length">
+            <div v-for="(row, idx) in placementRows" :key="row.placementId" class="list-row">
+              <div class="row-rank">{{ idx + 1 }}</div>
+              <div class="row-name">{{ row.placementId }}</div>
+              <div class="row-bar-track">
+                <div class="row-bar-fill" :style="{ width: row.barPct + '%' }" />
+              </div>
+              <div class="row-value">¥{{ row.revenue.toFixed(2) }}</div>
             </div>
-            <div class="row-value">¥{{ row.revenue.toFixed(2) }}</div>
           </div>
+          <el-empty v-else description="暂无数据" :image-size="50" />
         </div>
-        <el-empty v-else description="暂无数据" :image-size="50" />
       </div>
 
       <div v-loading="loading" class="page-card page-list-card">
         <div class="list-title">异常告警</div>
-        <div v-if="anomalyRows.length" class="list-body">
-          <div v-for="row in anomalyRows" :key="row.placementId + row.type" class="list-row">
-            <div class="row-rank warn">!</div>
-            <div class="row-name">
-              {{ row.placementId }}
-              <div class="row-sub">{{ row.type === 'revenue_drop' ? '收益下降' : row.type }}</div>
-            </div>
-            <div class="row-value warn">
-              <div>{{ row.change > 0 ? '+' : '' }}{{ row.change.toFixed(1) }}%</div>
-              <div class="row-sub">¥{{ row.recent.toFixed(2) }} / ¥{{ row.baseline.toFixed(2) }}</div>
+        <div class="list-body">
+          <div v-if="anomalyRows.length">
+            <div v-for="row in anomalyRows" :key="row.placementId + row.type" class="list-row">
+              <div class="row-rank warn">!</div>
+              <div class="row-name">
+                {{ row.placementId }}
+                <div class="row-sub">{{ row.type === 'revenue_drop' ? '收益下降' : row.type }}</div>
+              </div>
+              <div class="row-value warn">
+                <div>{{ row.change > 0 ? '+' : '' }}{{ row.change.toFixed(1) }}%</div>
+                <div class="row-sub">¥{{ row.recent.toFixed(2) }} / ¥{{ row.baseline.toFixed(2) }}</div>
+              </div>
             </div>
           </div>
+          <el-empty v-else description="暂无异常" :image-size="50" />
         </div>
-        <el-empty v-else description="暂无异常" :image-size="50" />
       </div>
     </div>
   </div>

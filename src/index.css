@@ -3170,10 +3170,15 @@ html, body, #app {
 .page-dashboard .list-title {
   font-size: 14px; font-weight: 600; color: var(--color-slate-800); margin-bottom: 12px;
 }
-.page-dashboard .list-body { display: flex; flex-direction: column; gap: 8px; }
+.page-dashboard .list-body { display: flex; flex-direction: column; gap: 4px; }
 .page-dashboard .list-row {
   display: grid; grid-template-columns: 24px 1fr 100px 100px;
-  align-items: center; gap: 8px; padding: 6px 0; font-size: 13px;
+  align-items: center; gap: 8px; padding: 8px 4px; font-size: 13px;
+  border-radius: 4px;
+  transition: background 0.15s ease;
+}
+.page-dashboard .list-row:hover {
+  background: var(--color-slate-50, #F8FAFC);
 }
 .page-dashboard .row-rank {
   width: 20px; height: 20px; border-radius: 4px;
@@ -3741,15 +3746,19 @@ html, body, #app {
 
 /* ---------- Chart Card（趋势图，直接用 .page-card 容器） ---------- */
 .page-chart-card {
-  /* 保留 .page-card 默认 padding: 0 容器；chart-card 内部自己控制 20px padding */
+  /* 卡片整体内边距，避免 ECharts / 标题贴卡片边（数据看板硬规范） */
+  padding: 20px 24px;
 }
 .page-chart-card .chart-title {
   font-size: var(--text-md, 14px);
   font-weight: 600;
   color: var(--color-slate-800, #1E293B);
-  padding: var(--space-md, 12px) 0 var(--space-md, 12px) 0;
+  /* 左右内边距由外层 .page-chart-card 提供 */
+  padding: 0;
+  margin-bottom: 12px;
+  /* 标题与图表分隔线 */
   border-bottom: 1px solid var(--color-slate-100, #F1F5F9);
-  margin-bottom: var(--space-md, 12px);
+  padding-bottom: 12px;
 }
 
 /* ---------- List Grid（排名/告警列表容器） ---------- */
@@ -3762,15 +3771,18 @@ html, body, #app {
   .list-grid { grid-template-columns: 1fr; }
 }
 .page-list-card {
-  /* 保留 .page-card 默认 padding: 0 容器；list-card 内部自己控制 padding */
+  /* 卡片整体内边距，避免 list-row / 标题贴卡片边 */
+  padding: 20px 24px;
 }
 .page-list-card .list-title {
   font-size: var(--text-md, 14px);
   font-weight: 600;
   color: var(--color-slate-800, #1E293B);
-  padding: var(--space-md, 12px) 0 var(--space-md, 12px) 0;
+  /* 左右内边距由外层 .page-list-card 提供 */
+  padding: 0;
+  margin-bottom: 12px;
   border-bottom: 1px solid var(--color-slate-100, #F1F5F9);
-  margin-bottom: var(--space-md, 12px);
+  padding-bottom: 12px;
 }
 .page-list-card .list-body {
   padding: 0;

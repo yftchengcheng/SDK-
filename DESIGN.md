@@ -553,26 +553,29 @@ B2B 企业级广告数据管理控制台。沉稳、专业、精准。蓝+灰+�
 ### Chart Card（趋势图）
 
 - 容器：`.page-card.page-chart-card`（直接用 .page-card 规范）
+  - **卡片内边距**：`padding: 20px 24px`（避免 ECharts / 标题贴卡片边，是数据看板的硬规范）
   - 内部保留 padding 20px（**不要**为消除 padding 而设 `padding: 0`，否则 ECharts 容器会失去呼吸空间）
   - 背景保持 #FFFFFF（**不要**设 `background: transparent`）
-- 标题：`.chart-title` / 14px / 600 / #1E293B
+- 标题：`.chart-title` / 14px / 600 / #1E293B / **padding: 0**（左右内边距由外层 .page-chart-card 提供）/ margin-bottom: 12px / **border-bottom: 1px solid #F1F5F9** / padding-bottom: 12px（分隔标题与图表）
 - ECharts 容器 `.chart-canvas`：
   - **必须**显式 `width: 100%; height: 280px`（ECharts svg 渲染的硬性要求，autoresize 模式依赖父容器显式高度）
   - 使用 `vue-echarts` 的 `<VChart autoresize :init-options="{ renderer: 'svg' }" />`
   - 折线颜色 #2563EB / 渐变填充 `rgba(37, 99, 235, 0.1)` / 圆滑曲线 `smooth: true`
+  - 左侧**预留 60px** 给 y 轴标签、底部**预留 40px** 给 x 轴标签（避免轴标签被裁）
 - 空数据：`<el-empty description="暂无趋势数据" :image-size="60" />`
 
 ### List Grid（排名/告警列表）
 
 - 容器：`.list-grid` / `display: grid` / `grid-template-columns: repeat(3, 1fr)` / `gap: var(--space-lg)`
 - 卡片：`.page-card.page-list-card`（直接用 .page-card 规范）
-  - 内部保留 padding 20px
+  - **卡片内边距**：`padding: 20px 24px`（避免 list-row / 标题贴卡片边）
   - 背景 #FFFFFF
 - 卡片内部结构：
-  - `.list-title`：14px / 600 / #1E293B / 底部 margin 12px
-  - `.list-body`：flex column / gap 8px
+  - `.list-title`：14px / 600 / #1E293B / **padding: 0**（左右由外层 .page-list-card 提供）/ **margin-bottom: 12px** / **border-bottom: 1px solid #F1F5F9** / padding-bottom: 12px
+  - `.list-body`：flex column / gap 8px / padding: 0
   - 每行 `.list-row`：
     - `display: grid` / `grid-template-columns: 24px 1fr 100px 100px`
+    - **padding: 8px 4px**（左右 4px 内边距，让 rank 编号与名称之间有呼吸空间，不贴卡片边）
     - 排名 `.row-rank`：20×20 / 4px 圆角 / #F1F5F9 背景 / #475569 文字 / 11px / 600
     - 排名异常 `.row-rank.warn`：#FEE2E2 背景 / #991B1B 文字
     - 名称 `.row-name`：#334155 / ellipsis 截断
