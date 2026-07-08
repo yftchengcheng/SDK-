@@ -106,6 +106,48 @@ router.delete('/delete', authMiddleware, async (req: express.Request, res: expre
   }
 });
 
+// RESTful: PUT /api/v1/console/ad-source/:id  (frontend 用此路径)
+router.put('/:id', authMiddleware, async (req: express.Request, res: express.Response) => {
+  try {
+    const { developerId } = getDeveloper(req);
+    const { id } = req.params;
+    const { sourceName, thirdAppId, thirdPlacementId, extra, status } = req.body;
+    if (!id) return fail(res, 400, '缺少id');
+
+    const updateData: Record<string, unknown> = { updated_at: new Date().toISOString() };
+    if (sourceName !== undefined) updateData.source_name = sourceName;
+    if (thirdAppId !== undefined) updateData.third_app_id = thirdAppId;
+    if (thirdPlacementId !== undefined) updateData.third_placement_id = thirdPlacementId;
+    if (extra !== undefined) updateData.extra = extra;
+    if (status !== undefined) updateData.status = status;
+
+    const { error } = await db.from('ad_source').update(updateData).eq('id', Number(id)).eq('developer_id', developerId);
+    if (error) throw new Error(`Update failed: ${error.message}`);
+
+    success(res, null, '更新成功');
+  } catch (err) {
+    console.error('Update ad source (RESTful) error:', err);
+    fail(res, 500, '更新广告源失败');
+  }
+});
+
+// RESTful: DELETE /api/v1/console/ad-source/:id
+router.delete('/:id', authMiddleware, async (req: express.Request, res: express.Response) => {
+  try {
+    const { developerId } = getDeveloper(req);
+    const { id } = req.params;
+    if (!id) return fail(res, 400, '缺少id');
+
+    const { error } = await db.from('ad_source').delete().eq('id', Number(id)).eq('developer_id', developerId);
+    if (error) throw new Error(`Delete failed: ${error.message}`);
+
+    success(res, null, '删除成功');
+  } catch (err) {
+    console.error('Delete ad source (RESTful) error:', err);
+    fail(res, 500, '删除广告源失败');
+  }
+});
+
 // Get network definitions
 router.get('/networks', authMiddleware, async (_req: express.Request, res: express.Response) => {
   try {

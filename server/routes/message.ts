@@ -64,6 +64,23 @@ router.put('/read-all', authMiddleware, async (req: express.Request, res: expres
   }
 });
 
+// RESTful: PUT /api/v1/console/message/:id/read  (frontend 用此路径)
+router.put('/:id/read', authMiddleware, async (req: express.Request, res: express.Response) => {
+  try {
+    const { developerId } = getDeveloper(req);
+    const { id } = req.params;
+    if (!id) return fail(res, 400, '缺少消息id');
+
+    const { error } = await db.from('message').update({ is_read: 1 }).eq('id', Number(id)).eq('developer_id', developerId);
+    if (error) throw new Error(`Update failed: ${error.message}`);
+
+    success(res, null, '标记成功');
+  } catch (err) {
+    console.error('Mark read (RESTful) error:', err);
+    fail(res, 500, '标记已读失败');
+  }
+});
+
 // Get unread count
 router.get('/unread-count', authMiddleware, async (req: express.Request, res: express.Response) => {
   try {

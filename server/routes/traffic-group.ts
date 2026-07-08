@@ -105,4 +105,44 @@ router.delete('/delete', authMiddleware, async (req: express.Request, res: expre
   }
 });
 
+// RESTful: PUT /api/v1/console/traffic-group/:id  (frontend 用此路径)
+router.put('/:id', authMiddleware, async (req: express.Request, res: express.Response) => {
+  try {
+    const { id } = req.params;
+    const { groupName, conditions, priority, waterfallConfigId, status } = req.body;
+    if (!id) return fail(res, 400, '缺少id');
+
+    const updateData: Record<string, unknown> = {};
+    if (groupName !== undefined) updateData.group_name = groupName;
+    if (conditions !== undefined) updateData.conditions = typeof conditions === 'string' ? conditions : JSON.stringify(conditions);
+    if (priority !== undefined) updateData.priority = priority;
+    if (waterfallConfigId !== undefined) updateData.waterfall_config_id = waterfallConfigId;
+    if (status !== undefined) updateData.status = status;
+
+    const { error } = await db.from('traffic_group').update(updateData).eq('id', Number(id));
+    if (error) throw new Error(`Update failed: ${error.message}`);
+
+    success(res, null, '更新成功');
+  } catch (err) {
+    console.error('Update traffic group (RESTful) error:', err);
+    fail(res, 500, '更新流量分组失败');
+  }
+});
+
+// RESTful: DELETE /api/v1/console/traffic-group/:id
+router.delete('/:id', authMiddleware, async (req: express.Request, res: express.Response) => {
+  try {
+    const { id } = req.params;
+    if (!id) return fail(res, 400, '缺少id');
+
+    const { error } = await db.from('traffic_group').delete().eq('id', Number(id));
+    if (error) throw new Error(`Delete failed: ${error.message}`);
+
+    success(res, null, '删除成功');
+  } catch (err) {
+    console.error('Delete traffic group (RESTful) error:', err);
+    fail(res, 500, '删除流量分组失败');
+  }
+});
+
 export default router;

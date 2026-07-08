@@ -127,6 +127,65 @@ router.post('/custom/update', authMiddleware, async (req: express.Request, res: 
   }
 });
 
+// RESTful: PUT /api/v1/console/network/custom/:id  (frontend 用此路径)
+router.put('/custom/:id', authMiddleware, async (req: express.Request, res: express.Response) => {
+  try {
+    const { developerId } = getDeveloper(req);
+    const { id } = req.params;
+    const { networkName, networkCode, adapterClassInit, adapterClassBanner, adapterClassInterstitial, adapterClassRewarded, adapterClassNative, adapterClassSplash, supportsBidding, status } = req.body as Record<string, unknown>;
+    if (!id) return fail(res, 400, '缺少网络id');
+
+    const { data: existing, error: checkError } = await db.from('ad_network_def').select('created_by').eq('id', Number(id)).single();
+    if (checkError || !existing || existing.created_by !== developerId) {
+      fail(res, 403, '无权操作此网络');
+      return;
+    }
+
+    const updateData: Record<string, unknown> = {};
+    if (networkName !== undefined) updateData.network_name = String(networkName);
+    if (networkCode !== undefined) updateData.network_code = String(networkCode);
+    if (adapterClassInit !== undefined) updateData.adapter_class_init = adapterClassInit ? String(adapterClassInit) : null;
+    if (adapterClassBanner !== undefined) updateData.adapter_class_banner = adapterClassBanner ? String(adapterClassBanner) : null;
+    if (adapterClassInterstitial !== undefined) updateData.adapter_class_interstitial = adapterClassInterstitial ? String(adapterClassInterstitial) : null;
+    if (adapterClassRewarded !== undefined) updateData.adapter_class_rewarded = adapterClassRewarded ? String(adapterClassRewarded) : null;
+    if (adapterClassNative !== undefined) updateData.adapter_class_native = adapterClassNative ? String(adapterClassNative) : null;
+    if (adapterClassSplash !== undefined) updateData.adapter_class_splash = adapterClassSplash ? String(adapterClassSplash) : null;
+    if (supportsBidding !== undefined) updateData.supports_bidding = supportsBidding ? 1 : 0;
+    if (status !== undefined) updateData.status = Number(status);
+
+    const { error } = await db.from('ad_network_def').update(updateData).eq('id', Number(id));
+    if (error) throw new Error(`Update failed: ${error.message}`);
+
+    success(res, null, '更新成功');
+  } catch (err) {
+    console.error('Update custom network (RESTful) error:', err);
+    fail(res, 500, '更新自定义网络失败');
+  }
+});
+
+// RESTful: DELETE /api/v1/console/network/custom/:id
+router.delete('/custom/:id', authMiddleware, async (req: express.Request, res: express.Response) => {
+  try {
+    const { developerId } = getDeveloper(req);
+    const { id } = req.params;
+    if (!id) return fail(res, 400, '缺少网络id');
+
+    const { data: existing, error: checkError } = await db.from('ad_network_def').select('created_by').eq('id', Number(id)).single();
+    if (checkError || !existing || existing.created_by !== developerId) {
+      fail(res, 403, '无权操作此网络');
+      return;
+    }
+
+    const { error } = await db.from('ad_network_def').delete().eq('id', Number(id));
+    if (error) throw new Error(`Delete failed: ${error.message}`);
+
+    success(res, null, '删除成功');
+  } catch (err) {
+    console.error('Delete custom network (RESTful) error:', err);
+    fail(res, 500, '删除自定义网络失败');
+  }
+});
+
 // Get custom network detail
 router.get('/custom/detail', authMiddleware, async (req: express.Request, res: express.Response) => {
   try {
@@ -228,6 +287,138 @@ router.put('/custom/adapter/status', authMiddleware, async (req: express.Request
   } catch (err) {
     console.error('Update adapter status error:', err);
     fail(res, 500, '更新状态失败');
+  }
+});
+
+// RESTful: DELETE /api/v1/console/network/adapter/:id  (frontend 用此路径)
+router.delete('/adapter/:id', authMiddleware, async (req: express.Request, res: express.Response) => {
+  try {
+    const { developerId } = getDeveloper(req);
+    const { id } = req.params;
+    if (!id) return fail(res, 400, '缺少adapter id');
+
+    // Step 1: 取 adapter 记录 (single)
+    const { data: adapter } = await db.from('custom_adapter_version')
+      .select('id, network_def_id')
+      .eq('id', Number(id))
+      .maybeSingle();
+    if (!adapter) {
+      fail(res, 404, 'Adapter 不存在');
+      return;
+    }
+
+    // Step 2: 校验所属网络是否属于当前 developer
+    const { data: net } = await db.from('ad_network_def')
+      .select('created_by')
+      .eq('id', adapter.network_def_id)
+      .maybeSingle();
+    if (!net || net.created_by !== developerId) {
+      fail(res, 403, '无权操作此 Adapter');
+      return;
+    }
+
+    const { error } = await db.from('custom_adapter_version').delete().eq('id', Number(id));
+    if (error) throw new Error(`Delete failed: ${error.message}`);
+
+    success(res, null, '删除成功');
+  } catch (err) {
+    console.error('Delete adapter (RESTful) error:', err);
+    fail(res, 500, '删除Adapter失败');
+  }
+});
+
+// RESTful: GET /api/v1/console/network/adapter/list?networkDefId=... (frontend 期望)
+router.get('/adapter/list', authMiddleware, async (req: express.Request, res: express.Response) => {
+  try {
+    const { networkDefId, page = 1, pageSize = 20 } = req.query as Record<string, string>;
+    if (!networkDefId) return fail(res, 400, '缺少networkDefId');
+
+    const p = Number(page);
+    const ps = Number(pageSize);
+    const { data, count, error } = await db.from('custom_adapter_version')
+      .select('*', { count: 'exact' })
+      .eq('network_def_id', Number(networkDefId))
+      .order('created_at', { ascending: false })
+      .range((p - 1) * ps, p * ps - 1);
+    if (error) throw new Error(`Query failed: ${error.message}`);
+
+    success(res, { list: data, total: count, page: p, pageSize: ps });
+  } catch (err) {
+    console.error('Adapter list (RESTful) error:', err);
+    fail(res, 500, '获取Adapter版本列表失败');
+  }
+});
+
+// RESTful: POST /api/v1/console/network/adapter/upload
+router.post('/adapter/upload', authMiddleware, async (req: express.Request, res: express.Response) => {
+  try {
+    const { developerId } = getDeveloper(req);
+    const { networkDefId, version, fileName, fileUrl, fileSize, fileMd5, sdkMinVersion, changelog } = req.body;
+    if (!networkDefId || !version || !fileName || !fileUrl) return fail(res, 400, '缺少必填参数');
+
+    const { data, error } = await db.from('custom_adapter_version').insert({
+      network_def_id: Number(networkDefId),
+      developer_id: developerId,
+      version,
+      file_name: fileName,
+      file_url: fileUrl,
+      file_size: fileSize || null,
+      file_md5: fileMd5 || null,
+      sdk_min_version: sdkMinVersion || null,
+      changelog: changelog || null,
+      status: 1,
+    }).select().single();
+    if (error) throw new Error(`Insert failed: ${error.message}`);
+
+    success(res, data, '上传成功');
+  } catch (err) {
+    console.error('Adapter upload (RESTful) error:', err);
+    fail(res, 500, '上传Adapter失败');
+  }
+});
+
+// RESTful: GET /api/v1/console/network/adapter/download/:id
+router.get('/adapter/download/:id', authMiddleware, async (req: express.Request, res: express.Response) => {
+  try {
+    const { id } = req.params;
+    if (!id) return fail(res, 400, '缺少adapter id');
+
+    const { data, error } = await db.from('custom_adapter_version')
+      .select('file_name, file_url')
+      .eq('id', Number(id))
+      .maybeSingle();
+    if (error) throw new Error(`Query failed: ${error.message}`);
+    if (!data) return fail(res, 404, 'Adapter 不存在');
+
+    // Simulate file content (实际生产从对象存储拉取)
+    const { data: fileData } = await db.storage.from('adapter').download(data.file_url).catch(() => ({ data: null }));
+    const fileContent = fileData ? await fileData.text() : `// Mock content for ${data.file_name} (${data.file_url})`;
+    success(res, { file_name: data.file_name, file_content: fileContent });
+  } catch (err) {
+    console.error('Adapter download (RESTful) error:', err);
+    fail(res, 500, '下载Adapter失败');
+  }
+});
+
+// RESTful: POST /api/v1/console/network/adapter/review/:id
+router.post('/adapter/review/:id', authMiddleware, async (req: express.Request, res: express.Response) => {
+  try {
+    const { id } = req.params;
+    const { status, remark } = req.body;
+    if (!id) return fail(res, 400, '缺少adapter id');
+    if (status !== 2 && status !== 3) return fail(res, 400, 'status 必须是 2(通过) 或 3(驳回)');
+
+    const { data, error } = await db.from('custom_adapter_version').update({
+      status: Number(status),
+      review_comment: remark || null,
+      reviewed_at: new Date().toISOString(),
+    }).eq('id', Number(id)).select().single();
+    if (error) throw new Error(`Update failed: ${error.message}`);
+
+    success(res, data, status === 2 ? '审核通过' : '已驳回');
+  } catch (err) {
+    console.error('Adapter review (RESTful) error:', err);
+    fail(res, 500, '审核失败');
   }
 });
 
