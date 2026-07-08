@@ -22,7 +22,7 @@
     <!-- Table -->
     <div class="table-card">
       <el-table :data="tableData" v-loading="loading" stripe style="width: 100%">
-        <el-table-column prop="placement_id" label="Placement ID" min-width="200">
+        <el-table-column prop="placement_id" label="广告位TOKEN" min-width="200">
           <template #default="{ row }">
             <span class="text-primary">{{ row.placement_id }}</span>
             <el-icon class="copy-btn" @click="copyText(row.placement_id)"><CopyDocument /></el-icon>
