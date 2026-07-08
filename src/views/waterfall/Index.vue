@@ -1,26 +1,36 @@
 <template>
-  <div class="page-container page-waterfall">
-    <!-- ===== 控制面板：标题 + 步骤 + 选择器 + 摘要 合一 ===== -->
-    <section class="wf-panel">
-      <header class="wf-panel-header">
-        <div class="wf-panel-titles">
-          <h1 class="wf-title">瀑布流配置</h1>
-          <p class="wf-subtitle">为每个广告位分层设置广告源优先级（头部竞价 / 标准价格 / 兜底层），系统按顺序逐层请求填充。</p>
+  <div class="page-shell">
+    <div class="page-header">
+      <div class="page-header-left">
+        <div class="page-header-icon">
+          <el-icon><Operation /></el-icon>
         </div>
-        <ol class="wf-stepper" aria-label="操作步骤">
-          <li :class="['wf-step', 'wf-step-active']">
-            <span class="wf-step-bubble">1</span><span class="wf-step-label">选择广告位</span>
-          </li>
-          <li class="wf-step-divider"></li>
-          <li :class="['wf-step', { 'wf-step-active': !!selectedPlacement }]">
-            <span class="wf-step-bubble">2</span><span class="wf-step-label">配置广告源</span>
-          </li>
-          <li class="wf-step-divider"></li>
-          <li :class="['wf-step', { 'wf-step-active': !!selectedPlacement }]">
-            <span class="wf-step-bubble">3</span><span class="wf-step-label">保存生效</span>
-          </li>
-        </ol>
-      </header>
+        <div class="page-header-titles">
+          <h1 class="page-header-title">瀑布流配置</h1>
+          <p class="page-header-subtitle">为每个广告位分层设置广告源优先级（头部竞价 / 标准价格 / 兜底层），系统按顺序逐层请求填充</p>
+        </div>
+      </div>
+      <div class="page-header-actions">
+        <el-button :icon="Refresh" @click="onRefreshAll">刷新</el-button>
+      </div>
+    </div>
+
+    <!-- ===== 控制面板：步骤 + 选择器 + 摘要 合一 ===== -->
+    <section class="wf-panel">
+
+      <ol class="wf-stepper" aria-label="操作步骤">
+        <li :class="['wf-step', 'wf-step-active']">
+          <span class="wf-step-bubble">1</span><span class="wf-step-label">选择广告位</span>
+        </li>
+        <li class="wf-step-divider"></li>
+        <li :class="['wf-step', { 'wf-step-active': !!selectedPlacement }]">
+          <span class="wf-step-bubble">2</span><span class="wf-step-label">配置广告源</span>
+        </li>
+        <li class="wf-step-divider"></li>
+        <li :class="['wf-step', { 'wf-step-active': !!selectedPlacement }]">
+          <span class="wf-step-bubble">3</span><span class="wf-step-label">保存生效</span>
+        </li>
+      </ol>
 
       <div class="wf-panel-divider"></div>
 
@@ -165,17 +175,30 @@
     </el-empty>
 
     <!-- Add Source Dialog -->
-    <el-dialog v-model="showAddDialog" title="添加代码位" width="480px" destroy-on-close>
-      <el-form :model="newSource" label-position="top">
-        <el-form-item label="选择广告源">
-          <el-select v-model="newSource.ad_source_id" placeholder="请选择广告源" style="width: 100%">
-            <el-option v-for="s in adSourceList" :key="s.id" :label="`${s.source_name} (${s.network_name})`" :value="s.id" />
-          </el-select>
-        </el-form-item>
-      </el-form>
+    <el-dialog v-model="showAddDialog" :title="`添加代码位 · ${currentLayerLabel}`" width="480px" destroy-on-close>
+      <div class="dialog-section">
+        <div class="dialog-section-title">
+          <el-icon><Plus /></el-icon>
+          <span>选择广告源</span>
+          <span class="dialog-section-tag">{{ adSourceList.length }} 个可选</span>
+        </div>
+        <div class="dialog-form-row dialog-form-row--full">
+          <el-form-item label="广告源" required>
+            <el-select v-model="newSource.ad_source_id" placeholder="请选择广告源" filterable style="width: 100%">
+              <el-option
+                v-for="s in adSourceList"
+                :key="s.id"
+                :label="`${s.source_name} (${s.network_name})`"
+                :value="s.id"
+              />
+            </el-select>
+            <div class="dialog-form-help">将按当前层类型添加，Bidding 层为并行，Standard/Fallback 层为顺序</div>
+          </el-form-item>
+        </div>
+      </div>
       <template #footer>
         <el-button @click="showAddDialog = false">取消</el-button>
-        <el-button type="primary" @click="confirmAddSource">确定</el-button>
+        <el-button type="primary" :loading="adding" @click="confirmAddSource">添加到当前层</el-button>
       </template>
     </el-dialog>
   </div>
@@ -186,15 +209,22 @@ import { ref, reactive, computed, onMounted, nextTick, onBeforeUnmount } from 'v
 import request from '../../utils/request';
 import { ElMessage } from 'element-plus';
 import Sortable from 'sortablejs';
+import { Operation, Refresh, Plus } from '@element-plus/icons-vue';
 
 const selectedPlacement = ref('');
 const placementList = ref<any[]>([]);
 const appList = ref<any[]>([]);
 const adSourceList = ref<any[]>([]);
 const saving = ref(false);
+const adding = ref(false);
 const showAddDialog = ref(false);
 const currentLayerType = ref(1);
 const newSource = reactive({ ad_source_id: null as number | null });
+
+const currentLayerLabel = computed(() => {
+  const l = layers.find(x => x.type === currentLayerType.value);
+  return l ? l.label : '';
+});
 
 const layers = reactive([
   { type: 1, shortLabel: 'BIDDING', label: 'Bidding层（并行竞价，相同价位同时请求）', sources: [] as any[] },
@@ -284,6 +314,14 @@ const confirmAddSource = () => {
     });
   }
   showAddDialog.value = false;
+  newSource.ad_source_id = null;
+  ElMessage.success('已添加到当前层，记得点击「保存」');
+};
+
+const onRefreshAll = async () => {
+  await Promise.all([fetchPlacements(), fetchAdSources()]);
+  if (selectedPlacement.value) await loadLayers(selectedPlacement.value);
+  ElMessage.success('已刷新');
 };
 
 const saveConfig = async () => {

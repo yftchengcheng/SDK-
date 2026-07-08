@@ -147,79 +147,84 @@
       width="640px"
       destroy-on-close
       :close-on-click-modal="false"
-      class="app-form-dialog"
       align-center
     >
-      <el-form ref="formRef" :model="form" :rules="formRules" label-position="top" class="app-form">
+      <el-form ref="formRef" :model="form" :rules="formRules" label-position="top">
         <!-- 区块：基础信息 -->
-        <div class="form-section">
-          <div class="form-section-title">基础信息</div>
+        <div class="dialog-section">
+          <div class="dialog-section-title">
+            <el-icon><InfoFilled /></el-icon>
+            <span>基础信息</span>
+          </div>
 
-          <el-form-item label="应用图标" prop="icon" class="app-form-item-icon">
-            <div class="app-icon-uploader">
-              <div class="app-icon-box" :class="{ 'has-icon': !!form.iconUrl, 'is-error': !!iconError }">
-                <img
-                  v-if="form.iconUrl"
-                  :src="form.iconUrl"
-                  alt="icon"
-                  class="app-icon-image"
-                  @error="onIconPreviewError"
+          <div class="dialog-form-row">
+            <el-form-item label="应用图标" prop="icon" style="grid-column: 1 / -1">
+              <div class="app-icon-uploader">
+                <div class="app-icon-box" :class="{ 'has-icon': !!form.iconUrl, 'is-error': !!iconError }">
+                  <img
+                    v-if="form.iconUrl"
+                    :src="form.iconUrl"
+                    alt="icon"
+                    class="app-icon-image"
+                    @error="onIconPreviewError"
+                  />
+                  <div v-else class="app-icon-empty">
+                    <el-icon :size="24"><Picture /></el-icon>
+                  </div>
+                  <div v-if="form.iconUploading" class="app-icon-loading">
+                    <el-icon class="is-loading" :size="20"><Loading /></el-icon>
+                  </div>
+                </div>
+                <input
+                  ref="fileInputRef"
+                  type="file"
+                  accept="image/jpeg,image/jpg,image/png"
+                  style="display:none"
+                  @change="onFileInputChange"
                 />
-                <div v-else class="app-icon-empty">
-                  <el-icon :size="24"><Picture /></el-icon>
+                <div class="app-icon-actions">
+                  <el-button type="primary" plain :loading="form.iconUploading" @click="triggerFilePicker">
+                    <el-icon :size="14"><Upload /></el-icon>
+                    <span style="margin-left:4px">{{ form.iconUrl ? '更换图标' : '上传图标' }}</span>
+                  </el-button>
+                  <el-button v-if="form.iconUrl" link type="danger" :disabled="form.iconUploading" @click="clearIcon">
+                    <el-icon :size="14"><Delete /></el-icon>
+                    <span style="margin-left:4px">移除</span>
+                  </el-button>
                 </div>
-                <div v-if="form.iconUploading" class="app-icon-loading">
-                  <el-icon class="is-loading" :size="20"><Loading /></el-icon>
+                <div class="dialog-form-help">支持 JPG / PNG 格式，建议 1:1 比例，单张 ≤ 200KB</div>
+                <div v-if="iconError" class="dialog-form-error">
+                  <el-icon :size="12"><WarningFilled /></el-icon>
+                  <span>{{ iconError }}</span>
                 </div>
               </div>
-              <input
-                ref="fileInputRef"
-                type="file"
-                accept="image/jpeg,image/jpg,image/png"
-                style="display:none"
-                @change="onFileInputChange"
-              />
-              <div class="app-icon-actions">
-                <el-button type="primary" plain :loading="form.iconUploading" @click="triggerFilePicker">
-                  <el-icon :size="14"><Upload /></el-icon>
-                  <span style="margin-left:4px">{{ form.iconUrl ? '更换图标' : '上传图标' }}</span>
-                </el-button>
-                <el-button v-if="form.iconUrl" link type="danger" :disabled="form.iconUploading" @click="clearIcon">
-                  <el-icon :size="14"><Delete /></el-icon>
-                  <span style="margin-left:4px">移除</span>
-                </el-button>
-              </div>
-              <div class="app-icon-tip">
-                支持 JPG / PNG 格式，建议 1:1 比例，单张 ≤ 200KB
-              </div>
-              <div v-if="iconError" class="app-icon-error">
-                <el-icon :size="12"><WarningFilled /></el-icon>
-                <span style="margin-left:4px">{{ iconError }}</span>
-              </div>
-            </div>
-          </el-form-item>
+            </el-form-item>
 
-          <el-form-item label="应用名称" prop="app_name" class="app-form-item">
-            <el-input v-model="form.app_name" placeholder="请输入应用名称（最多 50 字）" maxlength="50" show-word-limit clearable />
-          </el-form-item>
+            <el-form-item label="应用名称" prop="app_name">
+              <el-input v-model="form.app_name" placeholder="请输入应用名称（最多 50 字）" maxlength="50" show-word-limit clearable />
+            </el-form-item>
 
-          <el-form-item label="应用包名" prop="package_name" class="app-form-item">
-            <el-input v-model="form.package_name" placeholder="Android：com.xxx.app / iOS：Bundle ID" clearable />
-          </el-form-item>
+            <el-form-item label="应用包名" prop="package_name">
+              <el-input v-model="form.package_name" placeholder="Android：com.xxx.app / iOS：Bundle ID" clearable />
+            </el-form-item>
+          </div>
         </div>
 
         <!-- 区块：平台与对接 -->
-        <div class="form-section">
-          <div class="form-section-title">平台与对接</div>
+        <div class="dialog-section">
+          <div class="dialog-section-title">
+            <el-icon><Cellphone /></el-icon>
+            <span>平台与对接</span>
+          </div>
 
-          <div class="form-row">
-            <el-form-item label="系统平台" prop="platform" class="form-row-half app-form-item">
-              <el-radio-group v-model="form.platform" class="platform-radio">
+          <div class="dialog-form-row">
+            <el-form-item label="系统平台" prop="platform">
+              <el-radio-group v-model="form.platform">
                 <el-radio-button :value="1">Android</el-radio-button>
                 <el-radio-button :value="2">iOS</el-radio-button>
               </el-radio-group>
             </el-form-item>
-            <el-form-item label="对接方式" class="form-row-half app-form-item">
+            <el-form-item label="对接方式">
               <div class="locked-access-type">
                 <el-tag :type="userAccessType === 1 ? 'primary' : 'success'" size="default" effect="light">
                   {{ userAccessType === 1 ? 'SDK 对接' : 'API 对接' }}
@@ -231,16 +236,19 @@
         </div>
 
         <!-- 区块：分类与超时 -->
-        <div class="form-section">
-          <div class="form-section-title">分类与超时</div>
+        <div class="dialog-section">
+          <div class="dialog-section-title">
+            <el-icon><Setting /></el-icon>
+            <span>分类与超时</span>
+          </div>
 
-          <div class="form-row">
-            <el-form-item label="应用分类" prop="category" class="form-row-half app-form-item">
+          <div class="dialog-form-row">
+            <el-form-item label="应用分类" prop="category">
               <el-select v-model="form.category" placeholder="请选择分类" clearable style="width: 100%">
                 <el-option v-for="c in categories" :key="c" :label="c" :value="c" />
               </el-select>
             </el-form-item>
-            <el-form-item label="请求超时（ms）" prop="timeout_ms" class="form-row-half app-form-item">
+            <el-form-item label="请求超时（ms）" prop="timeout_ms">
               <el-input-number
                 v-model="form.timeout_ms"
                 :min="100"
@@ -250,32 +258,35 @@
                 controls-position="right"
               />
             </el-form-item>
+            <el-form-item label="应用商店地址" prop="store_url" style="grid-column: 1 / -1">
+              <el-input v-model="form.store_url" placeholder="如：https://apps.apple.com/cn/app/xxx 或应用宝/华为市场等" clearable />
+            </el-form-item>
           </div>
-
-          <el-form-item label="应用商店地址" prop="store_url" class="app-form-item">
-            <el-input v-model="form.store_url" placeholder="如：https://apps.apple.com/cn/app/xxx 或应用宝/华为市场等" clearable />
-          </el-form-item>
         </div>
 
         <!-- 区块：微信配置（仅 SDK 接入时显示） -->
-        <div v-if="userAccessType === 1" class="form-section">
-          <div class="form-section-title">微信分享配置</div>
+        <div v-if="userAccessType === 1" class="dialog-section">
+          <div class="dialog-section-title">
+            <el-icon><ChatDotRound /></el-icon>
+            <span>微信分享配置</span>
+            <span class="dialog-section-tag">仅 SDK 对接时显示</span>
+          </div>
 
-          <el-form-item label="微信 APP ID" prop="wechat_app_id" class="app-form-item">
-            <el-input v-model="form.wechat_app_id" placeholder="请输入微信开放平台申请的 APP ID" maxlength="32" show-word-limit clearable />
-          </el-form-item>
+          <div class="dialog-form-row">
+            <el-form-item label="微信 APP ID" prop="wechat_app_id">
+              <el-input v-model="form.wechat_app_id" placeholder="请输入微信开放平台申请的 APP ID" maxlength="32" show-word-limit clearable />
+            </el-form-item>
 
-          <el-form-item v-if="form.platform === 2" label="微信 Universal Link" prop="wechat_universal_link" class="app-form-item">
-            <el-input v-model="form.wechat_universal_link" placeholder="https://yourdomain.com/uni-link/" clearable />
-            <div class="form-item-hint">iOS 微信分享必填，需以 https:// 开头</div>
-          </el-form-item>
+            <el-form-item v-if="form.platform === 2" label="微信 Universal Link" prop="wechat_universal_link">
+              <el-input v-model="form.wechat_universal_link" placeholder="https://yourdomain.com/uni-link/" clearable />
+              <div class="dialog-form-help">iOS 微信分享必填，需以 https:// 开头</div>
+            </el-form-item>
+          </div>
         </div>
       </el-form>
       <template #footer>
-        <div class="dialog-footer">
-          <el-button @click="showCreateDialog = false">取消</el-button>
-          <el-button type="primary" :loading="submitting" @click="handleSubmit">{{ isEdit ? '保存' : '创建' }}</el-button>
-        </div>
+        <el-button @click="showCreateDialog = false">取消</el-button>
+        <el-button type="primary" :loading="submitting" @click="handleSubmit">{{ isEdit ? '保存' : '创建' }}</el-button>
       </template>
     </el-dialog>
   </div>
@@ -286,7 +297,7 @@ import { ref, reactive, computed, onMounted } from 'vue';
 import request from '../../utils/request';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import type { FormInstance, FormRules } from 'element-plus';
-import { Cellphone, CopyDocument, Plus, Picture, Delete, Refresh, Loading, Upload, WarningFilled, Search, Filter } from '@element-plus/icons-vue';
+import { Cellphone, CopyDocument, Plus, Picture, Delete, Refresh, RefreshLeft, Loading, Upload, WarningFilled, Search, Filter, Edit, View, Setting, InfoFilled, ChatDotRound } from '@element-plus/icons-vue';
 import dayjs from 'dayjs';
 import { useUserStore } from '../../stores/user';
 

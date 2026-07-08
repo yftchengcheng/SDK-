@@ -65,23 +65,36 @@
     <!-- Dialog -->
     <el-dialog v-model="showDialog" :title="editForm.id ? '编辑广告源' : '创建广告源'" width="560px" destroy-on-close>
       <el-form ref="formRef" :model="editForm" :rules="formRules" label-position="top">
-        <el-form-item label="广告网络" prop="network_code">
-          <el-select v-model="editForm.network_code" placeholder="请选择广告网络" style="width: 100%">
-            <el-option v-for="n in networks" :key="n.network_code" :label="n.network_name" :value="n.network_code" />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="广告源名称" prop="source_name">
-          <el-input v-model="editForm.source_name" placeholder="如：穿山甲-激励视频-主" />
-        </el-form-item>
-        <el-form-item label="三方App ID" prop="third_app_id">
-          <el-input v-model="editForm.third_app_id" placeholder="在广告平台注册的应用ID" />
-        </el-form-item>
-        <el-form-item label="三方代码位ID" prop="third_placement_id">
-          <el-input v-model="editForm.third_placement_id" placeholder="在广告平台申请的代码位ID" />
-        </el-form-item>
-        <el-form-item label="额外配置">
-          <el-input v-model="editForm.extra" type="textarea" :rows="3" placeholder="JSON格式，各平台特殊参数（选填）" />
-        </el-form-item>
+        <div class="dialog-section">
+          <div class="dialog-section-title">基础信息</div>
+          <div class="dialog-form-row">
+            <el-form-item label="广告网络" prop="network_code">
+              <el-select v-model="editForm.network_code" placeholder="请选择广告网络" style="width: 100%">
+                <el-option v-for="n in networks" :key="n.network_code" :label="n.network_name" :value="n.network_code" />
+              </el-select>
+            </el-form-item>
+            <el-form-item label="广告源名称" prop="source_name">
+              <el-input v-model="editForm.source_name" placeholder="如：穿山甲-激励视频-主" />
+            </el-form-item>
+          </div>
+        </div>
+        <div class="dialog-section">
+          <div class="dialog-section-title">平台凭证</div>
+          <div class="dialog-form-row">
+            <el-form-item label="三方 App ID" prop="third_app_id">
+              <el-input v-model="editForm.third_app_id" placeholder="在广告平台注册的应用ID" />
+            </el-form-item>
+            <el-form-item label="三方代码位 ID" prop="third_placement_id">
+              <el-input v-model="editForm.third_placement_id" placeholder="在广告平台申请的代码位ID" />
+            </el-form-item>
+          </div>
+          <div class="dialog-form-row dialog-form-row--full" style="padding-top: 0;">
+            <el-form-item label="额外配置">
+              <el-input v-model="editForm.extra" type="textarea" :rows="3" placeholder="JSON格式，各平台特殊参数（选填）" />
+              <div class="dialog-form-help">支持各广告网络特有的高级参数，如超时、底价、用户定向等</div>
+            </el-form-item>
+          </div>
+        </div>
       </el-form>
       <template #footer>
         <el-button @click="showDialog = false">取消</el-button>
@@ -91,28 +104,41 @@
 
     <!-- 自定义广告源 Dialog -->
     <el-dialog v-model="showCustomDialog" title="创建自定义广告源" width="560px" destroy-on-close>
-      <el-alert type="info" :closable="false" style="margin-bottom: 16px;">
-        请先在「广告网络管理 → 自定义网络」中创建 Adapter 并通过审核，再来此处绑定。
-      </el-alert>
+      <div class="dialog-form-info" style="margin-bottom: 12px;">
+        <el-icon><InfoFilled /></el-icon>
+        <span>请先在「广告网络管理 → 自定义网络」中创建 Adapter 并通过审核，再来此处绑定。</span>
+      </div>
       <el-form ref="customFormRef" :model="customForm" :rules="customFormRules" label-position="top">
-        <el-form-item label="自定义网络" prop="networkDefId">
-          <el-select v-model="customForm.networkDefId" placeholder="请选择已通过审核的自定义网络" style="width: 100%" filterable>
-            <el-option v-for="n in customNetworks" :key="n.id" :label="n.network_name" :value="n.id" />
-            <el-option v-for="n in customNetworks" :key="n.id" :label="`${n.network_name} (${n.network_code})`" :value="n.id" />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="广告源名称" prop="source_name">
-          <el-input v-model="customForm.source_name" placeholder="如：自定义-激励视频-主" />
-        </el-form-item>
-        <el-form-item label="自定义网络 APP ID" prop="third_app_id">
-          <el-input v-model="customForm.third_app_id" placeholder="在自定义网络申请的 App ID" />
-        </el-form-item>
-        <el-form-item label="自定义网络 代码位 ID" prop="third_placement_id">
-          <el-input v-model="customForm.third_placement_id" placeholder="在自定义网络申请的代码位 ID" />
-        </el-form-item>
-        <el-form-item label="额外配置">
-          <el-input v-model="customForm.extra" type="textarea" :rows="3" placeholder="JSON 格式，自定义网络特殊参数（选填）" />
-        </el-form-item>
+        <div class="dialog-section">
+          <div class="dialog-section-title">基础信息</div>
+          <div class="dialog-form-row">
+            <el-form-item label="自定义网络" prop="networkDefId">
+              <el-select v-model="customForm.networkDefId" placeholder="请选择已通过审核的自定义网络" style="width: 100%" filterable>
+                <el-option v-for="n in customNetworks" :key="n.id" :label="`${n.network_name} (${n.network_code})`" :value="n.id" />
+              </el-select>
+            </el-form-item>
+            <el-form-item label="广告源名称" prop="source_name">
+              <el-input v-model="customForm.source_name" placeholder="如：自定义-激励视频-主" />
+            </el-form-item>
+          </div>
+        </div>
+        <div class="dialog-section">
+          <div class="dialog-section-title">平台凭证</div>
+          <div class="dialog-form-row">
+            <el-form-item label="自定义网络 App ID" prop="third_app_id">
+              <el-input v-model="customForm.third_app_id" placeholder="在自定义网络申请的 App ID" />
+            </el-form-item>
+            <el-form-item label="自定义网络 代码位 ID" prop="third_placement_id">
+              <el-input v-model="customForm.third_placement_id" placeholder="在自定义网络申请的代码位 ID" />
+            </el-form-item>
+          </div>
+          <div class="dialog-form-row dialog-form-row--full" style="padding-top: 0;">
+            <el-form-item label="额外配置">
+              <el-input v-model="customForm.extra" type="textarea" :rows="3" placeholder="JSON 格式，自定义网络特殊参数（选填）" />
+              <div class="dialog-form-help">支持自定义网络特有的高级参数</div>
+            </el-form-item>
+          </div>
+        </div>
       </el-form>
       <template #footer>
         <el-button @click="showCustomDialog = false">取消</el-button>
@@ -128,7 +154,7 @@ import request from '../../utils/request';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import type { FormInstance, FormRules } from 'element-plus';
 import dayjs from 'dayjs';
-import { Plus, Connection, Search } from '@element-plus/icons-vue';
+import { Plus, Connection, Search, InfoFilled } from '@element-plus/icons-vue';
 
 const formatTime = (t: string) => t ? dayjs(t).format('YYYY-MM-DD HH:mm:ss') : '--';
 

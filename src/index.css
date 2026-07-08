@@ -2685,78 +2685,9 @@ html, body, #app {
   color: var(--color-slate-500);
 }
 
-/* ============================================
- * 广告位管理 — 创建/编辑表单
- * ============================================ */
-.placement-form {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  max-height: 60vh;
-  overflow-y: auto;
-  padding-right: 4px;
-}
-
-.placement-form-section {
-  background: #FFFFFF;
-  border: 1px solid var(--color-slate-200);
-  border-radius: var(--radius-lg);
-  padding: 14px 18px 4px;
-  margin-bottom: 12px;
-  transition: border-color 0.15s ease;
-}
-
-.placement-form-section:hover {
-  border-color: var(--color-primary-200);
-}
-
-.placement-form-section-title {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--color-slate-800);
-  margin-bottom: 8px;
-  padding-bottom: 8px;
-  border-bottom: 1px solid var(--color-slate-100);
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.placement-form-section-title::before {
-  content: '';
-  display: inline-block;
-  width: 3px;
-  height: 12px;
-  background: var(--color-primary-600);
-  border-radius: 2px;
-}
-
-.placement-form-section :deep(.el-form-item) {
-  margin-bottom: 16px;
-}
-
-.placement-form-section :deep(.el-form-item:last-child) {
-  margin-bottom: 8px;
-}
-
-.placement-form-tip {
-  display: block;
-  font-size: 11px;
-  color: var(--color-slate-400);
-  margin-top: 2px;
-  line-height: 1.5;
-}
-
-.placement-form-section--api {
-  background: var(--color-primary-50);
-  border-color: var(--color-primary-200);
-  padding: 12px 18px;
-}
-
-.placement-form-section--api :deep(.el-alert__title) {
-  font-size: 12px;
-  font-weight: 500;
-}
+/* ===========================
+   广告位管理 — 创建/编辑表单（已迁移到 .dialog-section 通用规范）
+   =========================== */
 
 
 /* ==== Waterfall 拖拽排序 ==== */
@@ -3236,127 +3167,6 @@ html, body, #app {
   margin-right: 4px;
 }
 
-/* ============ 开发者管理页面（admin） ============ */
-.page-admin-developers { padding: 0; }
-.page-admin-developers .page-header {
-  display: flex; align-items: baseline; gap: 12px;
-  margin-bottom: 16px;
-}
-.page-admin-developers .page-header h1 {
-  font-size: var(--text-2xl, 20px);
-  font-weight: 700;
-  color: var(--color-slate-900, #0F172A);
-  margin: 0;
-}
-.page-admin-developers .page-header-hint {
-  font-size: var(--text-sm, 12px);
-  color: var(--color-slate-400, #94A3B8);
-}
-.page-admin-developers .filter-bar {
-  display: flex; gap: 12px; align-items: center; margin-bottom: 16px;
-}
-.page-admin-developers .filter-input { width: 280px; }
-.page-admin-developers .filter-select { width: 160px; }
-.page-admin-developers .table-card {
-  background: #fff;
-  border: 1px solid var(--color-slate-200, #E2E8F0);
-  border-radius: 8px;
-  padding: 16px 20px;
-}
-.page-admin-developers .pagination-bar {
-  display: flex; justify-content: flex-end; margin-top: 16px;
-}
-.page-admin-developers .text-secondary {
-  color: var(--color-slate-500, #64748B);
-  font-family: ui-monospace, SFMono-Regular, monospace;
-  font-size: 12px;
-}
-.page-admin-developers .role-dialog-body { padding: 8px 4px; }
-.page-admin-developers .role-dialog-row {
-  display: flex; align-items: center; margin-bottom: 16px;
-}
-.page-admin-developers .role-dialog-label {
-  width: 72px; font-size: 13px; color: var(--color-slate-700, #334155);
-}
-.page-admin-developers .role-dialog-value {
-  color: var(--color-slate-900, #0F172A); font-weight: 500;
-}
-.page-admin-developers .role-dialog-warn {
-  display: flex; align-items: center; gap: 6px;
-  margin-top: 12px; padding: 8px 12px;
-  background: #FEF3C7; color: #92400E;
-  border-radius: 6px; font-size: 12px;
-}
-
-/* ===== Dashboard 重构版样式（v2，纯 HTML + 1 个 SVG ECharts） ===== */
-.page-load-error {
-  margin-bottom: 16px;
-}
-.page-load-error .alert-content {
-  display: flex; align-items: center; justify-content: space-between; gap: 12px;
-}
-.page-dashboard .page-header {
-  display: flex; align-items: center; justify-content: space-between;
-  margin-bottom: 16px; flex-wrap: wrap; gap: 12px;
-}
-.page-dashboard .page-title {
-  font-size: 20px; font-weight: 700; color: var(--color-slate-900);
-  letter-spacing: -0.01em;
-}
-.page-dashboard .filter-bar {
-  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
-}
-.page-dashboard .stat-grid {
-  display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px;
-  margin-bottom: 16px;
-}
-@media (max-width: 900px) {
-  .page-dashboard .stat-grid { grid-template-columns: repeat(2, 1fr); }
-}
-.page-dashboard .stat-card {
-  padding: 16px; background: #fff; border: 1px solid var(--color-slate-200);
-  border-radius: 8px; box-shadow: var(--shadow-sm);
-  transition: all 0.15s ease;
-}
-.page-dashboard .stat-card:hover {
-  border-color: var(--color-primary-200);
-  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.06);
-}
-.page-dashboard .stat-label {
-  font-size: 12px; color: var(--color-slate-500); margin-bottom: 8px;
-}
-.page-dashboard .stat-value {
-  font-size: 20px; font-weight: 700; color: var(--color-slate-900);
-  letter-spacing: -0.01em; line-height: 1.2;
-}
-.page-dashboard .stat-trend {
-  display: flex; align-items: center; gap: 4px; margin-top: 6px;
-  font-size: 12px;
-}
-.page-dashboard .trend-arrow.up { color: #059669; }
-.page-dashboard .trend-arrow.down { color: #DC2626; }
-.page-dashboard .trend-arrow.flat { color: var(--color-slate-400); }
-.page-dashboard .trend-text.up { color: #059669; }
-.page-dashboard .trend-text.down { color: #DC2626; }
-.page-dashboard .trend-text.flat { color: var(--color-slate-400); }
-.page-dashboard .chart-card {
-  background: #fff; border: 1px solid var(--color-slate-200); border-radius: 8px;
-  padding: 16px 20px; margin-bottom: 16px; min-height: 320px;
-}
-.page-dashboard .chart-title {
-  font-size: 14px; font-weight: 600; color: var(--color-slate-800); margin-bottom: 12px;
-}
-.page-dashboard .chart-canvas { width: 100%; height: 280px; }
-.page-dashboard .list-grid {
-  display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;
-}
-@media (max-width: 1100px) {
-  .page-dashboard .list-grid { grid-template-columns: 1fr; }
-}
-.page-dashboard .list-card {
-  background: #fff; border: 1px solid var(--color-slate-200); border-radius: 8px;
-  padding: 16px 20px; min-height: 200px;
-}
 .page-dashboard .list-title {
   font-size: 14px; font-weight: 600; color: var(--color-slate-800); margin-bottom: 12px;
 }
@@ -3700,4 +3510,182 @@ html, body, #app {
   font-size: 12px;
   height: 24px;
   min-height: 24px;
+}
+
+/* ===========================
+   Dialog Section（表单分组）
+   适用于所有创建/编辑对话框
+   =========================== */
+.el-dialog .dialog-section {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  margin-bottom: 16px;
+  overflow: hidden;
+}
+.el-dialog .dialog-section:last-child {
+  margin-bottom: 0;
+}
+.el-dialog .dialog-section-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-slate-800);
+  padding: 12px 16px;
+  border-bottom: 1px solid #f1f5f9;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.el-dialog .dialog-section-title .dialog-section-tag {
+  font-size: 11px;
+  color: var(--color-slate-400);
+  font-weight: 400;
+}
+.el-dialog .dialog-form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px 16px;
+  padding: 16px;
+}
+.el-dialog .dialog-form-row--full {
+  grid-template-columns: 1fr;
+}
+.el-dialog .dialog-form-row--3col {
+  grid-template-columns: 1fr 1fr 1fr;
+}
+.el-dialog .dialog-form-row--split {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+}
+.el-dialog .dialog-form-row--split > :first-child {
+  flex: 1;
+}
+.el-dialog :deep(.el-form-item) {
+  margin-bottom: 0;
+}
+.el-dialog :deep(.el-form-item__label) {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-slate-700);
+  padding-bottom: 4px;
+  line-height: 1.4;
+}
+.el-dialog :deep(.el-form-item.is-required .el-form-item__label::before) {
+  color: var(--color-error);
+}
+.el-dialog .dialog-form-help {
+  font-size: 11px;
+  color: var(--color-slate-400);
+  margin-top: 4px;
+  line-height: 1.4;
+}
+.el-dialog .dialog-form-error {
+  font-size: 11px;
+  color: var(--color-error);
+  margin-top: 4px;
+  padding: 6px 10px;
+  background: #fef2f2;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.el-dialog .dialog-form-warn {
+  font-size: 11px;
+  color: #92400e;
+  margin-top: 8px;
+  padding: 6px 10px;
+  background: #fef3c7;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.el-dialog .dialog-form-info {
+  font-size: 12px;
+  color: var(--color-slate-600);
+  padding: 8px 12px;
+  background: #f8fafc;
+  border-radius: 6px;
+  border: 1px solid #f1f5f9;
+  margin-top: 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.el-dialog .dialog-form-info .el-icon {
+  color: var(--color-primary-500);
+  font-size: 14px;
+}
+
+/* Dialog Header / Footer 统一 */
+.el-dialog__header {
+  background: #f8fafc;
+  padding: 12px 20px !important;
+  border-bottom: 1px solid #e2e8f0;
+  margin-right: 0 !important;
+}
+.el-dialog__title {
+  font-size: 15px !important;
+  font-weight: 600 !important;
+  color: var(--color-slate-900) !important;
+}
+.el-dialog__body {
+  padding: 20px !important;
+  background: #ffffff;
+}
+.el-dialog__footer {
+  background: #f8fafc;
+  padding: 12px 20px !important;
+  border-top: 1px solid #e2e8f0;
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.el-dialog__footer .el-button + .el-button {
+  margin-left: 0;
+}
+
+/* Dialog 内紧凑小卡片：仅显示信息，不做编辑 */
+.el-dialog .dialog-info-list {
+  padding: 12px 16px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px 16px;
+}
+.el-dialog .dialog-info-list .info-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--color-slate-600);
+}
+.el-dialog .dialog-info-list .info-item-label {
+  color: var(--color-slate-400);
+  font-weight: 500;
+  min-width: 56px;
+}
+.el-dialog .dialog-info-list .info-item-value {
+  color: var(--color-slate-800);
+  font-weight: 500;
+}
+.placement-dialog-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  max-height: 60vh;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+.tg-condition-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  margin-bottom: 8px;
+}
+.cell-muted {
+  color: var(--color-slate-400);
+  font-size: 12px;
 }

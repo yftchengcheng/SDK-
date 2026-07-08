@@ -409,3 +409,101 @@ B2B 企业级广告数据管理控制台。沉稳、专业、精准。蓝+灰+�
 - 禁止使用紫色/渐变色
 - 禁止自创字号/间距/颜色组合
 - 禁止使用 Emoji 作为图标
+
+## 创建/编辑对话框规范（2026-07 用户要求：所有创建页统一）
+
+适用于所有 `el-dialog v-model="..." title="..."` 创建/编辑场景。
+
+### 整体结构
+
+```
+┌─────────────────────────── el-dialog ──────────────────────────┐
+│  [标题]                                          [×]            │  ← Dialog Header
+├────────────────────────────────────────────────────────────────┤
+│                                                                │
+│  ┌─── .dialog-section ─────────────────────────────────────┐  │
+│  │  [分组标题]                                              │  │  ← .dialog-section-title
+│  │  ─────────────────────────────────────────────────────  │  │
+│  │  [字段 1]  [字段 2]                                      │  │  ← .dialog-form-row
+│  │  [字段 3（占满）]                                         │  │
+│  └──────────────────────────────────────────────────────────┘  │
+│                                                                │
+│  ┌─── .dialog-section ─────────────────────────────────────┐  │
+│  │  [高级选项]                                              │  │
+│  │  ─────────────────────────────────────────────────────  │  │
+│  │  [字段 4]                                                │  │
+│  └──────────────────────────────────────────────────────────┘  │
+│                                                                │
+├────────────────────────────────────────────────────────────────┤
+│  [取消]                                          [保存]        │  ← Dialog Footer
+└────────────────────────────────────────────────────────────────┘
+```
+
+### Dialog Header
+
+- 背景：`#F8FAFC`（沿用列表页规范）
+- 标题：`--text-lg` (16px) / weight 600 / `--color-slate-900`
+- 底部边框：`1px solid --color-slate-200`
+- 内边距：`12px 20px`
+
+### Dialog Body
+
+- 内边距：`20px`（不是 0，便于表单呼吸）
+- 背景：`#FFFFFF`
+
+### Dialog Section（表单分组卡）
+
+- 容器：`.dialog-section` / 白底 / 圆角 8px / 边框 `1px solid #E2E8F0` / margin-bottom 16px
+- 标题：`.dialog-section-title` / `--text-md` (14px) / weight 600 / `--color-slate-800` / padding `12px 16px` / 底部分割线 `1px solid #F1F5F9`
+- 表单行：`.dialog-form-row` / display grid / `grid-template-columns: 1fr 1fr` / gap `12px 16px` / padding `16px`
+- 占满行：`.dialog-form-row.dialog-form-row--full` / 单列
+- 三列：`.dialog-form-row--3col` / `1fr 1fr 1fr`（适用于枚举较短的字段）
+
+### Form Item
+
+- 标签：`.dialog-form-label`（`el-form-item` 的 label 槽） / `--text-sm` (12px) / weight 600 / `--color-slate-700` / padding-bottom `4px`
+- 输入框：默认高度 28px / 圆角 6px / 字号 13px
+- 帮助文字：`.dialog-form-help` / `--text-xs` (11px) / `--color-slate-400` / margin-top `4px`
+- 必填星号：颜色 `--color-error` `#DC2626`
+
+### Dialog Footer
+
+- 背景：`#F8FAFC`（与 Header 同色系，形成上下包围）
+- 顶部边框：`1px solid #E2E8F0`
+- 内边距：`12px 20px`
+- 按钮布局：左对齐"取消"，右对齐主操作（"保存" / "确认" / "提交"）
+- 取消按钮：`<el-button @click="dialogVisible = false">取消</el-button>`
+- 主操作按钮：`<el-button type="primary" :loading="submitting" @click="onSubmit">保存</el-button>`
+
+### 字段类型规范
+
+| 字段类型 | 组件 | 宽度 |
+|---------|------|------|
+| 单行文本 | `el-input` | 默认（占满所在栅格） |
+| 多行文本 | `el-input type="textarea" :rows="3"` | 占满 |
+| 数字 | `el-input-number` | 180px |
+| 枚举（单选） | `el-select` | 默认 |
+| 开关 | `el-switch` | 32px |
+| 日期 | `el-date-picker` | 默认 |
+| 文件上传 | `el-upload` / 自定义 input | 默认 |
+| JSON | `el-input type="textarea" :rows="6"` + 帮助"请输入合法 JSON" | 占满 |
+| 凭证键值对 | `KVEditor` 组件 | 占满 |
+
+### 命名与代码规范
+
+- 容器类：`.dialog-section` / `.dialog-section-title` / `.dialog-form-row` / `.dialog-form-row--full` / `.dialog-form-row--3col` / `.dialog-form-label` / `.dialog-form-help`
+- 弹窗关闭统一用 `@click="() => (showDialog = false)"` 或 `@click="showDialog = false"`
+- 提交按钮统一 `:loading="submitting"` + `@click="onSubmit"`
+- 校验失败统一 `ElMessage.warning('请检查表单')`，成功 `ElMessage.success('保存成功')`
+
+### 适用页面
+
+- `/app` - 创建/编辑应用
+- `/placement` - 创建/编辑广告位
+- `/ad-source` - 创建/编辑广告源、创建自定义广告源
+- `/traffic-group` - 创建/编辑流量分组
+- `/waterfall` - 添加代码位
+- `/network` - 创建/编辑自定义网络、Adapter 上传/版本管理、应用关联
+- `/reconciliation` - 导入对账数据
+- `/admin/developers` - 修改角色
+

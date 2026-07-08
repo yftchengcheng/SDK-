@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, reactive } from 'vue'
 import { ElMessage, ElMessageBox, type UploadFile } from 'element-plus'
-import { Download, Search, Refresh, UploadFilled, View, Document } from '@element-plus/icons-vue'
+import { Download, Search, Refresh, UploadFilled, View, Document, InfoFilled } from '@element-plus/icons-vue'
 import http from '@/utils/request'
 
 interface ReconciliationRecord {
@@ -329,49 +329,76 @@ onMounted(() => {
     </div>
 
     <!-- 详情弹窗 -->
-    <el-dialog v-model="detailVisible" title="对账详情" width="560px">
-      <el-descriptions v-if="detailRecord" :column="2" border>
-        <el-descriptions-item label="日期">{{ detailRecord.statDate }}</el-descriptions-item>
-        <el-descriptions-item label="应用">{{ detailRecord.appKey }}</el-descriptions-item>
-        <el-descriptions-item label="广告网络">{{ detailRecord.networkCode }}</el-descriptions-item>
-        <el-descriptions-item label="状态">{{ statusLabel(detailRecord.status) }}</el-descriptions-item>
-        <el-descriptions-item label="SDK 展示">{{ Number(detailRecord.sdkImpressions).toLocaleString() }}</el-descriptions-item>
-        <el-descriptions-item label="API 展示">{{ Number(detailRecord.apiImpressions).toLocaleString() }}</el-descriptions-item>
-        <el-descriptions-item label="SDK 收益">¥ {{ Number(detailRecord.sdkRevenue).toFixed(2) }}</el-descriptions-item>
-        <el-descriptions-item label="API 收益">¥ {{ Number(detailRecord.apiRevenue).toFixed(2) }}</el-descriptions-item>
-        <el-descriptions-item label="展示差异">{{ detailRecord.impressionDiff }}</el-descriptions-item>
-        <el-descriptions-item label="收益差异">¥ {{ Number(detailRecord.revenueDiff).toFixed(2) }}</el-descriptions-item>
-        <el-descriptions-item label="差异率">{{ (Number(detailRecord.diffRate) * 100).toFixed(2) }}%</el-descriptions-item>
-        <el-descriptions-item label="备注" :span="2">{{ detailRecord.remark || '-' }}</el-descriptions-item>
-      </el-descriptions>
+    <el-dialog v-model="detailVisible" title="对账详情" width="640px">
+      <div v-if="detailRecord" class="dialog-section">
+        <div class="dialog-section-title">基础信息</div>
+        <div class="dialog-info-list">
+          <div class="info-item"><span class="info-item-label">日期</span><span class="info-item-value">{{ detailRecord.statDate }}</span></div>
+          <div class="info-item"><span class="info-item-label">应用</span><span class="info-item-value">{{ detailRecord.appKey }}</span></div>
+          <div class="info-item"><span class="info-item-label">广告网络</span><span class="info-item-value">{{ detailRecord.networkCode }}</span></div>
+          <div class="info-item"><span class="info-item-label">状态</span><span class="info-item-value">{{ statusLabel(detailRecord.status) }}</span></div>
+        </div>
+      </div>
+      <div v-if="detailRecord" class="dialog-section">
+        <div class="dialog-section-title">数据指标</div>
+        <div class="dialog-info-list">
+          <div class="info-item"><span class="info-item-label">SDK 展示</span><span class="info-item-value">{{ Number(detailRecord.sdkImpressions).toLocaleString() }}</span></div>
+          <div class="info-item"><span class="info-item-label">API 展示</span><span class="info-item-value">{{ Number(detailRecord.apiImpressions).toLocaleString() }}</span></div>
+          <div class="info-item"><span class="info-item-label">SDK 收益</span><span class="info-item-value">¥ {{ Number(detailRecord.sdkRevenue).toFixed(2) }}</span></div>
+          <div class="info-item"><span class="info-item-label">API 收益</span><span class="info-item-value">¥ {{ Number(detailRecord.apiRevenue).toFixed(2) }}</span></div>
+        </div>
+      </div>
+      <div v-if="detailRecord" class="dialog-section">
+        <div class="dialog-section-title">差异分析</div>
+        <div class="dialog-info-list">
+          <div class="info-item"><span class="info-item-label">展示差异</span><span class="info-item-value">{{ detailRecord.impressionDiff }}</span></div>
+          <div class="info-item"><span class="info-item-label">收益差异</span><span class="info-item-value">¥ {{ Number(detailRecord.revenueDiff).toFixed(2) }}</span></div>
+          <div class="info-item"><span class="info-item-label">差异率</span><span class="info-item-value">{{ (Number(detailRecord.diffRate) * 100).toFixed(2) }}%</span></div>
+        </div>
+      </div>
+      <div v-if="detailRecord" class="dialog-section">
+        <div class="dialog-section-title">备注</div>
+        <div style="padding: 12px 16px; font-size: 13px; color: var(--color-slate-700); line-height: 1.6;">{{ detailRecord.remark || '-' }}</div>
+      </div>
     </el-dialog>
 
     <!-- 导入对话框 -->
-    <el-dialog v-model="importDialogVisible" title="导入对账数据" width="500px">
-      <el-form label-width="90px" size="default">
-        <el-form-item label="广告网络">
-          <el-input v-model="importForm.networkCode" placeholder="选填，CSV 中无 network_code 列时使用" />
-        </el-form-item>
-        <el-form-item label="对账文件">
-          <el-upload
-            ref="uploadRef"
-            :auto-upload="false"
-            :show-file-list="true"
-            :limit="1"
-            accept=".csv"
-            :on-change="onFileChange"
-          >
-            <el-button :icon="UploadFilled">选择 CSV 文件</el-button>
-            <template #tip>
-              <div class="el-upload__tip">
-                必填列：report_date, app_key, network_code, impressions, revenue
-              </div>
-            </template>
-          </el-upload>
-        </el-form-item>
-        <el-form-item v-if="importForm.fileName" label="已选择">
-          <span style="color: var(--color-slate-500)">{{ importForm.fileName }}</span>
-        </el-form-item>
+    <el-dialog v-model="importDialogVisible" title="导入对账数据" width="560px">
+      <el-form label-position="top">
+        <div class="dialog-section">
+          <div class="dialog-section-title">网络与文件</div>
+          <div class="dialog-form-row dialog-form-row--full">
+            <el-form-item label="广告网络">
+              <el-input v-model="importForm.networkCode" placeholder="选填，CSV 中无 network_code 列时使用" />
+              <div class="dialog-form-help">不填时 CSV 每行必须包含 network_code 列</div>
+            </el-form-item>
+          </div>
+          <div class="dialog-form-row dialog-form-row--full" style="padding-top: 0;">
+            <el-form-item label="对账文件" required>
+              <el-upload
+                ref="uploadRef"
+                :auto-upload="false"
+                :show-file-list="true"
+                :limit="1"
+                accept=".csv"
+                :on-change="onFileChange"
+              >
+                <el-button :icon="UploadFilled" type="primary" plain>选择 CSV 文件</el-button>
+                <template #tip>
+                  <div class="dialog-form-info" style="margin-top: 8px;">
+                    <el-icon><InfoFilled /></el-icon>
+                    <span>必填列：report_date, app_key, network_code, impressions, revenue</span>
+                  </div>
+                </template>
+              </el-upload>
+            </el-form-item>
+          </div>
+          <div v-if="importForm.fileName" class="dialog-form-row dialog-form-row--full" style="padding-top: 0;">
+            <el-form-item label="已选择">
+              <span class="cell-muted">{{ importForm.fileName }}</span>
+            </el-form-item>
+          </div>
+        </div>
       </el-form>
       <template #footer>
         <el-button @click="importDialogVisible = false">取消</el-button>

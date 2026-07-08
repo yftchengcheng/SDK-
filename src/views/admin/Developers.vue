@@ -1,116 +1,184 @@
 <template>
-  <div class="page-admin-developers page-container">
+  <div class="page-shell">
     <div class="page-header">
-      <h1>开发者管理</h1>
-      <span class="page-header-hint">超级管理员视图 · 当前共 {{ total }} 位开发者</span>
+      <div class="page-header-left">
+        <div class="page-header-icon">
+          <el-icon><UserFilled /></el-icon>
+        </div>
+        <div class="page-header-titles">
+          <h1 class="page-header-title">开发者管理</h1>
+          <p class="page-header-subtitle">超级管理员视图 · 管理系统所有开发者账号、角色与启用状态</p>
+        </div>
+      </div>
+      <div class="page-header-actions">
+        <el-button :icon="Refresh" @click="loadList">刷新</el-button>
+      </div>
     </div>
 
-    <!-- 筛选条 -->
-    <div class="filter-bar">
-      <el-input
-        v-model="query.q"
-        placeholder="搜索邮箱/公司/联系人"
-        clearable
-        class="filter-input"
-        @keyup.enter="handleSearch"
-        @clear="handleSearch"
-      >
-        <template #prefix><el-icon><Search /></el-icon></template>
-      </el-input>
-      <el-select v-model="query.role" placeholder="角色" clearable @change="handleSearch" class="filter-select">
-        <el-option label="全部" value="" />
-        <el-option label="管理员 (admin)" value="admin" />
-        <el-option label="开发者 (developer)" value="developer" />
-      </el-select>
-      <el-select v-model="query.status" placeholder="状态" clearable @change="handleSearch" class="filter-select">
-        <el-option label="全部" value="" />
-        <el-option label="启用" :value="1" />
-        <el-option label="停用" :value="2" />
-      </el-select>
-      <el-button type="primary" @click="handleSearch">查询</el-button>
+    <div class="page-filter">
+      <el-form :inline="true" class="page-filter-form" @submit.prevent>
+        <el-form-item label="关键词">
+          <el-input
+            v-model="query.q"
+            placeholder="邮箱 / 公司 / 联系人"
+            clearable
+            style="width: 220px"
+            @keyup.enter="handleSearch"
+            @clear="handleSearch"
+          >
+            <template #prefix><el-icon><Search /></el-icon></template>
+          </el-input>
+        </el-form-item>
+        <el-form-item label="角色">
+          <el-select v-model="query.role" placeholder="全部" clearable style="width: 140px" @change="handleSearch">
+            <el-option label="管理员" value="admin" />
+            <el-option label="开发者" value="developer" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="状态">
+          <el-select v-model="query.status" placeholder="全部" clearable style="width: 120px" @change="handleSearch">
+            <el-option label="启用" :value="1" />
+            <el-option label="停用" :value="2" />
+          </el-select>
+        </el-form-item>
+      </el-form>
+      <div class="page-filter-actions">
+        <el-button type="primary" :icon="Search" @click="handleSearch">查询</el-button>
+        <el-button :icon="RefreshLeft" @click="handleReset">重置</el-button>
+      </div>
     </div>
 
-    <!-- 表格 -->
-    <div class="table-card">
-      <el-table :data="tableData" v-loading="loading" stripe style="width: 100%">
-        <el-table-column prop="developerId" label="ID" min-width="120">
-          <template #default="{ row }">
-            <span class="text-secondary">{{ row.developerId }}</span>
+    <div class="page-card">
+      <div class="page-table-wrap">
+        <el-table :data="tableData" v-loading="loading" stripe>
+          <el-table-column prop="developerId" label="ID" min-width="120">
+            <template #default="{ row }">
+              <span class="cell-secondary">{{ row.developerId }}</span>
+            </template>
+          </el-table-column>
+          <el-table-column prop="email" label="邮箱" min-width="180" />
+          <el-table-column prop="company" label="公司" min-width="140">
+            <template #default="{ row }">
+              <span v-if="row.company">{{ row.company }}</span>
+              <span v-else class="cell-empty">-</span>
+            </template>
+          </el-table-column>
+          <el-table-column prop="contactName" label="联系人" min-width="100">
+            <template #default="{ row }">
+              <span v-if="row.contactName">{{ row.contactName }}</span>
+              <span v-else class="cell-empty">-</span>
+            </template>
+          </el-table-column>
+          <el-table-column label="角色" width="100">
+            <template #default="{ row }">
+              <span class="status-tag" :class="row.role === 'admin' ? 'status-tag--warning' : 'status-tag--neutral'">
+                {{ row.role === 'admin' ? '管理员' : '开发者' }}
+              </span>
+            </template>
+          </el-table-column>
+          <el-table-column label="状态" width="90">
+            <template #default="{ row }">
+              <span class="status-tag" :class="row.status === 1 ? 'status-tag--active' : 'status-tag--paused'">
+                {{ row.status === 1 ? '启用' : '停用' }}
+              </span>
+            </template>
+          </el-table-column>
+          <el-table-column label="注册时间" min-width="170">
+            <template #default="{ row }">
+              <span class="cell-secondary">{{ formatDate(row.createdAt) }}</span>
+            </template>
+          </el-table-column>
+          <el-table-column label="操作" width="160" fixed="right">
+            <template #default="{ row }">
+              <div class="cell-actions">
+                <el-button link type="primary" :icon="Edit" @click="openRoleDialog(row)">改角色</el-button>
+                <el-button
+                  link
+                  :type="row.status === 1 ? 'danger' : 'primary'"
+                  :icon="row.status === 1 ? CircleClose : CircleCheck"
+                  @click="toggleStatus(row)"
+                >
+                  {{ row.status === 1 ? '停用' : '启用' }}
+                </el-button>
+              </div>
+            </template>
+          </el-table-column>
+          <template #empty>
+            <el-empty description="暂无开发者" />
           </template>
-        </el-table-column>
-        <el-table-column prop="email" label="邮箱" min-width="180" />
-        <el-table-column prop="company" label="公司" min-width="140" />
-        <el-table-column prop="contactName" label="联系人" min-width="100" />
-        <el-table-column label="角色" width="120">
-          <template #default="{ row }">
-            <el-tag v-if="row.role === 'admin'" type="warning" size="small">管理员</el-tag>
-            <el-tag v-else type="info" size="small">开发者</el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column label="状态" width="100">
-          <template #default="{ row }">
-            <el-tag v-if="row.status === 1" type="success" size="small">启用</el-tag>
-            <el-tag v-else type="danger" size="small">停用</el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column prop="createdAt" label="注册时间" min-width="170">
-          <template #default="{ row }">
-            <span class="text-secondary">{{ formatDate(row.createdAt) }}</span>
-          </template>
-        </el-table-column>
-        <el-table-column label="操作" width="180" fixed="right">
-          <template #default="{ row }">
-            <el-button link type="primary" @click="openRoleDialog(row)">改角色</el-button>
-            <el-button link :type="row.status === 1 ? 'danger' : 'success'" @click="toggleStatus(row)">
-              {{ row.status === 1 ? '停用' : '启用' }}
-            </el-button>
-          </template>
-        </el-table-column>
-        <template #empty>
-          <el-empty description="暂无开发者" />
-        </template>
-      </el-table>
-
-      <div class="pagination-bar">
+        </el-table>
+      </div>
+      <div class="page-pagination">
         <el-pagination
           v-model:current-page="query.page"
           v-model:page-size="query.pageSize"
           :page-sizes="[10, 20, 50]"
           :total="total"
           layout="total, sizes, prev, pager, next, jumper"
+          small
+          background
           @size-change="loadList"
           @current-change="loadList"
         />
       </div>
     </div>
 
-    <!-- 改角色弹窗 -->
-    <el-dialog v-model="roleDialogVisible" title="修改角色" width="420px" :close-on-click-modal="false">
-      <div v-if="currentRow" class="role-dialog-body">
-        <div class="role-dialog-row">
-          <span class="role-dialog-label">邮箱</span>
-          <span class="role-dialog-value">{{ currentRow.email }}</span>
+    <!-- 修改角色 -->
+    <el-dialog v-model="roleDialogVisible" title="修改角色" width="480px" :close-on-click-modal="false" destroy-on-close>
+      <div v-if="currentRow" class="dialog-section">
+        <div class="dialog-section-title">
+          <el-icon><User /></el-icon>
+          <span>目标账号</span>
+          <span class="dialog-section-tag">{{ currentRow.email }}</span>
         </div>
-        <div class="role-dialog-row">
-          <span class="role-dialog-label">当前角色</span>
-          <el-tag v-if="currentRow.role === 'admin'" type="warning" size="small">管理员</el-tag>
-          <el-tag v-else type="info" size="small">开发者</el-tag>
+        <div class="dialog-info-list">
+          <div class="info-item">
+            <span class="info-item-label">邮箱</span>
+            <span class="info-item-value">{{ currentRow.email }}</span>
+          </div>
+          <div class="info-item">
+            <span class="info-item-label">公司</span>
+            <span class="info-item-value">{{ currentRow.company || '-' }}</span>
+          </div>
+          <div class="info-item">
+            <span class="info-item-label">当前角色</span>
+            <span class="info-item-value">
+              <span class="status-tag" :class="currentRow.role === 'admin' ? 'status-tag--warning' : 'status-tag--neutral'">
+                {{ currentRow.role === 'admin' ? '管理员' : '开发者' }}
+              </span>
+            </span>
+          </div>
+          <div class="info-item">
+            <span class="info-item-label">当前状态</span>
+            <span class="info-item-value">
+              <span class="status-tag" :class="currentRow.status === 1 ? 'status-tag--active' : 'status-tag--paused'">
+                {{ currentRow.status === 1 ? '启用' : '停用' }}
+              </span>
+            </span>
+          </div>
         </div>
-        <div class="role-dialog-row">
-          <span class="role-dialog-label">新角色</span>
+      </div>
+
+      <div v-if="currentRow" class="dialog-section">
+        <div class="dialog-section-title">
+          <el-icon><Switch /></el-icon>
+          <span>新角色</span>
+        </div>
+        <div class="dialog-form-row dialog-form-row--full">
           <el-radio-group v-model="newRole">
             <el-radio value="developer">开发者</el-radio>
             <el-radio value="admin">管理员</el-radio>
           </el-radio-group>
-        </div>
-        <div v-if="wouldLockSelf" class="role-dialog-warn">
-          <el-icon><WarningFilled /></el-icon>
-          <span>不能把自己降级为开发者，避免锁死超级管理员</span>
+          <div v-if="wouldLockSelf" class="dialog-form-warn">
+            <el-icon><WarningFilled /></el-icon>
+            <span>不能把自己降级为开发者，避免锁死超级管理员</span>
+          </div>
         </div>
       </div>
+
       <template #footer>
         <el-button @click="roleDialogVisible = false">取消</el-button>
-        <el-button type="primary" :disabled="!canSubmit" :loading="submitting" @click="submitRole">确认</el-button>
+        <el-button type="primary" :disabled="!canSubmit" :loading="submitting" @click="submitRole">确认修改</el-button>
       </template>
     </el-dialog>
   </div>
@@ -119,7 +187,10 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Search, WarningFilled } from '@element-plus/icons-vue'
+import {
+  Search, Refresh, RefreshLeft, Edit, User, UserFilled,
+  WarningFilled, Switch, CircleCheck, CircleClose,
+} from '@element-plus/icons-vue'
 import { useUserStore } from '@/stores/user'
 import request from '@/utils/request'
 
@@ -176,6 +247,14 @@ async function loadList() {
 }
 
 function handleSearch() {
+  query.page = 1
+  loadList()
+}
+
+function handleReset() {
+  query.q = ''
+  query.role = ''
+  query.status = ''
   query.page = 1
   loadList()
 }

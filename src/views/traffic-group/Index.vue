@@ -66,38 +66,54 @@
       </el-table></div>
     </div>
     <!-- Dialog -->
-    <el-dialog v-model="showDialog" :title="editForm.id ? '编辑分组' : '创建分组'" width="600px" destroy-on-close>
+    <el-dialog v-model="showDialog" :title="editForm.id ? '编辑分组' : '创建分组'" width="640px" destroy-on-close>
       <el-form ref="formRef" :model="editForm" :rules="formRules" label-position="top">
-        <el-form-item label="广告位" prop="placement_id">
-          <el-select v-model="editForm.placement_id" placeholder="请选择广告位" style="width: 100%">
-            <el-option v-for="p in placementList" :key="p.placement_id" :label="`${p.name}`" :value="p.placement_id" />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="绑定瀑布流" prop="waterfall_id">
-          <el-select v-model="editForm.waterfall_id" placeholder="选择要绑定的瀑布流" clearable filterable style="width: 100%">
-            <el-option v-for="w in waterfallList" :key="w.waterfall_id" :label="`${w.name} (${w.waterfall_id})`" :value="w.waterfall_id" />
-          </el-select>
-          <div class="form-tip">绑定后，该分组匹配的流量会使用此瀑布流配置</div>
-        </el-form-item>
-        <el-form-item label="分组名称" prop="group_name">
-          <el-input v-model="editForm.group_name" placeholder="请输入分组名称" />
-        </el-form-item>
-        <el-form-item label="优先级" prop="priority">
-          <el-input-number v-model="editForm.priority" :min="0" :max="999" />
-        </el-form-item>
-        <el-form-item label="规则条件">
-          <div v-for="(cond, idx) in editForm.conditions" :key="idx" style="display:flex;gap:8px;margin-bottom:8px;width:100%">
-            <el-select v-model="cond.dimension" placeholder="维度" style="width:120px">
-              <el-option v-for="d in dimensions" :key="d.value" :label="d.label" :value="d.value" />
-            </el-select>
-            <el-select v-model="cond.operator" placeholder="操作" style="width:100px">
-              <el-option v-for="o in operators" :key="o" :label="o" :value="o" />
-            </el-select>
-            <el-input v-model="cond.value" placeholder="值(多个逗号分隔)" style="flex:1" />
-            <el-button link type="danger" @click="editForm.conditions.splice(idx, 1)"><el-icon><Delete /></el-icon></el-button>
+        <div class="dialog-section">
+          <div class="dialog-section-title">基础信息</div>
+          <div class="dialog-form-row">
+            <el-form-item label="广告位" prop="placement_id">
+              <el-select v-model="editForm.placement_id" placeholder="请选择广告位" style="width: 100%">
+                <el-option v-for="p in placementList" :key="p.placement_id" :label="p.name" :value="p.placement_id" />
+              </el-select>
+            </el-form-item>
+            <el-form-item label="分组名称" prop="group_name">
+              <el-input v-model="editForm.group_name" placeholder="请输入分组名称" />
+            </el-form-item>
           </div>
-          <el-button type="primary" link @click="editForm.conditions.push({ dimension: '', operator: 'IN', value: '' })">+ 添加规则</el-button>
-        </el-form-item>
+          <div class="dialog-form-row">
+            <el-form-item label="绑定瀑布流" prop="waterfall_id">
+              <el-select v-model="editForm.waterfall_id" placeholder="选择要绑定的瀑布流" clearable filterable style="width: 100%">
+                <el-option v-for="w in waterfallList" :key="w.waterfall_id" :label="`${w.name} (${w.waterfall_id})`" :value="w.waterfall_id" />
+              </el-select>
+            </el-form-item>
+            <el-form-item label="优先级" prop="priority">
+              <el-input-number v-model="editForm.priority" :min="0" :max="999" style="width: 100%" />
+              <div class="dialog-form-help">数字越大优先级越高，匹配时优先命中</div>
+            </el-form-item>
+          </div>
+        </div>
+
+        <div class="dialog-section">
+          <div class="dialog-section-title">
+            规则条件
+            <span class="dialog-section-tag">所有条件同时满足时命中此分组</span>
+          </div>
+          <div class="dialog-form-row dialog-form-row--full">
+            <el-form-item>
+              <div v-for="(cond, idx) in editForm.conditions" :key="idx" class="tg-condition-row">
+                <el-select v-model="cond.dimension" placeholder="维度" style="width: 130px">
+                  <el-option v-for="d in dimensions" :key="d.value" :label="d.label" :value="d.value" />
+                </el-select>
+                <el-select v-model="cond.operator" placeholder="操作" style="width: 110px">
+                  <el-option v-for="o in operators" :key="o" :label="o" :value="o" />
+                </el-select>
+                <el-input v-model="cond.value" placeholder="值(多个逗号分隔)" style="flex: 1" />
+                <el-button link type="danger" :icon="Delete" @click="editForm.conditions.splice(idx, 1)" />
+              </div>
+              <el-button type="primary" link :icon="Plus" @click="editForm.conditions.push({ dimension: '', operator: 'IN', value: '' })">添加规则</el-button>
+            </el-form-item>
+          </div>
+        </div>
       </el-form>
       <template #footer>
         <el-button @click="showDialog = false">取消</el-button>
@@ -112,6 +128,7 @@ import { ref, reactive, onMounted } from 'vue';
 import request from '../../utils/request';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import type { FormInstance, FormRules } from 'element-plus';
+import { Plus, Search, RefreshLeft, Delete, Filter } from '@element-plus/icons-vue';
 
 const dimensions = [
   { value: 'country', label: '国家/地区' },

@@ -68,35 +68,60 @@
     </el-tabs>
 
     <!-- Create/Edit Dialog -->
-    <el-dialog v-model="showDialog" :title="editForm.id ? '编辑自定义网络' : '创建自定义网络'" width="560px" destroy-on-close>
+    <el-dialog v-model="showDialog" :title="editForm.id ? '编辑自定义网络' : '创建自定义网络'" width="640px" destroy-on-close>
       <el-form ref="formRef" :model="editForm" :rules="formRules" label-position="top">
-        <el-form-item label="网络名称" prop="network_name">
-          <el-input v-model="editForm.network_name" placeholder="如 MyAdNetwork" />
-        </el-form-item>
-        <el-form-item label="网络代码" prop="network_code">
-          <el-input v-model="editForm.network_code" placeholder="如 CUSTOM_MYAD (大写+下划线)" :disabled="!!editForm.id" />
-        </el-form-item>
-        <el-form-item label="初始化Adapter类名">
-          <el-input v-model="editForm.adapter_class_init" placeholder="如 com.myadapter.MyCustomInitAdapter" />
-        </el-form-item>
-        <el-form-item label="Banner Adapter类名">
-          <el-input v-model="editForm.adapter_class_banner" placeholder="选填" />
-        </el-form-item>
-        <el-form-item label="插屏Adapter类名">
-          <el-input v-model="editForm.adapter_class_interstitial" placeholder="选填" />
-        </el-form-item>
-        <el-form-item label="激励视频Adapter类名">
-          <el-input v-model="editForm.adapter_class_rewarded" placeholder="选填" />
-        </el-form-item>
-        <el-form-item label="原生Adapter类名">
-          <el-input v-model="editForm.adapter_class_native" placeholder="选填" />
-        </el-form-item>
-        <el-form-item label="开屏Adapter类名">
-          <el-input v-model="editForm.adapter_class_splash" placeholder="选填" />
-        </el-form-item>
-        <el-form-item label="支持Bidding">
-          <el-switch v-model="editForm.supports_bidding" />
-        </el-form-item>
+        <div class="dialog-section">
+          <div class="dialog-section-title">基础信息</div>
+          <div class="dialog-form-row">
+            <el-form-item label="网络名称" prop="network_name">
+              <el-input v-model="editForm.network_name" placeholder="如 MyAdNetwork" />
+            </el-form-item>
+            <el-form-item label="网络代码" prop="network_code">
+              <el-input v-model="editForm.network_code" placeholder="如 CUSTOM_MYAD (大写+下划线)" :disabled="!!editForm.id" />
+            </el-form-item>
+          </div>
+        </div>
+
+        <div class="dialog-section">
+          <div class="dialog-section-title">
+            Adapter 类名
+            <span class="dialog-section-tag">各广告形式对应一个 Adapter 类，初始化类必填</span>
+          </div>
+          <div class="dialog-form-row">
+            <el-form-item label="初始化 Adapter" required>
+              <el-input v-model="editForm.adapter_class_init" placeholder="如 com.myadapter.MyCustomInitAdapter" />
+            </el-form-item>
+            <el-form-item label="Banner Adapter">
+              <el-input v-model="editForm.adapter_class_banner" placeholder="选填" />
+            </el-form-item>
+          </div>
+          <div class="dialog-form-row">
+            <el-form-item label="插屏 Adapter">
+              <el-input v-model="editForm.adapter_class_interstitial" placeholder="选填" />
+            </el-form-item>
+            <el-form-item label="激励视频 Adapter">
+              <el-input v-model="editForm.adapter_class_rewarded" placeholder="选填" />
+            </el-form-item>
+          </div>
+          <div class="dialog-form-row">
+            <el-form-item label="原生 Adapter">
+              <el-input v-model="editForm.adapter_class_native" placeholder="选填" />
+            </el-form-item>
+            <el-form-item label="开屏 Adapter">
+              <el-input v-model="editForm.adapter_class_splash" placeholder="选填" />
+            </el-form-item>
+          </div>
+        </div>
+
+        <div class="dialog-section">
+          <div class="dialog-section-title">高级设置</div>
+          <div class="dialog-form-row dialog-form-row--full">
+            <el-form-item label="支持 Bidding">
+              <el-switch v-model="editForm.supports_bidding" />
+              <div class="dialog-form-help">开启后此网络会参与竞价排序，否则只按瀑布流优先级出价</div>
+            </el-form-item>
+          </div>
+        </div>
       </el-form>
       <template #footer>
         <el-button @click="showDialog = false">取消</el-button>
@@ -105,47 +130,68 @@
     </el-dialog>
 
     <!-- Adapter Manager Dialog -->
-    <el-dialog v-model="adapterDialog.show" :title="`Adapter 版本管理 - ${adapterDialog.networkName}`" width="900px" destroy-on-close>
-      <div style="margin-bottom: 12px">
-        <el-button type="primary" size="small" @click="openAdapterUpload">上传新版本</el-button>
+    <el-dialog v-model="adapterDialog.show" :title="`Adapter 版本管理 — ${adapterDialog.networkName}`" width="900px" destroy-on-close>
+      <div class="page-card" style="padding: 16px 20px;">
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+          <div>
+            <div style="font-size: 14px; font-weight: 600; color: #0F172A;">版本列表</div>
+            <div style="font-size: 12px; color: #94A3B8; margin-top: 2px;">上传新版本后需要平台审核通过才会上线</div>
+          </div>
+          <el-button type="primary" :icon="UploadFilled" @click="openAdapterUpload">上传新版本</el-button>
+        </div>
+        <ReviewPanel
+          :versions="adapterDialog.versions"
+          :loading="adapterDialog.loading"
+          @review="handleReviewEvent"
+          @download="downloadAdapter"
+          @delete="deleteAdapter"
+        />
       </div>
-      <ReviewPanel
-        :versions="adapterDialog.versions"
-        :loading="adapterDialog.loading"
-        @review="handleReviewEvent"
-        @download="downloadAdapter"
-        @delete="deleteAdapter"
-      />
     </el-dialog>
 
     <!-- Adapter Upload Dialog -->
     <el-dialog v-model="uploadDialog.show" title="上传 Adapter" width="560px" destroy-on-close>
-      <el-form :model="uploadDialog.form" label-width="100px">
-        <el-form-item label="版本号" required>
-          <el-input v-model="uploadDialog.form.version" placeholder="如 1.0.0" />
-        </el-form-item>
-        <el-form-item label="Adapter类型" required>
-          <el-select v-model="uploadDialog.form.adapter_type" placeholder="选择类型" style="width: 100%">
-            <el-option label="初始化" :value="1" />
-            <el-option label="Banner" :value="2" />
-            <el-option label="插屏" :value="3" />
-            <el-option label="激励视频" :value="4" />
-            <el-option label="原生" :value="5" />
-            <el-option label="开屏" :value="6" />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="文件" required>
-          <el-input v-model="uploadDialog.form.file_name" placeholder="文件名（演示用）" />
-        </el-form-item>
-        <el-form-item label="文件大小">
-          <el-input-number v-model="uploadDialog.form.file_size" :min="0" :max="100000000" />
-        </el-form-item>
-        <el-form-item label="文件内容">
-          <el-input v-model="uploadDialog.form.file_content" type="textarea" :rows="3" placeholder="实际项目中上传文件二进制（base64编码），演示可填描述" />
-        </el-form-item>
-        <el-form-item label="变更说明">
-          <el-input v-model="uploadDialog.form.remark" type="textarea" :rows="2" placeholder="本次版本变更说明" />
-        </el-form-item>
+      <el-form :model="uploadDialog.form" label-position="top">
+        <div class="dialog-section">
+          <div class="dialog-section-title">版本信息</div>
+          <div class="dialog-form-row">
+            <el-form-item label="版本号" required>
+              <el-input v-model="uploadDialog.form.version" placeholder="如 1.0.0" />
+            </el-form-item>
+            <el-form-item label="Adapter 类型" required>
+              <el-select v-model="uploadDialog.form.adapter_type" placeholder="选择类型" style="width: 100%">
+                <el-option label="初始化" :value="1" />
+                <el-option label="Banner" :value="2" />
+                <el-option label="插屏" :value="3" />
+                <el-option label="激励视频" :value="4" />
+                <el-option label="原生" :value="5" />
+                <el-option label="开屏" :value="6" />
+              </el-select>
+            </el-form-item>
+          </div>
+        </div>
+        <div class="dialog-section">
+          <div class="dialog-section-title">文件信息</div>
+          <div class="dialog-form-row">
+            <el-form-item label="文件名" required>
+              <el-input v-model="uploadDialog.form.file_name" placeholder="文件名（演示用）" />
+            </el-form-item>
+            <el-form-item label="文件大小">
+              <el-input-number v-model="uploadDialog.form.file_size" :min="0" :max="100000000" style="width: 100%" />
+            </el-form-item>
+          </div>
+          <div class="dialog-form-row dialog-form-row--full" style="padding-top: 0;">
+            <el-form-item label="文件内容">
+              <el-input v-model="uploadDialog.form.file_content" type="textarea" :rows="3" placeholder="实际项目中上传文件二进制（base64编码），演示可填描述" />
+              <div class="dialog-form-help">演示环境下可填写描述性内容</div>
+            </el-form-item>
+          </div>
+          <div class="dialog-form-row dialog-form-row--full" style="padding-top: 0;">
+            <el-form-item label="变更说明">
+              <el-input v-model="uploadDialog.form.remark" type="textarea" :rows="2" placeholder="本次版本变更说明" />
+            </el-form-item>
+          </div>
+        </div>
       </el-form>
       <template #footer>
         <el-button @click="uploadDialog.show = false">取消</el-button>
@@ -154,50 +200,71 @@
     </el-dialog>
 
     <!-- App Binding Dialog -->
-    <el-dialog v-model="bindingDialog.show" :title="`应用关联 - ${bindingDialog.networkName}`" width="800px" destroy-on-close>
-      <div style="margin-bottom: 12px">
-        <el-button type="primary" size="small" @click="openBinding">新增关联</el-button>
+    <el-dialog v-model="bindingDialog.show" :title="`应用关联 — ${bindingDialog.networkName}`" width="800px" destroy-on-close>
+      <div class="page-card" style="padding: 16px 20px;">
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+          <div>
+            <div style="font-size: 14px; font-weight: 600; color: #0F172A;">已关联应用</div>
+            <div style="font-size: 12px; color: #94A3B8; margin-top: 2px;">为不同应用配置独立的网络凭证和 Adapter 版本</div>
+          </div>
+          <el-button type="primary" :icon="Plus" @click="openBinding">新增关联</el-button>
+        </div>
+        <el-table :data="bindingDialog.bindings" v-loading="bindingDialog.loading" stripe size="small">
+          <el-table-column prop="app_key" label="应用" min-width="160" />
+          <el-table-column prop="network_app_id" label="网络 AppId" min-width="160" />
+          <el-table-column prop="adapter_version_id" label="Adapter 版本" width="140">
+            <template #default="{ row }">
+              <span v-if="row.adapter_version_id">v{{ findAdapterVersion(row.adapter_version_id) }}</span>
+              <span v-else class="cell-muted">未指定</span>
+            </template>
+          </el-table-column>
+          <el-table-column prop="extra_params" label="额外参数" min-width="160" show-overflow-tooltip />
+          <el-table-column prop="created_at" label="创建时间" width="170">
+            <template #default="{ row }">{{ formatDate(row.created_at) }}</template>
+          </el-table-column>
+          <el-table-column label="操作" width="100" fixed="right">
+            <template #default="{ row }">
+              <el-button link type="danger" size="small" @click="unbindNetwork(row)">解绑</el-button>
+            </template>
+          </el-table-column>
+        </el-table>
       </div>
-      <el-table :data="bindingDialog.bindings" v-loading="bindingDialog.loading" stripe size="small">
-        <el-table-column prop="app_key" label="应用" min-width="160" />
-        <el-table-column prop="network_app_id" label="网络AppId" min-width="160" />
-        <el-table-column prop="adapter_version_id" label="Adapter版本" width="120">
-          <template #default="{ row }">
-            <span v-if="row.adapter_version_id">v{{ findAdapterVersion(row.adapter_version_id) }}</span>
-            <span v-else style="color: #94a3b8">未指定</span>
-          </template>
-        </el-table-column>
-        <el-table-column prop="extra_params" label="额外参数" min-width="160" show-overflow-tooltip />
-        <el-table-column prop="created_at" label="创建时间" width="170">
-          <template #default="{ row }">{{ formatDate(row.created_at) }}</template>
-        </el-table-column>
-        <el-table-column label="操作" width="100" fixed="right">
-          <template #default="{ row }">
-            <el-button link type="danger" size="small" @click="unbindNetwork(row)">解绑</el-button>
-          </template>
-        </el-table-column>
-      </el-table>
     </el-dialog>
 
     <!-- New Binding Dialog -->
     <el-dialog v-model="newBindingDialog.show" title="新增应用关联" width="500px" destroy-on-close>
-      <el-form :model="newBindingDialog.form" label-width="100px">
-        <el-form-item label="选择应用" required>
-          <el-select v-model="newBindingDialog.form.app_key" placeholder="选择应用" style="width: 100%" filterable>
-            <el-option v-for="app in appList" :key="app.app_key" :label="`${app.app_name} (${app.app_key})`" :value="app.app_key" />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="网络AppId" required>
-          <el-input v-model="newBindingDialog.form.network_app_id" placeholder="该网络为此应用分配的AppId" />
-        </el-form-item>
-        <el-form-item label="Adapter版本">
-          <el-select v-model="newBindingDialog.form.adapter_version_id" placeholder="选择Adapter版本（默认不指定）" style="width: 100%" clearable>
-            <el-option v-for="v in adapterDialog.versions" :key="v.id" :label="`v${v.version} (${typeLabel(v.adapter_type)})`" :value="v.id" />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="额外参数">
-          <el-input v-model="newBindingDialog.form.extra_params" type="textarea" :rows="2" placeholder="JSON 格式，如 {&quot;timeout&quot;: 5000}" />
-        </el-form-item>
+      <el-form :model="newBindingDialog.form" label-position="top">
+        <div class="dialog-section">
+          <div class="dialog-section-title">应用与凭证</div>
+          <div class="dialog-form-row dialog-form-row--full">
+            <el-form-item label="选择应用" required>
+              <el-select v-model="newBindingDialog.form.app_key" placeholder="选择应用" style="width: 100%" filterable>
+                <el-option v-for="app in appList" :key="app.app_key" :label="`${app.app_name} (${app.app_key})`" :value="app.app_key" />
+              </el-select>
+            </el-form-item>
+          </div>
+          <div class="dialog-form-row dialog-form-row--full" style="padding-top: 0;">
+            <el-form-item label="网络 AppId" required>
+              <el-input v-model="newBindingDialog.form.network_app_id" placeholder="该网络为此应用分配的 AppId" />
+            </el-form-item>
+          </div>
+        </div>
+        <div class="dialog-section">
+          <div class="dialog-section-title">Adapter 配置</div>
+          <div class="dialog-form-row dialog-form-row--full">
+            <el-form-item label="Adapter 版本">
+              <el-select v-model="newBindingDialog.form.adapter_version_id" placeholder="选择 Adapter 版本（默认不指定）" style="width: 100%" clearable>
+                <el-option v-for="v in adapterDialog.versions" :key="v.id" :label="`v${v.version} (${typeLabel(v.adapter_type)})`" :value="v.id" />
+              </el-select>
+              <div class="dialog-form-help">不指定时使用该 Adapter 类型的最新通过版本</div>
+            </el-form-item>
+          </div>
+          <div class="dialog-form-row dialog-form-row--full" style="padding-top: 0;">
+            <el-form-item label="额外参数">
+              <el-input v-model="newBindingDialog.form.extra_params" type="textarea" :rows="2" placeholder='JSON 格式，如 {"timeout": 5000}' />
+            </el-form-item>
+          </div>
+        </div>
       </el-form>
       <template #footer>
         <el-button @click="newBindingDialog.show = false">取消</el-button>
@@ -212,6 +279,7 @@ import { ref, reactive, onMounted, computed } from 'vue';
 import request from '../../utils/request';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import type { FormInstance, FormRules } from 'element-plus';
+import { Plus, Connection, Search, RefreshLeft, UploadFilled, Filter } from '@element-plus/icons-vue';
 import AccountManager from '../../components/AccountManager.vue';
 import ReviewPanel, { type AdapterVersion } from '../../components/ReviewPanel.vue';
 

@@ -96,10 +96,10 @@
     </div>
     <!-- Dialog -->
     <el-dialog v-model="showDialog" :title="editForm.id ? '编辑广告位' : '创建广告位'" width="640px" destroy-on-close>
-      <el-form ref="formRef" :model="editForm" :rules="formRules" label-position="top" class="placement-form">
+      <el-form ref="formRef" :model="editForm" :rules="formRules" label-position="top" class="placement-dialog-form">
         <!-- 基础信息 -->
-        <div class="placement-form-section">
-          <div class="placement-form-section-title">基础信息</div>
+        <div class="dialog-section">
+          <div class="dialog-section-title">基础信息</div>
           <el-form-item label="所属应用" prop="app_key">
             <el-select v-model="editForm.app_key" placeholder="请选择应用" style="width: 100%" :disabled="!!editForm.id" @change="onAppChange">
               <el-option v-for="a in appList" :key="a.app_key" :label="a.app_name" :value="a.app_key" />
@@ -107,7 +107,7 @@
           </el-form-item>
           <el-form-item label="广告位名称" prop="name">
             <el-input v-model="editForm.name" :placeholder="namePlaceholder" />
-            <span class="placement-form-tip">命名建议：媒体简称-应用名-系统-广告形式（如：新义-demo-iOS-信息流）</span>
+            <span class="dialog-form-help">命名建议：媒体简称-应用名-系统-广告形式（如：新义-demo-iOS-信息流）</span>
           </el-form-item>
           <el-form-item label="广告形式" prop="format">
             <el-select v-model="editForm.format" placeholder="请选择广告形式" style="width: 100%" :disabled="!!editForm.id" @change="onFormatChange">
@@ -123,8 +123,8 @@
         </div>
 
         <!-- 屏幕方向：插屏 / 原生 / 视频 + SDK 接入 -->
-        <div v-if="showOrientation" class="placement-form-section">
-          <div class="placement-form-section-title">展示设置</div>
+        <div v-if="showOrientation" class="dialog-section">
+          <div class="dialog-section-title">展示设置</div>
           <el-form-item label="屏幕方向" prop="screen_orientation">
             <el-radio-group v-model="editForm.screen_orientation">
               <el-radio-button :value="1">横屏</el-radio-button>
@@ -135,7 +135,7 @@
         </div>
 
         <!-- 广告展示大小：仅插屏 -->
-        <div v-if="showAdSize" class="placement-form-section">
+        <div v-if="showAdSize" class="dialog-section">
           <el-form-item label="广告展示大小" prop="ad_size">
             <el-radio-group v-model="editForm.ad_size">
               <el-radio-button :value="1">半屏</el-radio-button>
@@ -146,7 +146,7 @@
         </div>
 
         <!-- 素材形式：插屏 / 原生 -->
-        <div v-if="showMaterial" class="placement-form-section">
+        <div v-if="showMaterial" class="dialog-section">
           <el-form-item label="素材形式" prop="material_type">
             <el-radio-group v-model="editForm.material_type">
               <el-radio-button :value="1">图片</el-radio-button>
@@ -157,8 +157,8 @@
         </div>
 
         <!-- 原生专属：视频静音 / 自动播放 / 模版样式 -->
-        <div v-if="showNativeFields" class="placement-form-section">
-          <div class="placement-form-section-title">原生样式</div>
+        <div v-if="showNativeFields" class="dialog-section">
+          <div class="dialog-section-title">原生样式</div>
           <el-form-item v-if="showVideoMute" label="视频静音" prop="video_mute">
             <el-radio-group v-model="editForm.video_mute">
               <el-radio-button :value="0">否</el-radio-button>
@@ -180,7 +180,7 @@
         </div>
 
         <!-- API 接入时提示 -->
-        <div v-if="!isSDK" class="placement-form-section placement-form-section--api">
+        <div v-if="!isSDK" class="dialog-section dialog-section--api">
           <el-alert type="info" :closable="false" show-icon>
             <template #title>
               当前为 API 接入，屏幕方向 / 视频静音 / 自动播放 字段不适用。
