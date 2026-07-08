@@ -56,13 +56,14 @@ router.post('/register', async (req: express.Request, res: express.Response) => 
     if (error) throw new Error(`Insert failed: ${error.message}`);
 
     // Auto-login after registration - generate JWT
-    const token = generateToken({ developerId, email });
+    const token = generateToken({ developerId, email, role: 'developer' });
     setAuthCookie(res, token); // HttpOnly Cookie 下发
 
     success(res, {
       developerId,
       email,
       token,
+      role: 'developer',
       company: company || null,
       companyShortName: companyShortName || null,
       contactName: contactName || null,
@@ -86,7 +87,7 @@ router.post('/login', async (req: express.Request, res: express.Response) => {
     }
 
     // Retry login query to handle PostgREST eventual consistency
-    type DevRow = { developer_id: string; email: string; password: string; status: number; company: string; contact_name: string };
+    type DevRow = { developer_id: string; email: string; password: string; status: number; company: string; contact_name: string; role?: string };
     let dev: DevRow | null = null;
     for (let attempt = 0; attempt < 3; attempt++) {
       const { data, error } = await db.from('developer').select('*').eq('email', email).maybeSingle();
@@ -111,13 +112,15 @@ router.post('/login', async (req: express.Request, res: express.Response) => {
       return;
     }
 
-    const token = generateToken({ developerId: dev.developer_id, email: dev.email });
+    const role = (dev.role || 'developer') as 'developer' | 'admin';
+    const token = generateToken({ developerId: dev.developer_id, email: dev.email, role });
     setAuthCookie(res, token); // HttpOnly Cookie 下发，前端无感
 
     success(res, {
       token, // 仍返回一份给 SDK 直连场景
       developerId: dev.developer_id,
       email: dev.email,
+      role,
       company: dev.company,
       contactName: dev.contact_name,
     });
@@ -154,6 +157,7 @@ router.get('/me', authMiddleware, async (req: express.Request, res: express.Resp
       accessType: dev.access_type,
       apiAccessToken: dev.api_access_token,
       status: dev.status,
+      role: (dev.role || 'developer'),
       createdAt: dev.created_at,
     });
   } catch (err) {

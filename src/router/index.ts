@@ -16,6 +16,8 @@ import Reconciliation from '../views/reconciliation/Index.vue';
 import NetworkManage from '../views/network/Index.vue';
 import MessageCenter from '../views/message/Index.vue';
 import Profile from '../views/profile/Index.vue';
+import AdminDevelopers from '../views/admin/Developers.vue';
+import { useUserStore } from '../stores/user';
 
 const routes: RouteRecordRaw[] = [
   {

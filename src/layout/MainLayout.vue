@@ -80,7 +80,7 @@ import {
   DataAnalysis, Cellphone, PictureFilled, Connection, SetUp, Filter,
   TrendCharts, DocumentChecked, Share, Bell, User, ArrowDown,
   ChatLineSquare, SwitchButton, Refresh, Close, Operation,
-  DArrowLeft, DArrowRight,
+  DArrowLeft, DArrowRight, OfficeBuilding,
 } from '@element-plus/icons-vue';
 import HalWidget from '@/components/HalWidget.vue';
 
@@ -90,7 +90,7 @@ interface MenuItem {
   icon: Component;
 }
 
-const menuItems: MenuItem[] = [
+const baseMenuItems: MenuItem[] = [
   { path: '/dashboard', label: '数据看板', icon: DataAnalysis },
   { path: '/app', label: '应用管理', icon: Cellphone },
   { path: '/placement', label: '广告位管理', icon: PictureFilled },
@@ -107,6 +107,16 @@ const menuItems: MenuItem[] = [
 const route = useRoute();
 const router = useRouter();
 const userStore = useUserStore();
+
+const menuItems = computed<MenuItem[]>(() => {
+  if (userStore.isAdmin) {
+    return [
+      ...baseMenuItems,
+      { path: '/admin/developers', label: '开发者管理', icon: OfficeBuilding },
+    ];
+  }
+  return baseMenuItems;
+});
 const isCollapsed = ref(false);
 const unreadCount = ref(0);
 

@@ -8,11 +8,13 @@ const JWT_EXPIRES_IN = '7d';
 export interface JwtPayload {
   developerId: string;
   email: string;
+  role?: 'developer' | 'admin';
 }
 
 export interface AuthRequest extends Request {
   developerId: string;
   email: string;
+  role?: 'developer' | 'admin';
 }
 
 export function generateToken(payload: JwtPayload): string {
@@ -70,12 +72,32 @@ export function authMiddleware(req: Request, res: Response, next: NextFunction):
     const payload = verifyToken(token);
     (req as AuthRequest).developerId = payload.developerId;
     (req as AuthRequest).email = payload.email;
+    (req as AuthRequest).role = payload.role; // 老 token 没有 role → undefined（按 developer 走）
     // 异步触发 RLS 上下文注入（不阻塞 next，fire-and-forget）
     void setSessionDeveloperId(payload.developerId);
     next();
   } catch {
     res.status(401).json({ code: 401, message: 'Token无效或已过期' });
   }
+}
+
+/**
+ * 角色守卫中间件工厂。T2 角色分级：developer / admin。
+ * 注意：admin 接口"应当置于 authMiddleware 之后"，否则拿不到 req.role。
+ * 注意：当前 `db` 用 service_role 绕过 RLS，role 字段由应用层校验；将来启用 RLS 后
+ * 仍需保留这层校验。
+ */
+export function requireRole(...allowed: Array<'developer' | 'admin'>) {
+  return function (req: Request, res: Response, next: NextFunction): void {
+    const role = (req as AuthRequest).role;
+    // 老 token / 未带 role → 按 'developer' 兜底
+    const effective = role ?? 'developer';
+    if (!allowed.includes(effective)) {
+      res.status(403).json({ code: 403, message: '无权限访问该资源' });
+      return;
+    }
+    next();
+  };
 }
 
 /** Cookie 配置：HttpOnly + SameSite=Strict；仅生产环境启用 Secure（HTTPS） */

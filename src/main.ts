@@ -51,6 +51,24 @@ router.onError((error: Error) => {
 });
 
 // ============================================================
+//  401 全局跳转监听（解耦循环依赖）
+//  - request.ts 不再 import router，改派发 'auth:redirect-login' 事件
+//  - 此处统一处理跳转，避免 router ← request ← stores/user 循环
+// ============================================================
+let redirectingToLogin = false;
+window.addEventListener('auth:redirect-login', () => {
+  if (redirectingToLogin) return;
+  if (router.currentRoute.value.path === '/login') {
+    redirectingToLogin = false;
+    return;
+  }
+  redirectingToLogin = true;
+  router.replace('/login').finally(() => {
+    setTimeout(() => { redirectingToLogin = false; }, 1500);
+  });
+});
+
+// ============================================================
 //  Unhandled Rejection 兜底：屏蔽 Vite HMR WebSocket 在反向代理
 //  下"已关闭"导致的 reject 噪音（功能不受影响）。
 // ============================================================

@@ -1,7 +1,6 @@
 import axios from 'axios';
 import type { AxiosInstance, InternalAxiosRequestConfig, AxiosResponse } from 'axios';
 import { ElMessage } from 'element-plus';
-import router from '../router';
 
 // 防重入：避免多个 401 并发时反复跳登录
 let redirectingToLogin = false;
@@ -14,19 +13,10 @@ function clearAuth(): void {
 function handleUnauthorized(): void {
   // 通知所有打开的 tab 同步登出（自定义事件 + storage 事件）
   clearAuth();
-  // 触发全局事件，stores/user.ts 监听并同步 Pinia 状态
+  // 触发全局事件，由 main.ts 中的监听器统一执行跳转 + stores/user.ts 同步状态
   window.dispatchEvent(new CustomEvent('auth:logout'));
-  if (redirectingToLogin) return;
-  redirectingToLogin = true;
-  // 使用 SPA 导航而不是 location.href，避免整页刷新
-  if (router.currentRoute.value.path !== '/login') {
-    router.replace('/login').finally(() => {
-      // 1.5s 后允许再次触发（给登录页时间完成状态初始化）
-      setTimeout(() => { redirectingToLogin = false; }, 1500);
-    });
-  } else {
-    redirectingToLogin = false;
-  }
+  // 跳转逻辑：dispatch 'auth:redirect-login' 事件，由 main.ts 处理
+  window.dispatchEvent(new CustomEvent('auth:redirect-login', { detail: { inProgress: redirectingToLogin } }));
 }
 
 const request: AxiosInstance = axios.create({

@@ -13,6 +13,7 @@ import messageRoutes from './message';
 import networkRoutes from './network';
 import profileRoutes from './profile';
 import halRoutes from './hal';
+import adminRoutes from './admin';
 
 const router = Router();
 
@@ -36,6 +37,7 @@ router.use('/api/v1/console/reconciliation', reconciliationRoutes);
 router.use('/api/v1/console/message', messageRoutes);
 router.use('/api/v1/console/network', networkRoutes);
 router.use('/api/v1/console/profile', profileRoutes);
+router.use('/api/v1/console/admin', adminRoutes);
 router.use('/api/v1/hal', halRoutes);
 
 // Public SDK routes
