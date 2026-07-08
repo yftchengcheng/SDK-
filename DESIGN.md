@@ -545,6 +545,9 @@ B2B 企业级广告数据管理控制台。沉稳、专业、精准。蓝+灰+�
   - `.stat-card__label`：12px / #94A3B8
   - `.stat-card__value`：18px / 700 / #0F172A / letter-spacing -0.01em
   - `.stat-card__trend`：可选，显示环比 ↑/↓ 趋势
+  - `.stat-card__compare`：可选，trend 右侧的对比基准文案（如"较昨日"），11px / #94A3B8 / 字重 500 / 同行尾部 / 间距 4px
+    - **来源**：后端 `dashboard.overview` 接口返回的 `trendCompareWith` 字段
+    - **目的**：让用户明确知道百分比是与哪个时间点对比
 - **响应式**：≥1280px 显示 4 列 / 1024-1280px 显示 2 列 / <1024px 显示 1 列
 
 ### Chart Card（趋势图）
@@ -590,5 +593,5 @@ B2B 企业级广告数据管理控制台。沉稳、专业、精准。蓝+灰+�
 
 - 顶层类：`.page-shell.page-dashboard`
 - 三段容器：`.page-header` / `.stat-grid` / `.page-card.page-chart-card` / `.list-grid` / `.page-card.page-list-card`
-- 内部子元素：`.stat-card` / `.stat-card__label` / `.stat-card__value` / `.stat-card__trend` / `.chart-title` / `.chart-canvas` / `.list-title` / `.list-body` / `.list-row` / `.row-rank` / `.row-name` / `.row-bar-track` / `.row-bar-fill` / `.row-value`
+- 内部子元素：`.stat-card` / `.stat-card__label` / `.stat-card__value` / `.stat-card__trend` / `.stat-card__compare` / `.chart-title` / `.chart-canvas` / `.list-title` / `.list-body` / `.list-row` / `.row-rank` / `.row-name` / `.row-bar-track` / `.row-bar-fill` / `.row-value`
 

@@ -71,6 +71,7 @@
           <span :class="['trend-text', m.trend > 0 ? 'up' : m.trend < 0 ? 'down' : 'flat']">
             {{ Math.abs(m.trend).toFixed(1) }}%
           </span>
+          <span class="stat-card__compare">{{ m.compareWith }}</span>
         </div>
       </div>
     </div>
@@ -188,11 +189,11 @@ const rangeLabel = computed(() => {
 let requestSeq = 0
 const isCurrent = (seq: number) => seq === requestSeq
 
-const metrics = ref<Array<{ key: string; label: string; display: string; trend: number | null }>>([
-  { key: 'revenue', label: '今日收益', display: '—', trend: null },
-  { key: 'impressions', label: '今日展示', display: '—', trend: null },
-  { key: 'fillRate', label: '填充率', display: '—', trend: null },
-  { key: 'eCPM', label: 'eCPM', display: '—', trend: null },
+const metrics = ref<Array<{ key: string; label: string; display: string; trend: number | null; compareWith: string }>>([
+  { key: 'revenue', label: '今日收益', display: '—', trend: null, compareWith: '较昨日' },
+  { key: 'impressions', label: '今日展示', display: '—', trend: null, compareWith: '较昨日' },
+  { key: 'fillRate', label: '填充率', display: '—', trend: null, compareWith: '较昨日' },
+  { key: 'eCPM', label: 'eCPM', display: '—', trend: null, compareWith: '较昨日' },
 ])
 const trendOption = ref<Record<string, unknown> | null>(null)
 const sourceRows = ref<SourceRow[]>([])
@@ -249,11 +250,13 @@ async function loadDashboardData() {
     if (seq !== requestSeq) return
 
     const ov = overviewRes.data || {}
+    // 后端返回 trendCompareWith（如"较昨日"），失败时回退为默认"较昨日"，避免空白
+    const compareWith = String(ov.trendCompareWith || '较昨日')
     metrics.value = [
-      { key: 'revenue', label: '今日收益', display: formatNumber(ov.todayRevenue, 'revenue'), trend: Number(ov.revenueTrend ?? 0) },
-      { key: 'impressions', label: '今日展示', display: formatNumber(ov.todayImpressions, 'impressions'), trend: Number(ov.impressionsTrend ?? 0) },
-      { key: 'fillRate', label: '填充率', display: formatNumber(ov.fillRate, 'fillRate'), trend: Number(ov.fillRateTrend ?? 0) },
-      { key: 'eCPM', label: 'eCPM', display: formatNumber(ov.eCPM, 'eCPM'), trend: Number(ov.eCPMTrend ?? 0) },
+      { key: 'revenue', label: '今日收益', display: formatNumber(ov.todayRevenue, 'revenue'), trend: Number(ov.revenueTrend ?? 0), compareWith },
+      { key: 'impressions', label: '今日展示', display: formatNumber(ov.todayImpressions, 'impressions'), trend: Number(ov.impressionsTrend ?? 0), compareWith },
+      { key: 'fillRate', label: '填充率', display: formatNumber(ov.fillRate, 'fillRate'), trend: Number(ov.fillRateTrend ?? 0), compareWith },
+      { key: 'eCPM', label: 'eCPM', display: formatNumber(ov.eCPM, 'eCPM'), trend: Number(ov.eCPMTrend ?? 0), compareWith },
     ]
 
     const trendData = Array.isArray(trendRes.data) ? trendRes.data : []

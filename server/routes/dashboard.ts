@@ -80,6 +80,10 @@ router.get('/overview', authMiddleware, async (req: express.Request, res: expres
       impressionsTrend: calcTrend(todayImp, yestImp),
       fillRateTrend: Number((todayFR - yestFR).toFixed(2)),
       eCPMTrend: calcTrend(todayE, yestE),
+      // 4 个 trend 均为今日 vs 昨日，对比基准由后端统一定义
+      // 后续若支持"本周 vs 上周"等多周期对比，仅需修改本字段与上方 todayRows/yesterdayRows 取数
+      trendCompareWith: '较昨日',
+      trendCompareDate: yesterdayDate,
     });
   } catch (err) {
     console.error('Dashboard overview error:', err);

@@ -3730,6 +3730,14 @@ html, body, #app {
 .trend-text.up    { color: #059669; }
 .trend-text.down  { color: #DC2626; }
 .trend-text.flat  { color: var(--color-slate-400); }
+/* 对比基准文案：trend 数字后说明百分比是与哪个时间点对比的（如"较昨日"） */
+.stat-card__compare {
+  margin-left: 4px;
+  font-size: 11px;
+  font-weight: 500;
+  color: #94A3B8;
+  letter-spacing: 0;
+}
 
 /* ---------- Chart Card（趋势图，直接用 .page-card 容器） ---------- */
 .page-chart-card {
