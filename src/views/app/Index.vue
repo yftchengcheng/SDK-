@@ -8,7 +8,7 @@
     <div class="table-card">
       <el-table :data="tableData" v-loading="loading" stripe style="width: 100%">
         <el-table-column prop="app_name" label="应用名称" min-width="140" />
-        <el-table-column prop="app_key" label="App Key" min-width="200">
+        <el-table-column prop="app_key" label="应用TOKEN" min-width="200">
           <template #default="{ row }">
             <span class="text-primary">{{ row.app_key }}</span>
             <el-icon class="copy-btn" @click="copyText(row.app_key)"><CopyDocument /></el-icon>
