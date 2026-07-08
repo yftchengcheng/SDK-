@@ -18,11 +18,14 @@
         // 过滤 Vite HMR WebSocket 在外部代理环境下被拒绝的报错（不影响功能）
         var reason = e.reason;
         var msg = (reason && (reason.message || String(reason))) || '';
+        var stack = (reason && reason.stack) || '';
         if (
           msg.indexOf('WebSocket closed without opened') !== -1 ||
           msg.indexOf('@vite/client') !== -1 ||
           msg.indexOf('ws://') !== -1 ||
-          msg.indexOf('wss://') !== -1
+          msg.indexOf('wss://') !== -1 ||
+          stack.indexOf('@vite/client') !== -1 ||
+          stack.indexOf('vite/client') !== -1
         ) {
           e.preventDefault();
           e.stopImmediatePropagation && e.stopImmediatePropagation();
@@ -57,36 +60,78 @@
           log.push(Object.assign({ t: new Date().toISOString() }, entry));
           if (log.length > MAX_LOG) log.shift();
         }
-        // --- 1. Hook WebSocket: 拦截 HMR full-reload 消息 ---
+        // --- 1. Hook WebSocket: 拦截 HMR 通道（Vite dev 服务器未开 HMR，避免 connect 失败抛 unhandledrejection）---
         var OrigWS = window.WebSocket;
-        function WrappedWS(url, protocols) {
-          var ws = protocols !== undefined ? new OrigWS(url, protocols) : new OrigWS(url);
+        function isHmrUrl(url) {
           try {
             var parsed = new URL(url, location.href);
-            var isHmr = parsed.pathname === '/' /* Vite 默认根路径 */ || /\/$|\/\?token=/.test(parsed.pathname + parsed.search);
-            if (isHmr) {
-              var origAdd = ws.addEventListener.bind(ws);
-              ws.addEventListener = function(type, listener, options) {
-                if (type === 'message') {
-                  var wrapped = function(ev) {
-                    try {
-                      var data = typeof ev.data === 'string' ? ev.data : '';
-                      if (data.indexOf('"full-reload"') !== -1) {
-                        blockedCount++;
-                        lastBlock = { source: 'ws-full-reload', data: data.slice(0, 200) };
-                        pushLog({ type: 'block', source: 'ws-full-reload', data: data.slice(0, 200) });
-                        console.warn('[DevGuard] 拦截 Vite full-reload 消息（页面不会刷新）。如需查看最新代码请点右下角 ⟳ 或按 F5。');
-                        showBubble();
-                        return;
-                      }
-                    } catch (e) { /* 忽略 */ }
-                    return listener.call(this, ev);
-                  };
-                  return origAdd(type, wrapped, options);
-                }
-                return origAdd(type, listener, options);
-              };
-            }
+            return (
+              parsed.pathname === '/' /* Vite 默认根路径 */ ||
+              /\/$|\/\?token=/.test(parsed.pathname + parsed.search)
+            );
+          } catch (e) { return false; }
+        }
+        function makeFakeWS() {
+          // 伪造一个「立即 open、永远不 close」的 WebSocket，让 @vite/client 的 await Promise 成功 resolve
+          var listeners = {};
+          function fire(type, ev) {
+            (listeners[type] || []).forEach(function(fn) {
+              try { fn.call(null, ev); } catch (e) { /* 忽略 */ }
+            });
+          }
+          var fake = {
+            readyState: 1, // OPEN
+            CONNECTING: 0, OPEN: 1, CLOSING: 2, CLOSED: 3,
+            send: function() { /* no-op */ },
+            close: function() { /* no-op：永远不真正关闭，避免触发 close 事件 → 走 reject 分支 */ },
+            addEventListener: function(type, listener /*, options */) {
+              (listeners[type] = listeners[type] || []).push(listener);
+            },
+            removeEventListener: function(type, listener) {
+              if (!listeners[type]) return;
+              listeners[type] = listeners[type].filter(function(fn) { return fn !== listener; });
+            },
+            dispatchEvent: function(ev) { fire(ev.type, ev); return true; },
+            onopen: null, onclose: null, onmessage: null, onerror: null,
+          };
+          // 模拟 open 事件
+          setTimeout(function() {
+            fake.readyState = 1;
+            var ev = { type: 'open', target: fake };
+            fire('open', ev);
+            if (typeof fake.onopen === 'function') fake.onopen(ev);
+          }, 0);
+          return fake;
+        }
+        function WrappedWS(url, protocols) {
+          if (isHmrUrl(url)) {
+            // HMR 通道：返回伪造 WebSocket，Vite 不会再去尝试连接真实端口
+            return makeFakeWS();
+          }
+          // 业务 WebSocket：放行，必要时拦截 full-reload 消息
+          var ws = protocols !== undefined ? new OrigWS(url, protocols) : new OrigWS(url);
+          try {
+            var origAdd = ws.addEventListener.bind(ws);
+            ws.addEventListener = function(type, listener, options) {
+              if (type === 'message') {
+                var wrapped = function(ev) {
+                  try {
+                    var data = typeof ev.data === 'string' ? ev.data : '';
+                    if (data.indexOf('"full-reload"') !== -1) {
+                      blockedCount++;
+                      lastBlock = { source: 'ws-full-reload', data: data.slice(0, 200) };
+                      pushLog({ type: 'block', source: 'ws-full-reload', data: data.slice(0, 200) });
+                      console.warn('[DevGuard] 拦截 Vite full-reload 消息（页面不会刷新）。如需查看最新代码请点右下角 ⟳ 或按 F5。');
+                      showBubble();
+                      return;
+                    }
+                  } catch (e) { /* 忽略 */ }
+                  return listener.call(this, ev);
+                };
+                return origAdd(type, wrapped, options);
+              }
+              return origAdd(type, listener, options);
+            };
           } catch (e) { /* 忽略 */ }
           return ws;
         }
