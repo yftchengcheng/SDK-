@@ -1,5 +1,5 @@
 <template>
-  <div class="page-container page-dashboard">
+  <div class="page-shell page-dashboard">
     <!-- 加载错误兜底 -->
     <el-alert
       v-if="loadError"
@@ -19,8 +19,15 @@
 
     <!-- 顶部筛选 -->
     <div class="page-header">
-      <div class="page-title">数据看板</div>
-      <div class="filter-bar">
+      <div class="page-header-info">
+        <div class="page-header-icon"><el-icon><DataAnalysis /></el-icon></div>
+        <div>
+          <h2 class="page-header-title">数据看板</h2>
+          <p class="page-header-subtitle">聚合请求、填充、展示、点击与收益趋势</p>
+        </div>
+      </div>
+      <div class="page-header-actions">
+      <div class="page-filter">
         <el-radio-group v-model="activeTab" size="small" @change="onTabChange">
           <el-radio-button label="7">7 天</el-radio-button>
           <el-radio-button label="14">14 天</el-radio-button>
@@ -38,11 +45,13 @@
           :clearable="false"
           @change="onDateChange"
         />
-        <el-button size="small" :loading="loading" @click="reload">刷新</el-button>
+        <el-button size="small" :loading="loading" @click="reload" :icon="Refresh">刷新</el-button>
+      </div>
       </div>
     </div>
 
     <!-- 统计卡片（纯数字 + 简单 HTML 趋势条，无 ECharts） -->
+    <div class="page-card page-stat-card">
     <div v-loading="loading" class="stat-grid">
       <div v-for="m in metrics" :key="m.key" class="stat-card">
         <div class="stat-label">{{ m.label }}</div>
@@ -57,8 +66,10 @@
         </div>
       </div>
     </div>
+    </div>
 
-    <!-- 趋势图（仅保留 1 个 ECharts，组件方式加载 + 自动 dispose） -->
+    <!-- 趋势图 -->
+    <div class="page-card page-chart-card">
     <div v-loading="trendLoading" class="chart-card">
       <div class="chart-title">收益趋势（{{ rangeLabel }}）</div>
       <VChart
@@ -72,8 +83,10 @@
       />
       <el-empty v-else description="暂无趋势数据" :image-size="60" />
     </div>
+    </div>
 
     <!-- 数据列表（无 ECharts，纯 HTML） -->
+    <div class="page-card page-list-card">
     <div class="list-grid">
       <div v-loading="loading" class="list-card">
         <div class="list-title">广告源对比</div>
@@ -123,6 +136,7 @@
         <el-empty v-else description="暂无异常" :image-size="50" />
       </div>
     </div>
+    </div>
   </div>
 </template>
 
@@ -134,6 +148,7 @@ import { CanvasRenderer, SVGRenderer } from 'echarts/renderers'
 import { LineChart } from 'echarts/charts'
 import { GridComponent, TooltipComponent, LegendComponent } from 'echarts/components'
 import VChart from 'vue-echarts'
+import { DataAnalysis, Refresh } from '@element-plus/icons-vue'
 import request from '@/utils/request'
 import { ElMessage } from 'element-plus'
 
