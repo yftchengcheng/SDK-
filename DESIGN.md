@@ -334,99 +334,91 @@ B2B 企业级广告数据管理控制台。沉稳、专业、精准。蓝+灰+�
 - 筛选 form：`:model="filter"`（统一用 filter 变量名）
 - 分页：`page` / `pageSize` / `total`（统一变量名）
 
-## 创建/编辑页统一规范（2026-07 用户要求：所有创建功能用独立页面，不允许弹窗）
+## 创建/编辑抽屉统一规范（2026-07 用户要求：用侧边抽屉，不影响列表上下文）
 
 ### 设计原则
 
-- **不允许**用 `el-dialog` / `el-drawer` 实现创建/编辑功能（用户反馈：内容容易超出卡片，导致数据项展示不全）
-- **必须**用独立路由页面（带"返回"按钮）实现所有数据创建/编辑
-- 弹窗仅允许用于「详情查看」「轻量级 inline 操作」「确认提示」三类场景
-- 创建/编辑页是控制台最高频操作之一，**必须**信息密度合理、可纵向滚动、永不裁切
+- **禁止**用 `el-dialog`（弹窗卡片）实现创建/编辑功能（用户反馈：内容容易超出卡片范围，导致数据项展示不全）
+- **必须**用 `el-drawer`（侧边抽屉）实现所有数据创建/编辑，保留列表上下文
+- **禁止**用独立子路由（用户反馈：从列表跳走后列表上下文丢失，破坏 UX）
+- 抽屉从右侧弹出，**列表保持可见**（可同时操作筛选、查看其他行）
+- 创建/编辑功能由列表页内嵌的 `.app-form-drawer` 实现，不写独立 `.vue` 页面
+- 弹窗（el-dialog）仅允许用于「详情查看」「轻量级 inline 操作」「确认提示」三类场景
 
-### 路由约定
-
-| 资源 | 创建路由 | 编辑路由 | 返回路由 |
-|------|----------|----------|----------|
-| 应用 | `/app/create` | `/app/edit/:id` | `/app` |
-| 广告位 | `/placement/create` | `/placement/edit/:id` | `/placement` |
-| 广告源 | `/ad-source/create` | `/ad-source/edit/:id` | `/ad-source` |
-| 流量分组 | `/traffic-group/create` | `/traffic-group/edit/:id` | `/traffic-group` |
-| 广告网络 | `/network/create` | `/network/edit/:id` | `/network` |
-
-- 编辑路由的页面组件**复用**创建页组件（`<component :is="..." />` 或条件渲染），通过 route param `id` 区分模式
-- 编辑模式：页面标题为「编辑 XX」，提交按钮文字为「保存」；创建模式：「创建 XX」/「创建」
-
-### 页面结构（page-form-shell 三段式）
+### 抽屉结构（page-form-drawer-shell 三段式）
 
 ```
-┌─ .page-shell ─────────────────────────────────────────┐
-│  ┌─ .page-form-header (sticky top) ────────────────┐  │
-│  │  [← 返回]  创建应用 / 编辑应用          草稿状态  │  │
-│  │  副标题：填写以下信息以创建一个新应用              │  │
-│  └────────────────────────────────────────────────┘  │
-│  ┌─ .page-form-body (滚动) ────────────────────────┐  │
-│  │  区块 1：基础信息                                 │  │
-│  │  ┌─ .page-form-section ───────────────────────┐ │  │
-│  │  │  [icon]  基础信息          (3 项)          │ │  │
-│  │  │  ┌─ 表单 grid 2 列 ─────────────────────┐  │ │  │
-│  │  │  │  [label] [input/select/...]         │  │ │  │
-│  │  │  └────────────────────────────────────┘  │ │  │
-│  │  └──────────────────────────────────────────┘ │  │
-│  │  区块 2：平台与对接                              │  │
-│  │  ...                                            │  │
-│  └────────────────────────────────────────────────┘  │
-│  ┌─ .page-form-footer (sticky bottom) ─────────────┐  │
-│  │  [取消]                              [保存草稿] [创建]│  │
-│  └────────────────────────────────────────────────┘  │
-└─────────────────────────────────────────────────────┘
+┌─ el-drawer (.app-form-drawer) ──────────── 抽屉 880px
+│  ┌─ .page-form-header (sticky top) ─────┐
+│  │  [× 关闭]  创建应用 / 编辑应用         │
+│  │  副标题：填写以下信息以创建一个新应用  │
+│  └─────────────────────────────────────┘
+│  ┌─ .page-form-body (独立滚动) ────────┐
+│  │  区块 1：基础信息                      │
+│  │  ┌─ .page-form-section ─────────────┐│
+│  │  │  [icon]  基础信息    (3 项)       ││
+│  │  │  字段 1: [input]                 ││
+│  │  │  字段 2: [select]                ││
+│  │  └────────────────────────────────┘│
+│  │  区块 2：平台与对接                   │
+│  │  ...                                 │
+│  └─────────────────────────────────────┘
+│  ┌─ .page-form-footer (sticky bottom) ─┐
+│  │  [取消]                [创建应用]   │
+│  └─────────────────────────────────────┘
+└──────────────────────────────────────────┘
 ```
 
-### 容器规范
+### 抽屉容器规范
 
-- `.page-shell`：与列表页相同，`max-width: 1280px` / padding `24px` / 背景 #F8FAFC
-- `.page-form-header`：sticky 顶部 / `top: 0` / z-index 10 / 背景白 / 1px 底边 #E2E8F0 / padding 20px 24px / **包含返回按钮 + 标题 + 副标题 + 状态标签**
-- `.page-form-body`：纵向 padding 24px / 区块 gap 20px / **允许纵向滚动**
-- `.page-form-footer`：sticky 底部 / `bottom: 0` / 背景白 / 1px 顶边 #E2E8F0 / padding 16px 24px / 右侧按钮组（取消 + 主按钮）
+- **抽屉尺寸**：720px (默认) / 880px (1280+) / 960px (1600+)
+- **方向**：`direction="rtl"`（右侧滑入）
+- **挂载**：`modal=true`（带遮罩）/ `modal-class="app-form-drawer-mask"` / `:append-to-body="true"`
+- **遮罩**：背景 `rgba(15, 23, 42, 0.32)` + `backdrop-filter: blur(2px)`（保留列表上下文，不全黑）
+- **关闭按钮**：`.page-form-header` 左侧 `[× 关闭]` 链接按钮，点击触发 `@close`
 
-### 返回按钮 `.page-back`
+### 抽屉内部规范
 
-- 位置：form-header 左侧
-- 样式：`el-button link :icon="ArrowLeft" "返回"`，字号 14px / 颜色 #475569
-- hover：颜色 #2563EB + 箭头左移 2px transition
-- 行为：`router.back()` 优先；fallback `router.push(returnTo)`
+- `.app-form-drawer .el-drawer__body`：padding 0 / 背景 #F8FAFC / 满高 / `overflow: hidden`（让内部 .page-form-body 独立滚）
+- `.page-form-drawer-shell`：满高 / flex column / 背景 #F8FAFC
+- `.page-form-body`：`flex: 1` / `overflow-y: auto` / padding 20×24 / 区块 gap 20px
+- `.page-form-header`：`flex-shrink: 0` + sticky top + 包含返回按钮 + 标题 + 副标题
+- `.page-form-footer`：`flex-shrink: 0` + sticky bottom + 右侧按钮组（取消 + 主按钮）
 
-### 区块 `.page-form-section`
+### 抽屉里的 header / section / footer
 
-- 容器：白底 / 1px #E2E8F0 边 / 8px 圆角 / 阴影 `0 1px 2px rgba(15,23,42,0.04)`
-- 内部 padding：24px
-- 区块标题：18px / 700 / #0F172A / 字号 18px / 包含 [icon] 标题 + (n 项) 计数
-- 区块副标题（可选）：12px / 400 / #64748B
-- 区块 grid：2 列（桌面）/ 1 列（< 768px）/ gap 20px 24px
+继承 `page-form-header` / `page-form-section` / `page-form-footer` 规范（与未来独立页面布局保持一致），仅 margin 调整：
+- header / footer 在抽屉内 `margin: 0`（去掉 `margin: 0 -24px`），padding 保持 20×24
+- 关闭按钮 `.page-back` 同 page-form 规范（14px / #475569 / hover #2563EB + 箭头左移 2px）
 
-### 字段规范
+### 字段规范（与 page-form 一致）
 
-- label 字号 **13px** / 字重 **500** / 颜色 #334155
-- label 距控件 6px（不是默认 8px）
-- input/select/textarea 高度 36px / 圆角 8px（沿用 Filter Bar 规范）
-- 必填字段 label 后加 `<span class="required-mark">*</span>`，颜色 #EF4444
-- 帮助文字：`form-item-help` 类，12px / #64748B / 顶部 4px margin
-- 错误信息：EP 默认红色
+- label 字号 **13px** / 字重 **500** / 颜色 #334155 / 距控件 6px
+- input/select/textarea 高度 36px / 圆角 8px
+- 必填：label 前 `<span class="required-mark">*</span>` 红色 #EF4444
+- 帮助文字：`.form-help` 12px / #64748B / 4px margin
+- 表单 grid：2 列 (>= 768) / 1 列 (< 768) / gap 20×24
 
-### 底部按钮
+### 底部按钮（抽屉内 footer）
 
-- 取消：左对齐 / `el-button` 默认样式
-- 主按钮（右对齐）：`el-button type="primary" :loading="submitting"`
-  - 字号 14px / 字重 500 / 高 36px / 圆角 8px / 0 20px padding
-  - 默认 #2563EB / hover #1D4ED8
-  - 提交中：loading 旋转 + 禁用
-  - 成功后：触发成功提示 + `router.push(returnTo)`
+- 取消（左侧）：`el-button` 默认 / 36px / 8px 圆角 / 14px / 关闭抽屉
+- 主按钮（右侧）：`el-button type="primary" :loading="submitting"` / 36px / 8px 圆角 / 14px / 500 / 0 20px padding
+- 按钮颜色：默认 #2563EB / hover #1D4ED8
+- 提交中：loading 旋转 + 禁用 / 成功后：ElMessage 成功 + 关闭抽屉 + `fetchList()` 刷新列表
 
 ### 命名与代码
 
-- 路由组件命名：`XxxCreate.vue`（创建）/ `XxxEdit.vue`（编辑）；或合并 `XxxForm.vue` 接收 prop `mode`
-- 脚本中统一 `import { useRoute, useRouter } from 'vue-router'`
-- 提交函数命名：`handleSubmit()`（自动判断创建/更新）
-- 草稿：localStorage key `draft_<resource>_<id>`，防误关丢数据
+- 抽屉用 `v-model="formDrawerVisible"` / `:title="isEdit ? '编辑应用' : '创建应用'"` 控制
+- 模式判断：`const isEdit = ref(false)` + `const openCreate = () => { isEdit.value = false; formDrawerVisible.value = true; resetForm(); }` + `const openEdit = (row) => { isEdit.value = true; formDrawerVisible.value = true; loadEditData(row); }`
+- 关闭时 `resetForm()`：清空 reactive form + `formRef.value?.clearValidate()`
+- **不要**写独立 `.vue` 文件给 form —— form 写在列表页 `<el-drawer>` 内（用户反馈：避免路由跳走 + 避免重复组件）
+- API 路径：创建 `POST /{resource}/create` / 编辑 `PUT /{resource}/update` / 详情 `GET /{resource}/detail?xxxId=...`
+
+### 滚动隔离（重要）
+
+- 抽屉**独立滚动**：drawer body 内部 `overflow-y: auto` / drawer body 外部 `overflow: hidden`
+- **禁止**用页面 `body` / `el-main` 滚动 —— 抽屉出现时锁定背景滚动
+- 当抽屉高度 > 视口时，`.page-form-body` 独立滚，`.page-form-header` 和 `.page-form-footer` 保持在抽屉内 sticky
 
 ## 动效规范
 
@@ -512,103 +504,6 @@ B2B 企业级广告数据管理控制台。沉稳、专业、精准。蓝+灰+�
 - 禁止使用紫色/渐变色
 - 禁止自创字号/间距/颜色组合
 - 禁止使用 Emoji 作为图标
-
-## 创建/编辑对话框规范（2026-07 用户要求：所有创建页统一）
-
-适用于所有 `el-dialog v-model="..." title="..."` 创建/编辑场景。
-
-### 整体结构
-
-```
-┌─────────────────────────── el-dialog ──────────────────────────┐
-│  [标题]                                          [×]            │  ← Dialog Header
-├────────────────────────────────────────────────────────────────┤
-│                                                                │
-│  ┌─── .dialog-section ─────────────────────────────────────┐  │
-│  │  [分组标题]                                              │  │  ← .dialog-section-title
-│  │  ─────────────────────────────────────────────────────  │  │
-│  │  [字段 1]  [字段 2]                                      │  │  ← .dialog-form-row
-│  │  [字段 3（占满）]                                         │  │
-│  └──────────────────────────────────────────────────────────┘  │
-│                                                                │
-│  ┌─── .dialog-section ─────────────────────────────────────┐  │
-│  │  [高级选项]                                              │  │
-│  │  ─────────────────────────────────────────────────────  │  │
-│  │  [字段 4]                                                │  │
-│  └──────────────────────────────────────────────────────────┘  │
-│                                                                │
-├────────────────────────────────────────────────────────────────┤
-│  [取消]                                          [保存]        │  ← Dialog Footer
-└────────────────────────────────────────────────────────────────┘
-```
-
-### Dialog Header
-
-- 背景：`#F8FAFC`（沿用列表页规范）
-- 标题：`--text-lg` (16px) / weight 600 / `--color-slate-900`
-- 底部边框：`1px solid --color-slate-200`
-- 内边距：`12px 20px`
-
-### Dialog Body
-
-- 内边距：`20px`（不是 0，便于表单呼吸）
-- 背景：`#FFFFFF`
-
-### Dialog Section（表单分组卡）
-
-- 容器：`.dialog-section` / 白底 / 圆角 8px / 边框 `1px solid #E2E8F0` / margin-bottom 16px
-- 标题：`.dialog-section-title` / `--text-md` (14px) / weight 600 / `--color-slate-800` / padding `12px 16px` / 底部分割线 `1px solid #F1F5F9`
-- 表单行：`.dialog-form-row` / display grid / `grid-template-columns: 1fr 1fr` / gap `12px 16px` / padding `16px`
-- 占满行：`.dialog-form-row.dialog-form-row--full` / 单列
-- 三列：`.dialog-form-row--3col` / `1fr 1fr 1fr`（适用于枚举较短的字段）
-
-### Form Item
-
-- 标签：`.dialog-form-label`（`el-form-item` 的 label 槽） / `--text-sm` (12px) / weight 600 / `--color-slate-700` / padding-bottom `4px`
-- 输入框：默认高度 28px / 圆角 6px / 字号 13px
-- 帮助文字：`.dialog-form-help` / `--text-xs` (11px) / `--color-slate-400` / margin-top `4px`
-- 必填星号：颜色 `--color-error` `#DC2626`
-
-### Dialog Footer
-
-- 背景：`#F8FAFC`（与 Header 同色系，形成上下包围）
-- 顶部边框：`1px solid #E2E8F0`
-- 内边距：`12px 20px`
-- 按钮布局：左对齐"取消"，右对齐主操作（"保存" / "确认" / "提交"）
-- 取消按钮：`<el-button @click="dialogVisible = false">取消</el-button>`
-- 主操作按钮：`<el-button type="primary" :loading="submitting" @click="onSubmit">保存</el-button>`
-
-### 字段类型规范
-
-| 字段类型 | 组件 | 宽度 |
-|---------|------|------|
-| 单行文本 | `el-input` | 默认（占满所在栅格） |
-| 多行文本 | `el-input type="textarea" :rows="3"` | 占满 |
-| 数字 | `el-input-number` | 180px |
-| 枚举（单选） | `el-select` | 默认 |
-| 开关 | `el-switch` | 32px |
-| 日期 | `el-date-picker` | 默认 |
-| 文件上传 | `el-upload` / 自定义 input | 默认 |
-| JSON | `el-input type="textarea" :rows="6"` + 帮助"请输入合法 JSON" | 占满 |
-| 凭证键值对 | `KVEditor` 组件 | 占满 |
-
-### 命名与代码规范
-
-- 容器类：`.dialog-section` / `.dialog-section-title` / `.dialog-form-row` / `.dialog-form-row--full` / `.dialog-form-row--3col` / `.dialog-form-label` / `.dialog-form-help`
-- 弹窗关闭统一用 `@click="() => (showDialog = false)"` 或 `@click="showDialog = false"`
-- 提交按钮统一 `:loading="submitting"` + `@click="onSubmit"`
-- 校验失败统一 `ElMessage.warning('请检查表单')`，成功 `ElMessage.success('保存成功')`
-
-### 适用页面
-
-- `/app` - 创建/编辑应用
-- `/placement` - 创建/编辑广告位
-- `/ad-source` - 创建/编辑广告源、创建自定义广告源
-- `/traffic-group` - 创建/编辑流量分组
-- `/waterfall` - 添加代码位
-- `/network` - 创建/编辑自定义网络、Adapter 上传/版本管理、应用关联
-- `/reconciliation` - 导入对账数据
-- `/admin/developers` - 修改角色
 
 ## 数据看板规范（2026-07 用户要求：dashboard 严格按 page-shell 规范重构）
 

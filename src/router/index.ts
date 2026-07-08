@@ -7,7 +7,6 @@ import Register from '../views/auth/Register.vue';
 import MainLayout from '../layout/MainLayout.vue';
 import Dashboard from '../views/dashboard/Index.vue';
 import AppManage from '../views/app/Index.vue';
-import AppForm from '../views/form/AppForm.vue';
 import PlacementManage from '../views/placement/Index.vue';
 import AdSourceManage from '../views/ad-source/Index.vue';
 import WaterfallConfig from '../views/waterfall/Index.vue';
@@ -49,18 +48,6 @@ const routes: RouteRecordRaw[] = [
         name: 'AppManage',
         component: AppManage,
         meta: { title: '应用管理', icon: 'Cellphone' },
-      },
-      {
-        path: 'app/create',
-        name: 'AppCreate',
-        component: AppForm,
-        meta: { title: '创建应用', icon: 'Cellphone', hideInMenu: true },
-      },
-      {
-        path: 'app/edit/:id',
-        name: 'AppEdit',
-        component: AppForm,
-        meta: { title: '编辑应用', icon: 'Cellphone', hideInMenu: true },
       },
       {
         path: 'placement',
