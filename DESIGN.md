@@ -334,6 +334,100 @@ B2B 企业级广告数据管理控制台。沉稳、专业、精准。蓝+灰+�
 - 筛选 form：`:model="filter"`（统一用 filter 变量名）
 - 分页：`page` / `pageSize` / `total`（统一变量名）
 
+## 创建/编辑页统一规范（2026-07 用户要求：所有创建功能用独立页面，不允许弹窗）
+
+### 设计原则
+
+- **不允许**用 `el-dialog` / `el-drawer` 实现创建/编辑功能（用户反馈：内容容易超出卡片，导致数据项展示不全）
+- **必须**用独立路由页面（带"返回"按钮）实现所有数据创建/编辑
+- 弹窗仅允许用于「详情查看」「轻量级 inline 操作」「确认提示」三类场景
+- 创建/编辑页是控制台最高频操作之一，**必须**信息密度合理、可纵向滚动、永不裁切
+
+### 路由约定
+
+| 资源 | 创建路由 | 编辑路由 | 返回路由 |
+|------|----------|----------|----------|
+| 应用 | `/app/create` | `/app/edit/:id` | `/app` |
+| 广告位 | `/placement/create` | `/placement/edit/:id` | `/placement` |
+| 广告源 | `/ad-source/create` | `/ad-source/edit/:id` | `/ad-source` |
+| 流量分组 | `/traffic-group/create` | `/traffic-group/edit/:id` | `/traffic-group` |
+| 广告网络 | `/network/create` | `/network/edit/:id` | `/network` |
+
+- 编辑路由的页面组件**复用**创建页组件（`<component :is="..." />` 或条件渲染），通过 route param `id` 区分模式
+- 编辑模式：页面标题为「编辑 XX」，提交按钮文字为「保存」；创建模式：「创建 XX」/「创建」
+
+### 页面结构（page-form-shell 三段式）
+
+```
+┌─ .page-shell ─────────────────────────────────────────┐
+│  ┌─ .page-form-header (sticky top) ────────────────┐  │
+│  │  [← 返回]  创建应用 / 编辑应用          草稿状态  │  │
+│  │  副标题：填写以下信息以创建一个新应用              │  │
+│  └────────────────────────────────────────────────┘  │
+│  ┌─ .page-form-body (滚动) ────────────────────────┐  │
+│  │  区块 1：基础信息                                 │  │
+│  │  ┌─ .page-form-section ───────────────────────┐ │  │
+│  │  │  [icon]  基础信息          (3 项)          │ │  │
+│  │  │  ┌─ 表单 grid 2 列 ─────────────────────┐  │ │  │
+│  │  │  │  [label] [input/select/...]         │  │ │  │
+│  │  │  └────────────────────────────────────┘  │ │  │
+│  │  └──────────────────────────────────────────┘ │  │
+│  │  区块 2：平台与对接                              │  │
+│  │  ...                                            │  │
+│  └────────────────────────────────────────────────┘  │
+│  ┌─ .page-form-footer (sticky bottom) ─────────────┐  │
+│  │  [取消]                              [保存草稿] [创建]│  │
+│  └────────────────────────────────────────────────┘  │
+└─────────────────────────────────────────────────────┘
+```
+
+### 容器规范
+
+- `.page-shell`：与列表页相同，`max-width: 1280px` / padding `24px` / 背景 #F8FAFC
+- `.page-form-header`：sticky 顶部 / `top: 0` / z-index 10 / 背景白 / 1px 底边 #E2E8F0 / padding 20px 24px / **包含返回按钮 + 标题 + 副标题 + 状态标签**
+- `.page-form-body`：纵向 padding 24px / 区块 gap 20px / **允许纵向滚动**
+- `.page-form-footer`：sticky 底部 / `bottom: 0` / 背景白 / 1px 顶边 #E2E8F0 / padding 16px 24px / 右侧按钮组（取消 + 主按钮）
+
+### 返回按钮 `.page-back`
+
+- 位置：form-header 左侧
+- 样式：`el-button link :icon="ArrowLeft" "返回"`，字号 14px / 颜色 #475569
+- hover：颜色 #2563EB + 箭头左移 2px transition
+- 行为：`router.back()` 优先；fallback `router.push(returnTo)`
+
+### 区块 `.page-form-section`
+
+- 容器：白底 / 1px #E2E8F0 边 / 8px 圆角 / 阴影 `0 1px 2px rgba(15,23,42,0.04)`
+- 内部 padding：24px
+- 区块标题：18px / 700 / #0F172A / 字号 18px / 包含 [icon] 标题 + (n 项) 计数
+- 区块副标题（可选）：12px / 400 / #64748B
+- 区块 grid：2 列（桌面）/ 1 列（< 768px）/ gap 20px 24px
+
+### 字段规范
+
+- label 字号 **13px** / 字重 **500** / 颜色 #334155
+- label 距控件 6px（不是默认 8px）
+- input/select/textarea 高度 36px / 圆角 8px（沿用 Filter Bar 规范）
+- 必填字段 label 后加 `<span class="required-mark">*</span>`，颜色 #EF4444
+- 帮助文字：`form-item-help` 类，12px / #64748B / 顶部 4px margin
+- 错误信息：EP 默认红色
+
+### 底部按钮
+
+- 取消：左对齐 / `el-button` 默认样式
+- 主按钮（右对齐）：`el-button type="primary" :loading="submitting"`
+  - 字号 14px / 字重 500 / 高 36px / 圆角 8px / 0 20px padding
+  - 默认 #2563EB / hover #1D4ED8
+  - 提交中：loading 旋转 + 禁用
+  - 成功后：触发成功提示 + `router.push(returnTo)`
+
+### 命名与代码
+
+- 路由组件命名：`XxxCreate.vue`（创建）/ `XxxEdit.vue`（编辑）；或合并 `XxxForm.vue` 接收 prop `mode`
+- 脚本中统一 `import { useRoute, useRouter } from 'vue-router'`
+- 提交函数命名：`handleSubmit()`（自动判断创建/更新）
+- 草稿：localStorage key `draft_<resource>_<id>`，防误关丢数据
+
 ## 动效规范
 
 | 类型 | 时长 | 曲线 |

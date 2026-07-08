@@ -3940,3 +3940,380 @@ html, body, #app {
 .page-filter .el-button .el-icon {
   font-size: 16px !important;
 }
+
+/* ==========================================================================
+   Create / Edit Page 视觉规范（v1 - 独立页面，禁用弹窗）
+   - .page-form-shell：max-width 1280 / padding 0
+   - .page-form-header：sticky 顶部 / 64px / 白底 / 1px 底边 / 含返回 + 标题 + 副标题
+   - .page-form-body：纵向 padding 24 / 区块 gap 20
+   - .page-form-section：白底 / 1px 边 / 8px 圆角 / 24 padding
+   - .page-form-section-title：18px 700 + icon + (n 项) 计数
+   - .page-form-grid：2 列 (768+) / 1 列 (< 768) / gap 20×24
+   - .page-form-footer：sticky 底部 / 72px / 白底 / 1px 顶边 / 右对齐按钮组
+   - .page-back：返回按钮 / link 样式 / hover 箭头左移
+   - .required-mark：必填星号 / #EF4444
+   ========================================================================== */
+
+.page-form-shell {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 0 24px 96px;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+/* form header（sticky 顶部） */
+.page-form-header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: var(--color-slate-0, #FFFFFF);
+  border-bottom: 1px solid var(--color-slate-200, #E2E8F0);
+  padding: 20px 24px;
+  margin: 0 -24px 24px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-height: 64px;
+}
+.page-form-header-titles {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
+}
+.page-form-header-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--color-slate-900, #0F172A);
+  letter-spacing: -0.01em;
+  line-height: 1.3;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.page-form-header-subtitle {
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--color-slate-500, #64748B);
+  line-height: 1.4;
+  margin: 0;
+}
+.page-form-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+/* 返回按钮 */
+.page-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--color-slate-600, #475569);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 6px 8px;
+  border-radius: 6px;
+  transition: color 0.18s ease, background 0.18s ease, transform 0.18s ease;
+  flex-shrink: 0;
+}
+.page-back:hover {
+  color: var(--color-primary-500, #2563EB);
+  background: var(--color-primary-50, #EFF6FF);
+}
+.page-back:active {
+  transform: scale(0.97);
+}
+.page-back .el-icon {
+  font-size: 16px;
+  transition: transform 0.18s ease;
+}
+.page-back:hover .el-icon {
+  transform: translateX(-2px);
+}
+
+/* form body */
+.page-form-body {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  min-width: 0;
+}
+
+/* form section（白底区块） */
+.page-form-section {
+  background: var(--color-slate-0, #FFFFFF);
+  border: 1px solid var(--color-slate-200, #E2E8F0);
+  border-radius: 8px;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  padding: 24px;
+}
+.page-form-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--color-slate-100, #F1F5F9);
+}
+.page-form-section-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--color-slate-900, #0F172A);
+  letter-spacing: -0.005em;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.page-form-section-title .el-icon {
+  font-size: 18px;
+  color: var(--color-primary-500, #2563EB);
+}
+.page-form-section-count {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-slate-400, #94A3B8);
+  margin-left: 4px;
+}
+.page-form-section-tag {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-primary-700, #1D4ED8);
+  background: var(--color-primary-50, #EFF6FF);
+  border: 1px solid var(--color-primary-200, #BFDBFE);
+  border-radius: 4px;
+  padding: 2px 8px;
+}
+.page-form-section-desc {
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--color-slate-500, #64748B);
+  margin: -12px 0 20px;
+  line-height: 1.5;
+}
+
+/* form grid（2 列） */
+.page-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px 24px;
+}
+.page-form-grid .span-2 {
+  grid-column: 1 / -1;
+}
+@media (max-width: 768px) {
+  .page-form-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* form item 调整（label 字号 13 / 距控件 6） */
+.page-form-grid .el-form-item {
+  margin-bottom: 0;
+}
+.page-form-grid .el-form-item__label {
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  color: var(--color-slate-700, #334155) !important;
+  line-height: 1.5 !important;
+  padding: 0 0 6px !important;
+  height: auto !important;
+  text-align: left !important;
+  display: block !important;
+}
+.page-form-grid .el-form-item__content {
+  line-height: normal !important;
+}
+.page-form-grid .el-input__wrapper,
+.page-form-grid .el-select__wrapper,
+.page-form-grid .el-textarea__inner {
+  min-height: 36px !important;
+  border-radius: 8px !important;
+  box-shadow: 0 0 0 1px var(--color-slate-200, #E2E8F0) inset !important;
+}
+.page-form-grid .el-textarea__inner {
+  min-height: 88px !important;
+  padding: 8px 11px !important;
+  line-height: 1.5 !important;
+}
+.page-form-grid .el-input__wrapper:hover,
+.page-form-grid .el-select__wrapper:hover,
+.page-form-grid .el-textarea__inner:hover {
+  box-shadow: 0 0 0 1px var(--color-primary-300, #93C5FD) inset !important;
+}
+.page-form-grid .el-input__wrapper.is-focus,
+.page-form-grid .el-select__wrapper.is-focused,
+.page-form-grid .el-textarea__inner:focus {
+  box-shadow:
+    0 0 0 1px var(--color-primary-500, #2563EB) inset,
+    0 0 0 3px var(--color-primary-50, #EFF6FF) !important;
+  outline: none !important;
+}
+.page-form-grid .el-input__inner {
+  height: 36px !important;
+  line-height: 36px !important;
+  font-size: 14px !important;
+  color: var(--color-slate-900, #0F172A) !important;
+}
+.page-form-grid .el-input__inner::placeholder {
+  color: var(--color-slate-400, #94A3B8) !important;
+}
+
+/* 必填星号 */
+.required-mark {
+  color: #EF4444;
+  font-weight: 600;
+  margin-right: 2px;
+}
+
+/* 帮助文字 + 错误文字 */
+.form-help {
+  font-size: 12px;
+  color: var(--color-slate-500, #64748B);
+  line-height: 1.5;
+  margin-top: 4px;
+  display: flex;
+  align-items: flex-start;
+  gap: 4px;
+}
+.form-error {
+  font-size: 12px;
+  color: #EF4444;
+  line-height: 1.5;
+  margin-top: 4px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* form footer（sticky 底部） */
+.page-form-footer {
+  position: sticky;
+  bottom: 0;
+  z-index: 10;
+  background: var(--color-slate-0, #FFFFFF);
+  border-top: 1px solid var(--color-slate-200, #E2E8F0);
+  padding: 16px 24px;
+  margin: 24px -24px 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: 72px;
+  box-shadow: 0 -1px 2px rgba(15, 23, 42, 0.04);
+}
+.page-form-footer-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 13px;
+  color: var(--color-slate-500, #64748B);
+}
+.page-form-footer-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+.page-form-footer .el-button {
+  height: 36px !important;
+  min-height: 36px !important;
+  padding: 0 20px !important;
+  font-size: 14px !important;
+  font-weight: 500 !important;
+  border-radius: 8px !important;
+}
+.page-form-footer .el-button--primary {
+  background: var(--color-primary-500, #2563EB) !important;
+  border-color: var(--color-primary-500, #2563EB) !important;
+  color: #FFFFFF !important;
+}
+.page-form-footer .el-button--primary:hover {
+  background: var(--color-primary-600, #1D4ED8) !important;
+  border-color: var(--color-primary-600, #1D4ED8) !important;
+}
+
+/* ==========================================================================
+   App Form 子样式
+   - .app-icon-uploader / .app-icon-box / .app-icon-image / .app-icon-empty
+   - .app-icon-loading / .app-icon-actions / .locked-access-type / .locked-tip
+   ========================================================================== */
+
+.app-icon-uploader {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+}
+.app-icon-box {
+  position: relative;
+  width: 72px;
+  height: 72px;
+  border-radius: 12px;
+  border: 1px dashed var(--color-slate-300, #CBD5E1);
+  background: var(--color-slate-50, #F8FAFC);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  flex-shrink: 0;
+  transition: border-color 0.18s ease, background 0.18s ease;
+}
+.app-icon-box:hover {
+  border-color: var(--color-primary-400, #60A5FA);
+  background: var(--color-primary-50, #EFF6FF);
+}
+.app-icon-box.has-icon {
+  border-style: solid;
+  border-color: var(--color-slate-200, #E2E8F0);
+}
+.app-icon-box.is-error {
+  border-color: #EF4444;
+  background: #FEF2F2;
+}
+.app-icon-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.app-icon-empty {
+  color: var(--color-slate-400, #94A3B8);
+}
+.app-icon-loading {
+  position: absolute;
+  inset: 0;
+  background: rgba(255, 255, 255, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-primary-500, #2563EB);
+}
+.app-icon-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.locked-access-type {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 36px;
+  padding: 0 12px;
+  border: 1px solid var(--color-slate-200, #E2E8F0);
+  border-radius: 8px;
+  background: var(--color-slate-50, #F8FAFC);
+}
+.locked-tip {
+  font-size: 12px;
+  color: var(--color-slate-500, #64748B);
+}
