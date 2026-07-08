@@ -153,6 +153,10 @@ const dateRange = ref<[string, string]>([
 ])
 const trendDays = ref(7)
 
+// 请求序号：用于在快速切换 tab 时丢弃过期响应，防止旧数据覆盖新数据
+let requestSeq = 0
+const isCurrent = (seq: number) => seq === requestSeq
+
 const metrics = ref<Array<{ key: string; label: string; display: string; trend: number | null }>>([
   { key: 'revenue', label: '今日收益', display: '—', trend: null },
   { key: 'impressions', label: '今日展示', display: '—', trend: null },
@@ -195,7 +199,7 @@ function showError(msg: string) {
 }
 
 async function loadDashboardData() {
-  if (loading.value) return
+  const seq = ++requestSeq
   loading.value = true
   loadError.value = ''
   const params = buildParams()
@@ -218,6 +222,7 @@ async function loadDashboardData() {
       { key: 'eCPM', label: 'eCPM', display: formatNumber(ov.eCPM, 'eCPM'), trend: Number(ov.eCPMTrend ?? 0) },
     ]
 
+    if (seq !== requestSeq) return
     const trendData = Array.isArray(trendRes.data) ? trendRes.data : []
     trendOption.value = {
       grid: { left: 50, right: 20, top: 30, bottom: 30 },
@@ -248,6 +253,7 @@ async function loadDashboardData() {
       }],
     }
 
+    if (seq !== requestSeq) return
     const sources = Array.isArray(sourceRes.data) ? sourceRes.data : []
     const maxRevenue = Math.max(...sources.map(s => Number(s.revenue) || 0), 1)
     sourceRows.value = sources.map(s => ({
@@ -257,6 +263,7 @@ async function loadDashboardData() {
       barPct: Math.round((Number(s.revenue) || 0) / maxRevenue * 100),
     }))
 
+    if (seq !== requestSeq) return
     const placements = Array.isArray(placementRes.data) ? placementRes.data : []
     const maxPlacementRev = Math.max(...placements.map(p => Number(p.revenue) || 0), 1)
     placementRows.value = placements.map(p => ({
@@ -265,6 +272,7 @@ async function loadDashboardData() {
       barPct: Math.round((Number(p.revenue) || 0) / maxPlacementRev * 100),
     }))
 
+    if (seq !== requestSeq) return
     anomalyRows.value = Array.isArray(anomalyRes.data) ? anomalyRes.data : []
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : '加载看板数据失败'
@@ -306,8 +314,13 @@ watch(
   { deep: true },
 )
 
+// 任何 activeTab/dateRange 变化都触发重载（双保险：避免 el-radio-button 同一值不触发 change 的边界）
+watch([activeTab, dateRange], () => {
+  reload()
+})
+
 onMounted(() => {
-  loadDashboardData()
+  reload()
 })
 
 onBeforeUnmount(() => {

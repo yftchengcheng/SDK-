@@ -55,12 +55,31 @@ router.get('/overview', authMiddleware, async (req: express.Request, res: expres
     // Active placements
     const activePlacementIds = new Set(rows.filter((r: Record<string, unknown>) => Number(r.impressions || 0) > 0).map((r: Record<string, unknown>) => r.placement_id));
 
+    // 计算今日 vs 昨日 trend (%)
+    const todayDate = today;
+    const yesterdayDate = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+    const todayRows = rows.filter((r: Record<string, unknown>) => r.stat_date === todayDate);
+    const yesterdayRows = rows.filter((r: Record<string, unknown>) => r.stat_date === yesterdayDate);
+    const calcTrend = (cur: number, prev: number) => (prev > 0 ? Number(((cur - prev) / prev * 100).toFixed(2)) : 0);
+    const todayRev = todayRows.reduce((s: number, r: Record<string, unknown>) => s + Number(r.revenue || 0), 0);
+    const yestRev = yesterdayRows.reduce((s: number, r: Record<string, unknown>) => s + Number(r.revenue || 0), 0);
+    const todayImp = todayRows.reduce((s: number, r: Record<string, unknown>) => s + Number(r.impressions || 0), 0);
+    const yestImp = yesterdayRows.reduce((s: number, r: Record<string, unknown>) => s + Number(r.impressions || 0), 0);
+    const todayFR = todayRows.reduce((s: number, r: Record<string, unknown>) => s + Number(r.fills || 0), 0) / Math.max(1, todayRows.reduce((s: number, r: Record<string, unknown>) => s + Number(r.requests || 0), 0)) * 100;
+    const yestFR = yesterdayRows.reduce((s: number, r: Record<string, unknown>) => s + Number(r.fills || 0), 0) / Math.max(1, yesterdayRows.reduce((s: number, r: Record<string, unknown>) => s + Number(r.requests || 0), 0)) * 100;
+    const todayE = todayImp > 0 ? todayRev / todayImp * 1000 : 0;
+    const yestE = yestImp > 0 ? yestRev / yestImp * 1000 : 0;
+
     success(res, {
       todayRevenue: totalRevenue.toFixed(2),
       todayImpressions: totalImpressions,
       fillRate: fillRate.toFixed(2),
       eCPM: eCPM.toFixed(2),
       activePlacements: activePlacementIds.size,
+      revenueTrend: calcTrend(todayRev, yestRev),
+      impressionsTrend: calcTrend(todayImp, yestImp),
+      fillRateTrend: Number((todayFR - yestFR).toFixed(2)),
+      eCPMTrend: calcTrend(todayE, yestE),
     });
   } catch (err) {
     console.error('Dashboard overview error:', err);
