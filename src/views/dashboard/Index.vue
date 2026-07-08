@@ -60,11 +60,13 @@
 
     <!-- 趋势图（仅保留 1 个 ECharts，组件方式加载 + 自动 dispose） -->
     <div v-loading="trendLoading" class="chart-card">
-      <div class="chart-title">收益趋势（{{ trendDays }} 天）</div>
+      <div class="chart-title">收益趋势（{{ rangeLabel }}）</div>
       <VChart
         v-if="trendOption && trendOption.series && trendOption.series.length"
+        :key="trendKey"
         :option="trendOption"
         :init-options="{ renderer: 'svg' }"
+        :update-options="{ notMerge: true, lazyUpdate: false }"
         class="chart-canvas"
         autoresize
       />
@@ -151,7 +153,18 @@ const dateRange = ref<[string, string]>([
   dayjs().subtract(6, 'day').format('YYYY-MM-DD'),
   dayjs().format('YYYY-MM-DD'),
 ])
-const trendDays = ref(7)
+const trendKey = ref(0)  // 强制 VChart 重建计数器：vue-echarts 浅监听 prop 不更新时使用
+
+// 趋势图标题：直接基于 dateRange 算起始/结束日期 + 天数，不依赖 reload 时的瞬时计算
+const rangeLabel = computed(() => {
+  const r = dateRange.value
+  if (!r || r.length !== 2) return '—'
+  const start = dayjs(r[0])
+  const end = dayjs(r[1])
+  if (!start.isValid() || !end.isValid()) return '—'
+  const days = end.diff(start, 'day') + 1
+  return `${r[0]} 至 ${r[1]} · 共 ${days} 天`
+})
 
 // 请求序号：用于在快速切换 tab 时丢弃过期响应，防止旧数据覆盖新数据
 let requestSeq = 0
@@ -190,7 +203,8 @@ function resolveDateRange(): { start: string; end: string } {
 }
 
 function buildParams(): { startDate: string; endDate: string } {
-  return resolveDateRange()
+  const r = resolveDateRange()
+  return { startDate: r.start, endDate: r.end }
 }
 
 function showError(msg: string) {
@@ -202,10 +216,9 @@ async function loadDashboardData() {
   const seq = ++requestSeq
   loading.value = true
   loadError.value = ''
-  const params = buildParams()
-  trendDays.value = dayjs(params.endDate).diff(dayjs(params.startDate), 'day') + 1
 
   try {
+    const params = buildParams()
     const [overviewRes, trendRes, sourceRes, placementRes, anomalyRes] = await Promise.all([
       request.get<{ code: number; data: Record<string, unknown> }>('/api/v1/console/dashboard/overview', { params }),
       request.get<{ code: number; data: TrendPoint[] }>('/api/v1/console/dashboard/trend', { params }),
@@ -213,6 +226,9 @@ async function loadDashboardData() {
       request.get<{ code: number; data: PlacementRow[] }>('/api/v1/console/dashboard/placement-ranking', { params }),
       request.get<{ code: number; data: AnomalyRow[] }>('/api/v1/console/dashboard/anomalies', { params }),
     ])
+
+    // 任何后续 setState 之前先检查 seq（防止过期响应覆盖新请求）
+    if (seq !== requestSeq) return
 
     const ov = overviewRes.data || {}
     metrics.value = [
@@ -222,7 +238,6 @@ async function loadDashboardData() {
       { key: 'eCPM', label: 'eCPM', display: formatNumber(ov.eCPM, 'eCPM'), trend: Number(ov.eCPMTrend ?? 0) },
     ]
 
-    if (seq !== requestSeq) return
     const trendData = Array.isArray(trendRes.data) ? trendRes.data : []
     trendOption.value = {
       grid: { left: 50, right: 20, top: 30, bottom: 30 },
@@ -252,8 +267,9 @@ async function loadDashboardData() {
         areaStyle: { color: 'rgba(37, 99, 235, 0.1)' },
       }],
     }
+    // 递增重建 key + notMerge + lazyUpdate=false 强制 VChart 完全重绘（防 vue-echarts 8.x 浅监听 + merge 模式 bug）
+    trendKey.value++
 
-    if (seq !== requestSeq) return
     const sources = Array.isArray(sourceRes.data) ? sourceRes.data : []
     const maxRevenue = Math.max(...sources.map(s => Number(s.revenue) || 0), 1)
     sourceRows.value = sources.map(s => ({
@@ -263,7 +279,6 @@ async function loadDashboardData() {
       barPct: Math.round((Number(s.revenue) || 0) / maxRevenue * 100),
     }))
 
-    if (seq !== requestSeq) return
     const placements = Array.isArray(placementRes.data) ? placementRes.data : []
     const maxPlacementRev = Math.max(...placements.map(p => Number(p.revenue) || 0), 1)
     placementRows.value = placements.map(p => ({
@@ -313,11 +328,6 @@ watch(
   },
   { deep: true },
 )
-
-// 任何 activeTab/dateRange 变化都触发重载（双保险：避免 el-radio-button 同一值不触发 change 的边界）
-watch([activeTab, dateRange], () => {
-  reload()
-})
 
 onMounted(() => {
   reload()
