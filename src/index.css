@@ -1011,7 +1011,7 @@ html, body, #app {
 /* ---------- 应用对话框：图标上传区（DESIGN.md 规范） ---------- */
 .app-icon-uploader {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: var(--space-lg);
 }
 .app-icon-box {
@@ -1025,18 +1025,15 @@ html, body, #app {
   display: flex;
   align-items: center;
   justify-content: center;
-  cursor: pointer;
+  cursor: default;
   overflow: hidden;
   transition: all 0.15s ease;
   flex-shrink: 0;
 }
-.app-icon-box:hover {
-  border-color: var(--color-primary-500, #3B82F6);
-  background: var(--color-primary-50, #EFF6FF);
-}
 .app-icon-box.has-icon {
   border-style: solid;
   border-color: var(--color-slate-200, #E2E8F0);
+  cursor: default;
 }
 .app-icon-box.is-error {
   border-color: var(--color-danger, #DC2626);
@@ -1049,25 +1046,10 @@ html, body, #app {
   display: block;
 }
 .app-icon-empty {
-  color: var(--color-slate-300, #CBD5E1);
-}
-.app-icon-add {
-  position: absolute;
-  right: -6px;
-  bottom: -6px;
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  background: var(--color-primary-600, #2563EB);
-  color: #fff;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 2px 6px rgba(37, 99, 235, 0.32);
-  transition: transform 0.15s ease;
-}
-.app-icon-box:hover .app-icon-add {
-  transform: scale(1.1);
+  color: var(--color-slate-400, #94A3B8);
 }
 .app-icon-loading {
   position: absolute;
@@ -1078,62 +1060,26 @@ html, body, #app {
   justify-content: center;
   color: var(--color-primary-600, #2563EB);
 }
+/* 按钮组：垂直布局，与 80x80 box 同一列高对齐 */
 .app-icon-actions {
-  position: absolute;
-  inset: 0;
-  background: rgba(15, 23, 42, 0.55);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--space-sm);
-  opacity: 0;
-  transition: opacity 0.15s ease;
-}
-.app-icon-box.has-icon:hover .app-icon-actions {
-  opacity: 1;
-}
-.app-icon-action {
-  width: 28px;
-  height: 28px;
-  border-radius: var(--radius-sm, 4px);
-  background: rgba(255, 255, 255, 0.95);
-  color: var(--color-slate-700, #334155);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: all 0.15s ease;
-}
-.app-icon-action:hover {
-  background: #fff;
-  color: var(--color-primary-600, #2563EB);
-}
-.app-icon-action.danger:hover {
-  color: var(--color-danger, #DC2626);
-}
-.app-icon-meta {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  min-width: 0;
+  align-items: flex-start;
+  gap: var(--space-sm);
   flex: 1;
+  min-width: 0;
 }
-.app-icon-label {
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--color-slate-700, #334155);
-}
-.app-icon-hint {
-  font-size: 12px;
+.app-icon-tip {
+  font-size: var(--text-xs, 11px);
   color: var(--color-slate-500, #64748B);
   line-height: 1.5;
 }
 .app-icon-error {
-  font-size: 12px;
+  font-size: var(--text-xs, 11px);
   color: var(--color-danger, #DC2626);
   display: flex;
   align-items: center;
-  gap: 4px;
+  margin-top: var(--space-xs);
 }
 
 /* ---------- 应用对话框：分块表单（DESIGN.md Section Card） ---------- */

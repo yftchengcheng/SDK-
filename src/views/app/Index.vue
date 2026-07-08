@@ -10,9 +10,18 @@
         <el-table-column label="图标" width="72" align="center">
           <template #default="{ row }">
             <div class="app-icon-cell">
-              <img v-if="row.iconUrlResolved" :src="row.iconUrlResolved" :alt="row.app_name" class="app-icon-thumb" />
-              <img v-else-if="row.icon_url" :src="row.icon_url" :alt="row.app_name" class="app-icon-thumb" />
-              <div v-else class="app-icon-default">
+              <img
+                v-if="row.iconUrlResolved"
+                :src="row.iconUrlResolved"
+                :alt="row.app_name"
+                class="app-icon-thumb"
+                @error="onIconThumbError"
+              />
+              <div
+                v-else
+                class="app-icon-default"
+                :class="{ 'app-icon-default-placeholder': !row.iconUrlResolved }"
+              >
                 <el-icon :size="18"><Picture /></el-icon>
               </div>
             </div>
@@ -79,21 +88,18 @@
           <el-form-item label="应用图标" prop="icon" class="app-form-item-icon">
             <div class="app-icon-uploader">
               <div class="app-icon-box" :class="{ 'has-icon': !!form.iconUrl, 'is-error': !!iconError }">
-                <img v-if="form.iconUrl" :src="form.iconUrl" alt="icon" class="app-icon-image" />
-                <el-icon v-else :size="22" class="app-icon-empty"><Picture /></el-icon>
+                <img
+                  v-if="form.iconUrl"
+                  :src="form.iconUrl"
+                  alt="icon"
+                  class="app-icon-image"
+                  @error="onIconPreviewError"
+                />
+                <div v-else class="app-icon-empty">
+                  <el-icon :size="24"><Picture /></el-icon>
+                </div>
                 <div v-if="form.iconUploading" class="app-icon-loading">
                   <el-icon class="is-loading" :size="20"><Loading /></el-icon>
-                </div>
-                <div v-else-if="form.iconUrl" class="app-icon-actions">
-                  <div class="app-icon-action" @click.stop="triggerFilePicker" title="更换">
-                    <el-icon :size="14"><Refresh /></el-icon>
-                  </div>
-                  <div class="app-icon-action danger" @click.stop="clearIcon" title="移除">
-                    <el-icon :size="14"><Delete /></el-icon>
-                  </div>
-                </div>
-                <div v-else class="app-icon-add" @click.stop="triggerFilePicker">
-                  <el-icon :size="16"><Plus /></el-icon>
                 </div>
               </div>
               <input
@@ -103,10 +109,22 @@
                 style="display:none"
                 @change="onFileInputChange"
               />
-              <div class="app-icon-meta">
-                <div class="app-icon-label">点击右侧区域上传</div>
-                <div class="app-icon-hint">JPG / PNG 格式，1:1 比例，≤ 200KB</div>
-                <div v-if="iconError" class="app-icon-error">{{ iconError }}</div>
+              <div class="app-icon-actions">
+                <el-button type="primary" plain :loading="form.iconUploading" @click="triggerFilePicker">
+                  <el-icon :size="14"><Upload /></el-icon>
+                  <span style="margin-left:4px">{{ form.iconUrl ? '更换图标' : '上传图标' }}</span>
+                </el-button>
+                <el-button v-if="form.iconUrl" link type="danger" :disabled="form.iconUploading" @click="clearIcon">
+                  <el-icon :size="14"><Delete /></el-icon>
+                  <span style="margin-left:4px">移除</span>
+                </el-button>
+              </div>
+              <div class="app-icon-tip">
+                支持 JPG / PNG 格式，建议 1:1 比例，单张 ≤ 200KB
+              </div>
+              <div v-if="iconError" class="app-icon-error">
+                <el-icon :size="12"><WarningFilled /></el-icon>
+                <span style="margin-left:4px">{{ iconError }}</span>
               </div>
             </div>
           </el-form-item>
@@ -326,7 +344,8 @@ const openEditDialog = (row: any) => {
     wechat_app_id: row.wechat_app_id || '',
     wechat_universal_link: row.wechat_universal_link || '',
     iconKey: row.icon_url || '',
-    iconUrl: row.iconUrlResolved || row.icon_url || '',
+    // 关键：iconUrlResolved 是后端生成的 7 天预签名 URL；icon_url 是 S3 key（不是 URL，不能直接当 src）
+    iconUrl: row.iconUrlResolved || '',
   });
   showCreateDialog.value = true;
 };
@@ -492,6 +511,22 @@ const clearIcon = () => {
   form.iconUrl = '';
   iconError.value = '';
 };
+
+// 图片加载失败处理（预签名 URL 过期 / TOS 404）：用 fallback 占位
+function onIconPreviewError(event: Event) {
+  const img = event.target as HTMLImageElement;
+  iconError.value = '图标链接已过期，请重新上传';
+  form.iconUrl = '';
+  img.src = '';
+}
+
+function onIconThumbError(event: Event) {
+  const img = event.target as HTMLImageElement;
+  // 列表缩略图：隐藏 img 节点，让 .app-icon-default 占位浮现
+  img.style.display = 'none';
+  const placeholder = img.parentElement?.querySelector('.app-icon-default-placeholder') as HTMLElement | null;
+  if (placeholder) placeholder.style.display = 'flex';
+}
 
 onMounted(fetchList);
 
