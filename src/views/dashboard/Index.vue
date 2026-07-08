@@ -124,11 +124,11 @@ function buildDateParams(): Record<string, string> {
   }
   // 总是计算 startDate/endDate（后端不支持 days 形参，必须传具体起止日期）
   const days = activeTab.value === '7天' ? 7 : activeTab.value === '14天' ? 14 : 30
-  const end = dayjs()
-  const start = end.subtract(days - 1, 'day')
+  const today = dayjs()
+  const from = today.subtract(days - 1, 'day')
   return {
-    startDate: start.format('YYYY-MM-DD'),
-    endDate: end.format('YYYY-MM-DD'),
+    startDate: from.format('YYYY-MM-DD'),
+    endDate: today.format('YYYY-MM-DD'),
   }
 }
 
