@@ -1,389 +1,319 @@
 <template>
-  <div class="page-container">
-    <!-- 页头 -->
+  <div class="page-container page-dashboard">
+    <!-- 加载错误兜底 -->
+    <el-alert
+      v-if="loadError"
+      :title="loadError"
+      type="error"
+      show-icon
+      :closable="false"
+      class="page-load-error"
+    >
+      <template #default>
+        <div class="alert-content">
+          <span>{{ loadError }}</span>
+          <el-button size="small" type="primary" @click="reload">重新加载</el-button>
+        </div>
+      </template>
+    </el-alert>
+
+    <!-- 顶部筛选 -->
     <div class="page-header">
-      <div>
-        <h1>数据看板</h1>
-        <p class="page-desc">实时监控广告收益与流量表现</p>
-      </div>
-      <div class="header-actions">
+      <div class="page-title">数据看板</div>
+      <div class="filter-bar">
+        <el-radio-group v-model="activeTab" size="small" @change="onTabChange">
+          <el-radio-button label="7">7 天</el-radio-button>
+          <el-radio-button label="14">14 天</el-radio-button>
+          <el-radio-button label="30">30 天</el-radio-button>
+        </el-radio-group>
         <el-date-picker
           v-model="dateRange"
           type="daterange"
           range-separator="至"
-          start-placeholder="开始日期"
-          end-placeholder="结束日期"
-          size="default"
-          style="width: 260px"
+          start-placeholder="开始"
+          end-placeholder="结束"
+          size="small"
+          format="YYYY-MM-DD"
+          value-format="YYYY-MM-DD"
           :clearable="false"
+          @change="onDateChange"
         />
-        <el-button type="primary" :icon="Refresh" @click="refreshData" :loading="loading">刷新</el-button>
+        <el-button size="small" :loading="loading" @click="reload">刷新</el-button>
       </div>
     </div>
 
-    <!-- 指标卡片 -->
-    <div class="metrics-grid">
-      <div v-for="metric in metrics" :key="metric.key" class="metric-card">
-        <div class="metric-top">
-          <span class="metric-label">{{ metric.label }}</span>
-          <span :class="['metric-trend', metric.trend >= 0 ? 'trend-up' : 'trend-down']">
-            <el-icon v-if="metric.trend >= 0" :size="12"><Top /></el-icon>
-            <el-icon v-else :size="12"><Bottom /></el-icon>
-            {{ Math.abs(metric.trend) }}%
+    <!-- 统计卡片（纯数字 + 简单 HTML 趋势条，无 ECharts） -->
+    <div v-loading="loading" class="stat-grid">
+      <div v-for="m in metrics" :key="m.key" class="stat-card">
+        <div class="stat-label">{{ m.label }}</div>
+        <div class="stat-value">{{ m.display }}</div>
+        <div v-if="m.trend != null" class="stat-trend">
+          <span :class="['trend-arrow', m.trend > 0 ? 'up' : m.trend < 0 ? 'down' : 'flat']">
+            {{ m.trend > 0 ? '↑' : m.trend < 0 ? '↓' : '·' }}
+          </span>
+          <span :class="['trend-text', m.trend > 0 ? 'up' : m.trend < 0 ? 'down' : 'flat']">
+            {{ Math.abs(m.trend).toFixed(1) }}%
           </span>
         </div>
-        <div class="metric-value">{{ formatNumber(metric.value, metric.key) }}</div>
-        <div class="metric-sub">较昨日 {{ metric.trend >= 0 ? '+' : '' }}{{ metric.trend }}%</div>
       </div>
     </div>
 
-    <!-- 图表区 -->
-    <div class="charts-row">
-      <div class="chart-card chart-wide">
-        <div class="card-header">
-          <span class="card-title">收益趋势</span>
-          <div class="chart-tabs">
-            <span
-              v-for="tab in ['7天', '14天', '30天']"
-              :key="tab"
-              :class="['chart-tab', activeTab === tab && 'active']"
-              @click="activeTab = tab"
-            >{{ tab }}</span>
+    <!-- 趋势图（仅保留 1 个 ECharts，组件方式加载 + 自动 dispose） -->
+    <div v-loading="trendLoading" class="chart-card">
+      <div class="chart-title">收益趋势（{{ trendDays }} 天）</div>
+      <VChart
+        v-if="trendOption && trendOption.series && trendOption.series.length"
+        :option="trendOption"
+        :init-options="{ renderer: 'svg' }"
+        class="chart-canvas"
+        autoresize
+      />
+      <el-empty v-else description="暂无趋势数据" :image-size="60" />
+    </div>
+
+    <!-- 数据列表（无 ECharts，纯 HTML） -->
+    <div class="list-grid">
+      <div v-loading="loading" class="list-card">
+        <div class="list-title">广告源对比</div>
+        <div v-if="sourceRows.length" class="list-body">
+          <div v-for="(row, idx) in sourceRows" :key="row.sourceId" class="list-row">
+            <div class="row-rank">{{ idx + 1 }}</div>
+            <div class="row-name">{{ row.name || row.sourceId }}</div>
+            <div class="row-bar-track">
+              <div class="row-bar-fill" :style="{ width: row.barPct + '%' }" />
+            </div>
+            <div class="row-value">¥{{ row.revenue.toFixed(2) }}</div>
           </div>
         </div>
-        <div ref="revenueChartRef" class="chart-body"></div>
+        <el-empty v-else description="暂无数据" :image-size="50" />
       </div>
-      <div class="chart-card chart-narrow">
-        <div class="card-header">
-          <span class="card-title">广告源占比</span>
-        </div>
-        <div ref="sourceChartRef" class="chart-body"></div>
-      </div>
-    </div>
 
-    <div class="charts-row">
-      <div class="chart-card chart-wide">
-        <div class="card-header">
-          <span class="card-title">展示与点击</span>
+      <div v-loading="loading" class="list-card">
+        <div class="list-title">广告位收益排行</div>
+        <div v-if="placementRows.length" class="list-body">
+          <div v-for="(row, idx) in placementRows" :key="row.placementId" class="list-row">
+            <div class="row-rank">{{ idx + 1 }}</div>
+            <div class="row-name">{{ row.placementId }}</div>
+            <div class="row-bar-track">
+              <div class="row-bar-fill" :style="{ width: row.barPct + '%' }" />
+            </div>
+            <div class="row-value">¥{{ row.revenue.toFixed(2) }}</div>
+          </div>
         </div>
-        <div ref="impressionChartRef" class="chart-body"></div>
+        <el-empty v-else description="暂无数据" :image-size="50" />
       </div>
-      <div class="chart-card chart-narrow">
-        <div class="card-header">
-          <span class="card-title">应用收益排行</span>
-        </div>
-        <div ref="rankChartRef" class="chart-body"></div>
-      </div>
-    </div>
 
-    <!-- 异常提醒 -->
-    <div v-if="anomalies.length" class="chart-card anomaly-card">
-      <div class="card-header">
-        <span class="card-title">异常检测</span>
-        <span class="anomaly-tag">共 {{ anomalies.length }} 条</span>
-      </div>
-      <div class="anomaly-list">
-        <div v-for="(item, idx) in anomalies" :key="idx" class="anomaly-item">
-          <span class="anomaly-name">{{ getPlacementName(item.placementId) }}</span>
-          <span class="anomaly-type">{{ item.type }}</span>
-          <span class="anomaly-change">{{ item.change }}%</span>
+      <div v-loading="loading" class="list-card">
+        <div class="list-title">异常告警</div>
+        <div v-if="anomalyRows.length" class="list-body">
+          <div v-for="row in anomalyRows" :key="row.placementId + row.type" class="list-row">
+            <div class="row-rank warn">!</div>
+            <div class="row-name">
+              {{ row.placementId }}
+              <div class="row-sub">{{ row.type === 'revenue_drop' ? '收益下降' : row.type }}</div>
+            </div>
+            <div class="row-value warn">
+              <div>{{ row.change > 0 ? '+' : '' }}{{ row.change.toFixed(1) }}%</div>
+              <div class="row-sub">¥{{ row.recent.toFixed(2) }} / ¥{{ row.baseline.toFixed(2) }}</div>
+            </div>
+          </div>
         </div>
+        <el-empty v-else description="暂无异常" :image-size="50" />
       </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onBeforeUnmount, nextTick, watch } from 'vue'
-import { Refresh, Top, Bottom } from '@element-plus/icons-vue'
-import * as echarts from 'echarts'
+import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import dayjs from 'dayjs'
+import { use } from 'echarts/core'
+import { CanvasRenderer, SVGRenderer } from 'echarts/renderers'
+import { LineChart } from 'echarts/charts'
+import { GridComponent, TooltipComponent, LegendComponent } from 'echarts/components'
+import VChart from 'vue-echarts'
 import request from '@/utils/request'
+import { ElMessage } from 'element-plus'
 
-interface DashboardTrendItem { date: string; revenue: number; impressions: number; fillRate: number; eCPM: number; clicks: number }
-interface SourceCompareItem { sourceId: string; name: string; revenue: number; impressions: number; clicks: number; ctr: number; fillRate: number; eCPM: number }
-interface AppItem { id: string; appKey: string; appName: string }
-interface PlacementItem { id: string; appKey: string; placementName: string }
-interface PlacementRankingItem { placementId: string; revenue: number; impressions: number }
-interface AnomalyItem { placementId: string; type: string; change: number; recent: number; baseline: number }
+use([SVGRenderer, CanvasRenderer, LineChart, GridComponent, TooltipComponent, LegendComponent])
 
-const activeTab = ref('7天')
-const dateRange = ref<[Date, Date]>([
-  new Date(Date.now() - 7 * 86400000),
-  new Date()
-])
+interface TrendPoint { date: string; revenue: number; impressions: number }
+interface SourceRow { sourceId: string; name: string; revenue: number; impressions: number }
+interface PlacementRow { placementId: string; revenue: number }
+interface AnomalyRow { placementId: string; type: string; change: number; recent: number; baseline: number }
 
-// 优先用 dateRange 自定义范围；空时回退到 activeTab 的 days 数（向后兼容）
-function buildDateParams(): Record<string, string> {
-  const [start, end] = dateRange.value || []
-  if (start && end) {
-    return {
-      startDate: dayjs(start).format('YYYY-MM-DD'),
-      endDate: dayjs(end).format('YYYY-MM-DD'),
-    }
-  }
-  // 总是计算 startDate/endDate（后端不支持 days 形参，必须传具体起止日期）
-  const days = activeTab.value === '7天' ? 7 : activeTab.value === '14天' ? 14 : 30
-  const today = dayjs()
-  const from = today.subtract(days - 1, 'day')
-  return {
-    startDate: from.format('YYYY-MM-DD'),
-    endDate: today.format('YYYY-MM-DD'),
-  }
-}
-
-/** 把 buildDateParams 的逻辑镜像到 startStr/endStr（用于前端防御性补齐） */
-function resolveDateRange(): { startStr: string; endStr: string } {
-  const [s, e] = dateRange.value || []
-  if (s && e) {
-    return { startStr: dayjs(s).format('YYYY-MM-DD'), endStr: dayjs(e).format('YYYY-MM-DD') }
-  }
-  const days = activeTab.value === '7天' ? 7 : activeTab.value === '14天' ? 14 : 30
-  const end = dayjs()
-  const start = end.subtract(days - 1, 'day')
-  return { startStr: start.format('YYYY-MM-DD'), endStr: end.format('YYYY-MM-DD') }
-}
 const loading = ref(false)
-const metrics = ref<{ key: string; label: string; value: number; trend: number }[]>([
-  { key: 'revenue', label: '总收益', value: 0, trend: 0 },
-  { key: 'ecpm', label: 'eCPM', value: 0, trend: 0 },
-  { key: 'impressions', label: '展示量', value: 0, trend: 0 },
-  { key: 'clicks', label: '点击量', value: 0, trend: 0 },
-  { key: 'ctr', label: '点击率', value: 0, trend: 0 },
-  { key: 'fillRate', label: '填充率', value: 0, trend: 0 }
+const trendLoading = ref(false)
+const loadError = ref('')
+
+const activeTab = ref<'7' | '14' | '30'>('7')
+const dateRange = ref<[string, string]>([
+  dayjs().subtract(6, 'day').format('YYYY-MM-DD'),
+  dayjs().format('YYYY-MM-DD'),
 ])
-const trendData = ref<DashboardTrendItem[]>([])
-const sourceCompare = ref<SourceCompareItem[]>([])
-const placementRanking = ref<PlacementRankingItem[]>([])
-const anomalies = ref<AnomalyItem[]>([])
-const apps = ref<AppItem[]>([])
-const placements = ref<PlacementItem[]>([])
+const trendDays = ref(7)
 
-const revenueChartRef = ref<HTMLElement>()
-const sourceChartRef = ref<HTMLElement>()
-const impressionChartRef = ref<HTMLElement>()
-const rankChartRef = ref<HTMLElement>()
+const metrics = ref<Array<{ key: string; label: string; display: string; trend: number | null }>>([
+  { key: 'revenue', label: '今日收益', display: '—', trend: null },
+  { key: 'impressions', label: '今日展示', display: '—', trend: null },
+  { key: 'fillRate', label: '填充率', display: '—', trend: null },
+  { key: 'eCPM', label: 'eCPM', display: '—', trend: null },
+])
+const trendOption = ref<Record<string, unknown> | null>(null)
+const sourceRows = ref<SourceRow[]>([])
+const placementRows = ref<PlacementRow[]>([])
+const anomalyRows = ref<AnomalyRow[]>([])
 
-let charts: echarts.ECharts[] = []
+let reloadTimer: number | null = null
 
-function formatNumber(val: number, key: string): string {
-  if (key === 'revenue') return '¥' + val.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-  if (key === 'impressions' || key === 'clicks') {
-    if (val >= 10000) return (val / 10000).toFixed(1) + '万'
-    return val.toLocaleString()
-  }
-  if (key === 'ecpm') return '¥' + val.toFixed(2)
-  if (key === 'ctr' || key === 'fillRate') return val.toFixed(1) + '%'
-  return val.toString()
+function formatNumber(value: unknown, key: string): string {
+  const num = Number(value)
+  if (!Number.isFinite(num)) return '—'
+  if (key === 'revenue' || key === 'eCPM') return `¥${num.toFixed(2)}`
+  if (key === 'fillRate') return `${num.toFixed(2)}%`
+  return num.toLocaleString('en-US')
 }
 
-function initCharts() {
-  // 关键：每次重新初始化前先释放旧实例，避免内存泄漏导致浏览器卡死
-  charts.forEach((c) => {
-    try { c.dispose() } catch (e) { /* noop */ }
-  })
-  charts.length = 0
-
-  // 收益趋势
-  if (revenueChartRef.value) {
-    const chart = echarts.init(revenueChartRef.value, null, { renderer: 'svg' })
-    charts.push(chart)
-    const dates = trendData.value.map((t) => t.date.slice(5))
-    const revenues = trendData.value.map((t) => Number(t.revenue || 0))
-    chart.setOption({
-      tooltip: { trigger: 'axis', backgroundColor: '#fff', borderColor: '#E2E8F0', textStyle: { color: '#0F172A', fontSize: 13 } },
-      grid: { left: 48, right: 16, top: 16, bottom: 32 },
-      xAxis: { type: 'category', data: dates.length ? dates : [''], axisLine: { lineStyle: { color: '#E2E8F0' } }, axisLabel: { color: '#64748B', fontSize: 12 }, axisTick: { show: false } },
-      yAxis: { type: 'value', splitLine: { lineStyle: { color: '#F1F5F9' } }, axisLabel: { color: '#64748B', fontSize: 12, formatter: (v: number) => '¥' + (v / 1).toFixed(0) } },
-      series: [{
-        type: 'line', smooth: true, symbol: 'circle', symbolSize: 6,
-        lineStyle: { color: '#1E40AF', width: 2.5 },
-        itemStyle: { color: '#1E40AF', borderWidth: 2, borderColor: '#fff' },
-        areaStyle: { color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [{ offset: 0, color: 'rgba(30,64,175,0.12)' }, { offset: 1, color: 'rgba(30,64,175,0.01)' }]) },
-        data: revenues.length ? revenues : [0]
-      }]
-    })
+function resolveDateRange(): { start: string; end: string } {
+  if (dateRange.value && dateRange.value.length === 2) {
+    return { start: dateRange.value[0], end: dateRange.value[1] }
   }
-
-  // 广告源占比
-  if (sourceChartRef.value) {
-    const chart = echarts.init(sourceChartRef.value, null, { renderer: 'svg' })
-    charts.push(chart)
-    const sourceData = sourceCompare.value.map((s) => ({ value: Number(s.revenue || 0), name: s.name }))
-    chart.setOption({
-      tooltip: { trigger: 'item', backgroundColor: '#fff', borderColor: '#E2E8F0', textStyle: { color: '#0F172A', fontSize: 13 } },
-      legend: { bottom: 0, itemWidth: 10, itemHeight: 10, textStyle: { color: '#64748B', fontSize: 12 } },
-      series: [{
-        type: 'pie', radius: ['48%', '72%'], center: ['50%', '42%'],
-        padAngle: 2, itemStyle: { borderRadius: 4 },
-        label: { show: false },
-        emphasis: { label: { show: true, fontSize: 13, fontWeight: 600, color: '#0F172A' } },
-        data: sourceData.length ? sourceData : [{ value: 0, name: '暂无数据' }],
-        color: ['#1E40AF', '#3B82F6', '#60A5FA', '#93C5FD', '#BFDBFE']
-      }]
-    })
-  }
-
-  // 展示与点击
-  if (impressionChartRef.value) {
-    const chart = echarts.init(impressionChartRef.value, null, { renderer: 'svg' })
-    charts.push(chart)
-    const dates = trendData.value.map((t) => t.date.slice(5))
-    const imps = trendData.value.map((t) => Number(t.impressions || 0))
-    const clks = trendData.value.map((t) => Number(t.clicks || 0))
-    chart.setOption({
-      tooltip: { trigger: 'axis', backgroundColor: '#fff', borderColor: '#E2E8F0', textStyle: { color: '#0F172A', fontSize: 13 } },
-      legend: { top: 0, right: 0, itemWidth: 12, itemHeight: 8, textStyle: { color: '#64748B', fontSize: 12 } },
-      grid: { left: 48, right: 48, top: 32, bottom: 32 },
-      xAxis: { type: 'category', data: dates.length ? dates : [''], axisLine: { lineStyle: { color: '#E2E8F0' } }, axisLabel: { color: '#64748B', fontSize: 12 }, axisTick: { show: false } },
-      yAxis: [
-        { type: 'value', splitLine: { lineStyle: { color: '#F1F5F9' } }, axisLabel: { color: '#64748B', fontSize: 12 } },
-        { type: 'value', splitLine: { show: false }, axisLabel: { color: '#64748B', fontSize: 12 } }
-      ],
-      series: [
-        {
-          name: '展示量', type: 'bar', barWidth: 16, yAxisIndex: 0,
-          itemStyle: { color: '#3B82F6', borderRadius: [3, 3, 0, 0] },
-          data: imps.length ? imps : [0]
-        },
-        {
-          name: '点击量', type: 'line', smooth: true, yAxisIndex: 1,
-          symbol: 'circle', symbolSize: 5,
-          lineStyle: { color: '#059669', width: 2 },
-          itemStyle: { color: '#059669', borderWidth: 2, borderColor: '#fff' },
-          data: clks.length ? clks : [0]
-        }
-      ]
-    })
-  }
-
-  // 应用收益排行
-  if (rankChartRef.value) {
-    const chart = echarts.init(rankChartRef.value, null, { renderer: 'svg' })
-    charts.push(chart)
-    const names = placementRanking.value.map((r) => r.placementId || '匿名')
-    const revs = placementRanking.value.map((r) => Number(r.revenue || 0))
-    chart.setOption({
-      tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' }, backgroundColor: '#fff', borderColor: '#E2E8F0', textStyle: { color: '#0F172A', fontSize: 13 } },
-      grid: { left: 72, right: 16, top: 8, bottom: 8 },
-      xAxis: { type: 'value', splitLine: { lineStyle: { color: '#F1F5F9' } }, axisLabel: { color: '#64748B', fontSize: 12, formatter: (v: number) => '¥' + v.toFixed(0) } },
-      yAxis: { type: 'category', data: names.length ? names : ['暂无数据'], axisLine: { show: false }, axisTick: { show: false }, axisLabel: { color: '#334155', fontSize: 13 } },
-      series: [{
-        type: 'bar', barWidth: 14,
-        itemStyle: {
-          borderRadius: [0, 3, 3, 0],
-          color: new echarts.graphic.LinearGradient(0, 0, 1, 0, [
-            { offset: 0, color: '#1E40AF' },
-            { offset: 1, color: '#60A5FA' }
-          ])
-        },
-        data: revs.length ? revs : [0]
-      }]
-    })
+  const days = Number(activeTab.value)
+  return {
+    start: dayjs().subtract(days - 1, 'day').format('YYYY-MM-DD'),
+    end: dayjs().format('YYYY-MM-DD'),
   }
 }
 
-/**
- * 防御性补齐：万一后端某天只返回部分日期（或者降级为 mock），前端用 0 补齐日期范围，
- * 避免 ECharts X 轴只画一个点。
- */
-function fillDateRange<T extends { date: string }>(
-  rows: T[],
-  start: string,
-  end: string,
-  fillDefaults: Omit<T, 'date'>,
-): T[] {
-  const map = new Map(rows.map(r => [r.date, r]))
-  const out: T[] = []
-  const cur = dayjs(start)
-  const last = dayjs(end)
-  while (cur.isBefore(last) || cur.isSame(last, 'day')) {
-    const d = cur.format('YYYY-MM-DD')
-    out.push(map.get(d) || ({ date: d, ...fillDefaults } as T))
-    cur.add(1, 'day')
-  }
-  return out
+function buildParams(): { startDate: string; endDate: string } {
+  return resolveDateRange()
 }
 
-const DEFAULT_TREND_ITEM = { revenue: 0, impressions: 0, fillRate: 0, eCPM: 0, clicks: 0 }
-const DEFAULT_REVENUE_ITEM = { revenue: 0 }
-const DEFAULT_IMPRESSIONS_ITEM = { impressions: 0, fillRate: 0 }
+function showError(msg: string) {
+  loadError.value = msg
+  ElMessage.error(msg)
+}
 
-function loadDashboardData() {
-  const params = buildDateParams()
+async function loadDashboardData() {
+  if (loading.value) return
   loading.value = true
-  return Promise.all([
-    request.get<any>('/api/v1/console/dashboard/overview', { params }),
-    request.get<any>('/api/v1/console/dashboard/trend', { params }),
-    request.get<any>('/api/v1/console/dashboard/source-comparison', { params }),
-    request.get<any>('/api/v1/console/dashboard/placement-ranking', { params }),
-    request.get<any>('/api/v1/console/dashboard/anomalies', { params }),
-    request.get<any>('/api/v1/console/app/list', { params: { pageSize: 200 } }),
-    request.get<any>('/api/v1/console/placement/list', { params: { pageSize: 500 } })
-  ])
-    .then(([overviewRes, trendRes, sourceRes, rankingRes, anomalyRes, appsRes, placementsRes]) => {
-      const ov = overviewRes.data || {}
-      const periodRevenue = Number(ov.todayRevenue ?? ov.periodRevenue ?? ov.totalRevenue ?? 0)
-      const periodImpressions = Number(ov.todayImpressions ?? ov.periodImpressions ?? ov.totalImpressions ?? 0)
-      const fillRate = Number(ov.fillRate ?? 0)
-      const eCPM = Number(ov.eCPM ?? 0)
-      const clicks = trendRes.data?.reduce((s: number, t: DashboardTrendItem) => s + Number(t.clicks || 0), 0) || 0
-      const ctr = periodImpressions > 0 ? (clicks / periodImpressions) * 100 : 0
-      metrics.value = [
-        { key: 'revenue', label: '总收益', value: periodRevenue, trend: 0 },
-        { key: 'ecpm', label: 'eCPM', value: eCPM, trend: 0 },
-        { key: 'impressions', label: '展示量', value: periodImpressions, trend: 0 },
-        { key: 'clicks', label: '点击量', value: clicks, trend: 0 },
-        { key: 'ctr', label: '点击率', value: Number(ctr.toFixed(2)), trend: 0 },
-        { key: 'fillRate', label: '填充率', value: fillRate, trend: 0 }
-      ]
-      const { startStr, endStr } = resolveDateRange()
-      trendData.value = fillDateRange(trendRes.data || [], startStr, endStr, DEFAULT_TREND_ITEM)
-      sourceCompare.value = sourceRes.data || []
-      placementRanking.value = rankingRes.data || []
-      anomalies.value = anomalyRes.data || []
-      apps.value = appsRes.data?.list || []
-      placements.value = placementsRes.data?.list || []
-      nextTick(() => initCharts())
-    })
-    .catch(() => { /* ignore */ })
-    .finally(() => { loading.value = false })
+  loadError.value = ''
+  const params = buildParams()
+  trendDays.value = dayjs(params.endDate).diff(dayjs(params.startDate), 'day') + 1
+
+  try {
+    const [overviewRes, trendRes, sourceRes, placementRes, anomalyRes] = await Promise.all([
+      request.get<{ code: number; data: Record<string, unknown> }>('/api/v1/console/dashboard/overview', { params }),
+      request.get<{ code: number; data: TrendPoint[] }>('/api/v1/console/dashboard/trend', { params }),
+      request.get<{ code: number; data: SourceRow[] }>('/api/v1/console/dashboard/source-comparison', { params }),
+      request.get<{ code: number; data: PlacementRow[] }>('/api/v1/console/dashboard/placement-ranking', { params }),
+      request.get<{ code: number; data: AnomalyRow[] }>('/api/v1/console/dashboard/anomalies', { params }),
+    ])
+
+    const ov = overviewRes.data || {}
+    metrics.value = [
+      { key: 'revenue', label: '今日收益', display: formatNumber(ov.todayRevenue, 'revenue'), trend: Number(ov.revenueTrend ?? 0) },
+      { key: 'impressions', label: '今日展示', display: formatNumber(ov.todayImpressions, 'impressions'), trend: Number(ov.impressionsTrend ?? 0) },
+      { key: 'fillRate', label: '填充率', display: formatNumber(ov.fillRate, 'fillRate'), trend: Number(ov.fillRateTrend ?? 0) },
+      { key: 'eCPM', label: 'eCPM', display: formatNumber(ov.eCPM, 'eCPM'), trend: Number(ov.eCPMTrend ?? 0) },
+    ]
+
+    const trendData = Array.isArray(trendRes.data) ? trendRes.data : []
+    trendOption.value = {
+      grid: { left: 50, right: 20, top: 30, bottom: 30 },
+      tooltip: { trigger: 'axis' },
+      xAxis: {
+        type: 'category',
+        data: trendData.map(p => p.date),
+        axisLine: { lineStyle: { color: '#CBD5E1' } },
+        axisLabel: { color: '#64748B', fontSize: 11 },
+      },
+      yAxis: {
+        type: 'value',
+        axisLine: { show: false },
+        axisTick: { show: false },
+        splitLine: { lineStyle: { color: '#F1F5F9' } },
+        axisLabel: { color: '#64748B', fontSize: 11, formatter: '¥{value}' },
+      },
+      series: [{
+        name: '收益',
+        type: 'line',
+        smooth: true,
+        symbol: 'circle',
+        symbolSize: 6,
+        data: trendData.map(p => p.revenue),
+        lineStyle: { color: '#2563EB', width: 2 },
+        itemStyle: { color: '#2563EB' },
+        areaStyle: { color: 'rgba(37, 99, 235, 0.1)' },
+      }],
+    }
+
+    const sources = Array.isArray(sourceRes.data) ? sourceRes.data : []
+    const maxRevenue = Math.max(...sources.map(s => Number(s.revenue) || 0), 1)
+    sourceRows.value = sources.map(s => ({
+      ...s,
+      revenue: Number(s.revenue) || 0,
+      impressions: Number(s.impressions) || 0,
+      barPct: Math.round((Number(s.revenue) || 0) / maxRevenue * 100),
+    }))
+
+    const placements = Array.isArray(placementRes.data) ? placementRes.data : []
+    const maxPlacementRev = Math.max(...placements.map(p => Number(p.revenue) || 0), 1)
+    placementRows.value = placements.map(p => ({
+      ...p,
+      revenue: Number(p.revenue) || 0,
+      barPct: Math.round((Number(p.revenue) || 0) / maxPlacementRev * 100),
+    }))
+
+    anomalyRows.value = Array.isArray(anomalyRes.data) ? anomalyRes.data : []
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : '加载看板数据失败'
+    showError(msg)
+  } finally {
+    loading.value = false
+  }
 }
 
-function refreshData() {
+function reload() {
   loadDashboardData()
 }
 
-function getPlacementName(placementId: string): string {
-  const p = placements.value.find((x) => x.id === placementId)
-  return p ? p.placementName : placementId
+function onTabChange() {
+  dateRange.value = [
+    dayjs().subtract(Number(activeTab.value) - 1, 'day').format('YYYY-MM-DD'),
+    dayjs().format('YYYY-MM-DD'),
+  ]
+  reload()
 }
 
-function getAppName(placementId: string): string {
-  const p = placements.value.find((x) => x.id === placementId)
-  if (!p) return ''
-  const app = apps.value.find((a) => a.appKey === p.appKey)
-  return app ? app.appName : p.appKey
+function onDateChange() {
+  if (reloadTimer) {
+    window.clearTimeout(reloadTimer)
+  }
+  reloadTimer = window.setTimeout(() => {
+    reload()
+  }, 200)
 }
 
-watch(activeTab, () => loadDashboardData())
-watch(dateRange, () => loadDashboardData(), { deep: true })
+watch(
+  dateRange,
+  () => {
+    if (reloadTimer) window.clearTimeout(reloadTimer)
+    reloadTimer = window.setTimeout(() => {
+      reload()
+    }, 200)
+  },
+  { deep: true },
+)
 
-function handleResize() {
-  charts.forEach(c => c.resize())
-}
-
-onMounted(async () => {
-  // 关键：先等数据回来再初始化图表，避免先画空数据造成的"白板→突然出现"闪屏
-  await loadDashboardData()
-  await nextTick()
-  initCharts()
-  window.addEventListener('resize', handleResize)
+onMounted(() => {
+  loadDashboardData()
 })
 
 onBeforeUnmount(() => {
-  window.removeEventListener('resize', handleResize)
-  charts.forEach(c => c.dispose())
-  charts = []
+  if (reloadTimer) {
+    window.clearTimeout(reloadTimer)
+    reloadTimer = null
+  }
 })
 </script>
