@@ -1,68 +1,110 @@
 <template>
-  <div class="page-container">
-    <div class="page-header">
-      <h1>瀑布流配置</h1>
-      <p class="page-header-desc">按广告位设置广告源的分层优先级（BIDDING 头部竞价 / STANDARD 标准价格 / FALLBACK 兜底），按顺序逐层请求填充</p>
-    </div>
+  <div class="page-container page-waterfall">
+    <!-- ===== 控制面板：标题 + 步骤 + 选择器 + 摘要 合一 ===== -->
+    <section class="wf-panel">
+      <header class="wf-panel-header">
+        <div class="wf-panel-titles">
+          <h1 class="wf-title">瀑布流配置</h1>
+          <p class="wf-subtitle">为每个广告位分层设置广告源优先级（头部竞价 / 标准价格 / 兜底层），系统按顺序逐层请求填充。</p>
+        </div>
+        <ol class="wf-stepper" aria-label="操作步骤">
+          <li :class="['wf-step', 'wf-step-active']">
+            <span class="wf-step-bubble">1</span><span class="wf-step-label">选择广告位</span>
+          </li>
+          <li class="wf-step-divider"></li>
+          <li :class="['wf-step', { 'wf-step-active': !!selectedPlacement }]">
+            <span class="wf-step-bubble">2</span><span class="wf-step-label">配置广告源</span>
+          </li>
+          <li class="wf-step-divider"></li>
+          <li :class="['wf-step', { 'wf-step-active': !!selectedPlacement }]">
+            <span class="wf-step-bubble">3</span><span class="wf-step-label">保存生效</span>
+          </li>
+        </ol>
+      </header>
 
-    <!-- Step indicator -->
-    <div class="wf-steps mb-base">
-      <div class="wf-step wf-step-active"><span class="wf-step-num">1</span>选择广告位</div>
-      <div class="wf-step-sep"></div>
-      <div class="wf-step" :class="{ 'wf-step-active': selectedPlacement }"><span class="wf-step-num">2</span>配置广告源</div>
-      <div class="wf-step-sep"></div>
-      <div class="wf-step"><span class="wf-step-num">3</span>保存生效</div>
-    </div>
+      <div class="wf-panel-divider"></div>
 
-    <!-- Select placement -->
-    <div class="filter-card">
-      <el-form :inline="true">
-        <el-form-item label="选择广告位" required>
-          <el-select v-model="selectedPlacement" placeholder="点击下拉框选择广告位" style="width: 360px" filterable clearable @change="onPlacementChange" @visible-change="onSelectVisible">
+      <!-- 主体：选择器 + 摘要 -->
+      <div class="wf-panel-body">
+        <!-- 左侧：选择器 -->
+        <div class="wf-selector">
+          <div class="wf-selector-head">
+            <span class="wf-selector-label">选择广告位</span>
+            <span class="wf-selector-required">*</span>
+            <span v-if="placementList.length > 0" class="wf-selector-count">
+              可选 <b>{{ placementList.length }}</b> 个
+            </span>
+          </div>
+          <el-select
+            v-model="selectedPlacement"
+            placeholder="点击下拉框选择广告位"
+            class="wf-select"
+            filterable
+            clearable
+            :disabled="placementList.length === 0"
+            @change="onPlacementChange"
+            @visible-change="onSelectVisible"
+          >
             <el-option v-if="placementList.length === 0" :value="''" disabled>
               <div class="wf-empty-option">暂无可配置的广告位 · 请先到「广告位管理」创建</div>
             </el-option>
-            <el-option v-for="g in groupedPlacements" :key="g.appKey" :label="g.appName" disabled>
-              <div class="wf-opt-group">{{ g.appName }}（{{ g.items.length }} 个广告位）</div>
-            </el-option>
-            <el-option v-for="p in placementList" :key="p.placement_id" :label="`${p.name} · ${formatLabel(p.format)}`" :value="p.placement_id">
-              <div class="wf-opt-row">
-                <span class="wf-opt-name">{{ p.name }}</span>
-                <el-tag size="small" :type="formatTagType(p.format)" effect="plain">{{ formatLabel(p.format) }}</el-tag>
-                <span class="wf-opt-id">{{ p.placement_id }}</span>
-              </div>
-            </el-option>
+            <el-option-group
+              v-for="g in groupedPlacements"
+              :key="g.appKey"
+              :label="`${g.appName} · ${g.items.length} 个广告位`"
+            >
+              <el-option
+                v-for="p in g.items"
+                :key="p.placement_id"
+                :label="`${p.name} · ${formatLabel(p.format)}`"
+                :value="p.placement_id"
+              >
+                <div class="wf-opt-row">
+                  <span class="wf-opt-name">{{ p.name }}</span>
+                  <el-tag size="small" :type="formatTagType(p.format)" effect="plain" class="wf-opt-tag">
+                    {{ formatLabel(p.format) }}
+                  </el-tag>
+                  <span class="wf-opt-id">{{ p.placement_id }}</span>
+                </div>
+              </el-option>
+            </el-option-group>
           </el-select>
-        </el-form-item>
-        <el-form-item v-if="selectedPlacement">
-          <el-button link type="primary" @click="clearPlacement">重新选择</el-button>
-        </el-form-item>
-        <el-form-item v-if="placementList.length > 0">
-          <span class="wf-hint">共 {{ placementList.length }} 个广告位可选</span>
-        </el-form-item>
-      </el-form>
-    </div>
+          <div v-if="placementList.length === 0" class="wf-empty-tip">
+            <span>未检测到广告位数据</span>
+            <router-link to="/placement" class="wf-empty-link">前往创建 →</router-link>
+          </div>
+        </div>
 
-    <template v-if="selectedPlacement">
-      <!-- Current placement summary -->
-      <div class="wf-summary mb-base" v-if="currentPlacement">
-        <div class="wf-summary-item">
-          <span class="wf-summary-label">广告位</span>
-          <span class="wf-summary-value">{{ currentPlacement.name }}</span>
-        </div>
-        <div class="wf-summary-item">
-          <span class="wf-summary-label">所属应用</span>
-          <span class="wf-summary-value">{{ appMap[currentPlacement.app_key] || currentPlacement.app_key }}</span>
-        </div>
-        <div class="wf-summary-item">
-          <span class="wf-summary-label">广告形式</span>
-          <el-tag size="small" :type="formatTagType(currentPlacement.format)" effect="plain">{{ formatLabel(currentPlacement.format) }}</el-tag>
-        </div>
-        <div class="wf-summary-item">
-          <span class="wf-summary-label">ID</span>
-          <span class="wf-summary-value wf-mono">{{ currentPlacement.placement_id }}</span>
-        </div>
+        <!-- 右侧：当前选中信息（仅在选中后出现） -->
+        <aside v-if="currentPlacement" class="wf-current">
+          <div class="wf-current-head">
+            <span class="wf-current-dot"></span>
+            <span class="wf-current-title">当前编辑</span>
+            <button class="wf-current-clear" @click="clearPlacement" type="button">重新选择</button>
+          </div>
+          <div class="wf-current-body">
+            <div class="wf-current-row">
+              <span class="wf-current-key">广告位</span>
+              <span class="wf-current-val wf-current-val--lg">{{ currentPlacement.name }}</span>
+            </div>
+            <div class="wf-current-row">
+              <span class="wf-current-key">所属应用</span>
+              <span class="wf-current-val">{{ appMap[currentPlacement.app_key] || currentPlacement.app_key }}</span>
+            </div>
+            <div class="wf-current-row">
+              <span class="wf-current-key">广告形式</span>
+              <el-tag size="small" :type="formatTagType(currentPlacement.format)" effect="plain">
+                {{ formatLabel(currentPlacement.format) }}
+              </el-tag>
+            </div>
+            <div class="wf-current-row">
+              <span class="wf-current-key">TOKEN</span>
+              <code class="wf-current-mono">{{ currentPlacement.placement_id }}</code>
+            </div>
+          </div>
+        </aside>
       </div>
+    </section>
 
       <!-- Layers -->
       <div v-for="layer in layers" :key="layer.type" class="table-card mb-base">
