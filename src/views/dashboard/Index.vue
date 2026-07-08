@@ -186,7 +186,7 @@ function initCharts() {
 
   // 收益趋势
   if (revenueChartRef.value) {
-    const chart = echarts.init(revenueChartRef.value)
+    const chart = echarts.init(revenueChartRef.value, null, { renderer: 'svg' })
     charts.push(chart)
     const dates = trendData.value.map((t) => t.date.slice(5))
     const revenues = trendData.value.map((t) => Number(t.revenue || 0))
@@ -207,7 +207,7 @@ function initCharts() {
 
   // 广告源占比
   if (sourceChartRef.value) {
-    const chart = echarts.init(sourceChartRef.value)
+    const chart = echarts.init(sourceChartRef.value, null, { renderer: 'svg' })
     charts.push(chart)
     const sourceData = sourceCompare.value.map((s) => ({ value: Number(s.revenue || 0), name: s.name }))
     chart.setOption({
@@ -226,7 +226,7 @@ function initCharts() {
 
   // 展示与点击
   if (impressionChartRef.value) {
-    const chart = echarts.init(impressionChartRef.value)
+    const chart = echarts.init(impressionChartRef.value, null, { renderer: 'svg' })
     charts.push(chart)
     const dates = trendData.value.map((t) => t.date.slice(5))
     const imps = trendData.value.map((t) => Number(t.impressions || 0))
@@ -259,7 +259,7 @@ function initCharts() {
 
   // 应用收益排行
   if (rankChartRef.value) {
-    const chart = echarts.init(rankChartRef.value)
+    const chart = echarts.init(rankChartRef.value, null, { renderer: 'svg' })
     charts.push(chart)
     const names = placementRanking.value.map((r) => r.placementId || '匿名')
     const revs = placementRanking.value.map((r) => Number(r.revenue || 0))
