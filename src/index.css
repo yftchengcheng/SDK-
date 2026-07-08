@@ -3716,3 +3716,9 @@ html, body, #app {
   box-shadow: none;
   margin-top: 16px;
 }
+
+/* 数据看板图表容器必须显式高度（否则 ECharts autoresize 后为 0） */
+.page-dashboard .chart-canvas {
+  width: 100%;
+  height: 280px;
+}
