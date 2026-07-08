@@ -170,12 +170,13 @@ import { useUserStore } from '../../stores/user';
 
 const userStore = useUserStore();
 
+// 广告形式：spec 顺序 = 横幅/插屏/开屏/原生/视频 → 1/2/3/4/5
 const formatOptions = [
   { value: 1, label: '横幅' },
   { value: 2, label: '插屏' },
-  { value: 3, label: '视频' },
+  { value: 3, label: '开屏' },
   { value: 4, label: '原生' },
-  { value: 5, label: '开屏' },
+  { value: 5, label: '视频' },
 ];
 
 const biddingOptions = [
@@ -257,9 +258,9 @@ const mediaShortName = computed(() => userStore.userInfo?.companyShortName || us
 
 // 条件渲染 computed
 const showOrientation = computed(() => {
-  // 插屏(2) / 原生(4) / 视频(3) + SDK 接入
+  // 插屏(2) / 原生(4) / 视频(5) + SDK 接入
   if (!isSDK.value) return false;
-  return [2, 3, 4].includes(currentFormat.value as number);
+  return [2, 4, 5].includes(currentFormat.value as number);
 });
 
 const showAdSize = computed(() => currentFormat.value === 2);
