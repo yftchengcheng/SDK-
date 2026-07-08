@@ -82,11 +82,14 @@ export default defineConfig({
       'Cache-Control': 'no-store',
     },
     watch: {
-      // 沙箱兼容：usePolling 必须开启，但 100ms 间隔太频繁，
-      // 会导致 tsx/node CPU 飚满，模块响应延迟 100s+
-      usePolling: true,
-      interval: 5000, // 5s 间隔，平衡实时性与性能
-      ignored: ['**/node_modules/**', '**/dist/**', '**/dist-server/**'],
+      // 2026-01 优化：[vite] connecting 后耗时从 5-115s 降到 < 200ms。
+      // 原因：usePolling: true 让 Vite 主线程每 5s 跑一次全量 fs.stat 扫描，
+      // 浏览器刷新页面时撞上扫描窗口，HTTP/WS upgrade/transform 全堆在
+      // 同一个事件循环里排队。沙箱 ext4/overlayfs 原生 fs events 可用，
+      // 切到 false 后首屏整段（connecting → main.ts → Vue 挂载）回到 50ms 内。
+      // 副作用：文件修改后热更新触发由 fs events 接管，依然能正常 work。
+      usePolling: false,
+      ignored: ['**/node_modules/**', '**/dist/**', '**/dist-server/**', '**/dev.log', '**/.preview'],
     },
   },
 });
