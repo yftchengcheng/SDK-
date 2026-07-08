@@ -3820,3 +3820,123 @@ html, body, #app {
   color: var(--color-primary-600, #2563EB) !important;
   box-shadow: 0 1px 2px rgba(0,0,0,0.06) !important;
 }
+
+/* ==========================================================================
+   page-filter 视觉优化（v2 - 增量追加，避免污染主体）
+   - 容器：64px 高 / 16×20 padding / 16px gap / 白底蓝边 / 10px 圆角 / 微阴影
+   - 控件：36px 高 / 8px 圆角 / 200px 宽（默认）/ 240px（日期范围）/ 16px 按钮 padding
+   - 文字：label 13px 500 / input 14px / placeholder #94A3B8
+   - 状态：hover 浅蓝边 / focus 主蓝边 + 浅蓝外环
+   - 全部 !important 兜底，防止 EP 内部规则覆盖
+   ========================================================================== */
+
+/* 容器 */
+.page-filter {
+  padding: 16px 20px !important;
+  min-height: 64px !important;
+  gap: 16px !important;
+  background: var(--color-slate-0, #FFFFFF) !important;
+  border: 1px solid var(--color-slate-200, #E2E8F0) !important;
+  border-radius: var(--radius-lg, 10px) !important;
+  box-shadow: var(--shadow-sm, 0 1px 2px rgba(15, 23, 42, 0.04)) !important;
+}
+
+/* label 文字 */
+.page-filter .el-form-item__label {
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  color: var(--color-slate-700, #334155) !important;
+  line-height: 36px !important;
+  padding-right: 8px !important;
+  min-width: 60px !important;
+}
+.page-filter .el-form-item__content {
+  line-height: normal !important;
+}
+
+/* 控件宽度：input / select / 默认日期 200，范围日期 240 */
+.page-filter .el-input,
+.page-filter .el-select,
+.page-filter .el-date-editor {
+  width: 200px !important;
+}
+.page-filter .el-date-editor.el-range-editor,
+.page-filter .el-date-editor.el-range-editor.el-input__inner {
+  width: 240px !important;
+}
+
+/* 控件外观：36px 高 / 8px 圆角 / 白底 / 浅灰边 */
+.page-filter .el-input__wrapper,
+.page-filter .el-select__wrapper {
+  min-height: 36px !important;
+  border-radius: 8px !important;
+  box-shadow: 0 0 0 1px var(--color-slate-200, #E2E8F0) inset !important;
+  padding: 1px 11px !important;
+  background-color: var(--color-slate-0, #FFFFFF) !important;
+  transition: box-shadow 0.18s ease !important;
+}
+.page-filter .el-input__wrapper:hover,
+.page-filter .el-select__wrapper:hover {
+  box-shadow: 0 0 0 1px var(--color-primary-300, #93C5FD) inset !important;
+}
+.page-filter .el-input__wrapper.is-focus,
+.page-filter .el-select__wrapper.is-focused {
+  box-shadow:
+    0 0 0 1px var(--color-primary-500, #2563EB) inset,
+    0 0 0 3px var(--color-primary-50, #EFF6FF) !important;
+}
+
+/* input 内部文字 */
+.page-filter .el-input__inner {
+  height: 36px !important;
+  line-height: 36px !important;
+  font-size: 14px !important;
+  color: var(--color-slate-900, #0F172A) !important;
+}
+.page-filter .el-input__inner::placeholder {
+  color: var(--color-slate-400, #94A3B8) !important;
+  font-size: 14px !important;
+}
+
+/* select 内部文字 */
+.page-filter .el-select__placeholder {
+  font-size: 14px !important;
+  color: var(--color-slate-400, #94A3B8) !important;
+}
+.page-filter .el-select__selected-item {
+  font-size: 14px !important;
+  color: var(--color-slate-900, #0F172A) !important;
+}
+
+/* 按钮 36px / 8px 圆角 / 16×0 padding / 14px 字号 / 500 字重 */
+.page-filter .el-button {
+  height: 36px !important;
+  min-height: 36px !important;
+  padding: 0 16px !important;
+  font-size: 14px !important;
+  font-weight: 500 !important;
+  border-radius: 8px !important;
+  transition: background-color 0.18s ease, border-color 0.18s ease, color 0.18s ease !important;
+}
+.page-filter .el-button--primary {
+  background: var(--color-primary-500, #2563EB) !important;
+  border-color: var(--color-primary-500, #2563EB) !important;
+  color: #FFFFFF !important;
+}
+.page-filter .el-button--primary:hover {
+  background: var(--color-primary-600, #1D4ED8) !important;
+  border-color: var(--color-primary-600, #1D4ED8) !important;
+}
+.page-filter .el-button--default {
+  background: var(--color-slate-0, #FFFFFF) !important;
+  border-color: var(--color-slate-200, #E2E8F0) !important;
+  color: var(--color-slate-700, #334155) !important;
+}
+.page-filter .el-button--default:hover {
+  background: var(--color-primary-50, #EFF6FF) !important;
+  border-color: var(--color-primary-500, #2563EB) !important;
+  color: var(--color-primary-500, #2563EB) !important;
+}
+.page-filter .el-button .el-icon {
+  font-size: 16px !important;
+}

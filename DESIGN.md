@@ -268,17 +268,26 @@ B2B 企业级广告数据管理控制台。沉稳、专业、精准。蓝+灰+�
 ### Filter Bar
 
 - **必须有**（即便当前只有一个搜索框）—— 视觉节奏统一
-- 内部布局：`display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap`
+- 容器 `.page-filter`：
+  - 高度 64px（多行可换），padding：**16px 20px**，gap **16px**
+  - 背景白色；边框 1px #E2E8F0；圆角 **8px**（沿用 `--radius-lg`）；阴影 `0 1px 2px rgba(15, 23, 42, 0.04)`
+  - 内部布局：`display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap`
 - 左侧区 `.page-filter-form`：el-form `:inline` 表单
-  - 每个条件：`el-form-item label="XX"`，label 字号 12px / 字重 600 / #334155
-  - 输入/选择框宽度：120-200px（按字段长度调整）
-  - 状态/平台/类型等枚举：宽度 120px；时间范围：宽度 240px
+  - 每个条件：`el-form-item label="XX"`，label **字号 13px / 字重 500 / #334155 / line-height 36px / min-width 60px / padding-right 8px**
+  - 输入/选择框：宽 **200px**（默认）；时间范围：**240px**；其余枚举：120-200px 按字段长度调整
+  - 控件外观：**36px 高 / 8px 圆角 / 1px #E2E8F0 内边 / #FFFFFF 底**
+  - 状态：hover 浅蓝边 #93C5FD / focus 主蓝边 #2563EB + 浅蓝外环 3px #EFF6FF
+  - input 内部文字：14px / #0F172A / placeholder #94A3B8
 - 右侧区 `.page-filter-actions`：操作按钮组
   - `<el-button type="primary" :icon="Search" @click="onSearch">查询</el-button>`
   - `<el-button :icon="RefreshLeft" @click="onReset">重置</el-button>`
   - 可选：`<el-button :icon="Download" plain @click="onExport">导出</el-button>`
-- 高度：56px（多行可换），padding：12px 20px
-- 背景：白色（与 .page-card 同）；分割线：底部 1px #F1F5F9
+  - 按钮尺寸：**36px 高 / 8px 圆角 / 0 16px padding / 14px 字号 / 500 字重**
+  - primary：背景 #2563EB / 白字；hover #1D4ED8
+  - default：背景白 / 1px #E2E8F0 边 / #334155 字；hover 浅蓝底 #EFF6FF + 主蓝边 #2563EB + 主蓝字
+  - 所有 transition **0.18s ease**
+- 边界：css 规则写在 `src/index.css` 末尾的「page-filter 视觉优化（v2）」块，全部 `!important` 兜底；**禁止**在 .vue 文件写 `<style scoped>`（项目无 scoped，:deep() 无效）
+- 实施位置：4 个列表页（app / placement / ad-source / traffic-group）已统一
 
 ### Table Card
 
