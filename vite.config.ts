@@ -37,37 +37,27 @@ function viteCssAcceptFix(): Plugin {
  *
  * 根因：Vite 默认 HMR 会在以下场景调用 location.reload()：
  *   1. 收到来自服务端的 'full-reload' 消息（非 HMR 边界模块变更）
- *   2. HMR WebSocket 断线后重连
+ *   2. HMR WebSocket 断线后重连（沙箱代理环境下 WebSocket 立即被关闭）
  *   3. 编译错误叠加首屏
+ *   4. 连接超时（默认 120s）→ pageReload() 直接调用 location.reload()
  * 这些场景在 tsx watch 重启后端 / 长时间无操作时会出现「页面莫名刷新」。
  *
- * 解决：仅关闭 HMR overlay（不再因首屏错误触发 reload）；
- *       HMR 连接配置（server/port/protocol）由 server/vite.ts 负责，
- *       此插件不能覆盖，否则会让 HMR 走独立端口而不是共享 HTTP server。
- *       通过 index.html 注入的 client-hmr-guard 阻断 location.reload() 调用路径。
+ * 解决：彻底关闭 HMR（server.hmr: false），同时保留 overlay 关闭配置。
+ *       index.html 仍保留 unhandledrejection 过滤器作为防御。
+ *       后续代码更新需要用户手动刷新（按 F5 或点击右下角 ⟳）。
  */
 function disableHmrFullReload(): Plugin {
   return {
     name: 'disable-hmr-full-reload',
     config(_, { command }) {
       if (command === 'serve') {
-        // 仅配置 overlay，不触碰 hmr.server/port/protocol
         return {
           server: {
-            hmr: {
-              overlay: false,
-            },
+            hmr: false,  // 彻底关闭 HMR WebSocket，从根源消除断线/超时触发的 reload
           },
         };
       }
       return {};
-    },
-    configureServer(server) {
-      // 拦截 HMR 全局错误事件，阻止 Vite 客户端触发 reload
-      server.middlewares.use('/__hmr_disable_reload', (_req, res) => {
-        res.setHeader('Content-Type', 'text/plain');
-        res.end('ok');
-      });
     },
   };
 }
