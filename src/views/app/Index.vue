@@ -7,6 +7,17 @@
     <!-- Table -->
     <div class="table-card">
       <el-table :data="tableData" v-loading="loading" stripe style="width: 100%">
+        <el-table-column label="图标" width="72" align="center">
+          <template #default="{ row }">
+            <div class="app-icon-cell">
+              <img v-if="row.iconUrlResolved" :src="row.iconUrlResolved" :alt="row.app_name" class="app-icon-thumb" />
+              <img v-else-if="row.icon_url" :src="row.icon_url" :alt="row.app_name" class="app-icon-thumb" />
+              <div v-else class="app-icon-default">
+                <el-icon :size="18"><Picture /></el-icon>
+              </div>
+            </div>
+          </template>
+        </el-table-column>
         <el-table-column prop="app_name" label="应用名称" min-width="140" />
         <el-table-column prop="app_key" label="应用TOKEN" min-width="200">
           <template #default="{ row }">
@@ -59,6 +70,32 @@
       :close-on-click-modal="false"
     >
       <el-form ref="formRef" :model="form" :rules="formRules" label-position="top">
+        <el-form-item label="应用图标">
+          <div class="app-icon-uploader">
+            <el-upload
+              class="app-icon-upload"
+              :show-file-list="false"
+              :auto-upload="false"
+              :accept="'image/jpeg,image/jpg,image/png'"
+              :on-change="handleIconChange"
+            >
+              <div v-if="form.iconUrl" class="app-icon-preview">
+                <img :src="form.iconUrl" alt="icon" />
+                <div class="app-icon-mask" @click.stop="clearIcon">
+                  <el-icon><Delete /></el-icon>
+                </div>
+              </div>
+              <div v-else class="app-icon-placeholder">
+                <el-icon :size="24"><Plus /></el-icon>
+                <span>点击上传</span>
+              </div>
+            </el-upload>
+            <div class="app-icon-tip">
+              <div>支持 JPG/PNG/JPEG 格式，比例 1:1，大小 ≤ 200KB</div>
+              <div v-if="iconError" class="app-icon-error">{{ iconError }}</div>
+            </div>
+          </div>
+        </el-form-item>
         <el-form-item label="应用名称" prop="app_name">
           <el-input v-model="form.app_name" placeholder="请输入应用名称" maxlength="50" show-word-limit />
         </el-form-item>
@@ -126,7 +163,7 @@ import { ref, reactive, computed, onMounted } from 'vue';
 import request from '../../utils/request';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import type { FormInstance, FormRules } from 'element-plus';
-import { CopyDocument } from '@element-plus/icons-vue';
+import { CopyDocument, Plus, Picture, Delete } from '@element-plus/icons-vue';
 import dayjs from 'dayjs';
 import { useUserStore } from '../../stores/user';
 
@@ -155,6 +192,9 @@ const defaultForm = (): {
   store_url: string;
   wechat_app_id: string;
   wechat_universal_link: string;
+  iconKey: string;
+  iconUrl: string;
+  iconUploading: boolean;
 } => ({
   app_key: '',
   app_name: '',
@@ -165,9 +205,13 @@ const defaultForm = (): {
   store_url: '',
   wechat_app_id: '',
   wechat_universal_link: '',
+  iconKey: '',
+  iconUrl: '',
+  iconUploading: false,
 });
 
 const form = reactive(defaultForm());
+const iconError = ref('');
 
 const formRules = computed<FormRules>(() => ({
   app_name: [
@@ -246,6 +290,8 @@ const openEditDialog = (row: any) => {
     store_url: row.store_url || '',
     wechat_app_id: row.wechat_app_id || '',
     wechat_universal_link: row.wechat_universal_link || '',
+    iconKey: row.icon_url || '',
+    iconUrl: row.iconUrlResolved || row.icon_url || '',
   });
   showCreateDialog.value = true;
 };
@@ -266,6 +312,7 @@ const handleSubmit = async () => {
         storeUrl: form.store_url,
         wechatAppId: userAccessType.value === 1 ? form.wechat_app_id : undefined,
         wechatUniversalLink: userAccessType.value === 1 && form.platform === 2 ? form.wechat_universal_link : undefined,
+        iconUrl: form.iconKey || undefined,
       });
       ElMessage.success('更新成功');
     } else {
@@ -278,6 +325,7 @@ const handleSubmit = async () => {
         storeUrl: form.store_url,
         wechatAppId: form.wechat_app_id,
         wechatUniversalLink: form.wechat_universal_link,
+        iconUrl: form.iconKey || undefined,
       });
       ElMessage.success('创建成功');
     }
@@ -306,6 +354,84 @@ const handleDelete = async (row: any) => {
     ElMessage.success('删除成功');
     fetchList();
   } catch { /* ignore */ }
+};
+
+// 客户端预检：1:1 比例 + 大小 + 格式
+const validateIconClient = (file: File): Promise<{ ok: boolean; width: number; height: number; dataUrl: string }> => {
+  return new Promise((resolve) => {
+    iconError.value = '';
+    const validTypes = ['image/jpeg', 'image/jpg', 'image/png'];
+    const validExts = ['jpg', 'jpeg', 'png'];
+    const ext = (file.name.split('.').pop() || '').toLowerCase();
+    if (!validTypes.includes(file.type) && !validExts.includes(ext)) {
+      iconError.value = '仅支持 jpg / jpeg / png 格式';
+      ElMessage.error(iconError.value);
+      resolve({ ok: false, width: 0, height: 0, dataUrl: '' });
+      return;
+    }
+    if (file.size / 1024 > 200) {
+      iconError.value = `图标大小需 ≤ 200KB（当前 ${(file.size / 1024).toFixed(1)}KB）`;
+      ElMessage.error(iconError.value);
+      resolve({ ok: false, width: 0, height: 0, dataUrl: '' });
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = reader.result as string;
+      const img = new Image();
+      img.onload = () => {
+        if (img.width !== img.height) {
+          iconError.value = `图标必须为 1:1 比例，当前为 ${img.width}×${img.height}`;
+          ElMessage.error(iconError.value);
+          resolve({ ok: false, width: img.width, height: img.height, dataUrl });
+          return;
+        }
+        resolve({ ok: true, width: img.width, height: img.height, dataUrl });
+      };
+      img.onerror = () => {
+        iconError.value = '图标解析失败';
+        ElMessage.error(iconError.value);
+        resolve({ ok: false, width: 0, height: 0, dataUrl });
+      };
+      img.src = dataUrl;
+    };
+    reader.onerror = () => {
+      iconError.value = '文件读取失败';
+      ElMessage.error(iconError.value);
+      resolve({ ok: false, width: 0, height: 0, dataUrl: '' });
+    };
+    reader.readAsDataURL(file);
+  });
+};
+
+// el-upload on-change 钩子：本地校验 + 上传到 S3
+const handleIconChange = async (uploadFile: { raw?: File }) => {
+  const file = uploadFile?.raw;
+  if (!file) return;
+  const v = await validateIconClient(file);
+  if (!v.ok) return;
+  form.iconUploading = true;
+  try {
+    const resp: any = await request.post('/api/v1/console/app/upload-icon', {
+      dataUrl: v.dataUrl,
+      width: v.width,
+      height: v.height,
+    });
+    if (!resp.data?.key) throw new Error('上传失败');
+    form.iconKey = resp.data.key;
+    form.iconUrl = resp.data.iconUrl || v.dataUrl;
+    ElMessage.success('图标上传成功');
+  } catch (e) {
+    iconError.value = '图标上传失败';
+  } finally {
+    form.iconUploading = false;
+  }
+};
+
+const clearIcon = () => {
+  form.iconKey = '';
+  form.iconUrl = '';
+  iconError.value = '';
 };
 
 onMounted(fetchList);

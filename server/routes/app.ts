@@ -3,8 +3,84 @@ import { db } from '../db';
 import { genAppKey } from '../utils/id-generator';
 import { authMiddleware, getDeveloper } from '../middleware/auth';
 import { success, fail } from '../utils/response';
+import {
+  getStorage,
+  buildAppIconKey,
+  parseBase64Image,
+  detectImageExt,
+} from '../utils/storage';
 
 const router = Router();
+
+// 应用图标上传限制：200KB
+const APP_ICON_MAX_SIZE = 200 * 1024;
+// 1:1 比例容差
+const APP_ICON_RATIO_TOLERANCE = 0.02;
+
+// 上传应用图标（base64 + 客户端预检 1:1）
+router.post('/upload-icon', authMiddleware, async (req: express.Request, res: express.Response) => {
+  try {
+    const { developerId } = getDeveloper(req);
+    const { dataUrl, width, height } = req.body as {
+      dataUrl?: string;
+      width?: number;
+      height?: number;
+    };
+
+    if (!dataUrl || typeof dataUrl !== 'string') {
+      fail(res, 400, '缺少图标数据');
+      return;
+    }
+
+    const parsed = parseBase64Image(dataUrl);
+    if (!parsed) {
+      fail(res, 400, '图标数据解析失败');
+      return;
+    }
+    const { mime, buffer } = parsed;
+
+    // 后端强校验：mime + magic bytes
+    if (mime !== 'image/png' && mime !== 'image/jpeg' && mime !== 'image/jpg') {
+      fail(res, 400, '仅支持 jpg / png / jpeg 格式');
+      return;
+    }
+    if (buffer.length === 0) {
+      fail(res, 400, '图标数据为空');
+      return;
+    }
+    if (buffer.length > APP_ICON_MAX_SIZE) {
+      fail(res, 400, `图标大小不能超过 ${APP_ICON_MAX_SIZE / 1024}KB`);
+      return;
+    }
+    const ext = detectImageExt(buffer);
+    if (!ext) {
+      fail(res, 400, '图标格式不合法（仅支持 jpg / png）');
+      return;
+    }
+    // 1:1 比例校验
+    if (width && height) {
+      const ratio = width / height;
+      if (Math.abs(ratio - 1) > APP_ICON_RATIO_TOLERANCE) {
+        fail(res, 400, '图标必须为 1:1 正方形');
+        return;
+      }
+    }
+
+    // appKey 在创建应用前为 undefined，函数内部会用 UUID 作为占位
+    const key = buildAppIconKey(developerId, undefined, ext);
+    const contentType = ext === 'png' ? 'image/png' : 'image/jpeg';
+    const s3 = getStorage();
+    await s3.uploadFile({ fileContent: buffer, fileName: key, contentType });
+
+    // 生成 7 天有效的访问 URL（用于前端展示）
+    const iconUrl = await s3.generatePresignedUrl({ key, expireTime: 7 * 24 * 3600 });
+
+    success(res, { key, iconUrl }, '上传成功');
+  } catch (err) {
+    console.error('Upload app icon error:', err);
+    fail(res, 500, '图标上传失败');
+  }
+});
 
 // List apps
 router.get('/list', authMiddleware, async (req: express.Request, res: express.Response) => {
@@ -23,7 +99,23 @@ router.get('/list', authMiddleware, async (req: express.Request, res: express.Re
     const { data, count, error } = await query.order('created_at', { ascending: false }).range((p - 1) * ps, p * ps - 1);
     if (error) throw new Error(`Query failed: ${error.message}`);
 
-    success(res, { list: data, total: count, page: p, pageSize: ps });
+    // 为 icon_url 生成 7 天有效的预签名 URL（若有）
+    const s3 = getStorage();
+    const list = await Promise.all(
+      (data || []).map(async (row: Record<string, unknown>) => {
+        if (row.icon_url) {
+          try {
+            const signedUrl = await s3.generatePresignedUrl({ key: String(row.icon_url), expireTime: 7 * 24 * 3600 });
+            return { ...row, iconUrlResolved: signedUrl };
+          } catch {
+            return row;
+          }
+        }
+        return row;
+      })
+    );
+
+    success(res, { list, total: count, page: p, pageSize: ps });
   } catch (err) {
     console.error('List apps error:', err);
     fail(res, 500, '获取应用列表失败');
@@ -124,6 +216,16 @@ router.get('/detail', authMiddleware, async (req: express.Request, res: express.
     if (!data) {
       fail(res, 404, '应用不存在');
       return;
+    }
+
+    // 解析 icon_url 为 presigned URL
+    if (data.icon_url) {
+      try {
+        const iconKey = String(data.icon_url);
+        data.iconUrlResolved = await getStorage().generatePresignedUrl({ key: iconKey, expireTime: 86400 });
+      } catch (e) {
+        console.warn('presign icon failed:', e);
+      }
     }
 
     success(res, data);
