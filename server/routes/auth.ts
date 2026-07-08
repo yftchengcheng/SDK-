@@ -3,7 +3,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { db } from '../db';
 import { genDeveloperId, genApiAccessToken } from '../utils/id-generator';
-import { generateToken, authMiddleware, getDeveloper, JWT_SECRET } from '../middleware/auth';
+import { generateToken, authMiddleware, getDeveloper, setAuthCookie, clearAuthCookie, JWT_SECRET } from '../middleware/auth';
 import { success, fail } from '../utils/response';
 
 const router = Router();
@@ -57,6 +57,7 @@ router.post('/register', async (req: express.Request, res: express.Response) => 
 
     // Auto-login after registration - generate JWT
     const token = generateToken({ developerId, email });
+    setAuthCookie(res, token); // HttpOnly Cookie 下发
 
     success(res, {
       developerId,
@@ -111,9 +112,10 @@ router.post('/login', async (req: express.Request, res: express.Response) => {
     }
 
     const token = generateToken({ developerId: dev.developer_id, email: dev.email });
+    setAuthCookie(res, token); // HttpOnly Cookie 下发，前端无感
 
     success(res, {
-      token,
+      token, // 仍返回一份给 SDK 直连场景
       developerId: dev.developer_id,
       email: dev.email,
       company: dev.company,
@@ -127,6 +129,7 @@ router.post('/login', async (req: express.Request, res: express.Response) => {
 
 // Logout
 router.post('/logout', authMiddleware, (_req: express.Request, res: express.Response) => {
+  clearAuthCookie(res);
   success(res, null, '登出成功');
 });
 

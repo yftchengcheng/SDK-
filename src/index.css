@@ -2555,3 +2555,143 @@ html, body, #app {
   font-weight: 500;
 }
 
+
+/* ==== Waterfall 拖拽排序 ==== */
+.drag-handle {
+  display: inline-block;
+  cursor: grab;
+  color: #94A3B8;
+  font-size: 14px;
+  line-height: 1;
+  letter-spacing: -2px;
+  margin-right: 4px;
+  vertical-align: middle;
+  user-select: none;
+  transition: color 0.15s ease;
+}
+.drag-handle:hover { color: #475569; }
+.drag-handle:active { cursor: grabbing; color: #2563EB; }
+.row-index {
+  display: inline-block;
+  font-size: 12px;
+  color: #64748B;
+  vertical-align: middle;
+}
+.card-header-right { display: flex; align-items: center; gap: 12px; }
+.layer-tip { font-size: 12px; color: #94A3B8; }
+.sortable-ghost {
+  background: #EFF6FF !important;
+  border-top: 1px dashed #2563EB;
+  border-bottom: 1px dashed #2563EB;
+  opacity: 0.6;
+}
+.sortable-chosen {
+  background: #DBEAFE !important;
+}
+.sortable-drag {
+  background: #FFFFFF !important;
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.15);
+  cursor: grabbing;
+}
+.waterfall-row { cursor: default; }
+
+/* ==== Profile 通知设置 ==== */
+.notify-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 0;
+  border-bottom: 1px solid #F1F5F9;
+  font-size: 13px;
+}
+.notify-row:last-child { border-bottom: none; }
+.notify-row-left { flex: 1; min-width: 0; }
+.notify-row-label { font-weight: 500; color: #0F172A; margin-bottom: 2px; }
+.notify-row-desc { font-size: 12px; color: #94A3B8; }
+.notify-channel-label { font-size: 12px; font-weight: 600; color: #475569; margin: 12px 0 4px; text-transform: uppercase; letter-spacing: 0.05em; }
+.notify-channels { display: flex; gap: 24px; margin-bottom: 4px; }
+
+/* ==== Adapter 上传 (拖拽 + 进度条) ==== */
+.adapter-uploader {
+  border: 1px dashed #CBD5E1;
+  border-radius: 8px;
+  padding: 20px 16px;
+  text-align: center;
+  background: #F8FAFC;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  color: #64748B;
+}
+.adapter-uploader:hover {
+  border-color: #2563EB;
+  background: #EFF6FF;
+  color: #1E40AF;
+}
+.adapter-uploader.has-file {
+  border-color: #059669;
+  background: #ECFDF5;
+  color: #047857;
+  padding: 12px 16px;
+  text-align: left;
+}
+.adapter-uploader-icon {
+  font-size: 28px;
+  margin-bottom: 4px;
+  line-height: 1;
+}
+.adapter-uploader-hint {
+  font-size: 12px;
+  margin-top: 4px;
+  color: #94A3B8;
+}
+.adapter-file-info {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.adapter-file-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  flex: 1;
+}
+.adapter-file-name {
+  font-weight: 500;
+  font-size: 13px;
+  color: #047857;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 200px;
+}
+.adapter-file-size {
+  font-size: 12px;
+  color: #64748B;
+  font-variant-numeric: tabular-nums;
+}
+.adapter-file-md5 {
+  font-size: 11px;
+  color: #94A3B8;
+  font-family: 'SF Mono', Menlo, Consolas, monospace;
+  margin-top: 2px;
+  word-break: break-all;
+}
+.adapter-file-remove {
+  color: #94A3B8;
+  font-size: 14px;
+  cursor: pointer;
+  transition: color 0.15s;
+}
+.adapter-file-remove:hover { color: #DC2626; }
+.upload-progress-wrap {
+  margin-top: 12px;
+}
+.upload-progress-label {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  color: #475569;
+  margin-bottom: 4px;
+}

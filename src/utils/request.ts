@@ -32,10 +32,14 @@ function handleUnauthorized(): void {
 const request: AxiosInstance = axios.create({
   baseURL: '',
   timeout: 15000,
+  // HttpOnly Cookie 由浏览器自动管理；启用此选项后，跨域 / 同源 cookie 都会带上
+  withCredentials: true,
 });
 
 request.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
+    // 优先用 Bearer Token（兼容 SDK 直连场景 + 跨域 cookie 不可用时回退）
+    // HttpOnly Cookie 不需要手动读取，浏览器自动附加
     const token = localStorage.getItem('token');
     if (token && config.headers) {
       config.headers.Authorization = `Bearer ${token}`;

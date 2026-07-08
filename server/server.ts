@@ -3,6 +3,7 @@
 
 import { createServer, type Server } from 'http';
 import express from 'express';
+import cookieParser from 'cookie-parser';
 import router from './routes/index';
 import { setupVite } from './vite';
 
@@ -26,8 +27,9 @@ async function startServer(): Promise<Server> {
     });
   }
 
-  // 添加请求体解析
+  // 添加请求体解析 + cookie 解析（HttpOnly Cookie 鉴权）
   app.use(express.json());
+  app.use(cookieParser());
   app.use(express.urlencoded({ extended: true }));
 
   // 注册 API 路由

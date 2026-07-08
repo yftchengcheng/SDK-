@@ -2,7 +2,10 @@
   <div class="page-container">
     <div class="page-header">
       <h1>广告源管理</h1>
-      <el-button type="primary" @click="openCreate">创建广告源</el-button>
+      <div class="page-header-actions">
+        <el-button @click="openCustomCreate">创建自定义广告源</el-button>
+        <el-button type="primary" @click="openCreate">创建标准广告源</el-button>
+      </div>
     </div>
     <!-- Filter -->
     <div class="filter-card">
@@ -66,6 +69,37 @@
         <el-button type="primary" :loading="submitting" @click="handleSubmit">确定</el-button>
       </template>
     </el-dialog>
+
+    <!-- 自定义广告源 Dialog -->
+    <el-dialog v-model="showCustomDialog" title="创建自定义广告源" width="560px" destroy-on-close>
+      <el-alert type="info" :closable="false" style="margin-bottom: 16px;">
+        请先在「广告网络管理 → 自定义网络」中创建 Adapter 并通过审核，再来此处绑定。
+      </el-alert>
+      <el-form ref="customFormRef" :model="customForm" :rules="customFormRules" label-position="top">
+        <el-form-item label="自定义网络" prop="networkDefId">
+          <el-select v-model="customForm.networkDefId" placeholder="请选择已通过审核的自定义网络" style="width: 100%" filterable>
+            <el-option v-for="n in customNetworks" :key="n.id" :label="n.network_name" :value="n.id" />
+            <el-option v-for="n in customNetworks" :key="n.id" :label="`${n.network_name} (${n.network_code})`" :value="n.id" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="广告源名称" prop="source_name">
+          <el-input v-model="customForm.source_name" placeholder="如：自定义-激励视频-主" />
+        </el-form-item>
+        <el-form-item label="自定义网络 APP ID" prop="third_app_id">
+          <el-input v-model="customForm.third_app_id" placeholder="在自定义网络申请的 App ID" />
+        </el-form-item>
+        <el-form-item label="自定义网络 代码位 ID" prop="third_placement_id">
+          <el-input v-model="customForm.third_placement_id" placeholder="在自定义网络申请的代码位 ID" />
+        </el-form-item>
+        <el-form-item label="额外配置">
+          <el-input v-model="customForm.extra" type="textarea" :rows="3" placeholder="JSON 格式，自定义网络特殊参数（选填）" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="showCustomDialog = false">取消</el-button>
+        <el-button type="primary" :loading="submitting" @click="handleCustomSubmit">确定</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -87,16 +121,33 @@ const networks = ref<any[]>([]);
 const filter = reactive({ networkCode: '' });
 
 const showDialog = ref(false);
+const showCustomDialog = ref(false);
 const submitting = ref(false);
 const formRef = ref<FormInstance>();
+const customFormRef = ref<FormInstance>();
 const defaultForm = { id: 0, network_code: '', source_name: '', third_app_id: '', third_placement_id: '', extra: '' };
 const editForm = reactive({ ...defaultForm });
+const customForm = reactive<{ networkDefId: number | ''; sourceName: string; thirdAppId: string; thirdPlacementId: string; extra: string; appId: string; placementId: string }>({ networkDefId: '', sourceName: '', thirdAppId: '', thirdPlacementId: '', extra: '', appId: '', placementId: '' });
+const customNetworks = ref<Array<{ id: number; network_name: string; network_code: string }>>([]);
 
 const formRules: FormRules = {
   network_code: [{ required: true, message: '请选择广告网络', trigger: 'change' }],
   source_name: [{ required: true, message: '请输入广告源名称', trigger: 'blur' }],
   third_app_id: [{ required: true, message: '请输入三方App ID', trigger: 'blur' }],
   third_placement_id: [{ required: true, message: '请输入三方代码位ID', trigger: 'blur' }],
+};
+const customFormRules: FormRules = {
+  networkDefId: [{ required: true, message: '请选择自定义广告网络', trigger: 'change' }],
+  source_name: [{ required: true, message: '请输入广告源名称', trigger: 'blur' }],
+  third_app_id: [{ required: true, message: '请输入三方App ID', trigger: 'blur' }],
+  third_placement_id: [{ required: true, message: '请输入三方代码位ID', trigger: 'blur' }],
+};
+
+const fetchCustomNetworks = async () => {
+  try {
+    const res: any = await request.get('/api/v1/console/network/custom/list', { params: { page: 1, pageSize: 100 } });
+    customNetworks.value = res.data?.list || [];
+  } catch { /* ignore */ }
 };
 
 const fetchNetworks = async () => {
@@ -115,6 +166,25 @@ const fetchList = async () => {
 };
 
 const openCreate = () => { Object.assign(editForm, defaultForm); showDialog.value = true; };
+const openCustomCreate = () => {
+  Object.assign(customForm, { network_def_id: '', source_name: '', third_app_id: '', third_placement_id: '', extra: '' });
+  showCustomDialog.value = true;
+};
+
+const handleCustomSubmit = async () => {
+  const valid = await customFormRef.value?.validate().catch(() => false);
+  if (!valid) return;
+  submitting.value = true;
+  try {
+    const payload: any = { ...customForm };
+    if (payload.extra) { try { payload.extra = JSON.parse(payload.extra); } catch { payload.extra = {}; } }
+    else { payload.extra = {}; }
+    await request.post('/api/v1/console/ad-source/create-custom', payload);
+    ElMessage.success('创建成功');
+    showCustomDialog.value = false;
+    fetchList();
+  } catch { /* ignore */ } finally { submitting.value = false; }
+};
 
 const handleEdit = (row: any) => {
   Object.assign(editForm, {

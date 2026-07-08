@@ -19,9 +19,18 @@
       <div v-for="layer in layers" :key="layer.type" class="table-card mb-base">
         <div class="card-header">
           <span class="card-title">{{ layer.label }}</span>
-          <el-button type="primary" size="small" @click="addSource(layer.type)">添加代码位</el-button>
+          <div class="card-header-right">
+            <span class="layer-tip">按住行首拖拽可调整优先级</span>
+            <el-button type="primary" size="small" @click="addSource(layer.type)">添加代码位</el-button>
+          </div>
         </div>
-        <el-table :data="layer.sources" stripe style="width: 100%">
+        <el-table :data="layer.sources" stripe style="width: 100%" row-class-name="waterfall-row" :ref="(el) => bindSortable(el as any, layer)">
+          <el-table-column label="排序" width="60">
+            <template #default="{ $index }">
+              <span class="drag-handle" title="拖拽调整顺序">⋮⋮</span>
+              <span class="row-index">{{ $index + 1 }}</span>
+            </template>
+          </el-table-column>
           <el-table-column prop="ad_source_id" label="广告源ID" width="100" />
           <el-table-column prop="network_code" label="广告网络" width="120" />
           <el-table-column prop="sort_price" label="排序价格(元)" width="140">
@@ -37,9 +46,9 @@
               <el-input-number v-model="row.timeout_ms" :min="500" :step="500" :controls="false" size="small" style="width: 100px" />
             </template>
           </el-table-column>
-          <el-table-column prop="priority" label="优先级" width="100">
-            <template #default="{ row }">
-              <el-input-number v-model="row.priority" :min="0" :controls="false" size="small" style="width: 80px" />
+          <el-table-column prop="priority" label="优先级" width="90">
+            <template #default="{ $index }">
+              <span class="row-index">{{ $index + 1 }}</span>
             </template>
           </el-table-column>
           <el-table-column label="操作" width="80" fixed="right">
@@ -74,9 +83,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue';
+import { ref, reactive, onMounted, nextTick, onBeforeUnmount } from 'vue';
 import request from '../../utils/request';
 import { ElMessage } from 'element-plus';
+import Sortable from 'sortablejs';
 
 const selectedPlacement = ref('');
 const placementList = ref<any[]>([]);
@@ -91,6 +101,8 @@ const layers = reactive([
   { type: 2, label: 'Standard层（标准价格）', sources: [] as any[] },
   { type: 3, label: 'Fallback层（兜底）', sources: [] as any[] },
 ]);
+
+const sortableInstances: Sortable[] = [];
 
 const fetchPlacements = async () => {
   try { const res: any = await request.get('/api/v1/console/placement/list', { params: { pageSize: 200 } }); placementList.value = res.data?.list || []; } catch { /* ignore */ }
@@ -141,6 +153,12 @@ const confirmAddSource = () => {
 const saveConfig = async () => {
   saving.value = true;
   try {
+    // 重新按当前数组顺序分配 priority，保证落库与 UI 同步
+    layers.forEach((l) => {
+      l.sources.forEach((s, idx) => {
+        s.priority = idx;
+      });
+    });
     const allSources = layers.flatMap(l => l.sources.map(s => ({ ...s, layer_type: l.type })));
     await request.post('/api/v1/console/waterfall/update', {
       placementId: selectedPlacement.value,
@@ -151,6 +169,40 @@ const saveConfig = async () => {
   } catch { /* ignore */ } finally { saving.value = false; }
 };
 
+// 拖拽绑定：每次 sources 变化时重新挂载 Sortable
+const bindSortable = async (el: any, layer: { sources: any[]; type: number }) => {
+  if (!el?.$el) return;
+  await nextTick();
+  const tbody = el.$el.querySelector('tbody');
+  if (!tbody) return;
+  const oldIdx = sortableInstances.findIndex((s) => (s as any).__layerType === layer.type);
+  if (oldIdx >= 0) {
+    sortableInstances[oldIdx].destroy();
+    sortableInstances.splice(oldIdx, 1);
+  }
+  const sortable = Sortable.create(tbody, {
+    handle: '.drag-handle',
+    animation: 180,
+    ghostClass: 'sortable-ghost',
+    chosenClass: 'sortable-chosen',
+    dragClass: 'sortable-drag',
+    onEnd: (evt) => {
+      if (evt.oldIndex === evt.newIndex) return;
+      const { sources } = layer;
+      const moved = sources.splice(evt.oldIndex, 1)[0];
+      sources.splice(evt.newIndex, 0, moved);
+    },
+  });
+  (sortable as any).__layerType = layer.type;
+  sortableInstances.push(sortable);
+};
+
+onBeforeUnmount(() => {
+  sortableInstances.forEach((s) => s.destroy());
+  sortableInstances.length = 0;
+});
+
 onMounted(() => { fetchPlacements(); fetchAdSources(); });
 </script>
+
 

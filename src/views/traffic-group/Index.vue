@@ -7,8 +7,13 @@
     <div class="filter-card">
       <el-form :inline="true">
         <el-form-item label="广告位">
-          <el-select v-model="filterPlacement" placeholder="全部广告位" clearable style="width: 280px" @change="fetchList">
+          <el-select v-model="filterPlacement" placeholder="全部广告位" clearable style="width: 240px" @change="fetchList">
             <el-option v-for="p in placementList" :key="p.placement_id" :label="`${p.name} (${p.placement_id})`" :value="p.placement_id" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="瀑布流">
+          <el-select v-model="filterWaterfall" placeholder="全部瀑布流" clearable style="width: 240px" @change="fetchList">
+            <el-option v-for="w in waterfallList" :key="w.waterfall_id" :label="`${w.name} (${w.waterfall_id})`" :value="w.waterfall_id" />
           </el-select>
         </el-form-item>
       </el-form>
@@ -16,8 +21,16 @@
     <div class="table-card">
       <el-table :data="tableData" v-loading="loading" stripe style="width: 100%">
         <el-table-column prop="group_name" label="分组名称" min-width="140" />
-        <el-table-column prop="placement_id" label="广告位" min-width="200" />
-        <el-table-column prop="priority" label="优先级" width="100" />
+        <el-table-column prop="placement_id" label="广告位" min-width="180" />
+        <el-table-column prop="waterfall_id" label="绑定瀑布流" min-width="200">
+          <template #default="{ row }">
+            <el-tag v-if="row.waterfall_id" type="primary" size="small" effect="plain">
+              {{ waterfallMap.get(row.waterfall_id) || row.waterfall_id }}
+            </el-tag>
+            <span v-else class="text-muted">--</span>
+          </template>
+        </el-table-column>
+        <el-table-column prop="priority" label="优先级" width="80" />
         <el-table-column prop="conditions" label="规则" min-width="240">
           <template #default="{ row }">{{ formatConditions(row.conditions) }}</template>
         </el-table-column>
@@ -41,6 +54,12 @@
           <el-select v-model="editForm.placement_id" placeholder="请选择广告位" style="width: 100%">
             <el-option v-for="p in placementList" :key="p.placement_id" :label="`${p.name}`" :value="p.placement_id" />
           </el-select>
+        </el-form-item>
+        <el-form-item label="绑定瀑布流" prop="waterfall_id">
+          <el-select v-model="editForm.waterfall_id" placeholder="选择要绑定的瀑布流" clearable filterable style="width: 100%">
+            <el-option v-for="w in waterfallList" :key="w.waterfall_id" :label="`${w.name} (${w.waterfall_id})`" :value="w.waterfall_id" />
+          </el-select>
+          <div class="form-tip">绑定后，该分组匹配的流量会使用此瀑布流配置</div>
         </el-form-item>
         <el-form-item label="分组名称" prop="group_name">
           <el-input v-model="editForm.group_name" placeholder="请输入分组名称" />

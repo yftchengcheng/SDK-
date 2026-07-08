@@ -739,3 +739,4 @@
 |------|---------|
 | 2026-07-07 | 初始创建，完整计划写入 |
 | 2026-07-07 | 优化：根据详细对接流程描述，新增ad_network_account表（14张表）、新增3个账号管理API（35个接口）、新增网络账号管理页面（14个页面）、新增KVEditor+AccountManager组件、细化6步对接流程含完整参数传递机制、更新阶段4为6步对应开发步骤 |
+| 2026-07-08 | 补全 12 项差距功能：①瀑布流拖拽排序（SortableJS）②自定义广告源创建入口 ③流量分组瀑布流绑定 ④Dashboard SDK/API 切换器 ⑤Profile 通知设置 ⑥报表 Excel 导出 ⑦对账 Excel 导出 ⑧Adapter MD5 + 进度条 ⑨HttpOnly Cookie 鉴权 + cookie-parser 中间件 ⑩Supabase RLS 14 张表策略 + `set_app_developer_id` RPC（migration 0005 蓝图） ⑪ReviewPanel 独立组件抽离 ⑫启动列名统一 TOKEN 化 |

@@ -28,10 +28,11 @@
 | **Runtime** | Node.js 20+ / Express 4 |
 | **Language** | TypeScript 5.6 |
 | **运行** | tsx（开发 watch） / tsup CJS（生产构建） |
-| **Auth** | jsonwebtoken（HS256，7 天过期） + bcryptjs 密码哈希 |
+| **Auth** | jsonwebtoken（HS256，7 天过期）+ bcryptjs 密码哈希 + **HttpOnly Cookie 鉴权**（`auth_token`，HttpOnly + SameSite=Strict，dev 不带 Secure / prod 带 Secure）；`authMiddleware` 优先 cookie，回退到 `Authorization: Bearer` |
 | **Database** | Supabase（PostgreSQL）+ @supabase/supabase-js |
 | **Cache** | node-cache（验证码 token） |
 | **ID** | uuid v4 |
+| **Cookie 解析** | cookie-parser |
 
 ### 工具链
 
@@ -182,6 +183,9 @@
 - 每次调用必须检查 `{ data, error }`，error 必须 throw
 - `.delete()` / `.update()` 必须带 filter
 - 鉴权：除 `/auth/login` `/auth/register` `/auth/send-captcha` 外，所有接口必须经过 `authMiddleware` 校验 JWT
+  - 优先从 `req.cookies.auth_token` 读取（HttpOnly Cookie 场景）
+  - 回退到 `Authorization: Bearer <token>` 头（SDK 直连场景）
+  - `setAuthCookie` / `clearAuthCookie` 工具方法统一管理 Cookie 写入/清除
 - 字段名 `snake_case`
 
 ### 数据库规范
