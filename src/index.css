@@ -3690,35 +3690,113 @@ html, body, #app {
   font-size: 12px;
 }
 
-/* ===========================
-   数据看板（page-dashboard）
-   =========================== */
-.page-dashboard .page-stat-card {
-  padding: 0;
-  background: transparent;
-  border: none;
-  box-shadow: none;
-}
-.page-dashboard .page-chart-card {
-  padding: 20px 24px;
-  margin-top: 16px;
-}
-.page-dashboard .page-chart-card .chart-card {
-  border: none;
-  padding: 0;
-  background: transparent;
-  box-shadow: none;
-}
-.page-dashboard .page-list-card {
-  padding: 0;
-  background: transparent;
-  border: none;
-  box-shadow: none;
-  margin-top: 16px;
-}
-
-/* 数据看板图表容器必须显式高度（否则 ECharts autoresize 后为 0） */
-.page-dashboard .chart-canvas {
+/* 兜底高度：让 ECharts 在 chart-card 内有渲染空间（不影响原视觉布局） */
+.chart-canvas {
   width: 100%;
   height: 280px;
+}
+
+/* ============================================================
+ * 数据看板（DESIGN.md 2026-07「数据看板规范」）
+ * 4 个 stat-card + 1 个 ECharts 折线图 + 3 个 list-card
+ * ============================================================ */
+
+/* ---------- Stat Grid（KPI 卡片容器） ---------- */
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--space-lg);
+}
+@media (max-width: 1280px) {
+  .stat-grid { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 768px) {
+  .stat-grid { grid-template-columns: 1fr; }
+}
+
+/* ---------- Stat Card 内部结构（基于 DESIGN.md Stat Card 规范扩展） ---------- */
+.stat-card__trend {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  margin-top: var(--space-sm);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+.trend-arrow.up   { color: #059669; font-weight: 700; }
+.trend-arrow.down { color: #DC2626; font-weight: 700; }
+.trend-arrow.flat { color: var(--color-slate-400); font-weight: 700; }
+.trend-text.up    { color: #059669; }
+.trend-text.down  { color: #DC2626; }
+.trend-text.flat  { color: var(--color-slate-400); }
+
+/* ---------- Chart Card（趋势图，直接用 .page-card 容器） ---------- */
+.page-chart-card {
+  /* 保留 .page-card 默认 padding: 0 容器；chart-card 内部自己控制 20px padding */
+}
+.page-chart-card .chart-title {
+  font-size: var(--text-md, 14px);
+  font-weight: 600;
+  color: var(--color-slate-800, #1E293B);
+  padding: var(--space-md, 12px) 0 var(--space-md, 12px) 0;
+  border-bottom: 1px solid var(--color-slate-100, #F1F5F9);
+  margin-bottom: var(--space-md, 12px);
+}
+
+/* ---------- List Grid（排名/告警列表容器） ---------- */
+.list-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-lg);
+}
+@media (max-width: 1280px) {
+  .list-grid { grid-template-columns: 1fr; }
+}
+.page-list-card {
+  /* 保留 .page-card 默认 padding: 0 容器；list-card 内部自己控制 padding */
+}
+.page-list-card .list-title {
+  font-size: var(--text-md, 14px);
+  font-weight: 600;
+  color: var(--color-slate-800, #1E293B);
+  padding: var(--space-md, 12px) 0 var(--space-md, 12px) 0;
+  border-bottom: 1px solid var(--color-slate-100, #F1F5F9);
+  margin-bottom: var(--space-md, 12px);
+}
+.page-list-card .list-body {
+  padding: 0;
+}
+
+/* ---------- 加载错误兜底 ---------- */
+.page-load-error {
+  margin-bottom: var(--space-lg);
+}
+.page-load-error .alert-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+}
+
+/* ---------- Header 内的 Range Tabs（与 DESIGN.md Mode Tabs 规范一致） ---------- */
+.dashboard-range-tabs {
+  display: inline-flex;
+  background: var(--color-slate-100, #F1F5F9);
+  border-radius: var(--radius-md, 6px);
+  padding: 2px;
+}
+.dashboard-range-tabs .el-radio-button__inner {
+  border: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  padding: 4px 12px;
+  font-size: var(--text-sm, 12px);
+  font-weight: 500;
+  color: var(--color-slate-500, #64748B);
+}
+.dashboard-range-tabs .el-radio-button.is-active .el-radio-button__inner {
+  background: #FFFFFF !important;
+  color: var(--color-primary-600, #2563EB) !important;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.06) !important;
 }

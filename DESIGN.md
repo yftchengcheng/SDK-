@@ -507,3 +507,88 @@ B2B 企业级广告数据管理控制台。沉稳、专业、精准。蓝+灰+�
 - `/reconciliation` - 导入对账数据
 - `/admin/developers` - 修改角色
 
+## 数据看板规范（2026-07 用户要求：dashboard 严格按 page-shell 规范重构）
+
+数据看板是**特殊页面**——不是纯列表页，是「KPI 概览 + 趋势图 + 排名列表」三段式看板。
+
+### 整体三段式结构
+
+```
+┌──────────────────────────────────────────────────────────────┐
+│  Page Header（图标 + 标题 + 副标题 + 时间筛选 + 刷新）          │  ← .page-header
+├──────────────────────────────────────────────────────────────┤
+│  Stat Grid（4 个统计卡片）                                    │  ← .stat-grid
+├──────────────────────────────────────────────────────────────┤
+│  Chart Card（ECharts 趋势图，高度固定 280px）                  │  ← .page-card.page-chart-card
+│                                                              │
+├──────────────────────────────────────────────────────────────┤
+│  List Grid（3 个排名/告警列表）                               │  ← .list-grid
+│  ┌── .page-card.page-list-card ──┐  ┌── ... ──┐  ┌── ... ──┐ │
+│  │  广告源对比                    │  │ 广告位收益排行 │ │ 异常告警 │ │
+│  └───────────────────────────────┘  └──────────┘  └──────────┘ │
+└──────────────────────────────────────────────────────────────┘
+```
+
+### Page Header
+
+- **必用 .page-header 规范容器**（白底 / 8px 圆角 / 边框 #E2E8F0 / shadow-sm / 14px 20px padding）
+- 左侧 `.page-header-left`：
+  - 图标徽章 36×36 / 圆角 8 / 背景 #EFF6FF / 颜色 #2563EB / Element Plus Icon `DataAnalysis` 或 `DataLine`
+  - 标题组：主标题"数据看板" + 副标题"今日 / 本周 / 本月聚合数据"
+- 右侧 `.page-header-actions`：时间 tab（7/14/30 天）+ 日期范围选择 + 刷新按钮
+
+### Stat Grid（KPI 卡片）
+
+- 容器：`.stat-grid` / `display: grid` / `grid-template-columns: repeat(4, 1fr)` / `gap: var(--space-lg)`
+- 卡片：复用 DESIGN.md **Stat Card 规范**（`.stat-card` / 白底 / 8px 圆角 / 边框 #E2E8F0 / padding 16px / hover 边框 #BFDBFE + 阴影）
+- 卡片内部结构：
+  - `.stat-card__label`：12px / #94A3B8
+  - `.stat-card__value`：18px / 700 / #0F172A / letter-spacing -0.01em
+  - `.stat-card__trend`：可选，显示环比 ↑/↓ 趋势
+- **响应式**：≥1280px 显示 4 列 / 1024-1280px 显示 2 列 / <1024px 显示 1 列
+
+### Chart Card（趋势图）
+
+- 容器：`.page-card.page-chart-card`（直接用 .page-card 规范）
+  - 内部保留 padding 20px（**不要**为消除 padding 而设 `padding: 0`，否则 ECharts 容器会失去呼吸空间）
+  - 背景保持 #FFFFFF（**不要**设 `background: transparent`）
+- 标题：`.chart-title` / 14px / 600 / #1E293B
+- ECharts 容器 `.chart-canvas`：
+  - **必须**显式 `width: 100%; height: 280px`（ECharts svg 渲染的硬性要求，autoresize 模式依赖父容器显式高度）
+  - 使用 `vue-echarts` 的 `<VChart autoresize :init-options="{ renderer: 'svg' }" />`
+  - 折线颜色 #2563EB / 渐变填充 `rgba(37, 99, 235, 0.1)` / 圆滑曲线 `smooth: true`
+- 空数据：`<el-empty description="暂无趋势数据" :image-size="60" />`
+
+### List Grid（排名/告警列表）
+
+- 容器：`.list-grid` / `display: grid` / `grid-template-columns: repeat(3, 1fr)` / `gap: var(--space-lg)`
+- 卡片：`.page-card.page-list-card`（直接用 .page-card 规范）
+  - 内部保留 padding 20px
+  - 背景 #FFFFFF
+- 卡片内部结构：
+  - `.list-title`：14px / 600 / #1E293B / 底部 margin 12px
+  - `.list-body`：flex column / gap 8px
+  - 每行 `.list-row`：
+    - `display: grid` / `grid-template-columns: 24px 1fr 100px 100px`
+    - 排名 `.row-rank`：20×20 / 4px 圆角 / #F1F5F9 背景 / #475569 文字 / 11px / 600
+    - 排名异常 `.row-rank.warn`：#FEE2E2 背景 / #991B1B 文字
+    - 名称 `.row-name`：#334155 / ellipsis 截断
+    - 进度条 `.row-bar-track`：6px 高 / #F1F5F9 背景 / 3px 圆角
+    - 进度条填充 `.row-bar-fill`：linear-gradient(90deg, #3B82F6, #1D4ED8) / 3px 圆角 / transition width 0.3s
+    - 数值 `.row-value`：#334155 / 500 / right / tabular-nums
+- 空数据：`<el-empty description="暂无数据" :image-size="50" />`
+
+### 关键边界（必须遵守）
+
+1. **ECharts 容器必须有显式高度**——`.chart-canvas { height: 280px }` 绝不能删
+2. **不要给 .page-card.page-chart-card / .page-card.page-list-card 设 `padding: 0` 或 `background: transparent`**——会让内部内容塌陷
+3. **折线图配色严格按 DESIGN.md**——#2563EB + rgba(37,99,235,0.1) 渐变填充（不要用琥珀黄/紫色/绿色等替代）
+4. **stat-card 必须 hover 有反馈**——边框 #BFDBFE + 阴影 `0 2px 8px rgba(37,99,235,0.06)`
+5. **不要在 dashboard 用 Emoji 表情**——用 Element Plus Icon `DataAnalysis` / `CaretTop`（↑）/`CaretBottom`（↓）
+
+### 命名与代码规范
+
+- 顶层类：`.page-shell.page-dashboard`
+- 三段容器：`.page-header` / `.stat-grid` / `.page-card.page-chart-card` / `.list-grid` / `.page-card.page-list-card`
+- 内部子元素：`.stat-card` / `.stat-card__label` / `.stat-card__value` / `.stat-card__trend` / `.chart-title` / `.chart-canvas` / `.list-title` / `.list-body` / `.list-row` / `.row-rank` / `.row-name` / `.row-bar-track` / `.row-bar-fill` / `.row-value`
+

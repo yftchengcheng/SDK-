@@ -17,18 +17,24 @@
       </template>
     </el-alert>
 
-    <!-- 顶部筛选 -->
+    <!-- Page Header（DESIGN.md 数据看板规范） -->
     <div class="page-header">
-      <div class="page-header-info">
-        <div class="page-header-icon"><el-icon><DataAnalysis /></el-icon></div>
-        <div>
-          <h2 class="page-header-title">数据看板</h2>
-          <p class="page-header-subtitle">聚合请求、填充、展示、点击与收益趋势</p>
+      <div class="page-header-left">
+        <div class="page-header-icon">
+          <el-icon><DataAnalysis /></el-icon>
+        </div>
+        <div class="page-header-titles">
+          <h1 class="page-header-title">数据看板</h1>
+          <p class="page-header-subtitle">今日 / 本周 / 本月聚合数据</p>
         </div>
       </div>
       <div class="page-header-actions">
-      <div class="page-filter">
-        <el-radio-group v-model="activeTab" size="small" @change="onTabChange">
+        <el-radio-group
+          v-model="activeTab"
+          size="small"
+          class="dashboard-range-tabs"
+          @change="onTabChange"
+        >
           <el-radio-button label="7">7 天</el-radio-button>
           <el-radio-button label="14">14 天</el-radio-button>
           <el-radio-button label="30">30 天</el-radio-button>
@@ -45,20 +51,22 @@
           :clearable="false"
           @change="onDateChange"
         />
-        <el-button size="small" :loading="loading" @click="reload" :icon="Refresh">刷新</el-button>
-      </div>
+        <el-button size="small" :icon="Refresh" :loading="loading" @click="reload">
+          刷新
+        </el-button>
       </div>
     </div>
 
-    <!-- 统计卡片（纯数字 + 简单 HTML 趋势条，无 ECharts） -->
-    <div class="page-card page-stat-card">
+    <!-- Stat Grid（4 个 stat-card，按 DESIGN.md Stat Card 规范） -->
     <div v-loading="loading" class="stat-grid">
       <div v-for="m in metrics" :key="m.key" class="stat-card">
-        <div class="stat-label">{{ m.label }}</div>
-        <div class="stat-value">{{ m.display }}</div>
-        <div v-if="m.trend != null" class="stat-trend">
+        <div class="stat-card__label">{{ m.label }}</div>
+        <div class="stat-card__value">{{ m.display }}</div>
+        <div v-if="m.trend != null" class="stat-card__trend">
           <span :class="['trend-arrow', m.trend > 0 ? 'up' : m.trend < 0 ? 'down' : 'flat']">
-            {{ m.trend > 0 ? '↑' : m.trend < 0 ? '↓' : '·' }}
+            <el-icon v-if="m.trend > 0"><CaretTop /></el-icon>
+            <el-icon v-else-if="m.trend < 0"><CaretBottom /></el-icon>
+            <span v-else>·</span>
           </span>
           <span :class="['trend-text', m.trend > 0 ? 'up' : m.trend < 0 ? 'down' : 'flat']">
             {{ Math.abs(m.trend).toFixed(1) }}%
@@ -66,11 +74,9 @@
         </div>
       </div>
     </div>
-    </div>
 
-    <!-- 趋势图 -->
-    <div class="page-card page-chart-card">
-    <div v-loading="trendLoading" class="chart-card">
+    <!-- Chart Card（page-card 包装，ECharts 折线图） -->
+    <div v-loading="trendLoading" class="page-card page-chart-card">
       <div class="chart-title">收益趋势（{{ rangeLabel }}）</div>
       <VChart
         v-if="trendOption && trendOption.series && trendOption.series.length"
@@ -83,12 +89,10 @@
       />
       <el-empty v-else description="暂无趋势数据" :image-size="60" />
     </div>
-    </div>
 
-    <!-- 数据列表（无 ECharts，纯 HTML） -->
-    <div class="page-card page-list-card">
+    <!-- List Grid（3 个 list-card，page-card 包装） -->
     <div class="list-grid">
-      <div v-loading="loading" class="list-card">
+      <div v-loading="loading" class="page-card page-list-card">
         <div class="list-title">广告源对比</div>
         <div v-if="sourceRows.length" class="list-body">
           <div v-for="(row, idx) in sourceRows" :key="row.sourceId" class="list-row">
@@ -103,7 +107,7 @@
         <el-empty v-else description="暂无数据" :image-size="50" />
       </div>
 
-      <div v-loading="loading" class="list-card">
+      <div v-loading="loading" class="page-card page-list-card">
         <div class="list-title">广告位收益排行</div>
         <div v-if="placementRows.length" class="list-body">
           <div v-for="(row, idx) in placementRows" :key="row.placementId" class="list-row">
@@ -118,7 +122,7 @@
         <el-empty v-else description="暂无数据" :image-size="50" />
       </div>
 
-      <div v-loading="loading" class="list-card">
+      <div v-loading="loading" class="page-card page-list-card">
         <div class="list-title">异常告警</div>
         <div v-if="anomalyRows.length" class="list-body">
           <div v-for="row in anomalyRows" :key="row.placementId + row.type" class="list-row">
@@ -136,7 +140,6 @@
         <el-empty v-else description="暂无异常" :image-size="50" />
       </div>
     </div>
-    </div>
   </div>
 </template>
 
@@ -148,7 +151,7 @@ import { CanvasRenderer, SVGRenderer } from 'echarts/renderers'
 import { LineChart } from 'echarts/charts'
 import { GridComponent, TooltipComponent, LegendComponent } from 'echarts/components'
 import VChart from 'vue-echarts'
-import { DataAnalysis, Refresh } from '@element-plus/icons-vue'
+import { DataAnalysis, CaretTop, CaretBottom, Refresh } from '@element-plus/icons-vue'
 import request from '@/utils/request'
 import { ElMessage } from 'element-plus'
 
