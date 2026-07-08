@@ -97,6 +97,7 @@
 import { ref, onMounted, onBeforeUnmount, nextTick, watch } from 'vue'
 import { Refresh, Top, Bottom } from '@element-plus/icons-vue'
 import * as echarts from 'echarts'
+import dayjs from 'dayjs'
 import request from '@/utils/request'
 
 interface DashboardTrendItem { date: string; revenue: number; impressions: number; fillRate: number; eCPM: number; clicks: number }
@@ -111,6 +112,19 @@ const dateRange = ref<[Date, Date]>([
   new Date(Date.now() - 7 * 86400000),
   new Date()
 ])
+
+// 优先用 dateRange 自定义范围；空时回退到 activeTab 的 days 数（向后兼容）
+function buildDateParams(): Record<string, string> {
+  const [start, end] = dateRange.value || []
+  if (start && end) {
+    return {
+      startDate: dayjs(start).format('YYYY-MM-DD'),
+      endDate: dayjs(end).format('YYYY-MM-DD'),
+    }
+  }
+  const days = activeTab.value === '7天' ? 7 : activeTab.value === '14天' ? 14 : 30
+  return { days: String(days) }
+}
 const loading = ref(false)
 const metrics = ref<{ key: string; label: string; value: number; trend: number }[]>([
   { key: 'revenue', label: '总收益', value: 0, trend: 0 },
@@ -246,29 +260,29 @@ function initCharts() {
 }
 
 function loadDashboardData() {
-  const days = activeTab.value === '7天' ? 7 : activeTab.value === '14天' ? 14 : 30
+  const params = buildDateParams()
   loading.value = true
-  Promise.all([
-    request.get<any>('/api/v1/console/dashboard/overview', { params: { days } }),
-    request.get<any>('/api/v1/console/dashboard/trend', { params: { days } }),
-    request.get<any>('/api/v1/console/dashboard/source-comparison', { params: { days } }),
-    request.get<any>('/api/v1/console/dashboard/placement-ranking', { params: { days } }),
-    request.get<any>('/api/v1/console/dashboard/anomalies', { params: { days } }),
+  return Promise.all([
+    request.get<any>('/api/v1/console/dashboard/overview', { params }),
+    request.get<any>('/api/v1/console/dashboard/trend', { params }),
+    request.get<any>('/api/v1/console/dashboard/source-comparison', { params }),
+    request.get<any>('/api/v1/console/dashboard/placement-ranking', { params }),
+    request.get<any>('/api/v1/console/dashboard/anomalies', { params }),
     request.get<any>('/api/v1/console/app/list', { params: { pageSize: 200 } }),
     request.get<any>('/api/v1/console/placement/list', { params: { pageSize: 500 } })
   ])
     .then(([overviewRes, trendRes, sourceRes, rankingRes, anomalyRes, appsRes, placementsRes]) => {
       const ov = overviewRes.data || {}
-      const todayRevenue = Number(ov.todayRevenue || 0)
-      const todayImpressions = Number(ov.todayImpressions || 0)
-      const fillRate = Number(ov.fillRate || 0)
-      const eCPM = Number(ov.eCPM || 0)
+      const periodRevenue = Number(ov.todayRevenue ?? ov.periodRevenue ?? ov.totalRevenue ?? 0)
+      const periodImpressions = Number(ov.todayImpressions ?? ov.periodImpressions ?? ov.totalImpressions ?? 0)
+      const fillRate = Number(ov.fillRate ?? 0)
+      const eCPM = Number(ov.eCPM ?? 0)
       const clicks = trendRes.data?.reduce((s: number, t: DashboardTrendItem) => s + Number(t.clicks || 0), 0) || 0
-      const ctr = todayImpressions > 0 ? (clicks / todayImpressions) * 100 : 0
+      const ctr = periodImpressions > 0 ? (clicks / periodImpressions) * 100 : 0
       metrics.value = [
-        { key: 'revenue', label: '总收益', value: todayRevenue, trend: 0 },
+        { key: 'revenue', label: '总收益', value: periodRevenue, trend: 0 },
         { key: 'ecpm', label: 'eCPM', value: eCPM, trend: 0 },
-        { key: 'impressions', label: '展示量', value: todayImpressions, trend: 0 },
+        { key: 'impressions', label: '展示量', value: periodImpressions, trend: 0 },
         { key: 'clicks', label: '点击量', value: clicks, trend: 0 },
         { key: 'ctr', label: '点击率', value: Number(ctr.toFixed(2)), trend: 0 },
         { key: 'fillRate', label: '填充率', value: fillRate, trend: 0 }
@@ -302,15 +316,17 @@ function getAppName(placementId: string): string {
 }
 
 watch(activeTab, () => loadDashboardData())
+watch(dateRange, () => loadDashboardData(), { deep: true })
 
 function handleResize() {
   charts.forEach(c => c.resize())
 }
 
 onMounted(async () => {
+  // 关键：先等数据回来再初始化图表，避免先画空数据造成的"白板→突然出现"闪屏
+  await loadDashboardData()
   await nextTick()
   initCharts()
-  loadDashboardData()
   window.addEventListener('resize', handleResize)
 })
 
