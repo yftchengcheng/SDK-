@@ -82,8 +82,11 @@ export default defineConfig({
       'Cache-Control': 'no-store',
     },
     watch: {
+      // 沙箱兼容：usePolling 必须开启，但 100ms 间隔太频繁，
+      // 会导致 tsx/node CPU 飚满，模块响应延迟 100s+
       usePolling: true,
-      interval: 100,
+      interval: 5000, // 5s 间隔，平衡实时性与性能
+      ignored: ['**/node_modules/**', '**/dist/**', '**/dist-server/**'],
     },
   },
 });
