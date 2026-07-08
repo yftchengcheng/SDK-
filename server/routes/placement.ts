@@ -118,7 +118,7 @@ router.put('/update', authMiddleware, async (req: express.Request, res: express.
   try {
     const { accessType } = await getDeveloperContext(req);
     const {
-      placementId, name, status,
+      placementId, name, format, status,
       biddingType, screenOrientation, adSize, materialType, videoMute, autoPlay, templateStyle,
     } = req.body;
 
@@ -130,6 +130,7 @@ router.put('/update', authMiddleware, async (req: express.Request, res: express.
     const isSDK = accessType !== 2;
     const updateData: Record<string, unknown> = { updated_at: new Date().toISOString() };
     if (name !== undefined) updateData.name = name;
+    if (format !== undefined) updateData.format = format;
     if (status !== undefined) updateData.status = status;
     if (biddingType !== undefined) updateData.bidding_type = biddingType;
     if (isSDK && screenOrientation !== undefined) updateData.screen_orientation = screenOrientation;

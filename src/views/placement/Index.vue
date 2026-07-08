@@ -349,8 +349,10 @@ const openCreate = () => {
 };
 
 const handleEdit = (row: any) => {
+  // placement_id 是业务唯一 ID（pl_xxx 字符串），不是数据库自增 id（数字）。
+  // 后端 /update 用 eq('placement_id', placementId) 过滤，必须传 placement_id。
   Object.assign(editForm, {
-    id: row.id,
+    id: row.placement_id,
     app_key: row.app_key,
     name: row.name,
     format: row.format,
