@@ -62,89 +62,218 @@
         <el-pagination v-model:current-page="page" v-model:page-size="pageSize" :total="total" :page-sizes="[10,20,50,100]" layout="total, sizes, prev, pager, next" @change="fetchList" />
       </div>
     </div>
-    <!-- Dialog -->
-    <el-dialog v-model="showDialog" :title="editForm.id ? '编辑广告源' : '创建广告源'" width="560px" destroy-on-close>
-      <el-form ref="formRef" :model="editForm" :rules="formRules" label-position="top">
-        <div class="dialog-section">
-          <div class="dialog-section-title">基础信息</div>
-          <div class="dialog-form-row">
-            <el-form-item label="广告网络" prop="network_code">
-              <el-select v-model="editForm.network_code" placeholder="请选择广告网络" style="width: 100%">
-                <el-option v-for="n in networks" :key="n.network_code" :label="n.network_name" :value="n.network_code" />
-              </el-select>
-            </el-form-item>
-            <el-form-item label="广告源名称" prop="source_name">
-              <el-input v-model="editForm.source_name" placeholder="如：穿山甲-激励视频-主" />
-            </el-form-item>
+    <!-- Drawer: Create / Edit Ad Source（侧边抽屉，保留列表上下文） -->
+    <el-drawer
+      v-model="drawerVisible"
+      direction="rtl"
+      :size="drawerSize"
+      :with-header="false"
+      :destroy-on-close="false"
+      :append-to-body="true"
+      :modal="true"
+      :modal-class="'page-form-drawer-mask'"
+      class="page-form-drawer"
+    >
+      <div class="page-form-shell page-form-drawer-shell">
+        <header class="page-form-header">
+          <div class="page-form-header-titles">
+            <h1 class="page-form-header-title">
+              <el-icon :size="20" style="color: var(--color-primary-500, #2563EB);">
+                <component :is="isEdit ? Edit : Plus" />
+              </el-icon>
+              <span>{{ isEdit ? '编辑广告源' : '创建广告源' }}</span>
+              <el-tag v-if="isEdit" type="warning" effect="light" size="small">编辑模式</el-tag>
+            </h1>
+            <p class="page-form-header-subtitle">
+              {{ isEdit ? '修改广告源信息，保存后立即生效' : '填写以下信息以创建一个新广告源' }}
+            </p>
           </div>
-        </div>
-        <div class="dialog-section">
-          <div class="dialog-section-title">平台凭证</div>
-          <div class="dialog-form-row">
-            <el-form-item label="三方 App ID" prop="third_app_id">
-              <el-input v-model="editForm.third_app_id" placeholder="在广告平台注册的应用ID" />
-            </el-form-item>
-            <el-form-item label="三方代码位 ID" prop="third_placement_id">
-              <el-input v-model="editForm.third_placement_id" placeholder="在广告平台申请的代码位ID" />
-            </el-form-item>
+          <div class="page-form-header-actions">
+            <el-button :icon="RefreshLeft" @click="onFormReset">重置</el-button>
+            <el-button :icon="Close" circle plain @click="closeDrawer" />
           </div>
-          <div class="dialog-form-row dialog-form-row--full" style="padding-top: 0;">
-            <el-form-item label="额外配置">
-              <el-input v-model="editForm.extra" type="textarea" :rows="3" placeholder="JSON格式，各平台特殊参数（选填）" />
-              <div class="dialog-form-help">支持各广告网络特有的高级参数，如超时、底价、用户定向等</div>
-            </el-form-item>
-          </div>
-        </div>
-      </el-form>
-      <template #footer>
-        <el-button @click="showDialog = false">取消</el-button>
-        <el-button type="primary" :loading="submitting" @click="handleSubmit">确定</el-button>
-      </template>
-    </el-dialog>
+        </header>
 
-    <!-- 自定义广告源 Dialog -->
-    <el-dialog v-model="showCustomDialog" title="创建自定义广告源" width="560px" destroy-on-close>
-      <div class="dialog-form-info" style="margin-bottom: 12px;">
-        <el-icon><InfoFilled /></el-icon>
-        <span>请先在「广告网络管理 → 自定义网络」中创建 Adapter 并通过审核，再来此处绑定。</span>
+        <div class="page-form-body">
+          <el-form
+            ref="formRef"
+            :model="editForm"
+            :rules="formRules"
+            label-position="top"
+            @submit.prevent
+          >
+            <!-- 区块 1：基础信息 -->
+            <section class="page-form-section">
+              <div class="page-form-section-header">
+                <h2 class="page-form-section-title">
+                  <el-icon><InfoFilled /></el-icon>
+                  <span>基础信息</span>
+                </h2>
+              </div>
+              <p class="page-form-section-desc">选择广告网络和广告源名称</p>
+
+              <div class="page-form-grid">
+                <el-form-item label="广告网络" prop="network_code" class="span-2">
+                  <template #label><span class="required-mark">*</span><span>广告网络</span></template>
+                  <el-select v-model="editForm.network_code" placeholder="请选择广告网络" style="width: 100%">
+                    <el-option v-for="n in networks" :key="n.network_code" :label="n.network_name" :value="n.network_code" />
+                  </el-select>
+                </el-form-item>
+                <el-form-item label="广告源名称" prop="source_name" class="span-2">
+                  <template #label><span class="required-mark">*</span><span>广告源名称</span></template>
+                  <el-input v-model="editForm.source_name" placeholder="如：穿山甲-激励视频-主" />
+                </el-form-item>
+              </div>
+            </section>
+
+            <!-- 区块 2：平台凭证 -->
+            <section class="page-form-section">
+              <div class="page-form-section-header">
+                <h2 class="page-form-section-title">
+                  <el-icon><Connection /></el-icon>
+                  <span>平台凭证</span>
+                </h2>
+              </div>
+              <p class="page-form-section-desc">在三方广告平台申请的应用 ID 和代码位 ID</p>
+
+              <div class="page-form-grid">
+                <el-form-item label="三方 App ID" prop="third_app_id" class="span-2">
+                  <template #label><span class="required-mark">*</span><span>三方 App ID</span></template>
+                  <el-input v-model="editForm.third_app_id" placeholder="在广告平台注册的应用ID" />
+                </el-form-item>
+                <el-form-item label="三方代码位 ID" prop="third_placement_id" class="span-2">
+                  <template #label><span class="required-mark">*</span><span>三方代码位 ID</span></template>
+                  <el-input v-model="editForm.third_placement_id" placeholder="在广告平台申请的代码位ID" />
+                </el-form-item>
+                <el-form-item label="额外配置" class="span-2">
+                  <el-input v-model="editForm.extra" type="textarea" :rows="3" placeholder="JSON格式，各平台特殊参数（选填）" />
+                  <div class="form-help">支持各广告网络特有的高级参数，如超时、底价、用户定向等</div>
+                </el-form-item>
+              </div>
+            </section>
+          </el-form>
+        </div>
+
+        <footer class="page-form-footer">
+          <div class="page-form-footer-left">
+            <el-icon><InfoFilled /></el-icon>
+            <span>带 * 为必填项</span>
+          </div>
+          <div class="page-form-footer-right">
+            <el-button :icon="Close" @click="closeDrawer">取消</el-button>
+            <el-button type="primary" :loading="submitting" :icon="Check" @click="handleSubmit">
+              {{ isEdit ? '保存修改' : '创建广告源' }}
+            </el-button>
+          </div>
+        </footer>
       </div>
-      <el-form ref="customFormRef" :model="customForm" :rules="customFormRules" label-position="top">
-        <div class="dialog-section">
-          <div class="dialog-section-title">基础信息</div>
-          <div class="dialog-form-row">
-            <el-form-item label="自定义网络" prop="networkDefId">
-              <el-select v-model="customForm.networkDefId" placeholder="请选择已通过审核的自定义网络" style="width: 100%" filterable>
-                <el-option v-for="n in customNetworks" :key="n.id" :label="`${n.network_name} (${n.network_code})`" :value="n.id" />
-              </el-select>
-            </el-form-item>
-            <el-form-item label="广告源名称" prop="source_name">
-              <el-input v-model="customForm.source_name" placeholder="如：自定义-激励视频-主" />
-            </el-form-item>
+    </el-drawer>
+
+    <!-- Drawer: Create Custom Ad Source（侧边抽屉） -->
+    <el-drawer
+      v-model="customDrawerVisible"
+      direction="rtl"
+      :size="drawerSize"
+      :with-header="false"
+      :destroy-on-close="false"
+      :append-to-body="true"
+      :modal="true"
+      :modal-class="'page-form-drawer-mask'"
+      class="page-form-drawer"
+    >
+      <div class="page-form-shell page-form-drawer-shell">
+        <header class="page-form-header">
+          <div class="page-form-header-titles">
+            <h1 class="page-form-header-title">
+              <el-icon :size="20" style="color: var(--color-primary-500, #2563EB);">
+                <Plus />
+              </el-icon>
+              <span>创建自定义广告源</span>
+            </h1>
+            <p class="page-form-header-subtitle">绑定已通过审核的自定义 Adapter 网络</p>
           </div>
+          <div class="page-form-header-actions">
+            <el-button :icon="RefreshLeft" @click="onCustomFormReset">重置</el-button>
+            <el-button :icon="Close" circle plain @click="closeCustomDrawer" />
+          </div>
+        </header>
+
+        <div class="page-form-body">
+          <el-alert type="info" :closable="false" show-icon style="margin-bottom: 4px;">
+            <template #title>
+              请先在「广告网络管理 → 自定义网络」中创建 Adapter 并通过审核，再来此处绑定。
+            </template>
+          </el-alert>
+
+          <el-form
+            ref="customFormRef"
+            :model="customForm"
+            :rules="customFormRules"
+            label-position="top"
+            @submit.prevent
+          >
+            <!-- 区块 1：基础信息 -->
+            <section class="page-form-section">
+              <div class="page-form-section-header">
+                <h2 class="page-form-section-title">
+                  <el-icon><InfoFilled /></el-icon>
+                  <span>基础信息</span>
+                </h2>
+              </div>
+
+              <div class="page-form-grid">
+                <el-form-item label="自定义网络" prop="networkDefId" class="span-2">
+                  <template #label><span class="required-mark">*</span><span>自定义网络</span></template>
+                  <el-select v-model="customForm.networkDefId" placeholder="请选择已通过审核的自定义网络" style="width: 100%" filterable>
+                    <el-option v-for="n in customNetworks" :key="n.id" :label="`${n.network_name} (${n.network_code})`" :value="n.id" />
+                  </el-select>
+                </el-form-item>
+                <el-form-item label="广告源名称" prop="source_name" class="span-2">
+                  <template #label><span class="required-mark">*</span><span>广告源名称</span></template>
+                  <el-input v-model="customForm.source_name" placeholder="如：自定义-激励视频-主" />
+                </el-form-item>
+              </div>
+            </section>
+
+            <!-- 区块 2：平台凭证 -->
+            <section class="page-form-section">
+              <div class="page-form-section-header">
+                <h2 class="page-form-section-title">
+                  <el-icon><Connection /></el-icon>
+                  <span>平台凭证</span>
+                </h2>
+              </div>
+
+              <div class="page-form-grid">
+                <el-form-item label="自定义网络 App ID" prop="third_app_id" class="span-2">
+                  <template #label><span class="required-mark">*</span><span>自定义网络 App ID</span></template>
+                  <el-input v-model="customForm.third_app_id" placeholder="在自定义网络申请的 App ID" />
+                </el-form-item>
+                <el-form-item label="自定义网络 代码位 ID" prop="third_placement_id" class="span-2">
+                  <template #label><span class="required-mark">*</span><span>自定义网络 代码位 ID</span></template>
+                  <el-input v-model="customForm.third_placement_id" placeholder="在自定义网络申请的代码位 ID" />
+                </el-form-item>
+                <el-form-item label="额外配置" class="span-2">
+                  <el-input v-model="customForm.extra" type="textarea" :rows="3" placeholder="JSON 格式，自定义网络特殊参数（选填）" />
+                  <div class="form-help">支持自定义网络特有的高级参数</div>
+                </el-form-item>
+              </div>
+            </section>
+          </el-form>
         </div>
-        <div class="dialog-section">
-          <div class="dialog-section-title">平台凭证</div>
-          <div class="dialog-form-row">
-            <el-form-item label="自定义网络 App ID" prop="third_app_id">
-              <el-input v-model="customForm.third_app_id" placeholder="在自定义网络申请的 App ID" />
-            </el-form-item>
-            <el-form-item label="自定义网络 代码位 ID" prop="third_placement_id">
-              <el-input v-model="customForm.third_placement_id" placeholder="在自定义网络申请的代码位 ID" />
-            </el-form-item>
+
+        <footer class="page-form-footer">
+          <div class="page-form-footer-left">
+            <el-icon><InfoFilled /></el-icon>
+            <span>带 * 为必填项</span>
           </div>
-          <div class="dialog-form-row dialog-form-row--full" style="padding-top: 0;">
-            <el-form-item label="额外配置">
-              <el-input v-model="customForm.extra" type="textarea" :rows="3" placeholder="JSON 格式，自定义网络特殊参数（选填）" />
-              <div class="dialog-form-help">支持自定义网络特有的高级参数</div>
-            </el-form-item>
+          <div class="page-form-footer-right">
+            <el-button :icon="Close" @click="closeCustomDrawer">取消</el-button>
+            <el-button type="primary" :loading="submitting" :icon="Check" @click="handleCustomSubmit">创建自定义广告源</el-button>
           </div>
-        </div>
-      </el-form>
-      <template #footer>
-        <el-button @click="showCustomDialog = false">取消</el-button>
-        <el-button type="primary" :loading="submitting" @click="handleCustomSubmit">确定</el-button>
-      </template>
-    </el-dialog>
+        </footer>
+      </div>
+    </el-drawer>
   </div>
 </template>
 
@@ -154,7 +283,7 @@ import request from '../../utils/request';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import type { FormInstance, FormRules } from 'element-plus';
 import dayjs from 'dayjs';
-import { Plus, Connection, Search, InfoFilled } from '@element-plus/icons-vue';
+import { Plus, Connection, Search, InfoFilled, Edit, RefreshLeft, Close, Check } from '@element-plus/icons-vue';
 
 const formatTime = (t: string) => t ? dayjs(t).format('YYYY-MM-DD HH:mm:ss') : '--';
 
@@ -179,8 +308,10 @@ const onReset = () => {
   fetchList();
 };
 
-const showDialog = ref(false);
-const showCustomDialog = ref(false);
+const drawerVisible = ref(false);
+const customDrawerVisible = ref(false);
+const drawerSize = '720px';
+const isEdit = ref(false);
 const submitting = ref(false);
 const formRef = ref<FormInstance>();
 const customFormRef = ref<FormInstance>();
@@ -213,7 +344,7 @@ const fetchNetworks = async () => {
   try { const res: any = await request.get('/api/v1/console/network/list'); networks.value = res.data?.list || []; } catch { /* ignore */ }
 };
 
-const _orig_fetchList = async () => {
+const fetchList = async () => {
   loading.value = true;
   try {
     const params: any = { page: page.value, pageSize: pageSize.value };
@@ -224,11 +355,16 @@ const _orig_fetchList = async () => {
   } catch { /* ignore */ } finally { loading.value = false; }
 };
 
-const openCreate = () => { Object.assign(editForm, defaultForm); showDialog.value = true; };
+const openCreate = () => { isEdit.value = false; Object.assign(editForm, defaultForm); drawerVisible.value = true; };
 const openCustomCreate = () => {
   Object.assign(customForm, { network_def_id: '', source_name: '', third_app_id: '', third_placement_id: '', extra: '' });
-  showCustomDialog.value = true;
+  customDrawerVisible.value = true;
 };
+
+const closeDrawer = () => { drawerVisible.value = false; };
+const closeCustomDrawer = () => { customDrawerVisible.value = false; };
+const onFormReset = () => { Object.assign(editForm, defaultForm); };
+const onCustomFormReset = () => { Object.assign(customForm, { network_def_id: '', source_name: '', third_app_id: '', third_placement_id: '', extra: '' }); };
 
 const handleCustomSubmit = async () => {
   const valid = await customFormRef.value?.validate().catch(() => false);
@@ -240,18 +376,19 @@ const handleCustomSubmit = async () => {
     else { payload.extra = {}; }
     await request.post('/api/v1/console/ad-source/create-custom', payload);
     ElMessage.success('创建成功');
-    showCustomDialog.value = false;
+    customDrawerVisible.value = false;
     fetchList();
   } catch { /* ignore */ } finally { submitting.value = false; }
 };
 
 const handleEdit = (row: any) => {
+  isEdit.value = true;
   Object.assign(editForm, {
     id: row.id, network_code: row.network_code, source_name: row.source_name,
     third_app_id: row.third_app_id, third_placement_id: row.third_placement_id,
     extra: row.extra ? JSON.stringify(row.extra) : '',
   });
-  showDialog.value = true;
+  drawerVisible.value = true;
 };
 
 const handleSubmit = async () => {
@@ -269,7 +406,7 @@ const handleSubmit = async () => {
       await request.post('/api/v1/console/ad-source/create', payload);
       ElMessage.success('创建成功');
     }
-    showDialog.value = false;
+    drawerVisible.value = false;
     fetchList();
   } catch { /* ignore */ } finally { submitting.value = false; }
 };

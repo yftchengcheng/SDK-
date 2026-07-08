@@ -94,105 +94,202 @@
         <el-pagination v-model:current-page="page" v-model:page-size="pageSize" :total="total" :page-sizes="[10,20,50,100]" layout="total, sizes, prev, pager, next" @current-change="fetchList" @size-change="fetchList" />
       </div>
     </div>
-    <!-- Dialog -->
-    <el-dialog v-model="showDialog" :title="editForm.id ? '编辑广告位' : '创建广告位'" width="640px" destroy-on-close>
-      <el-form ref="formRef" :model="editForm" :rules="formRules" label-position="top" class="placement-dialog-form">
-        <!-- 基础信息 -->
-        <div class="dialog-section">
-          <div class="dialog-section-title">基础信息</div>
-          <el-form-item label="所属应用" prop="app_key">
-            <el-select v-model="editForm.app_key" placeholder="请选择应用" style="width: 100%" :disabled="!!editForm.id" @change="onAppChange">
-              <el-option v-for="a in appList" :key="a.app_key" :label="a.app_name" :value="a.app_key" />
-            </el-select>
-          </el-form-item>
-          <el-form-item label="广告位名称" prop="name">
-            <el-input v-model="editForm.name" :placeholder="namePlaceholder" />
-            <span class="dialog-form-help">命名建议：媒体简称-应用名-系统-广告形式（如：新义-demo-iOS-信息流）</span>
-          </el-form-item>
-          <el-form-item label="广告形式" prop="format">
-            <el-select v-model="editForm.format" placeholder="请选择广告形式" style="width: 100%" :disabled="!!editForm.id" @change="onFormatChange">
-              <el-option v-for="f in formatOptions" :key="f.value" :label="f.label" :value="f.value" />
-            </el-select>
-          </el-form-item>
-          <el-form-item label="竞价类型" prop="bidding_type">
-            <el-radio-group v-model="editForm.bidding_type">
-              <el-radio-button :value="1">固价</el-radio-button>
-              <el-radio-button :value="2">竞价</el-radio-button>
-            </el-radio-group>
-          </el-form-item>
+    <!-- Drawer: Create / Edit Placement（侧边抽屉，保留列表上下文） -->
+    <el-drawer
+      v-model="drawerVisible"
+      direction="rtl"
+      :size="drawerSize"
+      :with-header="false"
+      :destroy-on-close="false"
+      :append-to-body="true"
+      :modal="true"
+      :modal-class="'page-form-drawer-mask'"
+      class="page-form-drawer"
+    >
+      <div class="page-form-shell page-form-drawer-shell">
+        <header class="page-form-header">
+          <div class="page-form-header-titles">
+            <h1 class="page-form-header-title">
+              <el-icon :size="20" style="color: var(--color-primary-500, #2563EB);">
+                <component :is="isEdit ? Edit : Plus" />
+              </el-icon>
+              <span>{{ isEdit ? '编辑广告位' : '创建广告位' }}</span>
+              <el-tag v-if="isEdit" type="warning" effect="light" size="small">编辑模式</el-tag>
+            </h1>
+            <p class="page-form-header-subtitle">
+              {{ isEdit ? '修改广告位信息，保存后立即生效' : '填写以下信息以创建一个新广告位' }}
+            </p>
+          </div>
+          <div class="page-form-header-actions">
+            <el-button :icon="RefreshLeft" @click="onFormReset">重置</el-button>
+            <el-button :icon="Close" circle plain @click="closeDrawer" />
+          </div>
+        </header>
+
+        <div class="page-form-body">
+          <el-form
+            ref="formRef"
+            :model="editForm"
+            :rules="formRules"
+            label-position="top"
+            @submit.prevent
+          >
+            <!-- 区块 1：基础信息 -->
+            <section class="page-form-section">
+              <div class="page-form-section-header">
+                <h2 class="page-form-section-title">
+                  <el-icon><InfoFilled /></el-icon>
+                  <span>基础信息</span>
+                </h2>
+              </div>
+              <p class="page-form-section-desc">广告位的基本资料、所属应用和广告形式</p>
+
+              <div class="page-form-grid">
+                <el-form-item label="所属应用" prop="app_key" class="span-2">
+                  <template #label><span class="required-mark">*</span><span>所属应用</span></template>
+                  <el-select v-model="editForm.app_key" placeholder="请选择应用" style="width: 100%" :disabled="!!editForm.id" @change="onAppChange">
+                    <el-option v-for="a in appList" :key="a.app_key" :label="a.app_name" :value="a.app_key" />
+                  </el-select>
+                </el-form-item>
+
+                <el-form-item label="广告位名称" prop="name" class="span-2">
+                  <template #label><span class="required-mark">*</span><span>广告位名称</span></template>
+                  <el-input v-model="editForm.name" :placeholder="namePlaceholder" />
+                  <div class="form-help">命名建议：媒体简称-应用名-系统-广告形式（如：新义-demo-iOS-信息流）</div>
+                </el-form-item>
+
+                <el-form-item label="广告形式" prop="format">
+                  <template #label><span class="required-mark">*</span><span>广告形式</span></template>
+                  <el-select v-model="editForm.format" placeholder="请选择广告形式" style="width: 100%" :disabled="!!editForm.id" @change="onFormatChange">
+                    <el-option v-for="f in formatOptions" :key="f.value" :label="f.label" :value="f.value" />
+                  </el-select>
+                </el-form-item>
+
+                <el-form-item label="竞价类型" prop="bidding_type">
+                  <template #label><span class="required-mark">*</span><span>竞价类型</span></template>
+                  <el-radio-group v-model="editForm.bidding_type">
+                    <el-radio-button :value="1">固价</el-radio-button>
+                    <el-radio-button :value="2">竞价</el-radio-button>
+                  </el-radio-group>
+                </el-form-item>
+              </div>
+            </section>
+
+            <!-- 区块 2：展示设置（SDK 接入 + 插屏/原生/视频） -->
+            <section v-if="showOrientation" class="page-form-section">
+              <div class="page-form-section-header">
+                <h2 class="page-form-section-title">
+                  <el-icon><Monitor /></el-icon>
+                  <span>展示设置</span>
+                </h2>
+                <span class="page-form-section-tag">SDK 接入专属</span>
+              </div>
+
+              <div class="page-form-grid">
+                <el-form-item label="屏幕方向" prop="screen_orientation" class="span-2">
+                  <template #label><span class="required-mark">*</span><span>屏幕方向</span></template>
+                  <el-radio-group v-model="editForm.screen_orientation">
+                    <el-radio-button :value="1">横屏</el-radio-button>
+                    <el-radio-button :value="2">竖屏</el-radio-button>
+                    <el-radio-button :value="3">横竖兼容</el-radio-button>
+                  </el-radio-group>
+                </el-form-item>
+
+                <el-form-item v-if="showAdSize" label="广告展示大小" prop="ad_size" class="span-2">
+                  <template #label><span class="required-mark">*</span><span>广告展示大小</span></template>
+                  <el-radio-group v-model="editForm.ad_size">
+                    <el-radio-button :value="1">半屏</el-radio-button>
+                    <el-radio-button :value="2">全屏</el-radio-button>
+                    <el-radio-button :value="3">优选</el-radio-button>
+                  </el-radio-group>
+                </el-form-item>
+              </div>
+            </section>
+
+            <!-- 区块 3：素材形式（插屏 / 原生） -->
+            <section v-if="showMaterial" class="page-form-section">
+              <div class="page-form-section-header">
+                <h2 class="page-form-section-title">
+                  <el-icon><Picture /></el-icon>
+                  <span>素材形式</span>
+                </h2>
+                <span class="page-form-section-tag">SDK 接入专属</span>
+              </div>
+
+              <div class="page-form-grid">
+                <el-form-item label="素材形式" prop="material_type" class="span-2">
+                  <template #label><span class="required-mark">*</span><span>素材形式</span></template>
+                  <el-radio-group v-model="editForm.material_type">
+                    <el-radio-button :value="1">图片</el-radio-button>
+                    <el-radio-button :value="2">视频</el-radio-button>
+                    <el-radio-button :value="3">视频+图片</el-radio-button>
+                  </el-radio-group>
+                </el-form-item>
+              </div>
+            </section>
+
+            <!-- 区块 4：原生样式（仅原生广告） -->
+            <section v-if="showNativeFields" class="page-form-section">
+              <div class="page-form-section-header">
+                <h2 class="page-form-section-title">
+                  <el-icon><VideoCamera /></el-icon>
+                  <span>原生样式</span>
+                </h2>
+                <span class="page-form-section-tag">仅原生广告</span>
+              </div>
+
+              <div class="page-form-grid">
+                <el-form-item v-if="showVideoMute" label="视频静音" prop="video_mute" class="span-2">
+                  <template #label><span class="required-mark">*</span><span>视频静音</span></template>
+                  <el-radio-group v-model="editForm.video_mute">
+                    <el-radio-button :value="0">否</el-radio-button>
+                    <el-radio-button :value="1">是</el-radio-button>
+                  </el-radio-group>
+                </el-form-item>
+
+                <el-form-item v-if="showAutoPlay" label="自动播放" prop="auto_play" class="span-2">
+                  <template #label><span class="required-mark">*</span><span>自动播放</span></template>
+                  <el-radio-group v-model="editForm.auto_play">
+                    <el-radio-button :value="1">总是</el-radio-button>
+                    <el-radio-button :value="2">仅WIFI</el-radio-button>
+                    <el-radio-button :value="3">点击播放</el-radio-button>
+                  </el-radio-group>
+                </el-form-item>
+
+                <el-form-item label="模版样式" prop="template_style" class="span-2">
+                  <template #label><span class="required-mark">*</span><span>模版样式</span></template>
+                  <el-select v-model="editForm.template_style" placeholder="请选择模版样式" style="width: 100%">
+                    <el-option v-for="t in templateOptions" :key="t.value" :label="t.label" :value="t.value" />
+                  </el-select>
+                </el-form-item>
+              </div>
+            </section>
+
+            <!-- 区块 5：API 接入时提示 -->
+            <section v-if="!isSDK" class="page-form-section">
+              <el-alert type="info" :closable="false" show-icon>
+                <template #title>
+                  当前为 API 接入，屏幕方向 / 视频静音 / 自动播放 字段不适用。
+                </template>
+              </el-alert>
+            </section>
+          </el-form>
         </div>
 
-        <!-- 屏幕方向：插屏 / 原生 / 视频 + SDK 接入 -->
-        <div v-if="showOrientation" class="dialog-section">
-          <div class="dialog-section-title">展示设置</div>
-          <el-form-item label="屏幕方向" prop="screen_orientation">
-            <el-radio-group v-model="editForm.screen_orientation">
-              <el-radio-button :value="1">横屏</el-radio-button>
-              <el-radio-button :value="2">竖屏</el-radio-button>
-              <el-radio-button :value="3">横竖兼容</el-radio-button>
-            </el-radio-group>
-          </el-form-item>
-        </div>
-
-        <!-- 广告展示大小：仅插屏 -->
-        <div v-if="showAdSize" class="dialog-section">
-          <el-form-item label="广告展示大小" prop="ad_size">
-            <el-radio-group v-model="editForm.ad_size">
-              <el-radio-button :value="1">半屏</el-radio-button>
-              <el-radio-button :value="2">全屏</el-radio-button>
-              <el-radio-button :value="3">优选</el-radio-button>
-            </el-radio-group>
-          </el-form-item>
-        </div>
-
-        <!-- 素材形式：插屏 / 原生 -->
-        <div v-if="showMaterial" class="dialog-section">
-          <el-form-item label="素材形式" prop="material_type">
-            <el-radio-group v-model="editForm.material_type">
-              <el-radio-button :value="1">图片</el-radio-button>
-              <el-radio-button :value="2">视频</el-radio-button>
-              <el-radio-button :value="3">视频+图片</el-radio-button>
-            </el-radio-group>
-          </el-form-item>
-        </div>
-
-        <!-- 原生专属：视频静音 / 自动播放 / 模版样式 -->
-        <div v-if="showNativeFields" class="dialog-section">
-          <div class="dialog-section-title">原生样式</div>
-          <el-form-item v-if="showVideoMute" label="视频静音" prop="video_mute">
-            <el-radio-group v-model="editForm.video_mute">
-              <el-radio-button :value="0">否</el-radio-button>
-              <el-radio-button :value="1">是</el-radio-button>
-            </el-radio-group>
-          </el-form-item>
-          <el-form-item v-if="showAutoPlay" label="自动播放" prop="auto_play">
-            <el-radio-group v-model="editForm.auto_play">
-              <el-radio-button :value="1">总是</el-radio-button>
-              <el-radio-button :value="2">仅WIFI</el-radio-button>
-              <el-radio-button :value="3">点击播放</el-radio-button>
-            </el-radio-group>
-          </el-form-item>
-          <el-form-item label="模版样式" prop="template_style">
-            <el-select v-model="editForm.template_style" placeholder="请选择模版样式" style="width: 100%">
-              <el-option v-for="t in templateOptions" :key="t.value" :label="t.label" :value="t.value" />
-            </el-select>
-          </el-form-item>
-        </div>
-
-        <!-- API 接入时提示 -->
-        <div v-if="!isSDK" class="dialog-section dialog-section--api">
-          <el-alert type="info" :closable="false" show-icon>
-            <template #title>
-              当前为 API 接入，屏幕方向 / 视频静音 / 自动播放 字段不适用。
-            </template>
-          </el-alert>
-        </div>
-      </el-form>
-      <template #footer>
-        <el-button @click="showDialog = false">取消</el-button>
-        <el-button type="primary" :loading="submitting" @click="handleSubmit">确定</el-button>
-      </template>
-    </el-dialog>
+        <footer class="page-form-footer">
+          <div class="page-form-footer-left">
+            <el-icon><InfoFilled /></el-icon>
+            <span>带 * 为必填项</span>
+          </div>
+          <div class="page-form-footer-right">
+            <el-button :icon="Close" @click="closeDrawer">取消</el-button>
+            <el-button type="primary" :loading="submitting" :icon="Check" @click="handleSubmit">
+              {{ isEdit ? '保存修改' : '创建广告位' }}
+            </el-button>
+          </div>
+        </footer>
+      </div>
+    </el-drawer>
   </div>
 </template>
 
@@ -203,6 +300,7 @@ import { ElMessage, ElMessageBox } from 'element-plus';
 import type { FormInstance, FormRules } from 'element-plus';
 import dayjs from 'dayjs';
 import { useUserStore } from '../../stores/user';
+import { Plus, Search, RefreshLeft, Edit, InfoFilled, Monitor, Picture, VideoCamera, Close, Check } from '@element-plus/icons-vue';
 
 const userStore = useUserStore();
 
@@ -279,7 +377,9 @@ const filter = reactive({ appKey: '', format: null as number | null, keyword: ''
 const onSearch = () => { page.value = 1; fetchList(); };
 const onReset = () => { filter.appKey = ''; filter.format = null; filter.keyword = ''; filter.status = null; onSearch(); };
 
-const showDialog = ref(false);
+const drawerVisible = ref(false);
+const drawerSize = '720px';
+const isEdit = ref(false);
 const submitting = ref(false);
 const formRef = ref<FormInstance>();
 
@@ -385,13 +485,16 @@ const onFormatChange = () => {
 };
 
 const openCreate = () => {
+  isEdit.value = false;
   Object.assign(editForm, defaultForm());
-  showDialog.value = true;
+  drawerVisible.value = false;
+  drawerVisible.value = true;
 };
 
 const handleEdit = (row: any) => {
   // placement_id 是业务唯一 ID（pl_xxx 字符串），不是数据库自增 id（数字）。
   // 后端 /update 用 eq('placement_id', placementId) 过滤，必须传 placement_id。
+  isEdit.value = true;
   Object.assign(editForm, {
     id: row.placement_id,
     app_key: row.app_key,
@@ -405,7 +508,19 @@ const handleEdit = (row: any) => {
     auto_play: row.auto_play ?? null,
     template_style: row.template_style ?? null,
   });
-  showDialog.value = true;
+  drawerVisible.value = false;
+  drawerVisible.value = true;
+};
+
+const closeDrawer = () => { drawerVisible.value = false; };
+
+const onFormReset = () => {
+  if (isEdit.value) {
+    const current = tableData.value.find(r => r.placement_id === editForm.id);
+    if (current) handleEdit(current);
+  } else {
+    Object.assign(editForm, defaultForm());
+  }
 };
 
 const buildSubmitPayload = () => {
@@ -450,7 +565,8 @@ const handleSubmit = async () => {
       await request.post('/api/v1/console/placement/create', payload);
       ElMessage.success('创建成功');
     }
-    showDialog.value = false;
+    drawerVisible.value = false;
+    drawerVisible.value = false;
     fetchList();
   } catch { /* ignore */ } finally { submitting.value = false; }
 };

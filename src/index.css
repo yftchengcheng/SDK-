@@ -4319,11 +4319,14 @@ html, body, #app {
 }
 
 /* ==========================================================================
-   el-drawer 视觉规范（v1 - 与 page-shell 保持一致）
-   - .app-form-drawer 抽屉尺寸 720 / 满屏 100%
+   el-drawer 视觉规范（v1 - 与 page-shell 保持一致，通用 .page-form-drawer）
+   - 4 个页面（placement / ad-source / traffic-group / network）共用
    - 内部 .page-form-drawer-shell：与 page-form-shell 一致，sticky 顶底用 drawer 自带滚动容器
+   - 默认宽度 720px；>=1280 时 880px；>=1600 时 960px
    ========================================================================== */
 
+/* 通用：表单类抽屉（app / placement / ad-source / traffic-group / network） */
+.page-form-drawer .el-drawer__body,
 .app-form-drawer .el-drawer__body {
   padding: 0 !important;
   background: var(--color-slate-50, #F8FAFC);
@@ -4331,6 +4334,7 @@ html, body, #app {
   flex-direction: column;
   overflow: hidden;
 }
+.page-form-drawer .page-form-drawer-shell,
 .app-form-drawer .page-form-drawer-shell {
   height: 100%;
   display: flex;
@@ -4340,6 +4344,7 @@ html, body, #app {
   max-width: none;
   background: var(--color-slate-50, #F8FAFC);
 }
+.page-form-drawer .page-form-body,
 .app-form-drawer .page-form-body {
   flex: 1;
   overflow-y: auto;
@@ -4348,6 +4353,7 @@ html, body, #app {
   flex-direction: column;
   gap: 20px;
 }
+.page-form-drawer .page-form-header,
 .app-form-drawer .page-form-header {
   flex-shrink: 0;
   position: sticky;
@@ -4355,6 +4361,7 @@ html, body, #app {
   z-index: 10;
   margin: 0;
 }
+.page-form-drawer .page-form-footer,
 .app-form-drawer .page-form-footer {
   flex-shrink: 0;
   position: sticky;
@@ -4364,19 +4371,22 @@ html, body, #app {
   box-shadow: 0 -1px 2px rgba(15, 23, 42, 0.04);
 }
 
-/* 抽屉宽屏：>= 1280 时抽 880，更大 960 */
+/* 抽屉宽屏：默认 720；>= 1280 时 880；>= 1600 时 960 */
 @media (min-width: 1280px) {
+  .page-form-drawer.el-drawer,
   .app-form-drawer.el-drawer {
     width: 880px !important;
   }
 }
 @media (min-width: 1600px) {
+  .page-form-drawer.el-drawer,
   .app-form-drawer.el-drawer {
     width: 960px !important;
   }
 }
 
 /* 抽屉遮罩：比默认更浅（保留列表上下文） */
+.page-form-drawer-mask,
 .app-form-drawer-mask {
   background-color: rgba(15, 23, 42, 0.32) !important;
   backdrop-filter: blur(2px);

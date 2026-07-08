@@ -65,61 +65,125 @@
         </el-table-column>
       </el-table></div>
     </div>
-    <!-- Dialog -->
-    <el-dialog v-model="showDialog" :title="editForm.id ? '编辑分组' : '创建分组'" width="640px" destroy-on-close>
-      <el-form ref="formRef" :model="editForm" :rules="formRules" label-position="top">
-        <div class="dialog-section">
-          <div class="dialog-section-title">基础信息</div>
-          <div class="dialog-form-row">
-            <el-form-item label="广告位" prop="placement_id">
-              <el-select v-model="editForm.placement_id" placeholder="请选择广告位" style="width: 100%">
-                <el-option v-for="p in placementList" :key="p.placement_id" :label="p.name" :value="p.placement_id" />
-              </el-select>
-            </el-form-item>
-            <el-form-item label="分组名称" prop="group_name">
-              <el-input v-model="editForm.group_name" placeholder="请输入分组名称" />
-            </el-form-item>
+    <!-- Drawer: Create / Edit Traffic Group（侧边抽屉，保留列表上下文） -->
+    <el-drawer
+      v-model="drawerVisible"
+      direction="rtl"
+      :size="drawerSize"
+      :with-header="false"
+      :destroy-on-close="false"
+      :append-to-body="true"
+      :modal="true"
+      :modal-class="'page-form-drawer-mask'"
+      class="page-form-drawer"
+    >
+      <div class="page-form-shell page-form-drawer-shell">
+        <header class="page-form-header">
+          <div class="page-form-header-titles">
+            <h1 class="page-form-header-title">
+              <el-icon :size="20" style="color: var(--color-primary-500, #2563EB);">
+                <component :is="isEdit ? Edit : Plus" />
+              </el-icon>
+              <span>{{ isEdit ? '编辑分组' : '创建分组' }}</span>
+              <el-tag v-if="isEdit" type="warning" effect="light" size="small">编辑模式</el-tag>
+            </h1>
+            <p class="page-form-header-subtitle">
+              {{ isEdit ? '修改流量分组规则，保存后立即生效' : '为广告位配置流量分组与匹配规则' }}
+            </p>
           </div>
-          <div class="dialog-form-row">
-            <el-form-item label="绑定瀑布流" prop="waterfall_id">
-              <el-select v-model="editForm.waterfall_id" placeholder="选择要绑定的瀑布流" clearable filterable style="width: 100%">
-                <el-option v-for="w in waterfallList" :key="w.waterfall_id" :label="`${w.name} (${w.waterfall_id})`" :value="w.waterfall_id" />
-              </el-select>
-            </el-form-item>
-            <el-form-item label="优先级" prop="priority">
-              <el-input-number v-model="editForm.priority" :min="0" :max="999" style="width: 100%" />
-              <div class="dialog-form-help">数字越大优先级越高，匹配时优先命中</div>
-            </el-form-item>
+          <div class="page-form-header-actions">
+            <el-button :icon="RefreshLeft" @click="onFormReset">重置</el-button>
+            <el-button :icon="Close" circle plain @click="closeDrawer" />
           </div>
+        </header>
+
+        <div class="page-form-body">
+          <el-form
+            ref="formRef"
+            :model="editForm"
+            :rules="formRules"
+            label-position="top"
+            @submit.prevent
+          >
+            <!-- 区块 1：基础信息 -->
+            <section class="page-form-section">
+              <div class="page-form-section-header">
+                <h2 class="page-form-section-title">
+                  <el-icon><InfoFilled /></el-icon>
+                  <span>基础信息</span>
+                </h2>
+              </div>
+              <p class="page-form-section-desc">分组所属广告位、名称与优先级</p>
+
+              <div class="page-form-grid">
+                <el-form-item label="广告位" prop="placement_id">
+                  <template #label><span class="required-mark">*</span><span>广告位</span></template>
+                  <el-select v-model="editForm.placement_id" placeholder="请选择广告位" style="width: 100%">
+                    <el-option v-for="p in placementList" :key="p.placement_id" :label="p.name" :value="p.placement_id" />
+                  </el-select>
+                </el-form-item>
+                <el-form-item label="分组名称" prop="group_name">
+                  <template #label><span class="required-mark">*</span><span>分组名称</span></template>
+                  <el-input v-model="editForm.group_name" placeholder="请输入分组名称" />
+                </el-form-item>
+                <el-form-item label="绑定瀑布流" prop="waterfall_id" class="span-2">
+                  <el-select v-model="editForm.waterfall_id" placeholder="选择要绑定的瀑布流" clearable filterable style="width: 100%">
+                    <el-option v-for="w in waterfallList" :key="w.waterfall_id" :label="`${w.name} (${w.waterfall_id})`" :value="w.waterfall_id" />
+                  </el-select>
+                </el-form-item>
+                <el-form-item label="优先级" prop="priority" class="span-2">
+                  <el-input-number v-model="editForm.priority" :min="0" :max="999" style="width: 100%" />
+                  <div class="form-help">数字越大优先级越高，匹配时优先命中</div>
+                </el-form-item>
+              </div>
+            </section>
+
+            <!-- 区块 2：规则条件 -->
+            <section class="page-form-section">
+              <div class="page-form-section-header">
+                <h2 class="page-form-section-title">
+                  <el-icon><Filter /></el-icon>
+                  <span>规则条件</span>
+                </h2>
+                <span class="page-form-section-tag">所有条件同时满足时命中此分组</span>
+              </div>
+
+              <div class="page-form-grid">
+                <el-form-item label="匹配规则" class="span-2">
+                  <template #label><span>匹配规则</span></template>
+                  <div class="tg-condition-list">
+                    <div v-for="(cond, idx) in editForm.conditions" :key="idx" class="tg-condition-row">
+                      <el-select v-model="cond.dimension" placeholder="维度" style="width: 140px">
+                        <el-option v-for="d in dimensions" :key="d.value" :label="d.label" :value="d.value" />
+                      </el-select>
+                      <el-select v-model="cond.operator" placeholder="操作" style="width: 120px">
+                        <el-option v-for="o in operators" :key="o" :label="o" :value="o" />
+                      </el-select>
+                      <el-input v-model="cond.value" placeholder="值(多个逗号分隔)" style="flex: 1" />
+                      <el-button link type="danger" :icon="Delete" @click="editForm.conditions.splice(idx, 1)" />
+                    </div>
+                    <el-button type="primary" link :icon="Plus" @click="editForm.conditions.push({ dimension: '', operator: 'IN', value: '' })">添加规则</el-button>
+                  </div>
+                </el-form-item>
+              </div>
+            </section>
+          </el-form>
         </div>
 
-        <div class="dialog-section">
-          <div class="dialog-section-title">
-            规则条件
-            <span class="dialog-section-tag">所有条件同时满足时命中此分组</span>
+        <footer class="page-form-footer">
+          <div class="page-form-footer-left">
+            <el-icon><InfoFilled /></el-icon>
+            <span>带 * 为必填项</span>
           </div>
-          <div class="dialog-form-row dialog-form-row--full">
-            <el-form-item>
-              <div v-for="(cond, idx) in editForm.conditions" :key="idx" class="tg-condition-row">
-                <el-select v-model="cond.dimension" placeholder="维度" style="width: 130px">
-                  <el-option v-for="d in dimensions" :key="d.value" :label="d.label" :value="d.value" />
-                </el-select>
-                <el-select v-model="cond.operator" placeholder="操作" style="width: 110px">
-                  <el-option v-for="o in operators" :key="o" :label="o" :value="o" />
-                </el-select>
-                <el-input v-model="cond.value" placeholder="值(多个逗号分隔)" style="flex: 1" />
-                <el-button link type="danger" :icon="Delete" @click="editForm.conditions.splice(idx, 1)" />
-              </div>
-              <el-button type="primary" link :icon="Plus" @click="editForm.conditions.push({ dimension: '', operator: 'IN', value: '' })">添加规则</el-button>
-            </el-form-item>
+          <div class="page-form-footer-right">
+            <el-button :icon="Close" @click="closeDrawer">取消</el-button>
+            <el-button type="primary" :loading="submitting" :icon="Check" @click="handleSubmit">
+              {{ isEdit ? '保存修改' : '创建分组' }}
+            </el-button>
           </div>
-        </div>
-      </el-form>
-      <template #footer>
-        <el-button @click="showDialog = false">取消</el-button>
-        <el-button type="primary" :loading="submitting" @click="handleSubmit">确定</el-button>
-      </template>
-    </el-dialog>
+        </footer>
+      </div>
+    </el-drawer>
   </div>
 </template>
 
@@ -128,7 +192,7 @@ import { ref, reactive, onMounted } from 'vue';
 import request from '../../utils/request';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import type { FormInstance, FormRules } from 'element-plus';
-import { Plus, Search, RefreshLeft, Delete, Filter } from '@element-plus/icons-vue';
+import { Plus, Search, RefreshLeft, Delete, Filter, Edit, InfoFilled, Close, Check } from '@element-plus/icons-vue';
 
 const dimensions = [
   { value: 'country', label: '国家/地区' },
@@ -150,7 +214,9 @@ const filter = reactive({ placementId: '', waterfallId: '', status: '', keyword:
 const onSearch = () => { page.value = 1; fetchList(); };
 const onReset = () => { filter.placementId = ''; filter.waterfallId = ''; filter.status = ''; filter.keyword = ''; page.value = 1; fetchList(); };
 
-const showDialog = ref(false);
+const drawerVisible = ref(false);
+const drawerSize = '720px';
+const isEdit = ref(false);
 const submitting = ref(false);
 const formRef = ref<FormInstance>();
 const defaultForm = { id: 0, placement_id: '', group_name: '', priority: 0, conditions: [] as { dimension: string; operator: string; value: string }[] };
@@ -183,15 +249,19 @@ const fetchList = async () => {
   } catch { /* ignore */ } finally { loading.value = false; }
 };
 
-const openCreate = () => { Object.assign(editForm, { ...defaultForm, conditions: [] }); showDialog.value = true; };
+const openCreate = () => { isEdit.value = false; Object.assign(editForm, { ...defaultForm, conditions: [] }); drawerVisible.value = true; };
 
 const handleEdit = (row: any) => {
+  isEdit.value = true;
   Object.assign(editForm, {
     id: row.id, placement_id: row.placement_id, group_name: row.group_name,
     priority: row.priority, conditions: row.conditions?.length ? row.conditions : [],
   });
-  showDialog.value = true;
+  drawerVisible.value = true;
 };
+
+const closeDrawer = () => { drawerVisible.value = false; };
+const onFormReset = () => { Object.assign(editForm, { ...defaultForm, conditions: [] }); };
 
 const handleSubmit = async () => {
   const valid = await formRef.value?.validate().catch(() => false);
@@ -205,7 +275,7 @@ const handleSubmit = async () => {
       await request.post('/api/v1/console/traffic-group/create', editForm);
       ElMessage.success('创建成功');
     }
-    showDialog.value = false;
+    drawerVisible.value = false;
     fetchList();
   } catch { /* ignore */ } finally { submitting.value = false; }
 };
