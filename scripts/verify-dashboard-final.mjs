@@ -6,7 +6,7 @@ await page.setViewport({ width: 1440, height: 1100, deviceScaleFactor: 1 });
 await page.evaluateOnNewDocument((tk) => {
   localStorage.setItem('token', tk);
   localStorage.setItem('userInfo', JSON.stringify({
-    developerId: 'dev_2LGbDGVFNcl4HPno', email: 'dash_test2@coze.com', company: '测试公司',
+    developerId: 'dev_2LGbdGVFNcl4HPno', email: 'dash_test2@coze.com', company: '测试公司',
     companyShortName: 'dash_test2', contactName: 'Dash Test', phone: '13800000000',
     accessType: 1, apiAccessToken: 'x', status: 1, role: 'developer',
   }));

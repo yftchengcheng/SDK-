@@ -112,28 +112,40 @@ function roundMetric(m: string, v: number): number {
  *   此时 ranking/trend 接口会直接返回空数据，前端按"暂无数据"渲染
  */
 interface DimConfig {
-  table: string | null;        // null 表示无关联表，entity id 即展示名
-  idCol: string;
-  nameCol: string;
-  virtual: boolean;
+  table: string | null;        // 关联 entity 表（用于 enrichNames），null 表示无关联表
+  idCol: string;               // entity 表的主键 / 唯一标识列（用于 enrichNames）
+  nameCol: string;             // entity 表的友好名列（用于 enrichNames）
+  reportCol: string;           // report_daily 中该维度的列名（用于主查询 select / group by）
+  virtual: boolean;            // true = 维度不参与聚合（保留兼容，新维度都用 false）
+  isSoftDim?: boolean;         // true = report_daily 自带列，无独立 entity 表，id 即 name
 }
 function dimensionConfig(dim: string): DimConfig | null {
   const map: Record<string, DimConfig> = {
-    app: { table: 'app', idCol: 'app_key', nameCol: 'name', virtual: false },
-    placement: { table: 'placement', idCol: 'placement_id', nameCol: 'name', virtual: false },
-    network: { table: 'ad_source', idCol: 'id', nameCol: 'name', virtual: false },
-    adType: { table: null, idCol: 'ad_type', nameCol: 'ad_type', virtual: true },
-    region: { table: null, idCol: 'region', nameCol: 'region', virtual: true },
-    os: { table: null, idCol: 'os', nameCol: 'os', virtual: true },
+    app:       { table: 'app',       idCol: 'app_key',       nameCol: 'app_name',    reportCol: 'app_key',       virtual: false },
+    placement: { table: 'placement', idCol: 'placement_id',  nameCol: 'name',        reportCol: 'placement_id',  virtual: false },
+    network:   { table: 'ad_source', idCol: 'id',            nameCol: 'source_name', reportCol: 'ad_source_id',  virtual: false },
+    adType:    { table: null,        idCol: 'ad_type',       nameCol: 'ad_type',     reportCol: 'ad_type',       virtual: false, isSoftDim: true },
+    region:    { table: null,        idCol: 'region',        nameCol: 'region',      reportCol: 'region',        virtual: false, isSoftDim: true },
+    os:        { table: null,        idCol: 'os',            nameCol: 'os',          reportCol: 'os',            virtual: false, isSoftDim: true },
   };
   return map[dim] || null;
 }
 
-/** 批量查表，把 entity id 映射为友好名 */
+/** 批量查表，把 entity id 映射为友好名（软维度直接用 id 当 name） */
 async function enrichNames(cfg: DimConfig, ids: string[]): Promise<Record<string, string>> {
-  if (!cfg.table || !ids.length) return {};
-  const { data, error } = await db.from(cfg.table).select(`${cfg.idCol}, ${cfg.nameCol}`).in(cfg.idCol, ids);
-  if (error) return {};
+  if (!ids.length) return {};
+  if (cfg.isSoftDim) {
+    const m: Record<string, string> = {};
+    for (const id of ids) m[id] = id;
+    return m;
+  }
+  if (!cfg.table) return {};
+  const selectCols = cfg.idCol === cfg.nameCol ? cfg.idCol : `${cfg.idCol}, ${cfg.nameCol}`;
+  const { data, error } = await db.from(cfg.table).select(selectCols).in(cfg.idCol, ids);
+  if (error) {
+    console.error(`enrichNames(${cfg.table}) error:`, error.message);
+    return {};
+  }
   const m: Record<string, string> = {};
   for (const r of (data || []) as unknown as Array<Record<string, unknown>>) {
     m[String(r[cfg.idCol])] = String(r[cfg.nameCol] || r[cfg.idCol]);
@@ -251,7 +263,7 @@ router.get('/trend', authMiddleware, async (req: express.Request, res: express.R
 
     const { data, error } = await db
       .from('report_daily')
-      .select(`stat_date, ${cfg.idCol}, ${metricCol}`)
+      .select(`stat_date, ${cfg.reportCol}, ${metricCol}`)
       .eq('developer_id', developerId)
       .gte('stat_date', start)
       .lte('stat_date', end)
@@ -261,7 +273,7 @@ router.get('/trend', authMiddleware, async (req: express.Request, res: express.R
     // 1) 找 top 5 实体
     const entityTotals: Record<string, number> = {};
     for (const r of (data || []) as unknown as Array<Record<string, unknown>>) {
-      const e = String(r[cfg.idCol] || 'unknown');
+      const e = String(r[cfg.reportCol] || 'unknown');
       entityTotals[e] = (entityTotals[e] || 0) + Number(r[metricCol] || 0);
     }
     const topEntities = Object.entries(entityTotals)
@@ -275,7 +287,7 @@ router.get('/trend', authMiddleware, async (req: express.Request, res: express.R
     // 3) 按 entity + date 聚合
     const byEntityDate: Record<string, Record<string, number>> = {};
     for (const r of (data || []) as unknown as Array<Record<string, unknown>>) {
-      const e = String(r[cfg.idCol] || 'unknown');
+      const e = String(r[cfg.reportCol || cfg.idCol] || 'unknown');
       if (!topEntities.includes(e)) continue;
       const d = r.stat_date as string;
       if (!byEntityDate[e]) byEntityDate[e] = {};
@@ -326,7 +338,7 @@ router.get('/ranking/:dimension', authMiddleware, async (req: express.Request, r
 
     const { data, error } = await db
       .from('report_daily')
-      .select(`${cfg.idCol}, ${metricCol}`)
+      .select(`${cfg.reportCol || cfg.idCol}, ${metricCol}`)
       .eq('developer_id', developerId)
       .gte('stat_date', start)
       .lte('stat_date', end);
@@ -334,7 +346,7 @@ router.get('/ranking/:dimension', authMiddleware, async (req: express.Request, r
 
     const totals: Record<string, number> = {};
     for (const r of (data || []) as unknown as Array<Record<string, unknown>>) {
-      const e = String(r[cfg.idCol] || 'unknown');
+      const e = String(r[cfg.reportCol || cfg.idCol] || 'unknown');
       totals[e] = (totals[e] || 0) + Number(r[metricCol] || 0);
     }
 
