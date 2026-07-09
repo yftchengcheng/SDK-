@@ -88,13 +88,30 @@ router.put('/password', authMiddleware, async (req: express.Request, res: expres
   }
 });
 
-// Generate API access token
+// Generate API access token (refresh)
 router.post('/api-token', authMiddleware, async (req: express.Request, res: express.Response) => {
   try {
     const { developerId } = getDeveloper(req);
+    const body = (req.body || {}) as { expireDate?: string };
+
+    // 优先取 body.expireDate（ISO 字符串），缺省 +365 天
+    let expireDate: string;
+    if (body.expireDate) {
+      const parsed = new Date(body.expireDate);
+      if (isNaN(parsed.getTime())) {
+        fail(res, 400, 'expireDate 格式不合法');
+        return;
+      }
+      if (parsed.getTime() <= Date.now()) {
+        fail(res, 400, 'expireDate 必须晚于当前时间');
+        return;
+      }
+      expireDate = parsed.toISOString();
+    } else {
+      expireDate = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString();
+    }
 
     const token = genApiAccessToken();
-    const expireDate = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString();
 
     const { error } = await db.from('developer').update({
       api_access_token: token,
@@ -106,6 +123,39 @@ router.post('/api-token', authMiddleware, async (req: express.Request, res: expr
   } catch (err) {
     console.error('Generate API token error:', err);
     fail(res, 500, '生成API Token失败');
+  }
+});
+
+// Update only token expire time (keep current token)
+router.patch('/api-token/expire', authMiddleware, async (req: express.Request, res: express.Response) => {
+  try {
+    const { developerId } = getDeveloper(req);
+    const body = (req.body || {}) as { expireDate?: string };
+
+    if (!body.expireDate) {
+      fail(res, 400, 'expireDate 必传');
+      return;
+    }
+    const parsed = new Date(body.expireDate);
+    if (isNaN(parsed.getTime())) {
+      fail(res, 400, 'expireDate 格式不合法');
+      return;
+    }
+    if (parsed.getTime() <= Date.now()) {
+      fail(res, 400, 'expireDate 必须晚于当前时间');
+      return;
+    }
+    const expireDate = parsed.toISOString();
+
+    const { error } = await db.from('developer').update({
+      api_token_expire: expireDate,
+    }).eq('developer_id', developerId);
+    if (error) throw new Error(`Update failed: ${error.message}`);
+
+    success(res, { expireDate }, '过期时间更新成功');
+  } catch (err) {
+    console.error('Update token expire error:', err);
+    fail(res, 500, '更新过期时间失败');
   }
 });
 

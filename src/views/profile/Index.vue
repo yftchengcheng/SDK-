@@ -27,23 +27,52 @@
         <el-button size="small" @click="showPasswordDialog = true">修改密码</el-button>
       </div>
     </div>
-    <!-- Report API Token -->
+    <!-- Report API 密钥 -->
     <div class="table-card mb-base">
       <div class="card-title">Report API 密钥</div>
-      <div style="margin-top: 12px">
+      <div class="api-block">
         <template v-if="userInfo.api_access_token">
-          <span class="text-primary">密钥: {{ maskToken(userInfo.api_access_token) }}</span>
-          <el-icon class="copy-btn" @click="copyText(userInfo.api_access_token)"><CopyDocument /></el-icon>
-          <div class="text-secondary" style="font-size: 12px; margin-top: 6px">
-            过期时间: {{ formatExpire(userInfo.api_token_expire) }}
+          <div class="api-row">
+            <div class="api-field">
+              <div class="api-label">密钥</div>
+              <div class="api-value">
+                <code class="api-token-code">{{ maskToken(userInfo.api_access_token) }}</code>
+                <el-icon class="copy-btn" @click="copyText(userInfo.api_access_token)"><CopyDocument /></el-icon>
+              </div>
+            </div>
+            <div class="api-field">
+              <div class="api-label">当前过期时间</div>
+              <div class="api-value">{{ formatExpire(userInfo.api_token_expire) }}</div>
+            </div>
+          </div>
+          <div class="api-row">
+            <div class="api-field api-field--grow">
+              <div class="api-label">生效时间</div>
+              <div class="api-value">
+                <el-date-picker
+                  v-model="tokenExpireDraft"
+                  type="datetime"
+                  placeholder="选择过期时间"
+                  format="YYYY-MM-DD HH:mm:ss"
+                  value-format="YYYY-MM-DDTHH:mm:ss[Z]"
+                  :disabled-date="(d: Date) => d.getTime() <= Date.now() - 86400000"
+                  size="default"
+                  class="api-expire-picker"
+                />
+              </div>
+            </div>
+            <div class="api-field api-field--actions">
+              <el-button type="primary" :loading="savingExpire" @click="saveTokenExpire">保存生效时间</el-button>
+              <el-button @click="generateApiToken">刷新密钥</el-button>
+            </div>
           </div>
         </template>
         <template v-else>
-          <span class="text-secondary">尚未生成 Report API 密钥</span>
+          <div class="api-empty">
+            <span class="text-secondary">尚未生成 Report API 密钥</span>
+            <el-button type="primary" size="small" style="margin-left: 12px" @click="generateApiToken">生成密钥</el-button>
+          </div>
         </template>
-        <el-button type="primary" size="small" style="margin-left: 12px" @click="generateApiToken">
-          {{ userInfo.api_access_token ? '刷新密钥' : '生成密钥' }}
-        </el-button>
       </div>
     </div>
     <!-- Edit Dialog -->
@@ -114,14 +143,51 @@ const changePassword = async () => {
   } catch { /* ignore */ }
 };
 
+// 生效时间草稿（独立于 userInfo.api_token_expire，用户可改）
+const tokenExpireDraft = ref<string>('');
+
+// 同步草稿为当前过期时间
+const syncExpireDraft = () => {
+  if (userInfo.value.api_token_expire) {
+    tokenExpireDraft.value = new Date(userInfo.value.api_token_expire).toISOString();
+  } else {
+    tokenExpireDraft.value = '';
+  }
+};
+
 const generateApiToken = async () => {
   try {
-    const res: any = await request.post('/api/v1/console/profile/api-token');
-    ElMessage.success('API Token已生成');
-    fetchInfo();
+    const body: Record<string, unknown> = {};
+    if (tokenExpireDraft.value) body.expireDate = tokenExpireDraft.value;
+    const res: any = await request.post('/api/v1/console/profile/api-token', body);
+    ElMessage.success('Report API 密钥已重新生成');
+    await fetchInfo();
+    syncExpireDraft();
   } catch { /* ignore */ }
 };
 
-onMounted(fetchInfo);
+const savingExpire = ref(false);
+const saveTokenExpire = async () => {
+  if (!tokenExpireDraft.value) {
+    ElMessage.warning('请选择生效时间');
+    return;
+  }
+  savingExpire.value = true;
+  try {
+    const res: any = await request.patch('/api/v1/console/profile/api-token/expire', {
+      expireDate: tokenExpireDraft.value,
+    });
+    ElMessage.success('生效时间已保存');
+    await fetchInfo();
+  } catch { /* ignore */ }
+  finally {
+    savingExpire.value = false;
+  }
+};
+
+onMounted(async () => {
+  await fetchInfo();
+  syncExpireDraft();
+});
 </script>
 
