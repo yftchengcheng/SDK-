@@ -41,7 +41,10 @@
               <el-tag v-if="app.platform === 1" size="small" effect="plain" type="info" class="platform-tag">Android</el-tag>
               <el-tag v-else-if="app.platform === 2" size="small" effect="plain" type="success" class="platform-tag">iOS</el-tag>
             </div>
-            <div class="app-master-item-id">ID: {{ app.app_id || app.id }}</div>
+            <div class="app-master-item-token" @click.stop="copyText(app.app_key)" :title="app.app_key">
+              <el-icon :size="10"><Key /></el-icon>
+              <span class="app-master-item-token-text">{{ app.app_key }}</span>
+            </div>
           </div>
           <div class="app-master-item-status" v-if="app.status !== 1">
             <el-icon :size="12" color="#94A3B8"><Lock /></el-icon>
@@ -79,7 +82,7 @@
                 </span>
                 <span class="app-detail-meta-divider"></span>
                 <span class="app-detail-meta-item">
-                  <span class="meta-label">AppKey</span>
+                  <span class="meta-label">应用 TOKEN</span>
                   <span class="meta-value cell-link" @click="copyText(currentApp.app_key)">
                     {{ currentApp.app_key }}
                     <el-icon class="copy-btn"><CopyDocument /></el-icon>
@@ -339,6 +342,7 @@ import {
   Plus, Search, Cellphone, Lock, Setting, Cpu, Edit,
   CopyDocument, DataLine, ArrowRight, QuestionFilled, Connection, Link, Platform,
   Histogram, Crop, TakeawayBox, Iphone, User, Money, TrendCharts, CaretTop, CaretBottom,
+  Key,
 } from '@element-plus/icons-vue';
 import { useUserStore } from '../../stores/user';
 import AppDrawer from './components/AppDrawer.vue';

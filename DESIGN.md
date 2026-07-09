@@ -349,7 +349,37 @@ B2B 企业级广告数据管理控制台。沉稳、专业、精准。蓝+灰+�
 - ⚠️ **200px 不能放横排 header** — 标题 + 按钮横排会挤，必须 column 堆叠
 - ⚠️ **表格列对齐** — el-table 默认左对齐，**所有列必须显式** `align="center" header-align="center"`
 - ⚠️ **状态 Tag 偏高** — el-tag 默认 `display: inline-block` + `vertical-align: baseline`，需要 inline-flex + middle
-- ⚠️ **ID 副标题必须隐藏** — 200px 里如果显示「ID: app_xxxxxx」会强制换行挤压
+- ⚠️ **ID 副标题已弃用** — 200px 改显示「应用 TOKEN」(`app_key`)，Key icon + monospace 字体 + ellipsis 截断；点击复制。详见 4.3 节。
+
+## 4.3 应用列表项副标题（2026-07 用户要求：在应用名下方显示应用 TOKEN）
+
+**第 2 行：AppKey → 应用 TOKEN**
+
+```
+┌──────────────────────────────┐
+│ [icon] 测试App  [Android]     │  ← name + 平台 chip
+│        🔑 app_2LGbdGVF...     │  ← TOKEN（Key icon + 短截断 + 单击复制）
+└──────────────────────────────┘
+```
+
+- **位置**：紧贴 name 下方，gap 2px
+- **字号**：11px（比 name 小 1-2px）
+- **字体**：`'SF Mono', Menlo, Consolas, monospace`（技术字符串）
+- **icon**：`<Key />` 10px，slate-500 透明度 0.7
+- **截断**：`text-overflow: ellipsis`（200px 容器 + 28px icon + 12px 状态 = 剩余 ~155px 容纳 app_key）
+- **悬停**：背景 slate-100 + 文字变 primary-700
+- **点击**：`@click.stop="copyText(app.app_key)"` 复制全文，stop 防止触发 item 选中
+- **active 态**：文字直接用 primary-700 强调
+- **命名**：`data-token` 用于复制
+
+**字段命名规范**（必须遵守）：
+
+| 位置 | 旧名（弃用） | 新名（2026-07） | 字段 |
+|------|------|------|------|
+| 列表项副标题 | `ID: xxx` | 应用 TOKEN | `app.app_key` |
+| 详情 meta 标签 | `AppKey` | 应用 TOKEN | `currentApp.app_key` |
+
+**禁止使用 `AppKey` 字符串作为用户可见标签**，全部改 `应用 TOKEN`（后端字段仍是 `app_key` 不变）。
 
 ## 列表页统一规范（2026-07 用户要求：所有列表页严格统一）
 
