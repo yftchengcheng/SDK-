@@ -5183,6 +5183,7 @@ html, body, #app {
  * ======================================================== */
 .app-master-detail {
   display: flex;
+  flex-direction: row;
   gap: 16px;
   height: calc(100vh - 88px);
   margin: 0;
@@ -5191,9 +5192,9 @@ html, body, #app {
   overflow: hidden;
 }
 
-/* ============ 左侧：应用列表面板 ============ */
+/* ============ 左侧：应用列表面板（窄条） ============ */
 .app-master-panel {
-  width: 280px;
+  width: 200px;
   flex-shrink: 0;
   background: #fff;
   border: 1px solid var(--color-slate-200, #E2E8F0);
@@ -5243,12 +5244,13 @@ html, body, #app {
 .app-master-item {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 10px 12px;
+  gap: 8px;
+  padding: 8px 10px;
   border-radius: 6px;
   cursor: pointer;
   transition: all 0.15s ease;
   margin-bottom: 2px;
+  position: relative;
 }
 .app-master-item:hover {
   background: var(--color-slate-50, #F8FAFC);
@@ -5258,9 +5260,9 @@ html, body, #app {
   box-shadow: 0 0 0 1px var(--color-primary-200, #BFDBFE) inset;
 }
 .app-master-item-icon {
-  width: 36px;
-  height: 36px;
-  border-radius: 8px;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
   background: var(--color-slate-100, #F1F5F9);
   display: flex;
   align-items: center;
@@ -5268,6 +5270,7 @@ html, body, #app {
   color: var(--color-slate-500, #64748B);
   flex-shrink: 0;
   overflow: hidden;
+  font-size: 13px;
 }
 .app-master-item-icon img {
   width: 100%;
@@ -5285,29 +5288,29 @@ html, body, #app {
 .app-master-item-name {
   display: flex;
   align-items: center;
-  gap: 6px;
-  font-size: 13px;
+  gap: 4px;
+  font-size: 12px;
   font-weight: 500;
   color: var(--color-slate-900, #0F172A);
   overflow: hidden;
+  line-height: 1.2;
 }
 .app-master-item-name-text {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  max-width: 100px;
 }
 .platform-tag {
-  font-size: 10px;
-  height: 18px;
-  padding: 0 6px;
-  line-height: 18px;
+  font-size: 9px;
+  height: 14px;
+  padding: 0 4px;
+  line-height: 14px;
   flex-shrink: 0;
+  border-radius: 3px;
 }
 .app-master-item-id {
-  font-size: 11px;
-  color: var(--color-slate-400, #94A3B8);
-  font-family: 'SF Mono', Monaco, Consolas, monospace;
-  margin-top: 2px;
+  display: none;
 }
 .app-master-item-status {
   flex-shrink: 0;
@@ -5670,7 +5673,7 @@ html, body, #app {
 /* 响应式 */
 @media (max-width: 1200px) {
   .metric-grid { grid-template-columns: repeat(2, 1fr); }
-  .app-master-panel { width: 240px; }
+  .app-master-panel { width: 180px; }
 }
 
 /* ========================================================

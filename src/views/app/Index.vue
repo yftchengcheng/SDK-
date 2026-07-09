@@ -406,7 +406,7 @@ const boundNetworks = ref<any[]>([]);
 const fetchBoundNetworks = async () => {
   if (!currentApp.value) { boundNetworks.value = []; return; }
   try {
-    const res: any = await request.get('/api/v1/console/network/app-binding', {
+    const res: any = await request.get('/api/v1/console/network/app/list', {
       params: { appKey: currentAppKey.value },
     });
     boundNetworks.value = res.data?.list || [];
@@ -417,7 +417,7 @@ const fetchBoundNetworks = async () => {
 const unbindNetwork = async (n: any) => {
   await ElMessageBox.confirm(`确定解绑广告平台「${n.name}」吗？`, '提示', { type: 'warning' });
   try {
-    await request.delete(`/api/v1/console/network/app-binding?appKey=${currentAppKey.value}&networkId=${n.id}`);
+    await request.post('/api/v1/console/network/app/unbind', { appKey: currentAppKey.value, networkId: n.id });
     ElMessage.success('已解绑');
     fetchBoundNetworks();
   } catch { /* ignore */ }
