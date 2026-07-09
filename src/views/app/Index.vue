@@ -257,9 +257,13 @@
                         <el-icon :size="14"><Delete /></el-icon>
                         <span style="margin-left:4px">移除</span>
                       </el-button>
+                      <div class="app-icon-hint">
+                        <span class="app-icon-chip"><el-icon :size="11"><Picture /></el-icon>PNG / JPG / JPEG</span>
+                        <span class="app-icon-chip"><el-icon :size="11"><FullScreen /></el-icon>512×512px</span>
+                        <span class="app-icon-chip"><el-icon :size="11"><Files /></el-icon>≤ 1MB</span>
+                      </div>
                     </div>
                   </div>
-                  <div class="form-help">支持 PNG / JPG / JPEG 格式，512×512px，最大 1MB</div>
                   <div v-if="iconError" class="form-error">
                     <el-icon :size="12"><WarningFilled /></el-icon>
                     <span>{{ iconError }}</span>
