@@ -5214,9 +5214,14 @@ html, body, #app {
 }
 .app-master-header-top {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+}
+.app-master-create-btn {
+  align-self: stretch;
+  width: 100%;
+  justify-content: center;
 }
 .app-master-title {
   display: flex;

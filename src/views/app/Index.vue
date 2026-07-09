@@ -9,7 +9,7 @@
             <span>我的应用</span>
             <el-tag size="small" effect="plain" round class="app-master-count">{{ appList.length }}</el-tag>
           </h2>
-          <el-button type="primary" size="small" :icon="Plus" @click="openCreateApp">创建</el-button>
+          <el-button type="primary" size="small" :icon="Plus" class="app-master-create-btn" @click="openCreateApp">创建</el-button>
         </div>
         <el-input
           v-model="searchKeyword"
