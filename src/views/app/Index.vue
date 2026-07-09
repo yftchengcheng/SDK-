@@ -194,7 +194,6 @@
               <span class="detail-card-sub">该应用已关联的广告平台与频次</span>
             </h2>
             <div class="detail-card-actions">
-              <el-button :icon="Setting" size="small" @click="openFrequencyDrawer">频次设置</el-button>
               <el-button type="primary" :icon="Plus" size="small" @click="goNetwork">关联广告平台</el-button>
             </div>
           </div>
