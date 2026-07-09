@@ -263,13 +263,16 @@
             <!-- 广告位表格 -->
             <div class="page-table-wrap">
               <el-table :data="placementList" v-loading="placementLoading" size="default" :cell-style="{ textAlign: 'center' }" :header-cell-style="{ textAlign: 'center', background: 'var(--color-slate-50, #F8FAFC)', color: 'var(--color-slate-700, #334155)', fontWeight: 600 }">
-                <el-table-column prop="placement_id" label="广告位" min-width="200" align="left" header-align="left">
+                <el-table-column prop="placement_id" label="广告位" min-width="220" align="left" header-align="left">
                   <template #default="{ row }">
                     <div class="cell-icon-text">
                       <span class="cell-link" @click="copyText(row.placement_id)">{{ row.name }}</span>
                       <el-icon class="copy-btn" @click="copyText(row.placement_id)"><CopyDocument /></el-icon>
                     </div>
-                    <div class="cell-sub">ID: {{ row.placement_id }}</div>
+                    <div v-if="row.placement_id" class="cell-sub cell-sub--token" @click="copyText(row.placement_id)" :title="row.placement_id">
+                      <el-icon :size="10"><Key /></el-icon>
+                      <span>广告位TOKEN：{{ row.placement_id }}</span>
+                    </div>
                   </template>
                 </el-table-column>
                 <el-table-column prop="format" label="广告类型" width="110" align="center" header-align="center">
