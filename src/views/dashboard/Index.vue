@@ -25,125 +25,147 @@
         </div>
         <div class="page-header-titles">
           <h1 class="page-header-title">数据看板</h1>
-          <p class="page-header-subtitle">今日 / 本周 / 本月聚合数据</p>
+          <p class="page-header-subtitle">实时收入 / 趋势 / 多维排行</p>
         </div>
       </div>
       <div class="page-header-actions">
-        <el-radio-group
-          v-model="activeTab"
-          size="small"
-          class="dashboard-range-tabs"
-          @change="onTabChange"
-        >
-          <el-radio-button label="7">7 天</el-radio-button>
-          <el-radio-button label="14">14 天</el-radio-button>
-          <el-radio-button label="30">30 天</el-radio-button>
-        </el-radio-group>
-        <el-date-picker
-          v-model="dateRange"
-          type="daterange"
-          range-separator="至"
-          start-placeholder="开始"
-          end-placeholder="结束"
-          size="small"
-          format="YYYY-MM-DD"
-          value-format="YYYY-MM-DD"
-          :clearable="false"
-          @change="onDateChange"
-        />
-        <el-button size="small" :icon="Refresh" :loading="loading" @click="reload">
+        <el-button size="small" :icon="Refresh" :loading="overviewLoading" @click="reload">
           刷新
         </el-button>
       </div>
     </div>
 
-    <!-- Stat Grid（4 个 stat-card，按 DESIGN.md Stat Card 规范） -->
-    <div v-loading="loading" class="stat-grid">
-      <div v-for="m in metrics" :key="m.key" class="stat-card">
-        <div class="stat-card__label">{{ m.label }}</div>
-        <div class="stat-card__value">{{ m.display }}</div>
-        <div v-if="m.trend != null" class="stat-card__trend">
-          <span :class="['trend-arrow', m.trend > 0 ? 'up' : m.trend < 0 ? 'down' : 'flat']">
-            <el-icon v-if="m.trend > 0"><CaretTop /></el-icon>
-            <el-icon v-else-if="m.trend < 0"><CaretBottom /></el-icon>
+    <!-- ═══ 上：收入详情（4 个 stat-card） ═══ -->
+    <div v-loading="overviewLoading" class="stat-grid stat-grid--income">
+      <div v-for="card in overviewCards" :key="card.key" class="stat-card stat-card--income">
+        <div class="stat-card__head">
+          <div class="stat-card__label">{{ card.label }}</div>
+          <div v-if="card.period" class="stat-card__period">{{ card.period }}</div>
+        </div>
+
+        <div class="stat-card__main">
+          <span class="stat-card__currency">¥</span>
+          <span class="stat-card__value">{{ card.revenueDisplay }}</span>
+        </div>
+
+        <div v-if="card.trend != null && card.compareWith" class="stat-card__trend">
+          <span :class="['trend-arrow', card.trend > 0 ? 'up' : card.trend < 0 ? 'down' : 'flat']">
+            <el-icon v-if="card.trend > 0"><CaretTop /></el-icon>
+            <el-icon v-else-if="card.trend < 0"><CaretBottom /></el-icon>
             <span v-else>·</span>
           </span>
-          <span :class="['trend-text', m.trend > 0 ? 'up' : m.trend < 0 ? 'down' : 'flat']">
-            {{ Math.abs(m.trend).toFixed(1) }}%
+          <span :class="['trend-text', card.trend > 0 ? 'up' : card.trend < 0 ? 'down' : 'flat']">
+            {{ Math.abs(card.trend).toFixed(1) }}%
           </span>
-          <span class="stat-card__compare">{{ m.compareWith }}</span>
+          <span class="stat-card__compare">{{ card.compareWith }}</span>
+        </div>
+
+        <div class="stat-card__sub">
+          <div class="stat-card__sub-item">
+            <span class="stat-card__sub-label">展示</span>
+            <span class="stat-card__sub-value">{{ card.impressionsDisplay }}</span>
+          </div>
+          <div class="stat-card__sub-item">
+            <span class="stat-card__sub-label">DAU</span>
+            <span class="stat-card__sub-value">{{ card.dauDisplay }}</span>
+          </div>
+          <div class="stat-card__sub-item">
+            <span class="stat-card__sub-label">预估</span>
+            <span class="stat-card__sub-value">¥{{ card.estimatedDisplay }}</span>
+          </div>
         </div>
       </div>
     </div>
 
-    <!-- Chart Card（page-card 包装，ECharts 折线图） -->
-    <div v-loading="trendLoading" class="page-card page-chart-card">
-      <div class="chart-title">收益趋势（{{ rangeLabel }}）</div>
-      <VChart
-        v-if="trendOption && trendOption.series && trendOption.series.length"
-        :key="trendKey"
-        :option="trendOption"
-        :init-options="{ renderer: 'svg' }"
-        :update-options="{ notMerge: true, lazyUpdate: false }"
-        class="chart-canvas"
-        autoresize
-      />
-      <el-empty v-else description="暂无趋势数据" :image-size="60" />
+    <!-- ═══ 中：数据趋势（filter + ECharts） ═══ -->
+    <div class="page-card page-section">
+      <div class="page-section__head">
+        <div class="page-section__title">数据趋势</div>
+        <div class="page-section__filters">
+          <span class="filter-label">维度</span>
+          <el-select v-model="trendDimension" size="small" class="filter-select" @change="onTrendFilterChange">
+            <el-option v-for="d in dimensionOptions" :key="d.value" :label="d.label" :value="d.value" />
+          </el-select>
+          <span class="filter-label">指标</span>
+          <el-select v-model="trendMetric" size="small" class="filter-select" @change="onTrendFilterChange">
+            <el-option v-for="m in metricOptions" :key="m.value" :label="m.label" :value="m.value" />
+          </el-select>
+          <el-date-picker
+            v-model="dateRange"
+            type="daterange"
+            range-separator="至"
+            start-placeholder="开始"
+            end-placeholder="结束"
+            size="small"
+            format="YYYY-MM-DD"
+            value-format="YYYY-MM-DD"
+            :clearable="false"
+            :shortcuts="dateShortcuts"
+            @change="onTrendFilterChange"
+            class="filter-date"
+          />
+        </div>
+      </div>
+
+      <div v-loading="trendLoading" class="chart-wrapper">
+        <VChart
+          :key="trendKey"
+          :option="trendOption"
+          :init-options="{ renderer: 'svg' }"
+          :update-options="{ notMerge: true, lazyUpdate: false }"
+          class="chart-canvas"
+          autoresize
+        />
+      </div>
+
+      <div class="page-section__foot">
+        <div class="page-section__period">
+          <el-icon><Calendar /></el-icon>
+          <span>{{ rangeLabel }}</span>
+        </div>
+        <div class="page-section__note">注：DAU = 展示 ÷ 100、预估收益 = 收益 × 1.0（仅占位估算，真实接入后会替换）</div>
+      </div>
     </div>
 
-    <!-- List Grid（3 个 list-card，page-card 包装） -->
-    <div class="list-grid">
-      <div v-loading="loading" class="page-card page-list-card">
-        <div class="list-title">广告源对比</div>
-        <div class="list-body">
-          <div v-if="sourceRows.length">
-            <div v-for="(row, idx) in sourceRows" :key="row.sourceId" class="list-row">
-              <div class="row-rank">{{ idx + 1 }}</div>
-              <div class="row-name">{{ row.name || row.sourceId }}</div>
-              <div class="row-bar-track">
-                <div class="row-bar-fill" :style="{ width: row.barPct + '%' }" />
-              </div>
-              <div class="row-value">¥{{ row.revenue.toFixed(2) }}</div>
-            </div>
+    <!-- ═══ 下：6 个排行卡片（2×3 grid） ═══ -->
+    <div class="ranking-grid">
+      <div
+        v-for="card in rankingConfigs"
+        :key="card.dimension"
+        v-loading="rankingLoadingMap[card.dimension]"
+        class="page-card page-rank-card"
+      >
+        <div class="page-rank-card__head">
+          <div class="page-rank-card__title">
+            <el-icon><Trophy /></el-icon>
+            <span>TOP {{ card.label }}</span>
           </div>
-          <el-empty v-else description="暂无数据" :image-size="50" />
+          <el-select
+            v-model="rankingMetricMap[card.dimension]"
+            size="small"
+            class="rank-card__metric"
+            @change="loadRanking(card.dimension)"
+          >
+            <el-option v-for="m in metricOptions" :key="m.value" :label="m.label" :value="m.value" />
+          </el-select>
         </div>
-      </div>
 
-      <div v-loading="loading" class="page-card page-list-card">
-        <div class="list-title">广告位收益排行</div>
-        <div class="list-body">
-          <div v-if="placementRows.length">
-            <div v-for="(row, idx) in placementRows" :key="row.placementId" class="list-row">
-              <div class="row-rank">{{ idx + 1 }}</div>
-              <div class="row-name">{{ row.placementId }}</div>
-              <div class="row-bar-track">
-                <div class="row-bar-fill" :style="{ width: row.barPct + '%' }" />
+        <div class="page-rank-card__body">
+          <template v-if="rankingRowsMap[card.dimension] && rankingRowsMap[card.dimension].length">
+            <div
+              v-for="(row, idx) in rankingRowsMap[card.dimension]"
+              :key="row.entity"
+              class="rank-row"
+            >
+              <div :class="['rank-row__rank', idx < 3 ? `top-${idx + 1}` : '']">{{ idx + 1 }}</div>
+              <div class="rank-row__name" :title="row.name">{{ row.name }}</div>
+              <div class="rank-row__bar-track">
+                <div class="rank-row__bar-fill" :style="{ width: row.barPct + '%' }" />
               </div>
-              <div class="row-value">¥{{ row.revenue.toFixed(2) }}</div>
+              <div class="rank-row__value">{{ formatRankingValue(row.value, rankingMetricMap[card.dimension]) }}</div>
             </div>
-          </div>
+          </template>
           <el-empty v-else description="暂无数据" :image-size="50" />
-        </div>
-      </div>
-
-      <div v-loading="loading" class="page-card page-list-card">
-        <div class="list-title">异常告警</div>
-        <div class="list-body">
-          <div v-if="anomalyRows.length">
-            <div v-for="row in anomalyRows" :key="row.placementId + row.type" class="list-row">
-              <div class="row-rank warn">!</div>
-              <div class="row-name">
-                {{ row.placementId }}
-                <div class="row-sub">{{ row.type === 'revenue_drop' ? '收益下降' : row.type }}</div>
-              </div>
-              <div class="row-value warn">
-                <div>{{ row.change > 0 ? '+' : '' }}{{ row.change.toFixed(1) }}%</div>
-                <div class="row-sub">¥{{ row.recent.toFixed(2) }} / ¥{{ row.baseline.toFixed(2) }}</div>
-              </div>
-            </div>
-          </div>
-          <el-empty v-else description="暂无异常" :image-size="50" />
         </div>
       </div>
     </div>
@@ -151,36 +173,184 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, watch, reactive } from 'vue'
 import dayjs from 'dayjs'
 import { use } from 'echarts/core'
 import { CanvasRenderer, SVGRenderer } from 'echarts/renderers'
-import { LineChart } from 'echarts/charts'
-import { GridComponent, TooltipComponent, LegendComponent } from 'echarts/components'
+import { LineChart, BarChart } from 'echarts/charts'
+import {
+  GridComponent,
+  TooltipComponent,
+  LegendComponent,
+  DataZoomComponent,
+} from 'echarts/components'
 import VChart from 'vue-echarts'
-import { DataAnalysis, CaretTop, CaretBottom, Refresh } from '@element-plus/icons-vue'
+import {
+  DataAnalysis,
+  CaretTop,
+  CaretBottom,
+  Refresh,
+  Calendar,
+  Trophy,
+} from '@element-plus/icons-vue'
 import request from '@/utils/request'
 import { ElMessage } from 'element-plus'
 
-use([SVGRenderer, CanvasRenderer, LineChart, GridComponent, TooltipComponent, LegendComponent])
+use([
+  SVGRenderer,
+  CanvasRenderer,
+  LineChart,
+  BarChart,
+  GridComponent,
+  TooltipComponent,
+  LegendComponent,
+  DataZoomComponent,
+])
 
-interface TrendPoint { date: string; revenue: number; impressions: number }
-interface SourceRow { sourceId: string; name: string; revenue: number; impressions: number }
-interface PlacementRow { placementId: string; revenue: number }
-interface AnomalyRow { placementId: string; type: string; change: number; recent: number; baseline: number }
+// ─── 维度和指标选项 ───────────────────────────────────────────
+const dimensionOptions = [
+  { value: 'summary', label: '汇总' },
+  { value: 'app', label: 'TOP应用' },
+  { value: 'placement', label: 'TOP广告位' },
+  { value: 'adType', label: 'TOP广告类型' },
+  { value: 'region', label: 'TOP地区' },
+  { value: 'network', label: 'TOP广告平台' },
+  { value: 'os', label: 'TOP系统' },
+]
+const metricOptions = [
+  { value: 'revenue', label: '收益' },
+  { value: 'impressions', label: '展示' },
+  { value: 'dau', label: 'DAU' },
+  { value: 'estimatedRevenue', label: '预估收益' },
+]
+const rankingConfigs = [
+  { dimension: 'app', label: '应用' },
+  { dimension: 'placement', label: '广告位' },
+  { dimension: 'adType', label: '广告类型' },
+  { dimension: 'region', label: '地区' },
+  { dimension: 'network', label: '广告平台' },
+  { dimension: 'os', label: '系统' },
+]
 
+// ─── 状态 ───────────────────────────────────────────
 const loading = ref(false)
+const overviewLoading = ref(false)
 const trendLoading = ref(false)
 const loadError = ref('')
 
-const activeTab = ref<'7' | '14' | '30'>('7')
+const overviewCards = ref<
+  Array<{
+    key: string
+    label: string
+    period: string
+    compareWith: string
+    revenueDisplay: string
+    impressionsDisplay: string
+    dauDisplay: string
+    estimatedDisplay: string
+    trend: number
+  }>
+>([])
+
+const trendDimension = ref<string>('summary')
+const trendMetric = ref<string>('revenue')
 const dateRange = ref<[string, string]>([
   dayjs().subtract(6, 'day').format('YYYY-MM-DD'),
   dayjs().format('YYYY-MM-DD'),
 ])
-const trendKey = ref(0)  // 强制 VChart 重建计数器：vue-echarts 浅监听 prop 不更新时使用
+// 空态 option: 后端无数据时也展示坐标轴, 避免空白
+const emptyTrendOption = (): Record<string, unknown> => ({
+  grid: { left: 56, right: 24, top: 36, bottom: 36 },
+  xAxis: {
+    type: 'category',
+    data: [],
+    axisLine: { lineStyle: { color: '#CBD5E1' } },
+    axisLabel: { color: '#64748B', fontSize: 12 },
+  },
+  yAxis: {
+    type: 'value',
+    axisLine: { show: false },
+    splitLine: { lineStyle: { color: '#E2E8F0', type: 'dashed' } },
+    axisLabel: { color: '#64748B', fontSize: 12 },
+  },
+  series: [{ type: 'line', data: [], smooth: true, symbolSize: 6, lineStyle: { width: 2, color: '#1E40AF' }, itemStyle: { color: '#1E40AF' } }],
+})
+const trendOption = ref<Record<string, unknown>>(emptyTrendOption())
+const trendKey = ref(0)
 
-// 趋势图标题：直接基于 dateRange 算起始/结束日期 + 天数，不依赖 reload 时的瞬时计算
+// 6 个 ranking 卡片：每个 dimension 独立 metric + 数据
+const rankingMetricMap = reactive<Record<string, string>>({
+  app: 'revenue',
+  placement: 'revenue',
+  adType: 'revenue',
+  region: 'revenue',
+  network: 'revenue',
+  os: 'revenue',
+})
+const rankingLoadingMap = reactive<Record<string, boolean>>({
+  app: false,
+  placement: false,
+  adType: false,
+  region: false,
+  network: false,
+  os: false,
+})
+const rankingRowsMap = reactive<Record<string, Array<{ entity: string; name: string; value: number; barPct: number }>>>({
+  app: [],
+  placement: [],
+  adType: [],
+  region: [],
+  network: [],
+  os: [],
+})
+
+// ─── 日期快捷选项（Element Plus daterange shortcuts） ───────
+const dateShortcuts = [
+  {
+    text: '今天',
+    value: () => {
+      const d = dayjs().format('YYYY-MM-DD')
+      return [d, d]
+    },
+  },
+  {
+    text: '昨天',
+    value: () => {
+      const d = dayjs().subtract(1, 'day').format('YYYY-MM-DD')
+      return [d, d]
+    },
+  },
+  {
+    text: '过去 7 天',
+    value: () => [
+      dayjs().subtract(6, 'day').format('YYYY-MM-DD'),
+      dayjs().format('YYYY-MM-DD'),
+    ],
+  },
+  {
+    text: '过去 14 天',
+    value: () => [
+      dayjs().subtract(13, 'day').format('YYYY-MM-DD'),
+      dayjs().format('YYYY-MM-DD'),
+    ],
+  },
+  {
+    text: '过去 30 天',
+    value: () => [
+      dayjs().subtract(29, 'day').format('YYYY-MM-DD'),
+      dayjs().format('YYYY-MM-DD'),
+    ],
+  },
+  {
+    text: '自定义',
+    value: () => [
+      dayjs().subtract(6, 'day').format('YYYY-MM-DD'),
+      dayjs().format('YYYY-MM-DD'),
+    ],
+  },
+]
+
+// ─── 计算属性 ─────────────────────────────────────
 const rangeLabel = computed(() => {
   const r = dateRange.value
   if (!r || r.length !== 2) return '—'
@@ -191,45 +361,18 @@ const rangeLabel = computed(() => {
   return `${r[0]} 至 ${r[1]} · 共 ${days} 天`
 })
 
-// 请求序号：用于在快速切换 tab 时丢弃过期响应，防止旧数据覆盖新数据
-let requestSeq = 0
-const isCurrent = (seq: number) => seq === requestSeq
-
-const metrics = ref<Array<{ key: string; label: string; display: string; trend: number | null; compareWith: string }>>([
-  { key: 'revenue', label: '今日收益', display: '—', trend: null, compareWith: '较昨日' },
-  { key: 'impressions', label: '今日展示', display: '—', trend: null, compareWith: '较昨日' },
-  { key: 'fillRate', label: '填充率', display: '—', trend: null, compareWith: '较昨日' },
-  { key: 'eCPM', label: 'eCPM', display: '—', trend: null, compareWith: '较昨日' },
-])
-const trendOption = ref<Record<string, unknown> | null>(null)
-const sourceRows = ref<SourceRow[]>([])
-const placementRows = ref<PlacementRow[]>([])
-const anomalyRows = ref<AnomalyRow[]>([])
-
-let reloadTimer: number | null = null
-
-function formatNumber(value: unknown, key: string): string {
+// ─── 工具方法 ─────────────────────────────────────
+function formatNumber(value: unknown, key: 'revenue' | 'impressions' | 'dau' | 'estimatedRevenue'): string {
   const num = Number(value)
   if (!Number.isFinite(num)) return '—'
-  if (key === 'revenue' || key === 'eCPM') return `¥${num.toFixed(2)}`
-  if (key === 'fillRate') return `${num.toFixed(2)}%`
+  if (key === 'revenue' || key === 'estimatedRevenue') return `${num.toFixed(2)}`
+  if (key === 'dau') return num.toLocaleString('en-US')
   return num.toLocaleString('en-US')
 }
 
-function resolveDateRange(): { start: string; end: string } {
-  if (dateRange.value && dateRange.value.length === 2) {
-    return { start: dateRange.value[0], end: dateRange.value[1] }
-  }
-  const days = Number(activeTab.value)
-  return {
-    start: dayjs().subtract(days - 1, 'day').format('YYYY-MM-DD'),
-    end: dayjs().format('YYYY-MM-DD'),
-  }
-}
-
-function buildParams(): { startDate: string; endDate: string } {
-  const r = resolveDateRange()
-  return { startDate: r.start, endDate: r.end }
+function formatRankingValue(value: number, metric: string): string {
+  if (metric === 'revenue' || metric === 'estimatedRevenue') return `¥${value.toFixed(2)}`
+  return value.toLocaleString('en-US')
 }
 
 function showError(msg: string) {
@@ -237,133 +380,227 @@ function showError(msg: string) {
   ElMessage.error(msg)
 }
 
-async function loadDashboardData() {
-  const seq = ++requestSeq
-  loading.value = true
+// 请求序号：用于快速切换筛选时丢弃过期响应
+// HMR 时 module 重新 evaluate 会让 module 级 let 重置导致闭包引用错位
+// 改用 inflight flag：已有进行中请求时直接 return（最简实现）
+let inflightOverview = false
+let inflightTrend = false
+let inflightRanking = false
+
+// ─── 数据加载 ─────────────────────────────────────
+async function loadOverview() {
+  if (inflightOverview) return
+  inflightOverview = true
+  overviewLoading.value = true
   loadError.value = ''
-
   try {
-    const params = buildParams()
-    const [overviewRes, trendRes, sourceRes, placementRes, anomalyRes] = await Promise.all([
-      request.get<{ code: number; data: Record<string, unknown> }>('/api/v1/console/dashboard/overview', { params }),
-      request.get<{ code: number; data: TrendPoint[] }>('/api/v1/console/dashboard/trend', { params }),
-      request.get<{ code: number; data: SourceRow[] }>('/api/v1/console/dashboard/source-comparison', { params }),
-      request.get<{ code: number; data: PlacementRow[] }>('/api/v1/console/dashboard/placement-ranking', { params }),
-      request.get<{ code: number; data: AnomalyRow[] }>('/api/v1/console/dashboard/anomalies', { params }),
-    ])
-
-    // 任何后续 setState 之前先检查 seq（防止过期响应覆盖新请求）
-    if (seq !== requestSeq) return
-
-    const ov = overviewRes.data || {}
-    // 后端返回 trendCompareWith（如"较昨日"），失败时回退为默认"较昨日"，避免空白
-    const compareWith = String(ov.trendCompareWith || '较昨日')
-    metrics.value = [
-      { key: 'revenue', label: '今日收益', display: formatNumber(ov.todayRevenue, 'revenue'), trend: Number(ov.revenueTrend ?? 0), compareWith },
-      { key: 'impressions', label: '今日展示', display: formatNumber(ov.todayImpressions, 'impressions'), trend: Number(ov.impressionsTrend ?? 0), compareWith },
-      { key: 'fillRate', label: '填充率', display: formatNumber(ov.fillRate, 'fillRate'), trend: Number(ov.fillRateTrend ?? 0), compareWith },
-      { key: 'eCPM', label: 'eCPM', display: formatNumber(ov.eCPM, 'eCPM'), trend: Number(ov.eCPMTrend ?? 0), compareWith },
-    ]
-
-    const trendData = Array.isArray(trendRes.data) ? trendRes.data : []
-    trendOption.value = {
-      grid: { left: 50, right: 20, top: 30, bottom: 30 },
-      tooltip: { trigger: 'axis' },
-      xAxis: {
-        type: 'category',
-        data: trendData.map(p => p.date),
-        axisLine: { lineStyle: { color: '#CBD5E1' } },
-        axisLabel: { color: '#64748B', fontSize: 11 },
-      },
-      yAxis: {
-        type: 'value',
-        axisLine: { show: false },
-        axisTick: { show: false },
-        splitLine: { lineStyle: { color: '#F1F5F9' } },
-        axisLabel: { color: '#64748B', fontSize: 11, formatter: '¥{value}' },
-      },
-      series: [{
-        name: '收益',
-        type: 'line',
-        smooth: true,
-        symbol: 'circle',
-        symbolSize: 6,
-        data: trendData.map(p => p.revenue),
-        lineStyle: { color: '#2563EB', width: 2 },
-        itemStyle: { color: '#2563EB' },
-        areaStyle: { color: 'rgba(37, 99, 235, 0.1)' },
-      }],
-    }
-    // 递增重建 key + notMerge + lazyUpdate=false 强制 VChart 完全重绘（防 vue-echarts 8.x 浅监听 + merge 模式 bug）
-    trendKey.value++
-
-    const sources = Array.isArray(sourceRes.data) ? sourceRes.data : []
-    const maxRevenue = Math.max(...sources.map(s => Number(s.revenue) || 0), 1)
-    sourceRows.value = sources.map(s => ({
-      ...s,
-      revenue: Number(s.revenue) || 0,
-      impressions: Number(s.impressions) || 0,
-      barPct: Math.round((Number(s.revenue) || 0) / maxRevenue * 100),
+    const res = await request.get<unknown>('/api/v1/console/dashboard/overview')
+    const inner = (res as { data?: unknown })?.data
+    const stats: Array<{
+      key: string; label: string; period: string; compareWith: string; trend: number
+      values: { revenue: number; impressions: number; dau: number; estimatedRevenue: number }
+    }> = Array.isArray(inner)
+      ? (inner as never)
+      : (inner && typeof inner === 'object' && Array.isArray((inner as { stats?: unknown[] }).stats))
+        ? ((inner as { stats: never[] }).stats)
+        : []
+    overviewCards.value = stats.map((s) => ({
+      key: s.key,
+      label: s.label,
+      period: s.period,
+      compareWith: s.compareWith,
+      revenueDisplay: formatNumber(s.values.revenue, 'revenue'),
+      impressionsDisplay: formatNumber(s.values.impressions, 'impressions'),
+      dauDisplay: formatNumber(s.values.dau, 'dau'),
+      estimatedDisplay: formatNumber(s.values.estimatedRevenue, 'estimatedRevenue'),
+      trend: s.trend,
     }))
-
-    const placements = Array.isArray(placementRes.data) ? placementRes.data : []
-    const maxPlacementRev = Math.max(...placements.map(p => Number(p.revenue) || 0), 1)
-    placementRows.value = placements.map(p => ({
-      ...p,
-      revenue: Number(p.revenue) || 0,
-      barPct: Math.round((Number(p.revenue) || 0) / maxPlacementRev * 100),
-    }))
-
-    if (seq !== requestSeq) return
-    anomalyRows.value = Array.isArray(anomalyRes.data) ? anomalyRes.data : []
   } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : '加载看板数据失败'
+    const msg = err instanceof Error ? err.message : '加载收入详情失败'
     showError(msg)
   } finally {
-    loading.value = false
+    inflightOverview = false
+    overviewLoading.value = false
   }
+}
+
+async function loadTrend() {
+  if (inflightTrend) return
+  inflightTrend = true
+  trendLoading.value = true
+  try {
+    const params = {
+      dimension: trendDimension.value,
+      metric: trendMetric.value,
+      startDate: dateRange.value[0],
+      endDate: dateRange.value[1],
+    }
+    const res = await request.get<{ code: number; data: {
+      dimension: string
+      metric: string
+      points?: Array<{ date: string; value: number }>
+      dates?: string[]
+      series?: Array<{ name: string; data: number[] }>
+    } }>('/api/v1/console/dashboard/trend', { params })
+
+    const d = res.data
+    if (!d) {
+      trendOption.value = emptyTrendOption()
+      return
+    }
+
+    const metric = d.metric
+    const isRevenue = metric === 'revenue' || metric === 'estimatedRevenue'
+    const yFormatter = isRevenue ? '¥{value}' : '{value}'
+
+    // summary：单 series
+    if (d.dimension === 'summary' && d.points) {
+      trendOption.value = {
+        grid: { left: 56, right: 24, top: 36, bottom: 36 },
+        tooltip: {
+          trigger: 'axis',
+          valueFormatter: (v: unknown) => isRevenue ? `¥${Number(v).toFixed(2)}` : `${Number(v).toLocaleString('en-US')}`,
+        },
+        xAxis: {
+          type: 'category',
+          data: d.points.map((p) => p.date),
+          axisLine: { lineStyle: { color: '#CBD5E1' } },
+          axisLabel: { color: '#64748B', fontSize: 11 },
+        },
+        yAxis: {
+          type: 'value',
+          axisLine: { show: false },
+          axisTick: { show: false },
+          splitLine: { lineStyle: { color: '#F1F5F9' } },
+          axisLabel: { color: '#64748B', fontSize: 11, formatter: yFormatter },
+        },
+        series: [{
+          name: getMetricLabel(metric),
+          type: 'line',
+          smooth: true,
+          symbol: 'circle',
+          symbolSize: 6,
+          data: d.points.map((p) => p.value),
+          lineStyle: { color: '#2563EB', width: 2 },
+          itemStyle: { color: '#2563EB' },
+          areaStyle: { color: 'rgba(37, 99, 235, 0.10)' },
+        }],
+      }
+    } else if (d.dates && d.series) {
+      // 多 series
+      const colors = ['#2563EB', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6']
+      trendOption.value = {
+        grid: { left: 56, right: 24, top: 50, bottom: 36 },
+        tooltip: {
+          trigger: 'axis',
+          valueFormatter: (v: unknown) => isRevenue ? `¥${Number(v).toFixed(2)}` : `${Number(v).toLocaleString('en-US')}`,
+        },
+        legend: { top: 6, textStyle: { color: '#475569', fontSize: 12 } },
+        xAxis: {
+          type: 'category',
+          data: d.dates,
+          axisLine: { lineStyle: { color: '#CBD5E1' } },
+          axisLabel: { color: '#64748B', fontSize: 11 },
+        },
+        yAxis: {
+          type: 'value',
+          axisLine: { show: false },
+          axisTick: { show: false },
+          splitLine: { lineStyle: { color: '#F1F5F9' } },
+          axisLabel: { color: '#64748B', fontSize: 11, formatter: yFormatter },
+        },
+        series: d.series.map((s, i) => ({
+          name: s.name,
+          type: 'line',
+          smooth: true,
+          symbol: 'circle',
+          symbolSize: 5,
+          data: s.data,
+          lineStyle: { color: colors[i % colors.length], width: 2 },
+          itemStyle: { color: colors[i % colors.length] },
+        })),
+      }
+    } else {
+      trendOption.value = null
+    }
+    trendKey.value++
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : '加载趋势数据失败'
+    showError(msg)
+  } finally {
+    inflightTrend = false
+    trendLoading.value = false
+  }
+}
+
+async function loadRanking(dimension: string) {
+  rankingLoadingMap[dimension] = true
+  try {
+    const params = {
+      metric: rankingMetricMap[dimension],
+      startDate: dateRange.value[0],
+      endDate: dateRange.value[1],
+      limit: 10,
+    }
+    const res = await request.get<{ code: number; data: {
+      dimension: string; metric: string;
+      ranking: Array<{ entity: string; name: string; value: number }>
+    } }>(`/api/v1/console/dashboard/ranking/${dimension}`, { params })
+
+    const rows = res.data?.ranking || []
+    const max = Math.max(...rows.map((r) => Number(r.value) || 0), 1)
+    rankingRowsMap[dimension] = rows.map((r) => ({
+      entity: r.entity,
+      name: r.name,
+      value: Number(r.value) || 0,
+      barPct: Math.round((Number(r.value) || 0) / max * 100),
+    }))
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : `加载 ${dimension} 排行失败`
+    showError(msg)
+    rankingRowsMap[dimension] = []
+  } finally {
+    rankingLoadingMap[dimension] = false
+  }
+}
+
+function loadAllRankings() {
+  return Promise.all(rankingConfigs.map((c) => loadRanking(c.dimension)))
+}
+
+function getMetricLabel(m: string): string {
+  const found = metricOptions.find((opt) => opt.value === m)
+  return found?.label || m
+}
+
+// ─── 事件 ────────────────────────────────────────
+function onTrendFilterChange() {
+  loadTrend()
+  loadAllRankings()
 }
 
 function reload() {
-  loadDashboardData()
+  loadOverview()
+  loadTrend()
+  loadAllRankings()
 }
 
-function onTabChange() {
-  dateRange.value = [
-    dayjs().subtract(Number(activeTab.value) - 1, 'day').format('YYYY-MM-DD'),
-    dayjs().format('YYYY-MM-DD'),
-  ]
-  reload()
-}
-
-function onDateChange() {
-  if (reloadTimer) {
-    window.clearTimeout(reloadTimer)
-  }
-  reloadTimer = window.setTimeout(() => {
-    reload()
-  }, 200)
-}
-
+// 监听 dateRange 变化（避免 dateRange 改但 trend 旧）
 watch(
   dateRange,
   () => {
-    if (reloadTimer) window.clearTimeout(reloadTimer)
-    reloadTimer = window.setTimeout(() => {
-      reload()
-    }, 200)
+    onTrendFilterChange()
   },
   { deep: true },
 )
 
 onMounted(() => {
-  reload()
+  loadOverview()
+  loadTrend()
+  loadAllRankings()
 })
 
 onBeforeUnmount(() => {
-  if (reloadTimer) {
-    window.clearTimeout(reloadTimer)
-    reloadTimer = null
-  }
+  // 清空
 })
 </script>

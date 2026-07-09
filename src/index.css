@@ -4605,3 +4605,291 @@ html, body, #app {
   justify-content: flex-end;
   gap: 10px;
 }
+
+/* ============================================================
+ * 数据看板 v2（2026-07「数据看板规范·上中下结构」）
+ *   上：4 个 stat-card（昨天 / 前天 / 本月 / 上月）
+ *   中：filter-bar + ECharts 趋势图
+ *   下：6 个 ranking 卡片（TOP应用/广告位/广告类型/地区/广告平台/系统）
+ * ============================================================ */
+
+/* ---------- 收入详情 stat-card（4 列） ---------- */
+.stat-grid--income {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--space-lg);
+}
+@media (max-width: 1280px) {
+  .stat-grid--income { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 768px) {
+  .stat-grid--income { grid-template-columns: 1fr; }
+}
+.stat-card--income {
+  background: #FFFFFF;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-slate-200);
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  position: relative;
+  overflow: hidden;
+  transition: all 150ms ease;
+}
+.stat-card--income:hover {
+  border-color: var(--color-primary-200);
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.06);
+  transform: translateY(-1px);
+}
+/* 顶部蓝色装饰条 */
+.stat-card--income::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--color-primary-500) 0%, var(--color-primary-400) 100%);
+}
+.stat-card--income .stat-card__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+.stat-card--income .stat-card__label {
+  font-size: var(--text-sm, 13px);
+  color: var(--color-slate-500, #64748B);
+  font-weight: 500;
+  margin: 0;
+}
+.stat-card--income .stat-card__period {
+  font-size: 11px;
+  color: var(--color-slate-400, #94A3B8);
+  font-variant-numeric: tabular-nums;
+}
+.stat-card--income .stat-card__main {
+  display: flex;
+  align-items: baseline;
+  gap: 2px;
+  margin-top: 4px;
+}
+.stat-card--income .stat-card__currency {
+  font-size: var(--text-md, 14px);
+  font-weight: 600;
+  color: var(--color-slate-500, #64748B);
+}
+.stat-card--income .stat-card__value {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--color-slate-900, #0F172A);
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+.stat-card--income .stat-card__sub {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-top: 6px;
+  padding-top: 10px;
+  border-top: 1px solid var(--color-slate-100, #F1F5F9);
+}
+.stat-card--income .stat-card__sub-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.stat-card--income .stat-card__sub-label {
+  font-size: 11px;
+  color: var(--color-slate-400, #94A3B8);
+}
+.stat-card--income .stat-card__sub-value {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-slate-700, #334155);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ---------- 中：数据趋势（page-section） ---------- */
+.page-section {
+  padding: 20px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.page-section__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--color-slate-100, #F1F5F9);
+}
+.page-section__title {
+  font-size: var(--text-md, 14px);
+  font-weight: 600;
+  color: var(--color-slate-800, #1E293B);
+}
+.page-section__filters {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.filter-label {
+  font-size: 12px;
+  color: var(--color-slate-500, #64748B);
+  font-weight: 500;
+}
+.filter-select {
+  width: 120px;
+}
+.filter-date {
+  width: 240px;
+}
+.page-section__foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding-top: 4px;
+}
+.page-section__period {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--color-slate-500, #64748B);
+  font-variant-numeric: tabular-nums;
+}
+.page-section__period .el-icon {
+  font-size: 13px;
+  color: var(--color-slate-400, #94A3B8);
+}
+.page-section__note {
+  font-size: 11px;
+  color: var(--color-slate-400, #94A3B8);
+  line-height: 1.5;
+  text-align: right;
+  max-width: 60%;
+}
+.chart-wrapper {
+  width: 100%;
+  height: 320px;
+  position: relative;
+}
+.chart-wrapper .chart-canvas {
+  width: 100%;
+  height: 100%;
+}
+
+/* ---------- 下：6 个 ranking 卡片（3 列 × 2 行） ---------- */
+.ranking-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-lg);
+}
+@media (max-width: 1280px) {
+  .ranking-grid { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 768px) {
+  .ranking-grid { grid-template-columns: 1fr; }
+}
+.page-rank-card {
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 320px;
+}
+.page-rank-card__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--color-slate-100, #F1F5F9);
+}
+.page-rank-card__title {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--text-md, 14px);
+  font-weight: 600;
+  color: var(--color-slate-800, #1E293B);
+}
+.page-rank-card__title .el-icon {
+  color: #F59E0B;
+  font-size: 15px;
+}
+.rank-card__metric {
+  width: 90px;
+}
+.page-rank-card__body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  overflow-y: auto;
+  max-height: 280px;
+}
+.page-rank-card__body::-webkit-scrollbar { width: 4px; }
+.page-rank-card__body::-webkit-scrollbar-thumb { background: var(--color-slate-200, #E2E8F0); border-radius: 2px; }
+.page-rank-card__body::-webkit-scrollbar-track { background: transparent; }
+
+.rank-row {
+  display: grid;
+  grid-template-columns: 22px 1fr 80px 70px;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0;
+  font-size: 12px;
+  transition: background 120ms ease;
+  border-radius: 4px;
+}
+.rank-row:hover { background: var(--color-slate-50, #F8FAFC); }
+.rank-row__rank {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-slate-400, #94A3B8);
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+.rank-row__rank.top-1 { color: #F59E0B; font-weight: 700; }
+.rank-row__rank.top-2 { color: #94A3B8; font-weight: 700; }
+.rank-row__rank.top-3 { color: #B45309; font-weight: 700; }
+.rank-row__name {
+  color: var(--color-slate-800, #1E293B);
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.rank-row__bar-track {
+  height: 6px;
+  background: var(--color-slate-100, #F1F5F9);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.rank-row__bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--color-primary-500) 0%, var(--color-primary-400) 100%);
+  border-radius: 3px;
+  transition: width 200ms ease;
+}
+.rank-row__value {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-slate-700, #334155);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}

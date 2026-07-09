@@ -505,25 +505,40 @@ B2B 企业级广告数据管理控制台。沉稳、专业、精准。蓝+灰+�
 - 禁止自创字号/间距/颜色组合
 - 禁止使用 Emoji 作为图标
 
-## 数据看板规范（2026-07 用户要求：dashboard 严格按 page-shell 规范重构）
+## 数据看板规范（2026-07 用户要求：dashboard 严格按上中下三段式重构）
 
-数据看板是**特殊页面**——不是纯列表页，是「KPI 概览 + 趋势图 + 排名列表」三段式看板。
+数据看板是**特殊页面**——不是纯列表页，是「收入详情 / 数据趋势 / 多维排行」三段式看板。所有时段相关数据均**真实查表**（revenue / impressions），DAU / 预估收益**基于真实字段估算**（前端标注估算公式，避免误导）。
 
-### 整体三段式结构
+### 整体上中下三段式结构
 
 ```
 ┌──────────────────────────────────────────────────────────────┐
-│  Page Header（图标 + 标题 + 副标题 + 时间筛选 + 刷新）          │  ← .page-header
+│  Page Header（图标 + 标题 + 副标题 + 刷新）                    │  ← .page-header
 ├──────────────────────────────────────────────────────────────┤
-│  Stat Grid（4 个统计卡片）                                    │  ← .stat-grid
+│  上：Stat Grid（4 个收入详情卡片）                             │  ← .stat-grid.stat-grid--income
+│  ┌─ 昨天 ─┐ ┌─ 前天 ─┐ ┌─ 本月 ─┐ ┌─ 上月 ─┐                 │
+│  │ ¥XX.XX  │ │ ¥XX.XX  │ │ ¥XXX   │ │ ¥XXX   │                 │
+│  │ 展示/DAU│ │ 展示/DAU│ │ 展示/DAU│ │ 展示/DAU│                │
+│  │ ↑↓ 较前天│ │    —    │ │ ↑↓ 较上月│ │   —    │                │
+│  └─────────┘ └─────────┘ └────────┘ └────────┘                │
 ├──────────────────────────────────────────────────────────────┤
-│  Chart Card（ECharts 趋势图，高度固定 280px）                  │  ← .page-card.page-chart-card
-│                                                              │
+│  中：数据趋势 Section                                         │  ← .page-card.page-section
+│  [维度: 汇总] [指标: 收益] [日期范围: 过去 7 天 ▼]             │
+│  ┌───────────────────────────────────────────────────────┐   │
+│  │  ECharts 折线图（summary 单线 / 其他维度多线）         │   │
+│  │  高度 320px                                            │   │
+│  └───────────────────────────────────────────────────────┘   │
+│  2024-01-01 至 2024-01-07 · 共 7 天    注：DAU/预估为估算      │
 ├──────────────────────────────────────────────────────────────┤
-│  List Grid（3 个排名/告警列表）                               │  ← .list-grid
-│  ┌── .page-card.page-list-card ──┐  ┌── ... ──┐  ┌── ... ──┐ │
-│  │  广告源对比                    │  │ 广告位收益排行 │ │ 异常告警 │ │
-│  └───────────────────────────────┘  └──────────┘  └──────────┘ │
+│  下：Ranking Grid（6 个排行卡片，3 列 × 2 行）                 │  ← .ranking-grid
+│  ┌─ TOP应用 ──────┐ ┌─ TOP广告位 ─────┐ ┌─ TOP广告类型 ──┐  │
+│  │ [指标: 收益 ▼] │ │ [指标: 收益 ▼]   │ │ [指标: 收益 ▼] │  │
+│  │ 1 应用A ¥XX.XX │ │ 1 位置A ¥XX.XX   │ │ 暂无数据      │  │
+│  │ 2 应用B ¥XX.XX │ │ 2 位置B ¥XX.XX   │ │                │  │
+│  │ ...            │ │ ...              │ │                │  │
+│  └────────────────┘ └─────────────────┘ └────────────────┘  │
+│  ┌─ TOP地区 ──────┐ ┌─ TOP广告平台 ──┐ ┌─ TOP系统 ──────┐  │
+│  └────────────────┘ └────────────────┘ └────────────────┘  │
 └──────────────────────────────────────────────────────────────┘
 ```
 
@@ -531,68 +546,94 @@ B2B 企业级广告数据管理控制台。沉稳、专业、精准。蓝+灰+�
 
 - **必用 .page-header 规范容器**（白底 / 8px 圆角 / 边框 #E2E8F0 / shadow-sm / 14px 20px padding）
 - 左侧 `.page-header-left`：
-  - 图标徽章 36×36 / 圆角 8 / 背景 #EFF6FF / 颜色 #2563EB / Element Plus Icon `DataAnalysis` 或 `DataLine`
-  - 标题组：主标题"数据看板" + 副标题"今日 / 本周 / 本月聚合数据"
-- 右侧 `.page-header-actions`：时间 tab（7/14/30 天）+ 日期范围选择 + 刷新按钮
+  - 图标徽章 36×36 / 圆角 8 / 背景 #EFF6FF / 颜色 #2563EB / Element Plus Icon `DataAnalysis`
+  - 标题组：主标题"数据看板" + 副标题"实时收入 / 趋势 / 多维排行"
+- 右侧 `.page-header-actions`：刷新按钮（不含 tab/date range，下移到中段 filter-bar）
 
-### Stat Grid（KPI 卡片）
+### 上：Stat Grid（收入详情·4 个 stat-card）
 
-- 容器：`.stat-grid` / `display: grid` / `grid-template-columns: repeat(4, 1fr)` / `gap: var(--space-lg)`
-- 卡片：复用 DESIGN.md **Stat Card 规范**（`.stat-card` / 白底 / 8px 圆角 / 边框 #E2E8F0 / padding 16px / hover 边框 #BFDBFE + 阴影）
+- 容器：`.stat-grid--income` / `display: grid` / `grid-template-columns: repeat(4, 1fr)` / `gap: var(--space-lg)`
+- 卡片：`.stat-card.stat-card--income`（**专用样式**——区别于普通 stat-card）
+  - 顶部 **3px 蓝色渐变装饰条**（`linear-gradient(90deg, #2563EB, #60A5FA)`）：让卡片与普通 stat-card 视觉上能区分
+  - padding `18px 20px`（比普通 stat-card 略大，容纳副值网格）
+  - hover：边框 #BFDBFE + 阴影 `0 4px 12px rgba(37,99,235,0.06)` + `translateY(-1px)`
 - 卡片内部结构：
-  - `.stat-card__label`：12px / #94A3B8
-  - `.stat-card__value`：18px / 700 / #0F172A / letter-spacing -0.01em
-  - `.stat-card__trend`：可选，显示环比 ↑/↓ 趋势
-  - `.stat-card__compare`：可选，trend 右侧的对比基准文案（如"较昨日"），11px / #94A3B8 / 字重 500 / 同行尾部 / 间距 4px
-    - **来源**：后端 `dashboard.overview` 接口返回的 `trendCompareWith` 字段
-    - **目的**：让用户明确知道百分比是与哪个时间点对比
-- **响应式**：≥1280px 显示 4 列 / 1024-1280px 显示 2 列 / <1024px 显示 1 列
+  - `.stat-card__head`：flex 横向，`.stat-card__label`（左）+ `.stat-card__period`（右，11px / #94A3B8 / 日期或日期段）
+  - `.stat-card__main`：主值容器，含 `__currency`（¥，14px / 600 / #64748B）+ `__value`（28px / 700 / #0F172A / tabular-nums）
+  - `.stat-card__trend`：可选，环比 ↑/↓ 趋势（"较前天"/"较上月"）
+    - **仅「昨天」/「本月」**有 trend（前天 / 上月不展示趋势，因对比基准复杂）
+  - `.stat-card__sub`：副值网格 `grid-template-columns: repeat(3, 1fr)`
+    - 三组：展示 / DAU / 预估
+    - `.stat-card__sub-label`：11px / #94A3B8
+    - `.stat-card__sub-value`：12px / 600 / #334155 / tabular-nums
+- **数据来源**：后端 `GET /api/v1/console/dashboard/overview` 返回 `stats: [{ key, label, period, compareWith, values: { revenue, impressions, dau, estimatedRevenue }, trend }]`
+- **响应式**：≥1280px 显示 4 列 / 768-1280px 显示 2 列 / <768px 显示 1 列
 
-### Chart Card（趋势图）
+### 中：Page Section（数据趋势）
 
-- 容器：`.page-card.page-chart-card`（直接用 .page-card 规范）
-  - **卡片内边距**：`padding: 20px 24px`（避免 ECharts / 标题贴卡片边，是数据看板的硬规范）
-  - 内部保留 padding 20px（**不要**为消除 padding 而设 `padding: 0`，否则 ECharts 容器会失去呼吸空间）
-  - 背景保持 #FFFFFF（**不要**设 `background: transparent`）
-- 标题：`.chart-title` / 14px / 600 / #1E293B / **padding: 0**（左右内边距由外层 .page-chart-card 提供）/ margin-bottom: 12px / **border-bottom: 1px solid #F1F5F9** / padding-bottom: 12px（分隔标题与图表）
-- ECharts 容器 `.chart-canvas`：
-  - **必须**显式 `width: 100%; height: 280px`（ECharts svg 渲染的硬性要求，autoresize 模式依赖父容器显式高度）
-  - 使用 `vue-echarts` 的 `<VChart autoresize :init-options="{ renderer: 'svg' }" />`
-  - 折线颜色 #2563EB / 渐变填充 `rgba(37, 99, 235, 0.1)` / 圆滑曲线 `smooth: true`
-  - 左侧**预留 60px** 给 y 轴标签、底部**预留 40px** 给 x 轴标签（避免轴标签被裁）
-- 空数据：`<el-empty description="暂无趋势数据" :image-size="60" />`
+- 容器：`.page-card.page-section` / padding `20px 24px` / flex column / gap 12px
+- **Head**（`.page-section__head`）：flex 横向，左标题 + 右 filters
+  - 标题：`.page-section__title` / 14px / 600 / #1E293B
+  - Filters：`.page-section__filters` / flex + gap 8px
+    - `.filter-label`：12px / #64748B / 500
+    - `.filter-select`：120px（维度 + 指标 2 个 el-select）
+    - `.filter-date`：240px（el-date-picker daterange）
+- **Chart 容器**（`.chart-wrapper`）：width 100% / **height 320px** / position relative
+  - `.chart-canvas`：width 100% / height 100%
+  - 配色：折线 #2563EB / 渐变填充 `rgba(37, 99, 235, 0.10)` / smooth + 圆点
+  - 单 series 隐藏 legend，多 series 显示顶部 legend
+- **Foot**（`.page-section__foot`）：flex 横向，左时间范围 + 右估算公式说明
+  - `.page-section__period`：12px / #64748B / `Calendar` icon + 文本
+  - `.page-section__note`：11px / #94A3B8 / 估算公式（DAU = 展示 ÷ 100，预估收益 = 收益 × 1.0）
+- **数据来源**：`GET /api/v1/console/dashboard/trend?dimension=&metric=&startDate=&endDate`
+  - `dimension=summary` → 单 series（points: [{date, value}])
+  - 其他 dimension → 多 series（dates: [] + series: [{name, data: []}])，top 5 实体
+- **维度选项**（`.filter-select`）：汇总（默认）/ TOP应用 / TOP广告位 / TOP广告类型 / TOP地区 / TOP广告平台 / TOP系统
+- **指标选项**（`.filter-select`）：收益（默认）/ 展示 / DAU / 预估收益
+- **日期范围快捷项**（el-date-picker `shortcuts`）：今天 / 昨天 / 过去 7 天 / 过去 14 天 / 过去 30 天 / 自定义
 
-### List Grid（排名/告警列表）
+### 下：Ranking Grid（6 个排行卡片）
 
-- 容器：`.list-grid` / `display: grid` / `grid-template-columns: repeat(3, 1fr)` / `gap: var(--space-lg)`
-- 卡片：`.page-card.page-list-card`（直接用 .page-card 规范）
-  - **卡片内边距**：`padding: 20px 24px`（避免 list-row / 标题贴卡片边）
-  - 背景 #FFFFFF
+- 容器：`.ranking-grid` / `display: grid` / `grid-template-columns: repeat(3, 1fr)` / `gap: var(--space-lg)`
+- 响应式：≥1280px 显示 3 列 / 768-1280px 显示 2 列 / <768px 显示 1 列
+- 卡片：`.page-card.page-rank-card` / padding `16px 20px` / flex column / **min-height 320px**
 - 卡片内部结构：
-  - `.list-title`：14px / 600 / #1E293B / **padding: 0**（左右由外层 .page-list-card 提供）/ **margin-bottom: 12px** / **border-bottom: 1px solid #F1F5F9** / padding-bottom: 12px
-  - `.list-body`：flex column / gap 8px / padding: 0
-  - 每行 `.list-row`：
-    - `display: grid` / `grid-template-columns: 24px 1fr 100px 100px`
-    - **padding: 8px 4px**（左右 4px 内边距，让 rank 编号与名称之间有呼吸空间，不贴卡片边）
-    - 排名 `.row-rank`：20×20 / 4px 圆角 / #F1F5F9 背景 / #475569 文字 / 11px / 600
-    - 排名异常 `.row-rank.warn`：#FEE2E2 背景 / #991B1B 文字
-    - 名称 `.row-name`：#334155 / ellipsis 截断
-    - 进度条 `.row-bar-track`：6px 高 / #F1F5F9 背景 / 3px 圆角
-    - 进度条填充 `.row-bar-fill`：linear-gradient(90deg, #3B82F6, #1D4ED8) / 3px 圆角 / transition width 0.3s
-    - 数值 `.row-value`：#334155 / 500 / right / tabular-nums
-- 空数据：`<el-empty description="暂无数据" :image-size="50" />`
+  - `.page-rank-card__head`：flex 横向
+    - 标题：`.page-rank-card__title` / 14px / 600 / #1E293B / `Trophy` icon（**琥珀黄 #F59E0B**，仅此处用琥珀色，是 DESIGN.md 唯一例外）+ "TOP {label}"
+    - Metric 筛选：`.rank-card__metric` / width 90px / el-select（4 个 metric：收益 / 展示 / DAU / 预估）
+  - `.page-rank-card__body`：flex column / gap 6px / max-height 280px / overflow-y auto
+    - **滚动条**：4px 宽 / 拇指 #E2E8F0 / 轨道透明（自定义滚动条）
+  - 每行 `.rank-row`：
+    - grid `22px 1fr 80px 70px`（排名 / 名称 / 进度条 / 数值）
+    - padding `6px 0` / hover 背景 #F8FAFC / 4px 圆角
+    - 排名 `.rank-row__rank`：11px / 600 / #94A3B8
+      - top-1（金）：#F59E0B / 700
+      - top-2（银）：#94A3B8 / 700
+      - top-3（铜）：#B45309 / 700
+    - 名称 `.rank-row__name`：#1E293B / 500 / ellipsis
+    - 进度条 `.rank-row__bar-track`：6px 高 / #F1F5F9 / 3px 圆角
+    - 进度条填充 `.rank-row__bar-fill`：linear-gradient(90deg, #2563EB, #60A5FA) / 3px 圆角 / transition width 0.2s
+    - 数值 `.rank-row__value`：11px / 600 / #334155 / right / tabular-nums
+- **空数据**：`.page-rank-card__body` 内 `<el-empty description="暂无数据" :image-size="50" />`
+  - 软维度（adType / region / os）后端**直接返回空** ranking（report_daily 表无对应列），前端走空状态
 
 ### 关键边界（必须遵守）
 
-1. **ECharts 容器必须有显式高度**——`.chart-canvas { height: 280px }` 绝不能删
-2. **不要给 .page-card.page-chart-card / .page-card.page-list-card 设 `padding: 0` 或 `background: transparent`**——会让内部内容塌陷
-3. **折线图配色严格按 DESIGN.md**——#2563EB + rgba(37,99,235,0.1) 渐变填充（不要用琥珀黄/紫色/绿色等替代）
-4. **stat-card 必须 hover 有反馈**——边框 #BFDBFE + 阴影 `0 2px 8px rgba(37,99,235,0.06)`
-5. **不要在 dashboard 用 Emoji 表情**——用 Element Plus Icon `DataAnalysis` / `CaretTop`（↑）/`CaretBottom`（↓）
+1. **ECharts 容器必须有显式高度**——`.chart-wrapper { height: 320px }` 绝不能删
+2. **不要给 .page-card.page-section / .page-card.page-rank-card 设 `padding: 0` 或 `background: transparent`**——会让内部内容塌陷
+3. **折线图配色严格按 DESIGN.md**——#2563EB + rgba(37,99,235,0.1) 渐变填充（不要用琥珀黄/紫色/绿色等替代，多 series 时用 5 色调色板：#2563EB / #10B981 / #F59E0B / #EF4444 / #8B5CF6）
+4. **stat-card--income 必须 hover 有反馈**——边框 #BFDBFE + 阴影 + `translateY(-1px)`
+5. **不要在 dashboard 用 Emoji 表情**——用 Element Plus Icon `DataAnalysis` / `CaretTop` / `CaretBottom` / `Calendar` / `Trophy`
+6. **DAU / 预估收益必须标注估算公式**——`.page-section__note` 显式写出"DAU = 展示 ÷ 100、预估收益 = 收益 × 1.0（仅占位估算）"
+7. **6 个 ranking 卡片并行加载**——避免一个慢接口阻塞其他卡片渲染（`Promise.all`）
+8. **Trophy 图标用琥珀色 #F59E0B 是 DESIGN.md 唯一例外**——其他场景仍禁止琥珀色装饰
 
 ### 命名与代码规范
 
 - 顶层类：`.page-shell.page-dashboard`
-- 三段容器：`.page-header` / `.stat-grid` / `.page-card.page-chart-card` / `.list-grid` / `.page-card.page-list-card`
-- 内部子元素：`.stat-card` / `.stat-card__label` / `.stat-card__value` / `.stat-card__trend` / `.stat-card__compare` / `.chart-title` / `.chart-canvas` / `.list-title` / `.list-body` / `.list-row` / `.row-rank` / `.row-name` / `.row-bar-track` / `.row-bar-fill` / `.row-value`
+- 三段容器：`.page-header` / `.stat-grid.stat-grid--income` / `.page-card.page-section` / `.ranking-grid` / `.page-card.page-rank-card`
+- 内部子元素：
+  - 上段：`.stat-card.stat-card--income` / `.stat-card__head` / `.stat-card__label` / `.stat-card__period` / `.stat-card__main` / `.stat-card__currency` / `.stat-card__value` / `.stat-card__trend` / `.stat-card__compare` / `.stat-card__sub` / `.stat-card__sub-item` / `.stat-card__sub-label` / `.stat-card__sub-value`
+  - 中段：`.page-section__head` / `.page-section__title` / `.page-section__filters` / `.filter-label` / `.filter-select` / `.filter-date` / `.chart-wrapper` / `.chart-canvas` / `.page-section__foot` / `.page-section__period` / `.page-section__note`
+  - 下段：`.page-rank-card__head` / `.page-rank-card__title` / `.rank-card__metric` / `.page-rank-card__body` / `.rank-row` / `.rank-row__rank` / `.rank-row__name` / `.rank-row__bar-track` / `.rank-row__bar-fill` / `.rank-row__value`
 

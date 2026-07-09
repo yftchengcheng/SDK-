@@ -27,341 +27,352 @@ function fillDateRange<T extends { date: string }>(
   return filled;
 }
 
-// Dashboard overview
+/** yyyy-mm-dd (UTC 0 点) */
+function fmtDate(d: Date): string {
+  return d.toISOString().split('T')[0];
+}
+
+/** 给定 UTC 0 点日期，返回 dayOffset 后的日期（offset=-1 即昨天） */
+function shiftDate(d: Date, dayOffset: number): Date {
+  return new Date(d.getTime() + dayOffset * 86400000);
+}
+
+/** 当月 1 号 yyyy-mm-dd */
+function startOfMonth(d: Date): string {
+  return fmtDate(new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1)));
+}
+
+/** 上月 1 号 yyyy-mm-dd */
+function startOfLastMonth(d: Date): string {
+  return fmtDate(new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() - 1, 1)));
+}
+
+/** 上月最后一天 yyyy-mm-dd */
+function endOfLastMonth(d: Date): string {
+  return fmtDate(new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 0)));
+}
+
+/**
+ * 汇总一个日期段内 developer 的总收益 / 展示 / 预估收益 / DAU
+ * - revenue / impressions 取自 report_daily 真实列
+ * - estimatedRevenue = revenue × 1.0（与已实现收益保持一致；为后续真实接入预留位）
+ * - dau = impressions ÷ 100（粗估：平均每 100 次展示折算 1 个 DAU，仅供占位）
+ * 说明：report_daily 当前无 dau / estimated_revenue 字段；这两个 metric 在前端
+ * 显式标注为「估算」并展示公式，避免给用户造成"真实 DAU"误导。
+ */
+async function aggregateRange(
+  developerId: string,
+  start: string,
+  end: string,
+): Promise<{ revenue: number; impressions: number; estimatedRevenue: number; dau: number }> {
+  const { data, error } = await db
+    .from('report_daily')
+    .select('revenue, impressions')
+    .eq('developer_id', developerId)
+    .gte('stat_date', start)
+    .lte('stat_date', end);
+  if (error) throw new Error(`Query failed: ${error.message}`);
+  const rows = (data || []) as unknown as Array<Record<string, unknown>>;
+  const revenue = Number(rows.reduce((s, r) => s + Number(r.revenue || 0), 0).toFixed(2));
+  const impressions = rows.reduce((s, r) => s + Number(r.impressions || 0), 0);
+  return {
+    revenue,
+    impressions,
+    estimatedRevenue: Number((revenue * 1.0).toFixed(2)),
+    dau: Math.round(impressions / 100),
+  };
+}
+
+/** 计算环比 %：prev=0 时返回 0 */
+function pct(cur: number, prev: number): number {
+  if (prev <= 0) return 0;
+  return Number((((cur - prev) / prev) * 100).toFixed(2));
+}
+
+/** metric → report_daily 列名映射 + 估算公式
+ * - revenue / impressions : 真实列
+ * - estimatedRevenue : revenue × 1.0
+ * - dau : impressions ÷ 100
+ */
+function metricToColumn(m: string): string {
+  if (m === 'revenue' || m === 'estimatedRevenue') return 'revenue';
+  if (m === 'dau') return 'impressions';
+  return 'impressions';
+}
+
+/** 把列原始值转换为 metric 最终值（应用估算公式） */
+function rawToMetric(m: string, raw: number): number {
+  if (m === 'revenue' || m === 'estimatedRevenue') return Number(raw.toFixed(2));
+  if (m === 'dau') return Math.round(raw / 100);
+  return raw;
+}
+
+/** 数字 round 到 metric 精度 */
+function roundMetric(m: string, v: number): number {
+  if (m === 'revenue' || m === 'estimatedRevenue') return Number(v.toFixed(2));
+  return Math.round(v);
+}
+
+/** dimension → 实体配置（含表名 / ID 列 / 名称列）
+ * - virtual=true 表示该维度在 report_daily 表中无对应列（adType/region/os），
+ *   此时 ranking/trend 接口会直接返回空数据，前端按"暂无数据"渲染
+ */
+interface DimConfig {
+  table: string | null;        // null 表示无关联表，entity id 即展示名
+  idCol: string;
+  nameCol: string;
+  virtual: boolean;
+}
+function dimensionConfig(dim: string): DimConfig | null {
+  const map: Record<string, DimConfig> = {
+    app: { table: 'app', idCol: 'app_key', nameCol: 'name', virtual: false },
+    placement: { table: 'placement', idCol: 'placement_id', nameCol: 'name', virtual: false },
+    network: { table: 'ad_source', idCol: 'id', nameCol: 'name', virtual: false },
+    adType: { table: null, idCol: 'ad_type', nameCol: 'ad_type', virtual: true },
+    region: { table: null, idCol: 'region', nameCol: 'region', virtual: true },
+    os: { table: null, idCol: 'os', nameCol: 'os', virtual: true },
+  };
+  return map[dim] || null;
+}
+
+/** 批量查表，把 entity id 映射为友好名 */
+async function enrichNames(cfg: DimConfig, ids: string[]): Promise<Record<string, string>> {
+  if (!cfg.table || !ids.length) return {};
+  const { data, error } = await db.from(cfg.table).select(`${cfg.idCol}, ${cfg.nameCol}`).in(cfg.idCol, ids);
+  if (error) return {};
+  const m: Record<string, string> = {};
+  for (const r of (data || []) as unknown as Array<Record<string, unknown>>) {
+    m[String(r[cfg.idCol])] = String(r[cfg.nameCol] || r[cfg.idCol]);
+  }
+  return m;
+}
+
+// ============================================================================
+// /overview —— 收入详情（昨天 / 前天 / 本月 / 上月）
+// ============================================================================
 router.get('/overview', authMiddleware, async (req: express.Request, res: express.Response) => {
   try {
     const { developerId } = getDeveloper(req);
-    const { appKey, placementId, startDate, endDate } = req.query as Record<string, string>;
 
-    const today = new Date().toISOString().split('T')[0];
-    const start = startDate || today;
-    const end = endDate || today;
+    const today = new Date();
+    const todayStr = fmtDate(today);
+    const yesterdayStr = fmtDate(shiftDate(today, -1));
+    const dayBeforeStr = fmtDate(shiftDate(today, -2));
 
-    let query = db.from('report_daily').select('*').eq('developer_id', developerId).gte('stat_date', start).lte('stat_date', end);
-    if (appKey) query = query.eq('app_key', appKey);
-    if (placementId) query = query.eq('placement_id', placementId);
+    const thisMonthStart = startOfMonth(today);
+    const lastMonthStart = startOfLastMonth(today);
+    const lastMonthEnd = endOfLastMonth(today);
 
-    const { data, error } = await query;
-    if (error) throw new Error(`Query failed: ${error.message}`);
+    // 并发查 4 个段
+    const [yesterday, dayBefore, thisMonth, lastMonth] = await Promise.all([
+      aggregateRange(developerId, yesterdayStr, yesterdayStr),
+      aggregateRange(developerId, dayBeforeStr, dayBeforeStr),
+      aggregateRange(developerId, thisMonthStart, todayStr),
+      aggregateRange(developerId, lastMonthStart, lastMonthEnd),
+    ]);
 
-    const rows = data || [];
-    const totalRevenue = rows.reduce((sum: number, r: Record<string, unknown>) => sum + Number(r.revenue || 0), 0);
-    const totalImpressions = rows.reduce((sum: number, r: Record<string, unknown>) => sum + Number(r.impressions || 0), 0);
-    const totalRequests = rows.reduce((sum: number, r: Record<string, unknown>) => sum + Number(r.requests || 0), 0);
-    const totalFills = rows.reduce((sum: number, r: Record<string, unknown>) => sum + Number(r.fills || 0), 0);
-    const fillRate = totalRequests > 0 ? (totalFills / totalRequests * 100) : 0;
-    const eCPM = totalImpressions > 0 ? (totalRevenue / totalImpressions * 1000) : 0;
+    // 4 个 stat-card：每个含 revenue/impressions/estimatedRevenue/dau + 对比基准
+    const stats = [
+      {
+        key: 'yesterday',
+        label: '昨天',
+        period: yesterdayStr,
+        compareWith: '较前天',
+        compareDate: dayBeforeStr,
+        values: yesterday,
+        trend: pct(yesterday.revenue, dayBefore.revenue),
+      },
+      {
+        key: 'dayBefore',
+        label: '前天',
+        period: dayBeforeStr,
+        compareWith: '',
+        compareDate: '',
+        values: dayBefore,
+        trend: 0,
+      },
+      {
+        key: 'thisMonth',
+        label: '本月',
+        period: `${thisMonthStart} 至 ${todayStr}`,
+        compareWith: '较上月',
+        compareDate: '',
+        values: thisMonth,
+        trend: pct(thisMonth.revenue, lastMonth.revenue),
+      },
+      {
+        key: 'lastMonth',
+        label: '上月',
+        period: `${lastMonthStart} 至 ${lastMonthEnd}`,
+        compareWith: '',
+        compareDate: '',
+        values: lastMonth,
+        trend: 0,
+      },
+    ];
 
-    // Active placements
-    const activePlacementIds = new Set(rows.filter((r: Record<string, unknown>) => Number(r.impressions || 0) > 0).map((r: Record<string, unknown>) => r.placement_id));
-
-    // 计算今日 vs 昨日 trend (%)
-    const todayDate = today;
-    const yesterdayDate = new Date(Date.now() - 86400000).toISOString().split('T')[0];
-    const todayRows = rows.filter((r: Record<string, unknown>) => r.stat_date === todayDate);
-    const yesterdayRows = rows.filter((r: Record<string, unknown>) => r.stat_date === yesterdayDate);
-    const calcTrend = (cur: number, prev: number) => (prev > 0 ? Number(((cur - prev) / prev * 100).toFixed(2)) : 0);
-    const todayRev = todayRows.reduce((s: number, r: Record<string, unknown>) => s + Number(r.revenue || 0), 0);
-    const yestRev = yesterdayRows.reduce((s: number, r: Record<string, unknown>) => s + Number(r.revenue || 0), 0);
-    const todayImp = todayRows.reduce((s: number, r: Record<string, unknown>) => s + Number(r.impressions || 0), 0);
-    const yestImp = yesterdayRows.reduce((s: number, r: Record<string, unknown>) => s + Number(r.impressions || 0), 0);
-    const todayFR = todayRows.reduce((s: number, r: Record<string, unknown>) => s + Number(r.fills || 0), 0) / Math.max(1, todayRows.reduce((s: number, r: Record<string, unknown>) => s + Number(r.requests || 0), 0)) * 100;
-    const yestFR = yesterdayRows.reduce((s: number, r: Record<string, unknown>) => s + Number(r.fills || 0), 0) / Math.max(1, yesterdayRows.reduce((s: number, r: Record<string, unknown>) => s + Number(r.requests || 0), 0)) * 100;
-    const todayE = todayImp > 0 ? todayRev / todayImp * 1000 : 0;
-    const yestE = yestImp > 0 ? yestRev / yestImp * 1000 : 0;
-
-    success(res, {
-      todayRevenue: totalRevenue.toFixed(2),
-      todayImpressions: totalImpressions,
-      fillRate: fillRate.toFixed(2),
-      eCPM: eCPM.toFixed(2),
-      activePlacements: activePlacementIds.size,
-      revenueTrend: calcTrend(todayRev, yestRev),
-      impressionsTrend: calcTrend(todayImp, yestImp),
-      fillRateTrend: Number((todayFR - yestFR).toFixed(2)),
-      eCPMTrend: calcTrend(todayE, yestE),
-      // 4 个 trend 均为今日 vs 昨日，对比基准由后端统一定义
-      // 后续若支持"本周 vs 上周"等多周期对比，仅需修改本字段与上方 todayRows/yesterdayRows 取数
-      trendCompareWith: '较昨日',
-      trendCompareDate: yesterdayDate,
-    });
+    success(res, { stats });
   } catch (err) {
     console.error('Dashboard overview error:', err);
-    fail(res, 500, '获取看板数据失败');
+    fail(res, 500, '获取收入详情失败');
   }
 });
 
-// Unified trend data (for frontend dashboard)
+// ============================================================================
+// /trend —— 数据趋势（dimension + metric + dateRange）
+//   - dimension=summary : 单 series
+//   - 其他 dimension   : 多 series（按实体聚合 top 5）
+// ============================================================================
 router.get('/trend', authMiddleware, async (req: express.Request, res: express.Response) => {
   try {
     const { developerId } = getDeveloper(req);
-    const { appKey, placementId, startDate, endDate } = req.query as Record<string, string>;
+    const { dimension, metric, startDate, endDate } = req.query as Record<string, string>;
+
+    const m = (metric || 'revenue') as string;
+    const dim = (dimension || 'summary') as string;
+    const metricCol = metricToColumn(m);
 
     const today = new Date();
-    const start = startDate || new Date(today.getTime() - 7 * 86400000).toISOString().split('T')[0];
-    const end = endDate || today.toISOString().split('T')[0];
+    const start = startDate || fmtDate(shiftDate(today, -6));
+    const end = endDate || fmtDate(today);
 
-    let query = db.from('report_daily').select('stat_date, revenue, impressions, requests, fills, clicks').eq('developer_id', developerId).gte('stat_date', start).lte('stat_date', end);
-    if (appKey) query = query.eq('app_key', appKey);
-    if (placementId) query = query.eq('placement_id', placementId);
+    // summary：单 series
+    if (dim === 'summary') {
+      const { data, error } = await db
+        .from('report_daily')
+        .select(`stat_date, ${metricCol}`)
+        .eq('developer_id', developerId)
+        .gte('stat_date', start)
+        .lte('stat_date', end)
+        .order('stat_date', { ascending: true });
+      if (error) throw new Error(`Query failed: ${error.message}`);
 
-    const { data, error } = await query.order('stat_date', { ascending: true });
-    if (error) throw new Error(`Query failed: ${error.message}`);
-
-    const dateMap: Record<string, { revenue: number; impressions: number; requests: number; fills: number; clicks: number }> = {};
-    for (const row of (data || [])) {
-      const date = row.stat_date as string;
-      if (!dateMap[date]) dateMap[date] = { revenue: 0, impressions: 0, requests: 0, fills: 0, clicks: 0 };
-      dateMap[date].revenue += Number(row.revenue || 0);
-      dateMap[date].impressions += Number(row.impressions || 0);
-      dateMap[date].requests += Number(row.requests || 0);
-      dateMap[date].fills += Number(row.fills || 0);
-      dateMap[date].clicks += Number(row.clicks || 0);
+      const map: Record<string, number> = {};
+      for (const r of (data || []) as unknown as Array<Record<string, unknown>>) {
+        const d = r.stat_date as string;
+        map[d] = (map[d] || 0) + Number(r[metricCol] || 0);
+      }
+      const rows = Object.entries(map).map(([date, v]) => ({ date, value: roundMetric(m, rawToMetric(m, v)) }));
+      const filled = fillDateRange(rows, start, end, { value: 0 });
+      return success(res, { dimension: dim, metric: m, points: filled });
     }
 
-    const result = Object.entries(dateMap).map(([date, d]) => ({
-      date,
-      revenue: Number(d.revenue.toFixed(2)),
-      impressions: d.impressions,
-      fillRate: d.requests > 0 ? Number((d.fills / d.requests * 100).toFixed(2)) : 0,
-      eCPM: d.impressions > 0 ? Number((d.revenue / d.impressions * 1000).toFixed(2)) : 0,
-      clicks: d.clicks,
-    }));
+    // 多 series：按 dimension 聚合
+    const cfg = dimensionConfig(dim);
+    if (!cfg) return fail(res, 400, `不支持的 dimension: ${dim}`);
 
-    // 补齐日期范围：每一天都生成一条记录（无数据补 0），保证前端 chart X 轴连续
-    success(res, fillDateRange(result, start, end, { revenue: 0, impressions: 0, fillRate: 0, eCPM: 0, clicks: 0 }));
+    // 软维度（adType/region/os）：report_daily 表中无对应列，直接返回空
+    if (cfg.virtual) {
+      const dates = fillDateRange<{ date: string; value: number }>([], start, end, { value: 0 }).map((p) => p.date);
+      return success(res, { dimension: dim, metric: m, dates, series: [] });
+    }
+
+    const { data, error } = await db
+      .from('report_daily')
+      .select(`stat_date, ${cfg.idCol}, ${metricCol}`)
+      .eq('developer_id', developerId)
+      .gte('stat_date', start)
+      .lte('stat_date', end)
+      .order('stat_date', { ascending: true });
+    if (error) throw new Error(`Query failed: ${error.message}`);
+
+    // 1) 找 top 5 实体
+    const entityTotals: Record<string, number> = {};
+    for (const r of (data || []) as unknown as Array<Record<string, unknown>>) {
+      const e = String(r[cfg.idCol] || 'unknown');
+      entityTotals[e] = (entityTotals[e] || 0) + Number(r[metricCol] || 0);
+    }
+    const topEntities = Object.entries(entityTotals)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5)
+      .map(([e]) => e);
+
+    // 2) 批量查表取名称
+    const nameMap = await enrichNames(cfg, topEntities);
+
+    // 3) 按 entity + date 聚合
+    const byEntityDate: Record<string, Record<string, number>> = {};
+    for (const r of (data || []) as unknown as Array<Record<string, unknown>>) {
+      const e = String(r[cfg.idCol] || 'unknown');
+      if (!topEntities.includes(e)) continue;
+      const d = r.stat_date as string;
+      if (!byEntityDate[e]) byEntityDate[e] = {};
+      byEntityDate[e][d] = (byEntityDate[e][d] || 0) + Number(r[metricCol] || 0);
+    }
+
+    // 4) 每个 entity 一个 series（X 轴按日期补齐）
+    const dates = fillDateRange<{ date: string; value: number }>([], start, end, { value: 0 }).map((p) => p.date);
+    const series = topEntities.map((e) => {
+      const perDate = byEntityDate[e] || {};
+      return {
+        name: nameMap[e] || e,
+        data: dates.map((d) => roundMetric(m, rawToMetric(m, perDate[d] || 0))),
+      };
+    });
+
+    return success(res, { dimension: dim, metric: m, dates, series });
   } catch (err) {
     console.error('Dashboard trend error:', err);
     fail(res, 500, '获取趋势数据失败');
   }
 });
 
-// Revenue trend
-router.get('/revenue-trend', authMiddleware, async (req: express.Request, res: express.Response) => {
+// ============================================================================
+// /ranking/:dimension —— 6 维度排行（dimension + metric + dateRange + limit）
+// ============================================================================
+router.get('/ranking/:dimension', authMiddleware, async (req: express.Request, res: express.Response) => {
   try {
     const { developerId } = getDeveloper(req);
-    const { appKey, startDate, endDate } = req.query as Record<string, string>;
+    const dim = req.params.dimension as string;
+    const { metric, startDate, endDate, limit } = req.query as Record<string, string>;
 
-    const today = new Date();
-    const start = startDate || new Date(today.getTime() - 7 * 86400000).toISOString().split('T')[0];
-    const end = endDate || today.toISOString().split('T')[0];
+    const m = (metric || 'revenue') as string;
+    const cfg = dimensionConfig(dim);
+    if (!cfg) return fail(res, 400, `不支持的 dimension: ${dim}`);
 
-    let query = db.from('report_daily').select('stat_date, revenue').eq('developer_id', developerId).gte('stat_date', start).lte('stat_date', end);
-    if (appKey) query = query.eq('app_key', appKey);
-
-    const { data, error } = await query.order('stat_date', { ascending: true });
-    if (error) throw new Error(`Query failed: ${error.message}`);
-
-    // Aggregate by date
-    const dateMap: Record<string, number> = {};
-    for (const row of (data || [])) {
-      const date = row.stat_date as string;
-      dateMap[date] = (dateMap[date] || 0) + Number(row.revenue || 0);
+    // 软维度（adType/region/os）：report_daily 表中无对应列，直接返回空
+    if (cfg.virtual) {
+      return success(res, { dimension: dim, metric: m, ranking: [] });
     }
 
-    const result = Object.entries(dateMap).map(([date, revenue]) => ({ date, revenue: Number(revenue.toFixed(2)) }));
-    success(res, fillDateRange(result, start, end, { revenue: 0 }));
-  } catch (err) {
-    console.error('Revenue trend error:', err);
-    fail(res, 500, '获取收益趋势失败');
-  }
-});
-
-// Impressions & fill rate trend
-router.get('/impressions-trend', authMiddleware, async (req: express.Request, res: express.Response) => {
-  try {
-    const { developerId } = getDeveloper(req);
-    const { appKey, startDate, endDate } = req.query as Record<string, string>;
+    const metricCol = metricToColumn(m);
+    const topN = Math.min(Math.max(Number(limit) || 10, 1), 50);
 
     const today = new Date();
-    const start = startDate || new Date(today.getTime() - 7 * 86400000).toISOString().split('T')[0];
-    const end = endDate || today.toISOString().split('T')[0];
+    const start = startDate || fmtDate(shiftDate(today, -6));
+    const end = endDate || fmtDate(today);
 
-    let query = db.from('report_daily').select('stat_date, impressions, requests, fills').eq('developer_id', developerId).gte('stat_date', start).lte('stat_date', end);
-    if (appKey) query = query.eq('app_key', appKey);
-
-    const { data, error } = await query.order('stat_date', { ascending: true });
-    if (error) throw new Error(`Query failed: ${error.message}`);
-
-    const dateMap: Record<string, { impressions: number; requests: number; fills: number }> = {};
-    for (const row of (data || [])) {
-      const date = row.stat_date as string;
-      if (!dateMap[date]) dateMap[date] = { impressions: 0, requests: 0, fills: 0 };
-      dateMap[date].impressions += Number(row.impressions || 0);
-      dateMap[date].requests += Number(row.requests || 0);
-      dateMap[date].fills += Number(row.fills || 0);
-    }
-
-    const result = Object.entries(dateMap).map(([date, d]) => ({
-      date,
-      impressions: d.impressions,
-      fillRate: d.requests > 0 ? Number((d.fills / d.requests * 100).toFixed(2)) : 0,
-    }));
-    success(res, fillDateRange(result, start, end, { impressions: 0, fillRate: 0 }));
-  } catch (err) {
-    console.error('Impressions trend error:', err);
-    fail(res, 500, '获取展示趋势失败');
-  }
-});
-
-// Placement ranking
-router.get('/placement-ranking', authMiddleware, async (req: express.Request, res: express.Response) => {
-  try {
-    const { developerId } = getDeveloper(req);
-    const { startDate, endDate } = req.query as Record<string, string>;
-
-    const today = new Date();
-    const start = startDate || new Date(today.getTime() - 7 * 86400000).toISOString().split('T')[0];
-    const end = endDate || today.toISOString().split('T')[0];
-
-    const { data, error } = await db.from('report_daily')
-      .select('placement_id, revenue')
+    const { data, error } = await db
+      .from('report_daily')
+      .select(`${cfg.idCol}, ${metricCol}`)
       .eq('developer_id', developerId)
       .gte('stat_date', start)
       .lte('stat_date', end);
     if (error) throw new Error(`Query failed: ${error.message}`);
 
-    const placementMap: Record<string, number> = {};
-    for (const row of (data || [])) {
-      const pid = row.placement_id as string;
-      placementMap[pid] = (placementMap[pid] || 0) + Number(row.revenue || 0);
+    const totals: Record<string, number> = {};
+    for (const r of (data || []) as unknown as Array<Record<string, unknown>>) {
+      const e = String(r[cfg.idCol] || 'unknown');
+      totals[e] = (totals[e] || 0) + Number(r[metricCol] || 0);
     }
 
-    const ranking = Object.entries(placementMap)
-      .map(([placementId, revenue]) => ({ placementId, revenue: Number(revenue.toFixed(2)) }))
-      .sort((a, b) => b.revenue - a.revenue)
-      .slice(0, 10);
+    // 查 name
+    const ids = Object.keys(totals);
+    const nameMap = await enrichNames(cfg, ids);
 
-    success(res, ranking);
-  } catch (err) {
-    console.error('Placement ranking error:', err);
-    fail(res, 500, '获取广告位排行失败');
-  }
-});
-
-// Ad source comparison (revenue & impressions per source)
-router.get('/source-comparison', authMiddleware, async (req: express.Request, res: express.Response) => {
-  try {
-    const { developerId } = getDeveloper(req);
-    const { appKey, startDate, endDate } = req.query as Record<string, string>;
-
-    const today = new Date();
-    const start = startDate || new Date(today.getTime() - 7 * 86400000).toISOString().split('T')[0];
-    const end = endDate || today.toISOString().split('T')[0];
-
-    let query = db.from('report_daily')
-      .select('ad_source_id, revenue, impressions, clicks, requests, fills')
-      .eq('developer_id', developerId)
-      .gte('stat_date', start)
-      .lte('stat_date', end);
-    if (appKey) query = query.eq('app_key', appKey);
-
-    const { data, error } = await query;
-    if (error) throw new Error(`Query failed: ${error.message}`);
-
-    const sourceMap: Record<string, { revenue: number; impressions: number; clicks: number; requests: number; fills: number }> = {};
-    for (const row of (data || [])) {
-      const sid = (row.ad_source_id as string) || 'unknown';
-      if (!sourceMap[sid]) sourceMap[sid] = { revenue: 0, impressions: 0, clicks: 0, requests: 0, fills: 0 };
-      sourceMap[sid].revenue += Number(row.revenue || 0);
-      sourceMap[sid].impressions += Number(row.impressions || 0);
-      sourceMap[sid].clicks += Number(row.clicks || 0);
-      sourceMap[sid].requests += Number(row.requests || 0);
-      sourceMap[sid].fills += Number(row.fills || 0);
-    }
-
-    // Lookup source names
-    const sourceIds = Object.keys(sourceMap);
-    const nameMap: Record<string, string> = {};
-    if (sourceIds.length > 0) {
-      const { data: sources } = await db.from('ad_source').select('id, name').in('id', sourceIds);
-      for (const s of (sources || [])) {
-        nameMap[s.id as string] = (s.name as string) || s.id as string;
-      }
-    }
-
-    const ranking = Object.entries(sourceMap)
-      .map(([sourceId, d]) => ({
-        sourceId,
-        name: nameMap[sourceId] || sourceId,
-        revenue: Number(d.revenue.toFixed(2)),
-        impressions: d.impressions,
-        clicks: d.clicks,
-        ctr: d.impressions > 0 ? Number((d.clicks / d.impressions * 100).toFixed(2)) : 0,
-        fillRate: d.requests > 0 ? Number((d.fills / d.requests * 100).toFixed(2)) : 0,
-        eCPM: d.impressions > 0 ? Number((d.revenue / d.impressions * 1000).toFixed(2)) : 0,
+    const ranking = Object.entries(totals)
+      .map(([entity, value]) => ({
+        entity,
+        name: nameMap[entity] || entity,
+        value: roundMetric(m, rawToMetric(m, value)),
       }))
-      .sort((a, b) => b.revenue - a.revenue);
+      .sort((a, b) => b.value - a.value)
+      .slice(0, topN);
 
-    success(res, ranking);
+    success(res, { dimension: dim, metric: m, ranking });
   } catch (err) {
-    console.error('Source comparison error:', err);
-    fail(res, 500, '获取广告源对比失败');
-  }
-});
-
-// Anomaly detection: sudden drops in revenue or fill rate
-router.get('/anomalies', authMiddleware, async (req: express.Request, res: express.Response) => {
-  try {
-    const { developerId } = getDeveloper(req);
-
-    // Compare last 3 days vs prior 7 days baseline
-    const today = new Date();
-    const last3End = today.toISOString().split('T')[0];
-    const last3Start = new Date(today.getTime() - 2 * 86400000).toISOString().split('T')[0];
-    const baselineStart = new Date(today.getTime() - 9 * 86400000).toISOString().split('T')[0];
-    const baselineEnd = new Date(today.getTime() - 3 * 86400000).toISOString().split('T')[0];
-
-    const { data: recentRows, error: e1 } = await db.from('report_daily')
-      .select('placement_id, revenue, impressions, requests, fills')
-      .eq('developer_id', developerId)
-      .gte('stat_date', last3Start)
-      .lte('stat_date', last3End);
-    if (e1) throw new Error(`Query failed: ${e1.message}`);
-
-    const { data: baselineRows, error: e2 } = await db.from('report_daily')
-      .select('placement_id, revenue, impressions, requests, fills')
-      .eq('developer_id', developerId)
-      .gte('stat_date', baselineStart)
-      .lte('stat_date', baselineEnd);
-    if (e2) throw new Error(`Query failed: ${e2.message}`);
-
-    const aggregate = (rows: Array<Record<string, unknown>>) => {
-      const m: Record<string, { revenue: number; impressions: number; requests: number; fills: number }> = {};
-      for (const r of rows) {
-        const pid = r.placement_id as string;
-        if (!m[pid]) m[pid] = { revenue: 0, impressions: 0, requests: 0, fills: 0 };
-        m[pid].revenue += Number(r.revenue || 0);
-        m[pid].impressions += Number(r.impressions || 0);
-        m[pid].requests += Number(r.requests || 0);
-        m[pid].fills += Number(r.fills || 0);
-      }
-      return m;
-    };
-
-    const recent = aggregate(recentRows || []);
-    const baseline = aggregate(baselineRows || []);
-
-    const anomalies: Array<{ placementId: string; type: string; change: number; recent: number; baseline: number }> = [];
-    for (const pid of Object.keys(recent)) {
-      const r = recent[pid];
-      const b = baseline[pid];
-      if (!b || b.revenue === 0) continue;
-      const revenueDrop = (r.revenue - b.revenue / 7 * 3) / (b.revenue / 7 * 3) * 100;
-      const recentFillRate = r.requests > 0 ? (r.fills / r.requests * 100) : 0;
-      const baselineFillRate = b.requests > 0 ? (b.fills / b.requests * 100) : 0;
-      if (revenueDrop < -30) {
-        anomalies.push({ placementId: pid, type: 'revenue_drop', change: Number(revenueDrop.toFixed(1)), recent: Number(r.revenue.toFixed(2)), baseline: Number((b.revenue / 7 * 3).toFixed(2)) });
-      }
-      if (baselineFillRate - recentFillRate > 20 && recentFillRate < 50) {
-        anomalies.push({ placementId: pid, type: 'fill_rate_drop', change: Number((recentFillRate - baselineFillRate).toFixed(1)), recent: Number(recentFillRate.toFixed(2)), baseline: Number(baselineFillRate.toFixed(2)) });
-      }
-    }
-
-    success(res, anomalies.slice(0, 10));
-  } catch (err) {
-    console.error('Anomaly detection error:', err);
-    fail(res, 500, '获取异常数据失败');
+    console.error('Dashboard ranking error:', err);
+    fail(res, 500, '获取排行数据失败');
   }
 });
 
