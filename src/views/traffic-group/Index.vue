@@ -285,5 +285,13 @@ const handleDelete = async (row: any) => {
   try { await request.delete(`/api/v1/console/traffic-group/${row.id}`); ElMessage.success('删除成功'); fetchList(); } catch { /* ignore */ }
 };
 
-onMounted(() => { fetchPlacements(); fetchList(); });
+onMounted(async () => {
+  // 加载广告位列表后，默认选中第一个，让流量分组有归属上下文
+  await fetchPlacements();
+  const firstId = placementList.value[0]?.placement_id;
+  if (firstId) {
+    filter.placementId = firstId;
+  }
+  await fetchList();
+});
 </script>
