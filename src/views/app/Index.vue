@@ -123,10 +123,11 @@
                   </el-tooltip>
                 </div>
                 <div class="metric-value">{{ m.value }}</div>
-                <div class="metric-trend" :class="m.trendDir">
+                <div v-if="m.value !== '-'" class="metric-trend" :class="m.trendDir">
                   <span>{{ m.trend }}</span>
                   <span class="metric-trend-label">环比</span>
                 </div>
+                <div v-else class="metric-trend metric-trend--empty">暂无数据</div>
               </div>
             </div>
           </div>

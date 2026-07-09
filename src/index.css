@@ -5531,6 +5531,11 @@ html, body, #app {
 .metric-trend.up { color: var(--color-success, #059669); }
 .metric-trend.down { color: var(--color-danger, #DC2626); }
 .metric-trend-label { color: var(--color-slate-400, #94A3B8); }
+.metric-trend--empty {
+  color: var(--color-slate-400, #94A3B8);
+  font-size: 11px;
+  font-style: italic;
+}
 
 /* 广告平台 */
 .empty-mini {
