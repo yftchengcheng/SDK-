@@ -4701,7 +4701,48 @@ html, body, #app {
   width: 120px;
 }
 .filter-date {
-  width: 240px;
+  width: 260px;
+}
+/* filter-date 加日历图标 + hover 增强 */
+.filter-date .el-input__wrapper {
+  padding-left: 30px !important;
+  background: linear-gradient(135deg, #F8FAFC 0%, #F1F5F9 100%);
+  box-shadow: 0 0 0 1px #E2E8F0 inset !important;
+  transition: all 0.18s ease;
+}
+.filter-date:hover .el-input__wrapper {
+  box-shadow: 0 0 0 1px #93C5FD inset !important;
+  background: linear-gradient(135deg, #EFF6FF 0%, #DBEAFE 100%);
+}
+.filter-date .el-input__wrapper.is-focus {
+  box-shadow: 0 0 0 1px #2563EB inset, 0 0 0 3px rgba(37, 99, 235, 0.10) !important;
+  background: #fff;
+}
+.filter-date .filter-date__prefix {
+  position: absolute;
+  left: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 4px;
+  background: linear-gradient(135deg, #DBEAFE 0%, #BFDBFE 100%);
+  color: #1E40AF;
+  font-size: 11px;
+  z-index: 1;
+  pointer-events: none;
+  transition: all 0.18s ease;
+}
+.filter-date:hover .filter-date__prefix {
+  background: linear-gradient(135deg, #2563EB 0%, #1E40AF 100%);
+  color: #fff;
+  box-shadow: 0 1px 3px rgba(37, 99, 235, 0.25);
+}
+.filter-date {
+  position: relative;
 }
 .page-section__foot {
   display: flex;
@@ -4711,24 +4752,126 @@ html, body, #app {
   flex-wrap: wrap;
   padding-top: 4px;
 }
-.page-section__period {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 12px;
-  color: var(--color-slate-500, #64748B);
-  font-variant-numeric: tabular-nums;
-}
-.page-section__period .el-icon {
-  font-size: 13px;
-  color: var(--color-slate-400, #94A3B8);
-}
 .page-section__note {
   font-size: 11px;
   color: var(--color-slate-400, #94A3B8);
   line-height: 1.5;
   text-align: right;
   max-width: 60%;
+}
+
+/* ═══ period-pill：统计周期胶囊 ═══ */
+.period-pill {
+  display: inline-flex;
+  align-items: stretch;
+  background: linear-gradient(135deg, #EFF6FF 0%, #DBEAFE 100%);
+  border: 1px solid #BFDBFE;
+  border-radius: 10px;
+  padding: 6px 14px 6px 6px;
+  gap: 10px;
+  box-shadow: 0 1px 2px rgba(30, 64, 175, 0.04);
+  transition: all 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+  font-variant-numeric: tabular-nums;
+  position: relative;
+  overflow: hidden;
+}
+.period-pill::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 80px;
+  height: 80px;
+  background: radial-gradient(circle at top right, rgba(96, 165, 250, 0.10) 0%, transparent 70%);
+  pointer-events: none;
+  border-radius: 10px;
+}
+.period-pill:hover {
+  box-shadow: 0 6px 14px -2px rgba(37, 99, 235, 0.15), 0 2px 4px -1px rgba(37, 99, 235, 0.08);
+  transform: translateY(-1px);
+  border-color: #93C5FD;
+}
+.period-pill__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #2563EB 0%, #1E40AF 100%);
+  color: #fff;
+  font-size: 16px;
+  box-shadow: 0 2px 6px rgba(37, 99, 235, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.20);
+  flex-shrink: 0;
+  position: relative;
+  z-index: 1;
+}
+.period-pill__body {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+  min-width: 0;
+  position: relative;
+  z-index: 1;
+}
+.period-pill__head {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  line-height: 1.1;
+}
+.period-pill__label {
+  font-size: 11px;
+  color: var(--color-slate-500, #64748B);
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: none;
+}
+/* 天数徽章 */
+.period-pill__days {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 1px;
+  padding: 1px 6px;
+  background: rgba(255, 255, 255, 0.7);
+  border: 1px solid #BFDBFE;
+  border-radius: 4px;
+  box-shadow: 0 1px 2px rgba(37, 99, 235, 0.05);
+}
+.period-pill__num {
+  font-size: 14px;
+  font-weight: 700;
+  color: #1E3A8A;
+  letter-spacing: -0.02em;
+  line-height: 1;
+  font-feature-settings: "tnum";
+}
+.period-pill__unit {
+  font-size: 10px;
+  font-weight: 600;
+  color: #1E40AF;
+  line-height: 1;
+}
+.period-pill__range {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  color: var(--color-slate-600, #475569);
+  font-weight: 500;
+  line-height: 1.2;
+  font-feature-settings: "tnum";
+  letter-spacing: 0.01em;
+}
+.period-pill__date {
+  padding: 0 1px;
+}
+.period-pill__arrow {
+  color: #60A5FA;
+  font-weight: 700;
+  font-size: 10px;
+  letter-spacing: -0.05em;
 }
 .chart-wrapper {
   width: 100%;

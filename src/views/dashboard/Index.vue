@@ -76,7 +76,13 @@
             :shortcuts="dateShortcuts"
             @change="onTrendFilterChange"
             class="filter-date"
-          />
+          >
+            <template #prefix>
+              <span class="filter-date__prefix">
+                <el-icon><Calendar /></el-icon>
+              </span>
+            </template>
+          </el-date-picker>
         </div>
       </div>
 
@@ -92,9 +98,24 @@
       </div>
 
       <div class="page-section__foot">
-        <div class="page-section__period">
-          <el-icon><Calendar /></el-icon>
-          <span>{{ rangeLabel }}</span>
+        <div class="period-pill">
+          <div class="period-pill__icon">
+            <el-icon><Calendar /></el-icon>
+          </div>
+          <div class="period-pill__body">
+            <div class="period-pill__head">
+              <span class="period-pill__label">{{ rangeMeta.label }}</span>
+              <span class="period-pill__days">
+                <span class="period-pill__num">{{ rangeMeta.days }}</span>
+                <span class="period-pill__unit">天</span>
+              </span>
+            </div>
+            <div class="period-pill__range">
+              <span class="period-pill__date">{{ rangeMeta.start }}</span>
+              <span class="period-pill__arrow">→</span>
+              <span class="period-pill__date">{{ rangeMeta.end }}</span>
+            </div>
+          </div>
         </div>
         <div class="page-section__note">注：DAU = 展示 ÷ 100、预估收益 = 收益 × 1.0（仅占位估算，真实接入后会替换）</div>
       </div>
@@ -335,6 +356,22 @@ const rangeLabel = computed(() => {
     return `${r[0]} · 按小时`
   }
   return `${r[0]} 至 ${r[1]} · 共 ${days} 天`
+})
+
+// 供底部「period-pill」使用：拆出 days / 起始 / 结束 / 标签
+const rangeMeta = computed<{ label: string; days: number | string; start: string; end: string }>(() => {
+  const r = dateRange.value
+  if (!r || r.length !== 2) return { label: '统计周期', days: '—', start: '—', end: '—' }
+  const start = dayjs(r[0])
+  const end = dayjs(r[1])
+  if (!start.isValid() || !end.isValid()) return { label: '统计周期', days: '—', start: '—', end: '—' }
+  const days = end.diff(start, 'day') + 1
+  return {
+    label: days === 1 ? '单日粒度' : '统计周期',
+    days,
+    start: r[0],
+    end: r[1],
+  }
 })
 
 // ─── 工具方法 ─────────────────────────────────────
