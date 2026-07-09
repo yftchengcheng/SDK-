@@ -379,6 +379,7 @@ B2B 企业级广告数据管理控制台。沉稳、专业、精准。蓝+灰+�
 ### 易错点（血泪教训）
 
 - ⚠️ **flex-direction 被覆盖** — `.app-master-detail` 与 `.page-shell` 组合时，`.page-shell` 默认 `flex-direction: column`，**必须显式声明** `flex-direction: row`，否则 master/detail 垂直堆叠
+- ⚠️ **padding 16px 破坏左边距对齐** — `.app-master-detail` **禁止** `padding: 16px`，否则 master 卡片比 page-header 缩进 16px，视觉错位。**正确做法**：`padding: 0`，master 卡片自带 `border` 撑出视觉边界
 - ⚠️ **200px 不能放横排 header** — 标题 + 按钮横排会挤，必须 column 堆叠
 - ⚠️ **表格列对齐** — el-table 默认左对齐，**所有列必须显式** `align="center" header-align="center"`
 - ⚠️ **状态 Tag 偏高** — el-tag 默认 `display: inline-block` + `vertical-align: baseline`，需要 inline-flex + middle
