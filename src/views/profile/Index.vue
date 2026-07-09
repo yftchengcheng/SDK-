@@ -7,7 +7,7 @@
     <div class="table-card mb-base">
       <div class="card-title">基本信息</div>
       <el-descriptions :column="2" border style="margin-top: 12px">
-        <el-descriptions-item label="Developer ID">
+        <el-descriptions-item label="开发者 TOKEN">
           {{ userInfo.developer_id }}
           <el-icon class="copy-btn" @click="copyText(userInfo.developer_id)"><CopyDocument /></el-icon>
         </el-descriptions-item>
