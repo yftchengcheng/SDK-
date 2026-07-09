@@ -136,10 +136,26 @@ router.post('/create', authMiddleware, async (req: express.Request, res: express
       storeUrl,
       wechatAppId,
       wechatUniversalLink,
+      // 新增字段（参考图字段顺序）
+      storeListed,
+      storeName,
+      downloadUrl,
+      appDomain,
+      authSubaccount,
+      orientation,
+      coppaCompliant,
+      ccpaCompliant,
     } = req.body;
 
     if (!appName || !packageName || !platform) {
       fail(res, 400, '缺少必填字段');
+      return;
+    }
+
+    // 校验：上架时 storeUrl 必填
+    const isListed = storeListed === true || storeListed === 1 || storeListed === 'true';
+    if (isListed && (!storeUrl || !String(storeUrl).trim())) {
+      fail(res, 400, '应用已上架时，应用商店链接必填');
       return;
     }
 
@@ -189,6 +205,15 @@ router.post('/create', authMiddleware, async (req: express.Request, res: express
       store_url: storeUrl || null,
       wechat_app_id: accessType === 1 ? wechatAppId : null,
       wechat_universal_link: accessType === 1 && Number(platform) === 2 ? wechatUniversalLink : null,
+      // 新增字段
+      store_listed: isListed,
+      store_name: storeName || null,
+      download_url: !isListed ? downloadUrl : null,
+      app_domain: appDomain || null,
+      auth_subaccount: authSubaccount || null,
+      orientation: orientation ? Number(orientation) : 1,
+      coppa_compliant: coppaCompliant === true || coppaCompliant === 1,
+      ccpa_compliant: ccpaCompliant === true || ccpaCompliant === 1,
     }).select().single();
     if (error) throw new Error(`Insert failed: ${error.message}`);
 
@@ -249,6 +274,15 @@ router.put('/update', authMiddleware, async (req: express.Request, res: express.
       wechatAppId,
       wechatUniversalLink,
       packageName,
+      // 新增字段
+      storeListed,
+      storeName,
+      downloadUrl,
+      appDomain,
+      authSubaccount,
+      orientation,
+      coppaCompliant,
+      ccpaCompliant,
     } = req.body;
 
     if (!appKey) {
@@ -297,6 +331,15 @@ router.put('/update', authMiddleware, async (req: express.Request, res: express.
     if (storeUrl !== undefined) updateData.store_url = storeUrl;
     if (wechatAppId !== undefined) updateData.wechat_app_id = wechatAppId;
     if (wechatUniversalLink !== undefined) updateData.wechat_universal_link = wechatUniversalLink;
+    // 新增字段
+    if (storeListed !== undefined) updateData.store_listed = storeListed === true || storeListed === 1 || storeListed === 'true';
+    if (storeName !== undefined) updateData.store_name = storeName || null;
+    if (downloadUrl !== undefined) updateData.download_url = downloadUrl || null;
+    if (appDomain !== undefined) updateData.app_domain = appDomain || null;
+    if (authSubaccount !== undefined) updateData.auth_subaccount = authSubaccount || null;
+    if (orientation !== undefined) updateData.orientation = Number(orientation) || 1;
+    if (coppaCompliant !== undefined) updateData.coppa_compliant = coppaCompliant === true || coppaCompliant === 1;
+    if (ccpaCompliant !== undefined) updateData.ccpa_compliant = ccpaCompliant === true || ccpaCompliant === 1;
 
     const { error } = await db.from('app').update(updateData).eq('app_key', appKey).eq('developer_id', developerId);
     if (error) throw new Error(`Update failed: ${error.message}`);

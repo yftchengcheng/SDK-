@@ -147,19 +147,89 @@
             label-position="top"
             @submit.prevent
           >
-            <!-- 区块 1：基础信息 -->
+            <!-- 区块 1：平台与上架 -->
+            <section class="page-form-section">
+              <div class="page-form-section-header">
+                <h2 class="page-form-section-title">
+                  <el-icon><Cellphone /></el-icon>
+                  <span>平台与上架</span>
+                </h2>
+              </div>
+              <p class="page-form-section-desc">选择系统平台，并配置应用商店上架状态</p>
+
+              <div class="page-form-grid">
+                <el-form-item label="系统平台" prop="platform">
+                  <template #label>
+                    <span class="required-mark">*</span>
+                    <span>系统平台</span>
+                  </template>
+                  <el-radio-group v-model="form.platform" :disabled="isEdit">
+                    <el-radio-button :value="1">Android</el-radio-button>
+                    <el-radio-button :value="2">iOS</el-radio-button>
+                  </el-radio-group>
+                </el-form-item>
+
+                <el-form-item label="应用商店上架" prop="storeListed">
+                  <template #label>
+                    <span class="required-mark">*</span>
+                    <span>应用商店上架</span>
+                  </template>
+                  <el-radio-group v-model="form.storeListed">
+                    <el-radio-button :value="true">是</el-radio-button>
+                    <el-radio-button :value="false">否</el-radio-button>
+                  </el-radio-group>
+                </el-form-item>
+
+                <!-- 联动分支：未上架 → 下载链接（选填）+ 警告 -->
+                <template v-if="!form.storeListed">
+                  <el-form-item label="下载链接" prop="downloadUrl" class="span-2">
+                    <el-input v-model="form.downloadUrl" placeholder="请输入应用下载链接（选填）" clearable />
+                    <div class="form-warning">
+                      <el-icon :size="12"><WarningFilled /></el-icon>
+                      <span>建议您填写应用的下载链接，否则有可能会影响竞价广告平台的广告填充</span>
+                    </div>
+                  </el-form-item>
+                </template>
+
+                <!-- 联动分支：已上架 → 应用商店 + 商店链接（必填）+ 搜索 -->
+                <template v-else>
+                  <el-form-item label="应用商店" prop="storeName">
+                    <template #label>
+                      <span class="required-mark">*</span>
+                      <span>应用商店</span>
+                    </template>
+                    <el-select v-model="form.storeName" placeholder="请选择应用商店" clearable style="width: 100%">
+                      <el-option v-for="s in storeOptions" :key="s.value" :label="s.label" :value="s.value" />
+                    </el-select>
+                  </el-form-item>
+                  <el-form-item label="应用商店链接" prop="storeUrl" class="span-2">
+                    <template #label>
+                      <span class="required-mark">*</span>
+                      <span>应用商店链接</span>
+                    </template>
+                    <el-input v-model="form.storeUrl" placeholder="示例：https://apps.apple.com/cn/app/xxx" clearable>
+                      <template #append>
+                        <el-button :icon="Search" @click="searchInStore">搜索</el-button>
+                      </template>
+                    </el-input>
+                  </el-form-item>
+                </template>
+              </div>
+            </section>
+
+            <!-- 区块 2：基础信息 -->
             <section class="page-form-section">
               <div class="page-form-section-header">
                 <h2 class="page-form-section-title">
                   <el-icon><InfoFilled /></el-icon>
                   <span>基础信息</span>
-                  <span class="page-form-section-count">(3 项必填)</span>
+                  <span class="page-form-section-count">({{ requiredBasicCount }} 项必填)</span>
                 </h2>
               </div>
-              <p class="page-form-section-desc">应用的基本资料，包括名称、包名和图标</p>
+              <p class="page-form-section-desc">应用的基本资料，包括名称、包名、图标和分类</p>
 
               <div class="page-form-grid">
-                <el-form-item label="应用图标" class="span-2">
+                <el-form-item label="App Icon" class="span-2">
                   <div class="app-icon-uploader">
                     <div class="app-icon-box" :class="{ 'has-icon': !!form.iconUrl, 'is-error': !!iconError }">
                       <img v-if="form.iconUrl" :src="form.iconUrl" alt="icon" class="app-icon-image" @error="onIconPreviewError" />
@@ -177,7 +247,7 @@
                     <div class="app-icon-actions">
                       <el-button type="primary" plain @click="triggerFilePicker">
                         <el-icon :size="14"><Upload /></el-icon>
-                        <span style="margin-left:4px">{{ form.iconUrl ? '更换图标' : '上传图标' }}</span>
+                        <span style="margin-left:4px">{{ form.iconUrl ? '更换图标' : '点击上传' }}</span>
                       </el-button>
                       <el-button v-if="form.iconUrl" link type="danger" @click="clearIcon">
                         <el-icon :size="14"><Delete /></el-icon>
@@ -185,11 +255,21 @@
                       </el-button>
                     </div>
                   </div>
-                  <div class="form-help">支持 JPG / PNG 格式，建议 1:1 比例，单张 ≤ 200KB</div>
+                  <div class="form-help">支持 PNG / JPG / JPEG 格式，512×512px，最大 1MB</div>
                   <div v-if="iconError" class="form-error">
                     <el-icon :size="12"><WarningFilled /></el-icon>
                     <span>{{ iconError }}</span>
                   </div>
+                </el-form-item>
+
+                <el-form-item label="应用域名" prop="appDomain" class="span-2">
+                  <el-input v-model="form.appDomain" placeholder="与您的应用在应用商店所配置的开发者网站的域。例如 takuad.cc" clearable>
+                    <template #prefix>
+                      <el-tooltip content="您的应用在应用商店所配置的开发者网站的域" placement="top">
+                        <el-icon><InfoFilled /></el-icon>
+                      </el-tooltip>
+                    </template>
+                  </el-input>
                 </el-form-item>
 
                 <el-form-item label="应用名称" prop="appName">
@@ -197,61 +277,9 @@
                     <span class="required-mark">*</span>
                     <span>应用名称</span>
                   </template>
-                  <el-input v-model="form.appName" placeholder="请输入应用名称（最多 50 字）" maxlength="50" show-word-limit clearable />
+                  <el-input v-model="form.appName" placeholder="请输入应用名称" maxlength="100" show-word-limit clearable />
                 </el-form-item>
 
-                <el-form-item label="应用包名" prop="packageName">
-                  <template #label>
-                    <span class="required-mark">*</span>
-                    <span>应用包名</span>
-                  </template>
-                  <el-input v-model="form.packageName" placeholder="Android：com.xxx.app / iOS：Bundle ID" clearable />
-                </el-form-item>
-              </div>
-            </section>
-
-            <!-- 区块 2：平台与对接 -->
-            <section class="page-form-section">
-              <div class="page-form-section-header">
-                <h2 class="page-form-section-title">
-                  <el-icon><Cellphone /></el-icon>
-                  <span>平台与对接</span>
-                </h2>
-                <span class="page-form-section-tag">注册时锁定</span>
-              </div>
-
-              <div class="page-form-grid">
-                <el-form-item label="系统平台" prop="platform">
-                  <template #label>
-                    <span class="required-mark">*</span>
-                    <span>系统平台</span>
-                  </template>
-                  <el-radio-group v-model="form.platform">
-                    <el-radio-button :value="1">Android</el-radio-button>
-                    <el-radio-button :value="2">iOS</el-radio-button>
-                  </el-radio-group>
-                </el-form-item>
-                <el-form-item label="对接方式">
-                  <div class="locked-access-type">
-                    <el-tag :type="accessType === 1 ? 'primary' : 'success'" size="default" effect="light">
-                      {{ accessType === 1 ? 'SDK 对接' : 'API 对接' }}
-                    </el-tag>
-                    <span class="locked-tip">注册时已锁定</span>
-                  </div>
-                </el-form-item>
-              </div>
-            </section>
-
-            <!-- 区块 3：分类与超时 -->
-            <section class="page-form-section">
-              <div class="page-form-section-header">
-                <h2 class="page-form-section-title">
-                  <el-icon><Setting /></el-icon>
-                  <span>分类与超时</span>
-                </h2>
-              </div>
-
-              <div class="page-form-grid">
                 <el-form-item label="应用分类" prop="category">
                   <template #label>
                     <span class="required-mark">*</span>
@@ -261,34 +289,114 @@
                     <el-option v-for="c in categories" :key="c" :label="c" :value="c" />
                   </el-select>
                 </el-form-item>
-                <el-form-item label="请求超时（ms）" prop="timeoutMs">
-                  <el-input-number v-model="form.timeoutMs" :min="100" :max="60000" :step="100" style="width: 100%" controls-position="right" />
+
+                <el-form-item label="授权子账号" prop="authSubaccount" class="span-2">
+                  <el-select v-model="form.authSubaccount" placeholder="请选择授权子账号（选填）" clearable style="width: 100%">
+                    <el-option label="子账号 A" value="sub_a" />
+                    <el-option label="子账号 B" value="sub_b" />
+                  </el-select>
                 </el-form-item>
-                <el-form-item label="应用商店地址" prop="storeUrl" class="span-2">
-                  <el-input v-model="form.storeUrl" placeholder="如：https://apps.apple.com/cn/app/xxx 或应用宝/华为市场等" clearable />
+
+                <el-form-item :label="form.platform === 1 ? '应用包名' : 'Bundle ID'" prop="packageName" class="span-2">
+                  <template #label>
+                    <span class="required-mark">*</span>
+                    <span>{{ form.platform === 1 ? '应用包名' : 'Bundle ID' }}</span>
+                  </template>
+                  <el-input
+                    v-model="form.packageName"
+                    :placeholder="form.platform === 1 ? 'Android：com.xxx.app' : 'iOS：com.Taku.app'"
+                    clearable
+                  />
+                </el-form-item>
+
+                <el-form-item label="应用屏幕方向" prop="orientation" class="span-2">
+                  <template #label>
+                    <span class="required-mark">*</span>
+                    <span>应用屏幕方向</span>
+                  </template>
+                  <el-radio-group v-model="form.orientation">
+                    <el-radio-button v-for="o in orientationOptions" :key="o.value" :value="o.value">
+                      {{ o.label }}
+                    </el-radio-button>
+                  </el-radio-group>
                 </el-form-item>
               </div>
             </section>
 
-            <!-- 区块 4：微信配置（仅 SDK 接入） -->
-            <section v-if="accessType === 1" class="page-form-section">
-              <div class="page-form-section-header">
+            <!-- 区块 3：高级设置（可折叠） -->
+            <section class="page-form-section page-form-section--collapsible">
+              <div class="page-form-section-header" @click="advancedExpanded = !advancedExpanded">
                 <h2 class="page-form-section-title">
-                  <el-icon><ChatDotRound /></el-icon>
-                  <span>微信分享配置</span>
+                  <el-icon><Setting /></el-icon>
+                  <span>高级设置</span>
                 </h2>
-                <span class="page-form-section-tag">仅 SDK 对接时显示</span>
+                <span class="page-form-section-toggle">
+                  {{ advancedExpanded ? '收起' : '展开' }}
+                  <el-icon :size="14">
+                    <component :is="advancedExpanded ? ArrowUp : ArrowDown" />
+                  </el-icon>
+                </span>
               </div>
 
-              <div class="page-form-grid">
-                <el-form-item label="微信 APP ID" prop="wechatAppId">
-                  <el-input v-model="form.wechatAppId" placeholder="请输入微信开放平台申请的 APP ID" maxlength="32" show-word-limit clearable />
-                </el-form-item>
-                <el-form-item v-if="form.platform === 2" label="微信 Universal Link" prop="wechatUniversalLink">
-                  <el-input v-model="form.wechatUniversalLink" placeholder="https://yourdomain.com/uni-link/" clearable />
-                  <div class="form-help">iOS 微信分享必填，需以 https:// 开头</div>
-                </el-form-item>
-              </div>
+              <transition name="collapse">
+                <div v-show="advancedExpanded" class="page-form-grid">
+                  <el-form-item label="对接方式">
+                    <div class="locked-access-type">
+                      <el-tag :type="form.accessType === 1 ? 'primary' : 'success'" size="default" effect="light">
+                        {{ form.accessType === 1 ? 'SDK 对接' : 'API 对接' }}
+                      </el-tag>
+                      <span class="locked-tip">注册时已锁定</span>
+                    </div>
+                  </el-form-item>
+                  <el-form-item label="请求超时（ms）" prop="timeoutMs">
+                    <el-input-number v-model="form.timeoutMs" :min="100" :max="60000" :step="100" style="width: 100%" controls-position="right" />
+                  </el-form-item>
+
+                  <el-form-item v-if="form.accessType === 1" label="微信开放平台 App ID" prop="wechatAppId">
+                    <el-input v-model="form.wechatAppId" placeholder="请输入微信开放平台申请的 App ID" maxlength="32" show-word-limit clearable>
+                      <template #prefix>
+                        <el-tooltip content="在微信开放平台申请的应用标识" placement="top">
+                          <el-icon><InfoFilled /></el-icon>
+                        </el-tooltip>
+                      </template>
+                    </el-input>
+                  </el-form-item>
+                  <el-form-item v-if="form.accessType === 1 && form.platform === 2" label="微信开放平台 Universal Link" prop="wechatUniversalLink" class="span-2">
+                    <el-input v-model="form.wechatUniversalLink" placeholder="https://yourdomain.com/uni-link/" clearable>
+                      <template #prefix>
+                        <el-tooltip content="iOS 微信分享必填，需以 https:// 开头" placement="top">
+                          <el-icon><InfoFilled /></el-icon>
+                        </el-tooltip>
+                      </template>
+                    </el-input>
+                  </el-form-item>
+
+                  <el-form-item label="遵守美国 COPPA" class="span-2">
+                    <template #label>
+                      <span>遵守美国 COPPA</span>
+                      <el-tooltip content="Children's Online Privacy Protection Act，美国儿童在线隐私保护法" placement="top">
+                        <el-icon class="form-label-icon"><InfoFilled /></el-icon>
+                      </el-tooltip>
+                    </template>
+                    <el-radio-group v-model="form.coppaCompliant">
+                      <el-radio :value="true">是</el-radio>
+                      <el-radio :value="false">否</el-radio>
+                    </el-radio-group>
+                  </el-form-item>
+                  <el-form-item label="遵守美国 CCPA" class="span-2">
+                    <template #label>
+                      <span>遵守美国 CCPA</span>
+                      <el-tooltip content="California Consumer Privacy Act，加州消费者隐私法案" placement="top">
+                        <el-icon class="form-label-icon"><InfoFilled /></el-icon>
+                      </el-tooltip>
+                    </template>
+                    <el-radio-group v-model="form.ccpaCompliant">
+                      <el-radio :value="true">是</el-radio>
+                      <el-radio :value="false">否</el-radio>
+                    </el-radio-group>
+                  </el-form-item>
+                </div>
+              </transition>
             </section>
           </el-form>
         </div>
@@ -312,14 +420,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted, nextTick } from 'vue';
+import { ref, reactive, computed, onMounted, nextTick, watch } from 'vue';
 import request from '../../utils/request';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import type { FormInstance, FormRules } from 'element-plus';
 import {
   Cellphone, CopyDocument, Plus, Search, RefreshLeft,
   Edit, InfoFilled, Setting, ChatDotRound, Picture, Delete,
-  Upload, WarningFilled, Close, Check
+  Upload, WarningFilled, Close, Check, ArrowUp, ArrowDown
 } from '@element-plus/icons-vue';
 import dayjs from 'dayjs';
 
@@ -345,32 +453,138 @@ const iconError = ref('');
 const formRef = ref<FormInstance | null>(null);
 const fileInputRef = ref<HTMLInputElement | null>(null);
 
+// 应用商店选项（按平台）
+const storeOptions = computed(() => form.platform === 1
+  ? [
+      { value: 'google_play', label: 'Google Play' },
+      { value: 'huawei', label: '华为应用市场' },
+      { value: 'xiaomi', label: '小米应用商店' },
+      { value: 'oppo', label: 'OPPO 软件商店' },
+      { value: 'vivo', label: 'vivo 应用商店' },
+      { value: 'tencent', label: '腾讯应用宝' },
+    ]
+  : [
+      { value: 'app_store', label: 'App Store' },
+      { value: 'testflight', label: 'TestFlight' },
+    ],
+);
+
+// 屏幕方向选项
+const orientationOptions = [
+  { value: 1, label: '竖屏' },
+  { value: 2, label: '横屏' },
+  { value: 3, label: '横/竖屏自适应' },
+];
+
+const searchInStore = () => {
+  if (!form.storeUrl) {
+    ElMessage.warning('请先填写应用商店链接');
+    return;
+  }
+  window.open(form.storeUrl, '_blank');
+  ElMessage.success('正在跳转应用商店...');
+};
+
+const requiredBasicCount = computed(() => {
+  const arr = [form.appName, form.packageName, form.platform, form.category, form.orientation];
+  if (form.storeListed) arr.push(form.storeName, form.storeUrl);
+  return arr.filter(Boolean).length;
+});
+
 const form = reactive({
+  // 基础信息
   appName: '',
   packageName: '',
+  // 平台与上架
   platform: 1 as number,
+  storeListed: true,        // 是否上架
+  storeName: 'google_play', // 应用商店
+  storeUrl: '',             // 应用商店链接
+  downloadUrl: '',          // 下载链接（未上架时）
+  // 基础信息
+  appDomain: '',            // 应用域名
   category: '',
+  authSubaccount: '',       // 授权子账号
+  orientation: 1 as number, // 屏幕方向
+  // 业务
   timeoutMs: 5000,
-  storeUrl: '',
   iconUrl: '',
   wechatAppId: '',
   wechatUniversalLink: '',
+  // 合规
+  coppaCompliant: false,
+  ccpaCompliant: false,
+  // 系统
   appKey: '',
+  accessType: 1 as number,
+  accessTypeLocked: false,
+});
+
+// 高级设置是否展开
+const advancedExpanded = ref(true);
+
+// 监听平台变化自动设置应用商店
+watch(() => form.platform, (val) => {
+  if (val === 1) form.storeName = 'google-play';
+  else if (val === 2) form.storeName = 'app-store';
 });
 
 const formRules: FormRules = {
   appName: [
     { required: true, message: '请输入应用名称', trigger: 'blur' },
-    { min: 2, max: 50, message: '长度 2-50 字符', trigger: 'blur' },
+    { min: 2, max: 100, message: '长度 2-100 字符', trigger: 'blur' },
   ],
   packageName: [
-    { required: true, message: '请输入应用包名', trigger: 'blur' },
+    { required: true, message: '请输入应用包名 / Bundle ID', trigger: 'blur' },
+    {
+      validator: (_rule, value, cb) => {
+        if (!value) return cb();
+        // Android: com.xxx.app
+        // iOS: com.xxx.app
+        if (!/^[a-zA-Z][a-zA-Z0-9_]*(\.[a-zA-Z][a-zA-Z0-9_]*)+$/.test(value)) {
+          return cb(new Error('请输入合法的包名格式（如 com.xxx.app）'));
+        }
+        cb();
+      },
+      trigger: 'blur',
+    },
   ],
   platform: [
     { required: true, message: '请选择系统平台', trigger: 'change' },
   ],
   category: [
     { required: true, message: '请选择应用分类', trigger: 'change' },
+  ],
+  storeListed: [
+    { required: true, message: '请选择是否上架', trigger: 'change' },
+  ],
+  storeName: [
+    {
+      validator: (_rule, value, cb) => {
+        if (form.storeListed && !value) {
+          return cb(new Error('请选择应用商店'));
+        }
+        cb();
+      },
+      trigger: 'change',
+    },
+  ],
+  storeUrl: [
+    {
+      validator: (_rule, value, cb) => {
+        if (form.storeListed && !value) {
+          return cb(new Error('请填写应用商店链接'));
+        }
+        if (value && !/^https?:\/\/.+/.test(value)) {
+          return cb(new Error('请输入正确的 URL，以 http:// 或 https:// 开头'));
+        }
+        cb();
+      },
+      trigger: 'blur',
+    },
+  ],
+  orientation: [
+    { required: true, message: '请选择应用屏幕方向', trigger: 'change' },
   ],
 };
 
@@ -458,15 +672,29 @@ const openEdit = async (row: any): Promise<void> => {
     const res: any = await request.get('/api/v1/console/app/detail', { params: { appKey: row.appKey || row.app_key } });
     if (res.code === 0) {
       const d = res.data;
+      form.storeListed = d.store_listed ?? d.storeListed ?? true;
+      if (form.storeListed) {
+        form.storeName = d.store_name || d.storeName || '';
+        form.storeUrl = d.store_url || d.storeUrl || '';
+        form.downloadUrl = '';
+      } else {
+        form.downloadUrl = d.download_url || d.downloadUrl || '';
+        form.storeName = '';
+        form.storeUrl = '';
+      }
       form.appName = d.app_name || d.appName || '';
       form.packageName = d.package_name || d.packageName || '';
       form.platform = d.platform ?? 1;
       form.category = d.category || '';
       form.timeoutMs = d.timeout_ms ?? d.timeoutMs ?? 5000;
-      form.storeUrl = d.store_url || d.storeUrl || '';
       form.iconUrl = d.iconUrlResolved || d.icon_url || '';
+      form.appDomain = d.app_domain || d.appDomain || '';
+      form.authSubaccount = d.auth_subaccount || d.authSubaccount || '';
+      form.orientation = d.orientation ?? 1;
       form.wechatAppId = d.wechat_app_id || d.wechatAppId || '';
       form.wechatUniversalLink = d.wechat_universal_link || d.wechatUniversalLink || '';
+      form.coppaCompliant = d.coppa_compliant ?? d.coppaCompliant ?? false;
+      form.ccpaCompliant = d.ccpa_compliant ?? d.ccpaCompliant ?? false;
       form.appKey = d.app_key || d.appKey || '';
       await nextTick();
       formRef.value?.clearValidate();
@@ -490,7 +718,15 @@ const resetForm = (): void => {
   form.platform = 1;
   form.category = '';
   form.timeoutMs = 5000;
+  form.storeListed = true;
+  form.storeName = 'google-play';
   form.storeUrl = '';
+  form.downloadUrl = '';
+  form.appDomain = '';
+  form.authSubaccount = '';
+  form.orientation = 1;
+  form.coppaCompliant = false;
+  form.ccpaCompliant = false;
   form.iconUrl = '';
   form.wechatAppId = '';
   form.wechatUniversalLink = '';
@@ -542,10 +778,18 @@ const handleSubmit = async (): Promise<void> => {
       platform: form.platform,
       category: form.category,
       timeoutMs: form.timeoutMs,
-      storeUrl: form.storeUrl,
+      storeListed: form.storeListed,
+      storeName: form.storeListed ? form.storeName : '',
+      storeUrl: form.storeListed ? form.storeUrl : '',
+      downloadUrl: !form.storeListed ? form.downloadUrl : '',
+      appDomain: form.appDomain,
+      authSubaccount: form.authSubaccount,
+      orientation: form.orientation,
       iconUrl: form.iconUrl,
       wechatAppId: form.wechatAppId,
       wechatUniversalLink: form.wechatUniversalLink,
+      coppaCompliant: form.coppaCompliant,
+      ccpaCompliant: form.ccpaCompliant,
     };
     let res: any;
     if (isEdit.value) {
