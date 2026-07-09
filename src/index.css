@@ -5185,7 +5185,8 @@ html, body, #app {
   display: flex;
   flex-direction: row;
   gap: 16px;
-  height: calc(100vh - 88px);
+  flex: 1;
+  min-height: 0;
   margin: 0;
   padding: 16px;
   background: var(--color-slate-50, #F8FAFC);

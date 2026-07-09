@@ -1,7 +1,24 @@
 <template>
-  <div class="page-shell app-master-detail">
-    <!-- ============ 左侧：应用列表面板 ============ -->
-    <aside class="app-master-panel">
+  <div class="page-shell">
+    <!-- ============ 页面头部（与其他页面框架一致） ============ -->
+    <div class="page-header">
+      <div class="page-header-left">
+        <div class="page-header-icon"><el-icon><Cellphone /></el-icon></div>
+        <div class="page-header-titles">
+          <h1 class="page-header-title">应用管理</h1>
+          <p class="page-header-subtitle">管理应用基础信息、广告位、广告平台与数据概览</p>
+        </div>
+      </div>
+      <div class="page-header-actions">
+        <el-button :icon="DataLine" @click="goReport">数据报表</el-button>
+        <el-button type="primary" :icon="Plus" @click="openCreateApp">创建应用</el-button>
+      </div>
+    </div>
+
+    <!-- ============ Master-Detail 主体 ============ -->
+    <div class="app-master-detail">
+      <!-- ============ 左侧：应用列表面板 ============ -->
+      <aside class="app-master-panel">
       <div class="app-master-header">
         <div class="app-master-header-top">
           <h2 class="app-master-title">
@@ -314,6 +331,7 @@
         </el-empty>
       </div>
     </main>
+    </div>
 
     <!-- ============ 创建/编辑 应用 Drawer（复用原 /app 逻辑）============ -->
     <AppDrawer
