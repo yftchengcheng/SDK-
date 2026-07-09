@@ -2841,20 +2841,21 @@ html, body, #app {
 .wf-panel {
   background: #FFFFFF;
   border: 1px solid #E2E8F0;
-  border-radius: 10px;
+  border-radius: 12px;
   margin-bottom: 24px;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
   overflow: hidden;
 }
 
-/* 头部：标题 + 步骤条 */
+/* 头部：步骤条（独占 header 区域） */
 .wf-panel-header {
   display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
+  align-items: center;
+  justify-content: flex-start;
   gap: 32px;
-  padding: 24px 28px 20px;
+  padding: 16px 28px;
   background: linear-gradient(180deg, #FAFBFC 0%, #FFFFFF 100%);
+  border-bottom: 1px solid #F1F5F9;
 }
 .wf-panel-titles {
   flex: 1;
@@ -2875,54 +2876,66 @@ html, body, #app {
   max-width: 580px;
 }
 
-/* 步骤条（紧凑） */
+/* 步骤条（紧凑 + 呼吸） */
 .wf-stepper {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   margin: 0;
-  padding: 0;
+  padding: 16px 28px;
   list-style: none;
+  background: linear-gradient(180deg, #FAFBFC 0%, #FFFFFF 100%);
+  border-bottom: 1px solid #F1F5F9;
   flex-shrink: 0;
 }
 .wf-step {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  font-size: 12px;
+  gap: 8px;
+  padding: 4px 10px 4px 4px;
+  font-size: 13px;
   font-weight: 500;
   color: #94A3B8;
-  transition: color 0.2s ease;
+  border-radius: 999px;
+  transition: color 0.2s ease, background 0.2s ease;
+}
+.wf-step:hover {
+  color: #475569;
 }
 .wf-step-bubble {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 22px;
-  height: 22px;
+  width: 24px;
+  height: 24px;
   border-radius: 50%;
   background: #F1F5F9;
   color: #94A3B8;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
   border: 1px solid #E2E8F0;
   transition: all 0.2s ease;
+  flex-shrink: 0;
 }
 .wf-step-label {
   white-space: nowrap;
+  letter-spacing: 0.01em;
 }
 .wf-step-active {
   color: #1E40AF;
+  background: rgba(30, 64, 175, 0.06);
 }
 .wf-step-active .wf-step-bubble {
   background: #1E40AF;
   border-color: #1E40AF;
   color: #FFFFFF;
+  box-shadow: 0 0 0 3px rgba(30, 64, 175, 0.18);
 }
 .wf-step-divider {
-  width: 24px;
+  width: 32px;
   height: 1px;
-  background: #E2E8F0;
+  background: linear-gradient(90deg, #E2E8F0 0%, #CBD5E1 100%);
+  flex-shrink: 0;
 }
 
 /* 分隔线 */
@@ -2936,8 +2949,8 @@ html, body, #app {
 .wf-panel-body {
   display: grid;
   grid-template-columns: minmax(360px, 1.2fr) minmax(280px, 1fr);
-  gap: 32px;
-  padding: 24px 28px;
+  gap: 28px;
+  padding: 24px 28px 28px;
 }
 .wf-panel-body:has(.wf-current) {
   grid-template-columns: 1fr 1fr;
@@ -2950,7 +2963,7 @@ html, body, #app {
 .wf-selector {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
   min-width: 0;
 }
 .wf-selector-head {
@@ -2960,6 +2973,7 @@ html, body, #app {
   font-size: 13px;
   font-weight: 600;
   color: #334155;
+  padding: 2px 2px 0;
 }
 .wf-selector-required {
   color: #DC2626;
@@ -3054,18 +3068,18 @@ html, body, #app {
 .wf-current {
   background: #F8FAFC;
   border: 1px solid #E2E8F0;
-  border-radius: 8px;
-  padding: 16px 18px;
+  border-radius: 10px;
+  padding: 18px 20px;
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 14px;
 }
 .wf-current-head {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding-bottom: 10px;
+  padding-bottom: 12px;
   border-bottom: 1px solid #E2E8F0;
 }
 .wf-current-dot {
