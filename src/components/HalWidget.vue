@@ -538,8 +538,7 @@ onMounted(() => {
             </div>
             <div class="hal-welcome-title">你好，我是 HAL</div>
             <div class="hal-welcome-desc">
-              关于 SDK 接入、Adapter 对接、广告位配置、流量分组、报表、<br/>
-              对账等任何问题都可以问我。
+              关于 SDK 接入、Adapter 对接、广告位配置、流量分组、报表、对账等任何问题都可以问我。
             </div>
             <div class="hal-welcome-suggest">
               <div class="hal-suggest-title">试试这些问题：</div>
