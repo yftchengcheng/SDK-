@@ -5767,6 +5767,39 @@ html, body, #app {
 .cell-sub--token:hover { color: var(--color-primary-600, #2563EB); }
 .cell-sub--token:active { color: var(--color-primary-700, #1D4ED8); }
 .cell-sub--token .el-icon { color: inherit; }
+
+/* /app 详情区「广告位管理」内嵌表格：广告位 TOKEN 副标签（带底色，硬刷必见） */
+.placement-token {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 4px;
+  padding: 2px 6px 2px 5px;
+  border-radius: 4px;
+  background: linear-gradient(135deg, #EFF6FF 0%, #DBEAFE 100%);
+  border: 1px solid #BFDBFE;
+  cursor: pointer;
+  font-family: 'SF Mono', Monaco, Consolas, monospace;
+  font-size: 11px;
+  line-height: 1.4;
+  transition: all 150ms ease;
+  max-width: 100%;
+}
+.placement-token:hover {
+  background: linear-gradient(135deg, #DBEAFE 0%, #BFDBFE 100%);
+  border-color: #93C5FD;
+}
+.placement-token:active { transform: scale(0.98); }
+.placement-token .el-icon { color: #2563EB; flex-shrink: 0; }
+.placement-token__label { color: #1D4ED8; font-weight: 600; }
+.placement-token__sep { color: #64748B; }
+.placement-token__value {
+  color: #1E40AF;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .cell-icon-text {
   display: flex;
   align-items: center;

@@ -263,15 +263,17 @@
             <!-- 广告位表格 -->
             <div class="page-table-wrap">
               <el-table :data="placementList" v-loading="placementLoading" size="default" :cell-style="{ textAlign: 'center' }" :header-cell-style="{ textAlign: 'center', background: 'var(--color-slate-50, #F8FAFC)', color: 'var(--color-slate-700, #334155)', fontWeight: 600 }">
-                <el-table-column prop="placement_id" label="广告位" min-width="220" align="left" header-align="left">
+                <el-table-column prop="placement_id" label="广告位名称" min-width="240" align="left" header-align="left">
                   <template #default="{ row }">
-                    <div class="cell-icon-text">
+                    <div class="cell-name">
                       <span class="cell-link" @click="copyText(row.placement_id)">{{ row.name }}</span>
                       <el-icon class="copy-btn" @click="copyText(row.placement_id)"><CopyDocument /></el-icon>
                     </div>
-                    <div v-if="row.placement_id" class="cell-sub cell-sub--token" @click="copyText(row.placement_id)" :title="row.placement_id">
-                      <el-icon :size="10"><Key /></el-icon>
-                      <span>广告位TOKEN：{{ row.placement_id }}</span>
+                    <div v-if="row.placement_id" class="placement-token" @click="copyText(row.placement_id)" :title="`点击复制 ${row.placement_id}`">
+                      <el-icon :size="11"><Key /></el-icon>
+                      <span class="placement-token__label">广告位TOKEN</span>
+                      <span class="placement-token__sep">：</span>
+                      <span class="placement-token__value">{{ row.placement_id }}</span>
                     </div>
                   </template>
                 </el-table-column>
