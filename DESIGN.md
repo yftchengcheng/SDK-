@@ -232,6 +232,125 @@ B2B 企业级广告数据管理控制台。沉稳、专业、精准。蓝+灰+�
   - 三处使用：`.sidebar` / `.top-bar` / `.auth-hero-side` 同步使用
   - **蓝色仅保留在 CTA / 主按钮 / 链接 / 激活态**（#1E40AF / #2563EB）
 
+## Master-Detail 布局规范（2026-07 用户要求：/app 页面采用小窄条 master + 详情区）
+
+### 整体结构
+
+```
+┌────────────────┬────────────────────────────────────────────┐
+│  Master        │  Detail                                     │
+│  (小窄条)      │  (4 个垂直堆叠的卡片)                        │
+│  200px         │  flex: 1                                    │
+│                │                                             │
+│  紧凑列表      │  ┌────────────────────────────────────┐    │
+│  · 我的应用    │  │ 应用信息卡（icon+name+meta）        │    │
+│  · +创建       │  └────────────────────────────────────┘    │
+│  · 搜索框      │  ┌────────────────────────────────────┐    │
+│  · 排序        │  │ 数据预览卡（4 个 stat-card）        │    │
+│  ──────────    │  └────────────────────────────────────┘    │
+│  · app 1       │  ┌────────────────────────────────────┐    │
+│  · app 2       │  │ 广告平台关联卡                     │    │
+│  · app 3       │  └────────────────────────────────────┘    │
+│  · ...         │  ┌────────────────────────────────────┐    │
+│                │  │ 广告位卡（筛选 + 表格 + 分页）     │    │
+│                │  └────────────────────────────────────┘    │
+└────────────────┴────────────────────────────────────────────┘
+```
+
+### 容器规范
+
+- 容器类：`.app-master-detail`（与 `.page-shell` 组合时**必须显式覆盖** `flex-direction: row`，因为 `.page-shell` 默认是 column）
+- 布局：`display: flex; flex-direction: row; gap: 16px;`
+- 高度：`calc(100vh - 88px)`（顶栏 56px + padding 16px*2）
+- 边距：margin 0 / padding 16px
+- 背景：`#F8FAFC`（slate-50）
+- overflow: hidden
+
+### 左侧 Master 列表面板（`.app-master-panel`）
+
+- 宽度：**200px**（小窄条，flex-shrink: 0）
+- 卡片样式：白底 / 1px slate-200 边 / radius 8px / shadow-sm
+- 内部：flex column，header + list
+- overflow: hidden
+
+#### Master Header（垂直堆叠，**禁止横排**）
+
+```
+┌────────────────────┐
+│ 📱 我的应用  3     │   ← title (icon + 文字 + count tag)
+│ [ + 创建 ]         │   ← 全宽 primary 按钮
+│ [ 搜索框        ]  │   ← 搜索
+│ [ 排序下拉     ▾ ] │   ← 排序
+├────────────────────┤
+│ ...                │
+```
+
+- 容器：`.app-master-header` padding 14px / flex column / gap 10px / 底部分割线
+- 顶行：`.app-master-header-top` 必须是 `flex-direction: column`（**禁止 row**，否则 200px 容纳不下）
+- title：14px / 600 / slate-900 / 图标 primary-500
+- create 按钮：`.app-master-create-btn` `align-self: stretch; width: 100%`（占满整行）
+- 搜索框：default 尺寸
+- 排序下拉：class `app-master-sort` 100% 宽
+
+#### Master List Item（紧凑型，**禁止多行**）
+
+- 容器：`.app-master-item` flex / gap 8px / padding 8px 10px / radius 6px / margin-bottom 2px
+- hover：背景 slate-50
+- active：背景 primary-50 + 内嵌 1px primary-200 边
+- icon：28×28 / radius 6px / 背景 slate-100 / 文字 13px（active 时背景 primary-100 / 文字 primary-600）
+- 文字区：`.app-master-item-body` flex 1 / min-width 0
+- 名称：12px / 500 / slate-900 / 单行省略（`text-overflow: ellipsis` + `max-width: 100px`）
+- 平台 chip：`.platform-tag` 9px 字号 / 14px 高 / padding 0 4px / radius 3px（紧凑到极致）
+- 副标题 ID：**隐藏**（`display: none`），避免在 200px 里换行挤压
+- 状态图标：`.app-master-item-status` 12px Lock 图标 / slate-400
+
+### 右侧 Detail 区（`.app-detail-panel`）
+
+- 容器：flex 1 / min-width 0 / overflow-y auto / flex column / gap 12px / padding-right 4px
+- **不**单独包裹一层 page-header，**直接**包含 4 个卡片
+
+#### 卡片 1：应用信息（`.app-detail-header`）
+
+- 容器：白底 / 1px slate-200 边 / radius 8px / shadow-sm / padding 16px 20px / flex space-between
+- 左侧：app icon (48px) + 名称 + meta
+  - 名称：20px / 600 / slate-900
+  - meta：`包名 · AppKey · 创建时间` 用 **中点「·」** 分隔（**禁止 1px 灰线**，避免视觉噪音）
+  - 平台 chip / 状态 chip
+- 右侧：操作按钮组（`集成设置` / `SDK 设置策略` / `编辑应用`）
+
+#### 卡片 2-4：通用 Section Card
+
+- 容器：白底 / 1px slate-200 边 / radius 8px / padding 16px 20px / shadow-sm
+- 标题：14px / 600 / slate-900
+- 右上角：辅助操作按钮（如 `+关联广告平台` 必须 `type="primary"` 蓝色实心，**禁止** plain）
+
+### 表格列对齐规范（**必做**）
+
+- 表格 **所有列** 加 `align="center" header-align="center"`（**禁止**默认左对齐，否则数据列与字段列错位）
+- 状态列里的开关 / 标签：用 inline-flex + vertical-align: middle 强制居中
+- Tag 元素：`.el-table .el-tag { display: inline-flex; align-items: center; vertical-align: middle; }` 避免偏高
+
+### Meta 分隔符（`包名 · AppKey · 创建时间`）
+
+- **禁止**用 1px 灰线 `<span class="divider">` 视觉噪音
+- **必须**用中点「·」字符 + 浅色：`color: slate-300` / `font-size: 12px`
+- 间距：左右各 8px margin
+
+### 命名规范
+
+- 容器：`.app-master-detail` / `.app-master-panel` / `.app-detail-panel`
+- Master item：`.app-master-item` / `.app-master-item-icon` / `.app-master-item-body` / `.app-master-item-name` / `.app-master-item-name-text` / `.app-master-item-status`
+- 平台 chip：`.platform-tag`（与其它页面通用，可复用）
+- 卡片：`.app-detail-header`（特殊，固定名字）/ `.app-detail-card`（通用，dataPreview / adNetwork / placement 复用）
+
+### 易错点（血泪教训）
+
+- ⚠️ **flex-direction 被覆盖** — `.app-master-detail` 与 `.page-shell` 组合时，`.page-shell` 默认 `flex-direction: column`，**必须显式声明** `flex-direction: row`，否则 master/detail 垂直堆叠
+- ⚠️ **200px 不能放横排 header** — 标题 + 按钮横排会挤，必须 column 堆叠
+- ⚠️ **表格列对齐** — el-table 默认左对齐，**所有列必须显式** `align="center" header-align="center"`
+- ⚠️ **状态 Tag 偏高** — el-tag 默认 `display: inline-block` + `vertical-align: baseline`，需要 inline-flex + middle
+- ⚠️ **ID 副标题必须隐藏** — 200px 里如果显示「ID: app_xxxxxx」会强制换行挤压
+
 ## 列表页统一规范（2026-07 用户要求：所有列表页严格统一）
 
 ### 整体三段式布局
