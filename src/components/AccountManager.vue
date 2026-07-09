@@ -14,7 +14,7 @@
           <el-icon><Search /></el-icon>
         </template>
       </el-input>
-      <el-select v-model="filterNetworkId" placeholder="全部广告网络" clearable size="default" class="account-filter" @change="onSearch">
+      <el-select v-model="filterNetworkId" placeholder="全部广告平台" clearable size="default" class="account-filter" @change="onSearch">
         <el-option v-for="n in networks" :key="n.id" :label="n.name" :value="n.id" />
       </el-select>
       <el-select v-model="filterStatus" placeholder="状态" clearable size="default" class="account-status" @change="onSearch">
@@ -38,7 +38,7 @@
           <div class="account-remark">{{ row.remark || '—' }}</div>
         </template>
       </el-table-column>
-      <el-table-column label="广告网络" min-width="140">
+      <el-table-column label="广告平台" min-width="140">
         <template #default="{ row }">
           <span class="account-net">{{ row.network_name || `网络 #${row.network_def_id}` }}</span>
         </template>
@@ -92,13 +92,13 @@
         <el-form-item label="账号名称" prop="account_name">
           <el-input v-model="form.account_name" placeholder="用户自定义的账号名称（如：穿山甲-激励视频-生产）" maxlength="100" show-word-limit />
         </el-form-item>
-        <el-form-item label="广告网络" prop="network_def_id">
-          <el-select v-model="form.network_def_id" placeholder="选择广告网络" style="width: 100%" :disabled="editing">
+        <el-form-item label="广告平台" prop="network_def_id">
+          <el-select v-model="form.network_def_id" placeholder="选择广告平台" style="width: 100%" :disabled="editing">
             <el-option v-for="n in networks" :key="n.id" :label="`${n.name}${n.type ? ' (' + n.type + ')' : ''}`" :value="n.id" />
           </el-select>
         </el-form-item>
         <el-form-item label="账号 ID" prop="account_id">
-          <el-input v-model="form.account_id" placeholder="广告网络侧的账号 ID（可选）" maxlength="200" />
+          <el-input v-model="form.account_id" placeholder="广告平台侧的账号 ID（可选）" maxlength="200" />
         </el-form-item>
         <el-form-item label="凭证" prop="credentials">
           <KVEditor v-model="form.credentials" />
@@ -195,7 +195,7 @@ const viewingCredentials = ref<Record<string, string>>({});
 
 const rules = reactive<FormRules>({
   account_name: [{ required: true, message: '请输入账号名称', trigger: 'blur' }],
-  network_def_id: [{ required: true, message: '请选择广告网络', trigger: 'change' }],
+  network_def_id: [{ required: true, message: '请选择广告平台', trigger: 'change' }],
 });
 
 const filteredList = computed(() => {

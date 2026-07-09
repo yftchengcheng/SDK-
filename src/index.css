@@ -2007,7 +2007,7 @@ html, body, #app {
   border-top: 1px solid var(--color-slate-100);
 }
 
-/* ===== AccountManager (广告网络账号管理) ===== */
+/* ===== AccountManager (广告平台账号管理) ===== */
 .account-manager {
   width: 100%;
 }

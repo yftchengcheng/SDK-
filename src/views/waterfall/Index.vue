@@ -137,7 +137,7 @@
             </template>
           </el-table-column>
           <el-table-column prop="ad_source_id" label="广告源ID" width="100" />
-          <el-table-column prop="network_code" label="广告网络" width="120" />
+          <el-table-column prop="network_code" label="广告平台" width="120" />
           <el-table-column prop="sort_price" label="排序价格(元)" width="140">
             <template #default="{ row }">
               <template v-if="layer.type === 2">

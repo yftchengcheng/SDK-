@@ -217,7 +217,7 @@ onMounted(() => {
         </div>
         <div class="page-header-titles">
           <h1 class="page-header-title">对账管理</h1>
-          <p class="page-header-subtitle">对比 SDK 上报与广告网络 API 数据，及时发现差异与异常</p>
+          <p class="page-header-subtitle">对比 SDK 上报与广告平台 API 数据，及时发现差异与异常</p>
         </div>
       </div>
       <div class="page-header-actions">
@@ -282,7 +282,7 @@ onMounted(() => {
       </div></div><div class="page-table-wrap"></div><div class="page-card"><div class="page-table-wrap"><el-table v-loading="loading" :data="list" border stripe size="default">
         <el-table-column prop="statDate" label="日期" width="110" />
         <el-table-column prop="appKey" label="应用" width="120" />
-        <el-table-column prop="networkCode" label="广告网络" width="120" />
+        <el-table-column prop="networkCode" label="广告平台" width="120" />
         <el-table-column label="SDK 展示" width="120" align="right">
           <template #default="{ row }">{{ Number(row.sdkImpressions).toLocaleString() }}</template>
         </el-table-column>
@@ -335,7 +335,7 @@ onMounted(() => {
         <div class="dialog-info-list">
           <div class="info-item"><span class="info-item-label">日期</span><span class="info-item-value">{{ detailRecord.statDate }}</span></div>
           <div class="info-item"><span class="info-item-label">应用</span><span class="info-item-value">{{ detailRecord.appKey }}</span></div>
-          <div class="info-item"><span class="info-item-label">广告网络</span><span class="info-item-value">{{ detailRecord.networkCode }}</span></div>
+          <div class="info-item"><span class="info-item-label">广告平台</span><span class="info-item-value">{{ detailRecord.networkCode }}</span></div>
           <div class="info-item"><span class="info-item-label">状态</span><span class="info-item-value">{{ statusLabel(detailRecord.status) }}</span></div>
         </div>
       </div>
@@ -368,7 +368,7 @@ onMounted(() => {
         <div class="dialog-section">
           <div class="dialog-section-title">网络与文件</div>
           <div class="dialog-form-row dialog-form-row--full">
-            <el-form-item label="广告网络">
+            <el-form-item label="广告平台">
               <el-input v-model="importForm.networkCode" placeholder="选填，CSV 中无 network_code 列时使用" />
               <div class="dialog-form-help">不填时 CSV 每行必须包含 network_code 列</div>
             </el-form-item>

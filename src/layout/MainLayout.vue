@@ -99,7 +99,7 @@ const baseMenuItems: MenuItem[] = [
   { path: '/traffic-group', label: '流量分组', icon: Filter },
   { path: '/report', label: '数据报表', icon: TrendCharts },
   { path: '/reconciliation', label: '对账管理', icon: DocumentChecked },
-  { path: '/network', label: '广告网络', icon: Share },
+  { path: '/network', label: '广告平台', icon: Share },
   { path: '/message', label: '消息中心', icon: Bell },
   { path: '/profile', label: '个人中心', icon: User },
 ];

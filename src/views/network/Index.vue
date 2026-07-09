@@ -4,19 +4,19 @@
       <div class="page-header-left">
         <div class="page-header-icon"><el-icon><Connection /></el-icon></div>
         <div class="page-header-titles">
-          <h1 class="page-header-title">广告网络</h1>
-          <p class="page-header-subtitle">管理预置与自定义广告网络、账号凭证与 Adapter 接入</p>
+          <h1 class="page-header-title">广告平台</h1>
+          <p class="page-header-subtitle">管理预置与自定义广告平台、账号凭证与 Adapter 接入</p>
         </div>
       </div>
     </div>
 
     <el-tabs v-model="activeTab" class="network-tabs">
-      <!-- 网络管理 Tab -->
-      <el-tab-pane label="网络管理" name="manage">
+      <!-- 平台管理 Tab -->
+      <el-tab-pane label="平台管理" name="manage">
         <div class="page-filter">
           <div class="page-filter-form"></div>
           <div class="page-filter-actions">
-            <el-button type="primary" :icon="Plus" @click="openCreate">创建自定义网络</el-button>
+            <el-button type="primary" :icon="Plus" @click="openCreate">创建自定义广告平台</el-button>
           </div>
         </div>
 
@@ -36,7 +36,7 @@
 
         <!-- Custom Networks -->
         <div class="page-card"><div class="page-table-wrap">
-          <div class="page-card-header"><div class="page-card-title">自定义网络</div></div>
+          <div class="page-card-header"><div class="page-card-title">自定义广告平台</div></div>
           <el-table :data="customNetworks" v-loading="loading" stripe style="width: 100%; margin-top: 12px">
             <el-table-column prop="network_code" label="网络代码" width="160" />
             <el-table-column prop="network_name" label="网络名称" min-width="140" />
@@ -56,11 +56,11 @@
           </el-table></div></div>
       </el-tab-pane>
 
-      <!-- 广告网络账号 Tab -->
-      <el-tab-pane label="广告网络账号" name="accounts">
+      <!-- 广告平台账号 Tab -->
+      <el-tab-pane label="广告平台账号" name="accounts">
         <div class="tab-toolbar-info">
           <el-text type="info" size="small">
-            管理各广告网络的账号凭证，支持 JSON 键值对存储与敏感字段脱敏
+            管理各广告平台的账号凭证，支持 JSON 键值对存储与敏感字段脱敏
           </el-text>
         </div>
         <AccountManager />
@@ -86,11 +86,11 @@
               <el-icon :size="20" style="color: var(--color-primary-500, #2563EB);">
                 <component :is="isEdit ? Edit : Plus" />
               </el-icon>
-              <span>{{ isEdit ? '编辑自定义网络' : '创建自定义网络' }}</span>
+              <span>{{ isEdit ? '编辑自定义广告平台' : '创建自定义广告平台' }}</span>
               <el-tag v-if="isEdit" type="warning" effect="light" size="small">编辑模式</el-tag>
             </h1>
             <p class="page-form-header-subtitle">
-              {{ isEdit ? '修改自定义网络信息，保存后立即生效' : '创建一个新的自定义广告网络，配置 Adapter 类名' }}
+              {{ isEdit ? '修改自定义广告平台信息，保存后立即生效' : '创建一个新的自定义广告平台，配置 Adapter 类名' }}
             </p>
           </div>
           <div class="page-form-header-actions">
@@ -191,7 +191,7 @@
           <div class="page-form-footer-right">
             <el-button :icon="Close" @click="closeDrawer">取消</el-button>
             <el-button type="primary" :loading="submitting" :icon="Check" @click="handleSubmit">
-              {{ isEdit ? '保存修改' : '创建自定义网络' }}
+              {{ isEdit ? '保存修改' : '创建自定义广告平台' }}
             </el-button>
           </div>
         </footer>
@@ -566,7 +566,7 @@ const handleSubmit = async () => {
 };
 
 const handleDelete = async (row: any) => {
-  await ElMessageBox.confirm(`确定删除自定义网络"${row.network_name}"吗？`, '警告', { type: 'error' });
+  await ElMessageBox.confirm(`确定删除自定义广告平台"${row.network_name}"吗？`, '警告', { type: 'error' });
   try { await request.delete(`/api/v1/console/network/custom/${row.id}`); ElMessage.success('删除成功'); fetchList(); } catch { /* ignore */ }
 };
 

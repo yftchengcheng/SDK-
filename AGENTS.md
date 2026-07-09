@@ -2,7 +2,7 @@
 
 ## 项目概览
 
-广告SDK聚合平台管理后台，支持开发者管理应用、广告位、瀑布流配置、流量分组、数据报表，以及自定义广告网络的线上对接流程（Adapter上传/审核/版本管理/应用关联）。
+广告SDK聚合平台管理后台，支持开发者管理应用、广告位、瀑布流配置、流量分组、数据报表，以及自定义广告平台的线上对接流程（Adapter上传/审核/版本管理/应用关联）。
 
 ## 版本技术栈（已实现版本）
 
@@ -73,7 +73,7 @@
 │       ├── traffic-group/  # Index.vue（流量分组）
 │       ├── report/         # Index.vue（数据报表）
 │       ├── reconciliation/ # Index.vue（对账管理）
-│       ├── network/        # Index.vue（广告网络 + Adapter）
+│       ├── network/        # Index.vue（广告平台 + Adapter）
 │       ├── message/        # Index.vue（消息中心）
 │       └── profile/        # Index.vue（个人中心）
 ├── server/                 # Express 后端
@@ -93,7 +93,7 @@
 │   │   ├── dashboard.ts    # 看板聚合
 │   │   ├── report.ts       # 报表聚合
 │   │   ├── reconciliation.ts# 对账
-│   │   ├── network.ts      # 广告网络 + Adapter
+│   │   ├── network.ts      # 广告平台 + Adapter
 │   │   ├── message.ts      # 消息中心
 │   │   ├── profile.ts      # 个人信息
 │   │   └── sdk.ts          # SDK 对外接口（数据上报/拉取）
@@ -193,7 +193,7 @@
 - 13 张核心业务表 + 1 张健康检查表 = **14 张表**：
   - 业务表：`developer` / `app` / `placement` / `ad_source` / `waterfall_config` / `waterfall_layer` / `traffic_group` / `report_daily` / `message` / `custom_adapter_version` / `custom_network_report` / `app_network_binding` / `ad_network_def`
   - 辅助表：`health_check`（健康检查，PLAN 未列入）
-  - **⚠️ 待补表**：`ad_network_account`（广告网络账号管理，6 步对接流程步骤二需要）
+  - **⚠️ 待补表**：`ad_network_account`（广告平台账号管理，6 步对接流程步骤二需要）
 - 通过 Supabase 控制台手动建表（**无 migration 文件**，新环境需同步建表）
 - RLS **当前未启用**（用 service_role key 绕过），存在越权风险，未来需补
 
@@ -215,7 +215,7 @@
 ### 2. 数据库表差距
 
 - **缺失 1 张表**：`ad_network_account`
-  - 用途：管理 6 步对接流程步骤二「广告网络账号」
+  - 用途：管理 6 步对接流程步骤二「广告平台账号」
   - 字段预期：id, network_def_id, developer_id, account_name, app_id, credentials(JSON), status, created_at, updated_at
   - 影响：步骤二账号管理功能无法落地
 
@@ -238,9 +238,9 @@
 | 接口 | 用途 | 优先级 |
 |------|------|--------|
 | `POST /api/v1/auth/verify` | JWT Token 验证 | 中 |
-| `POST /api/v1/console/adsource/create-custom` | 创建自定义广告源（关联自定义网络） | 高 |
-| `POST /api/v1/console/network/account/create` | 创建广告网络账号 | 高 |
-| `GET /api/v1/console/network/account/list` | 广告网络账号列表 | 高 |
+| `POST /api/v1/console/adsource/create-custom` | 创建自定义广告源（关联自定义广告平台） | 高 |
+| `POST /api/v1/console/network/account/create` | 创建广告平台账号 | 高 |
+| `GET /api/v1/console/network/account/list` | 广告平台账号列表 | 高 |
 | `PATCH/DELETE /api/v1/console/network/account/[id]` | 编辑/删除账号 | 高 |
 
 ### 4. 页面差距（PLAN: 14 → 实际: 13）
@@ -262,9 +262,9 @@
 | 步骤 | 名称 | 落地状态 | 备注 |
 |------|------|---------|------|
 | 1 | 上传 Adapter | ✅ 已实现 | network.ts upload 接口 |
-| 2 | 广告网络账号 | ✅ 已实现 | ad_network_account 表 + 5 个 API + /network Tab + AccountManager 组件 |
+| 2 | 广告平台账号 | ✅ 已实现 | ad_network_account 表 + 5 个 API + /network Tab + AccountManager 组件 |
 | 3 | 数据上报格式 | ✅ 已实现 | custom/report/upload + custom_network_report 表 |
-| 4 | 联调测试 | ✅ 已实现 | /ad-source/create-custom（绑定到自定义网络）|
+| 4 | 联调测试 | ✅ 已实现 | /ad-source/create-custom（绑定到自定义广告平台）|
 | 5 | 上线 | ✅ 已实现 | /custom/adapter/status + review 接口（PASS/REJECT） |
 | 6 | 维护监控 | ✅ 已实现 | report/query + reconciliation |
 

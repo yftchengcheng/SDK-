@@ -5,7 +5,7 @@
         <div class="page-header-icon"><el-icon><Connection /></el-icon></div>
         <div class="page-header-titles">
           <h1 class="page-header-title">广告源管理</h1>
-          <p class="page-header-subtitle">管理接入的广告网络代码位与三方账号映射</p>
+          <p class="page-header-subtitle">管理接入的广告平台代码位与三方账号映射</p>
         </div>
       </div>
       <div class="page-header-actions">
@@ -16,7 +16,7 @@
     <!-- Filter -->
     <div class="page-filter">
       <el-form :inline="true" :model="filter" class="page-filter-form" @submit.prevent>
-        <el-form-item label="广告网络">
+        <el-form-item label="广告平台">
           <el-select v-model="filter.networkCode" placeholder="全部网络" clearable @change="onSearch">
             <el-option v-for="n in networks" :key="n.network_code" :label="n.network_name" :value="n.network_code" />
           </el-select>
@@ -40,7 +40,7 @@
     <div class="page-card"><div class="page-table-wrap">
       <el-table :data="tableData" v-loading="loading" stripe style="width: 100%">
         <el-table-column prop="source_name" label="广告源名称" min-width="160" />
-        <el-table-column prop="network_name" label="广告网络" width="120" />
+        <el-table-column prop="network_name" label="广告平台" width="120" />
         <el-table-column prop="third_app_id" label="三方App ID" min-width="160" />
         <el-table-column prop="third_placement_id" label="三方代码位ID" min-width="160" />
         <el-table-column prop="status" label="状态" width="80">
@@ -110,12 +110,12 @@
                   <span>基础信息</span>
                 </h2>
               </div>
-              <p class="page-form-section-desc">选择广告网络和广告源名称</p>
+              <p class="page-form-section-desc">选择广告平台和广告源名称</p>
 
               <div class="page-form-grid">
-                <el-form-item label="广告网络" prop="network_code" class="span-2">
-                  <template #label><span class="required-mark">*</span><span>广告网络</span></template>
-                  <el-select v-model="editForm.network_code" placeholder="请选择广告网络" style="width: 100%">
+                <el-form-item label="广告平台" prop="network_code" class="span-2">
+                  <template #label><span class="required-mark">*</span><span>广告平台</span></template>
+                  <el-select v-model="editForm.network_code" placeholder="请选择广告平台" style="width: 100%">
                     <el-option v-for="n in networks" :key="n.network_code" :label="n.network_name" :value="n.network_code" />
                   </el-select>
                 </el-form-item>
@@ -147,7 +147,7 @@
                 </el-form-item>
                 <el-form-item label="额外配置" class="span-2">
                   <el-input v-model="editForm.extra" type="textarea" :rows="3" placeholder="JSON格式，各平台特殊参数（选填）" />
-                  <div class="form-help">支持各广告网络特有的高级参数，如超时、底价、用户定向等</div>
+                  <div class="form-help">支持各广告平台特有的高级参数，如超时、底价、用户定向等</div>
                 </el-form-item>
               </div>
             </section>
@@ -201,7 +201,7 @@
         <div class="page-form-body">
           <el-alert type="info" :closable="false" show-icon style="margin-bottom: 4px;">
             <template #title>
-              请先在「广告网络管理 → 自定义网络」中创建 Adapter 并通过审核，再来此处绑定。
+              请先在「广告平台管理 → 自定义广告平台」中创建 Adapter 并通过审核，再来此处绑定。
             </template>
           </el-alert>
 
@@ -222,9 +222,9 @@
               </div>
 
               <div class="page-form-grid">
-                <el-form-item label="自定义网络" prop="networkDefId" class="span-2">
-                  <template #label><span class="required-mark">*</span><span>自定义网络</span></template>
-                  <el-select v-model="customForm.networkDefId" placeholder="请选择已通过审核的自定义网络" style="width: 100%" filterable>
+                <el-form-item label="自定义广告平台" prop="networkDefId" class="span-2">
+                  <template #label><span class="required-mark">*</span><span>自定义广告平台</span></template>
+                  <el-select v-model="customForm.networkDefId" placeholder="请选择已通过审核的自定义广告平台" style="width: 100%" filterable>
                     <el-option v-for="n in customNetworks" :key="n.id" :label="`${n.network_name} (${n.network_code})`" :value="n.id" />
                   </el-select>
                 </el-form-item>
@@ -245,17 +245,17 @@
               </div>
 
               <div class="page-form-grid">
-                <el-form-item label="自定义网络 App ID" prop="third_app_id" class="span-2">
-                  <template #label><span class="required-mark">*</span><span>自定义网络 App ID</span></template>
-                  <el-input v-model="customForm.third_app_id" placeholder="在自定义网络申请的 App ID" />
+                <el-form-item label="自定义广告平台 App ID" prop="third_app_id" class="span-2">
+                  <template #label><span class="required-mark">*</span><span>自定义广告平台 App ID</span></template>
+                  <el-input v-model="customForm.third_app_id" placeholder="在自定义广告平台申请的 App ID" />
                 </el-form-item>
-                <el-form-item label="自定义网络 代码位 ID" prop="third_placement_id" class="span-2">
-                  <template #label><span class="required-mark">*</span><span>自定义网络 代码位 ID</span></template>
-                  <el-input v-model="customForm.third_placement_id" placeholder="在自定义网络申请的代码位 ID" />
+                <el-form-item label="自定义广告平台 代码位 ID" prop="third_placement_id" class="span-2">
+                  <template #label><span class="required-mark">*</span><span>自定义广告平台 代码位 ID</span></template>
+                  <el-input v-model="customForm.third_placement_id" placeholder="在自定义广告平台申请的代码位 ID" />
                 </el-form-item>
                 <el-form-item label="额外配置" class="span-2">
-                  <el-input v-model="customForm.extra" type="textarea" :rows="3" placeholder="JSON 格式，自定义网络特殊参数（选填）" />
-                  <div class="form-help">支持自定义网络特有的高级参数</div>
+                  <el-input v-model="customForm.extra" type="textarea" :rows="3" placeholder="JSON 格式，自定义广告平台特殊参数（选填）" />
+                  <div class="form-help">支持自定义广告平台特有的高级参数</div>
                 </el-form-item>
               </div>
             </section>
@@ -321,13 +321,13 @@ const customForm = reactive<{ networkDefId: number | ''; sourceName: string; thi
 const customNetworks = ref<Array<{ id: number; network_name: string; network_code: string }>>([]);
 
 const formRules: FormRules = {
-  network_code: [{ required: true, message: '请选择广告网络', trigger: 'change' }],
+  network_code: [{ required: true, message: '请选择广告平台', trigger: 'change' }],
   source_name: [{ required: true, message: '请输入广告源名称', trigger: 'blur' }],
   third_app_id: [{ required: true, message: '请输入三方App ID', trigger: 'blur' }],
   third_placement_id: [{ required: true, message: '请输入三方代码位ID', trigger: 'blur' }],
 };
 const customFormRules: FormRules = {
-  networkDefId: [{ required: true, message: '请选择自定义广告网络', trigger: 'change' }],
+  networkDefId: [{ required: true, message: '请选择自定义广告平台', trigger: 'change' }],
   source_name: [{ required: true, message: '请输入广告源名称', trigger: 'blur' }],
   third_app_id: [{ required: true, message: '请输入三方App ID', trigger: 'blur' }],
   third_placement_id: [{ required: true, message: '请输入三方代码位ID', trigger: 'blur' }],

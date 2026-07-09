@@ -89,7 +89,7 @@ const routes: RouteRecordRaw[] = [
         path: 'network',
         name: 'NetworkManage',
         component: NetworkManage,
-        meta: { title: '广告网络', icon: 'Share' },
+        meta: { title: '广告平台', icon: 'Share' },
       },
       {
         path: 'message',
