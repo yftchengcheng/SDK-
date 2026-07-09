@@ -74,8 +74,8 @@ router.post('/create', authMiddleware, async (req: express.Request, res: express
     if (isSDK && screenOrientation !== undefined && screenOrientation !== null) insertData.screen_orientation = screenOrientation;
     if (adSize !== undefined && adSize !== null) insertData.ad_size = adSize;
     if (materialType !== undefined && materialType !== null) insertData.material_type = materialType;
-    if (isSDK && videoMute !== undefined && videoMute !== null) insertData.video_mute = videoMute;
-    if (isSDK && autoPlay !== undefined && autoPlay !== null) insertData.auto_play = autoPlay;
+    if (isSDK && videoMute !== undefined && videoMute !== null) insertData.video_mute = videoMute ? 1 : 0;
+    if (isSDK && autoPlay !== undefined && autoPlay !== null) insertData.auto_play = autoPlay ? 1 : 0;
     if (templateStyle !== undefined && templateStyle !== null) insertData.template_style = templateStyle;
 
     const { data, error } = await db.from('placement').insert(insertData).select().single();
@@ -136,8 +136,8 @@ router.put('/update', authMiddleware, async (req: express.Request, res: express.
     if (isSDK && screenOrientation !== undefined) updateData.screen_orientation = screenOrientation;
     if (adSize !== undefined) updateData.ad_size = adSize;
     if (materialType !== undefined) updateData.material_type = materialType;
-    if (isSDK && videoMute !== undefined) updateData.video_mute = videoMute;
-    if (isSDK && autoPlay !== undefined) updateData.auto_play = autoPlay;
+    if (isSDK && videoMute !== undefined) updateData.video_mute = videoMute ? 1 : 0;
+    if (isSDK && autoPlay !== undefined) updateData.auto_play = autoPlay ? 1 : 0;
     if (templateStyle !== undefined) updateData.template_style = templateStyle;
 
     const { error } = await db.from('placement').update(updateData).eq('placement_id', placementId);
