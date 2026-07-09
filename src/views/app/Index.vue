@@ -64,7 +64,11 @@
             <span style="font-family: 'Fira Code', monospace; font-size: 12px;">{{ row.packageName || row.package_name }}</span>
           </template>
         </el-table-column>
-        <el-table-column prop="category" label="分类" width="100" align="center" />
+        <el-table-column prop="category" label="分类" width="160" align="center">
+          <template #default="{ row }">
+            <el-tag size="small" effect="plain" round>{{ categoryFullName(row.category) }}</el-tag>
+          </template>
+        </el-table-column>
         <el-table-column prop="status" label="状态" width="90" align="center">
           <template #default="{ row }">
             <el-tag :type="(row.status === 1) ? 'success' : 'info'" effect="light" size="small">
@@ -285,9 +289,14 @@
                     <span class="required-mark">*</span>
                     <span>应用分类</span>
                   </template>
-                  <el-select v-model="form.category" placeholder="请选择分类" clearable style="width: 100%">
-                    <el-option v-for="c in categories" :key="c" :label="c" :value="c" />
-                  </el-select>
+                  <el-cascader
+                    v-model="form.category"
+                    :options="categories"
+                    :props="{ checkStrictly: false, expandTrigger: 'hover' }"
+                    placeholder="请选择分类（先选大类，再选子类）"
+                    clearable
+                    style="width: 100%"
+                  />
                 </el-form-item>
 
                 <el-form-item label="授权子账号" prop="authSubaccount" class="span-2">
@@ -440,7 +449,82 @@ const total = ref(0);
 
 const filters = reactive<{ keyword: string; platform: number | null }>({ keyword: '', platform: null });
 
-const categories = ['工具', '社交', '娱乐', '教育', '游戏', '新闻', '生活', '其他'];
+// iOS App Store 标准二级分类（Game / App）
+interface SubCategory { value: string; label: string }
+interface TopCategory { value: string; label: string; children: SubCategory[] }
+const categories: TopCategory[] = [
+  {
+    value: 'Game', label: '游戏', children: [
+      { value: 'Action', label: '动作' },
+      { value: 'Adventure', label: '冒险' },
+      { value: 'Arcade', label: '街机' },
+      { value: 'Board', label: '棋类' },
+      { value: 'Card', label: '卡牌' },
+      { value: 'Casino', label: '博彩' },
+      { value: 'Dice', label: '掷骰游戏' },
+      { value: 'Educational', label: '教育' },
+      { value: 'Family', label: '家庭' },
+      { value: 'Music', label: '音乐' },
+      { value: 'Puzzle', label: '益智' },
+      { value: 'Racing', label: '赛车' },
+      { value: 'Role Playing', label: '角色扮演' },
+      { value: 'Simulation', label: '模拟' },
+      { value: 'Sports', label: '运动' },
+      { value: 'Strategy', label: '策略' },
+      { value: 'Trivia', label: '知识问答' },
+      { value: 'Word', label: '文字' },
+    ],
+  },
+  {
+    value: 'App', label: '应用', children: [
+      { value: 'Books', label: '图书' },
+      { value: 'Business', label: '公司' },
+      { value: 'Catalogs', label: '目录' },
+      { value: 'Education', label: '教育' },
+      { value: 'Entertainment', label: '娱乐' },
+      { value: 'Finance', label: '财务' },
+      { value: 'Food & Drink', label: '餐饮美食' },
+      { value: 'Health & Fitness', label: '健康与健身' },
+      { value: 'Lifestyle', label: '生活时尚' },
+      { value: 'Magazines & Newspapers', label: '新闻杂志' },
+      { value: 'Medical', label: '医疗' },
+      { value: 'Music', label: '音乐' },
+      { value: 'Navigation', label: '导航' },
+      { value: 'News', label: '新闻' },
+      { value: 'Photo & Video', label: '照片与视频' },
+      { value: 'Productivity', label: '商务办公' },
+      { value: 'Reference', label: '工具书' },
+      { value: 'Shopping', label: '购物' },
+      { value: 'Social Networking', label: '社交网络' },
+      { value: 'Sports', label: '运动' },
+      { value: 'Stickers', label: '贴纸' },
+      { value: 'Travel', label: '旅游' },
+      { value: 'Utilities', label: '效率' },
+      { value: 'Weather', label: '天气' },
+    ],
+  },
+];
+
+// 路径 → 中文名（用于列表展示）
+const categoryNameOf = (key: string): string => {
+  for (const top of categories) {
+    for (const sub of top.children) {
+      if (sub.value === key) return sub.label;
+    }
+  }
+  return key;
+};
+const categoryFullName = (raw: string | null | undefined): string => {
+  if (!raw) return '—';
+  // 兼容历史短字符串（"工具"等）
+  if (!raw.includes('/')) return raw;
+  const [top, sub] = raw.split('/');
+  const t = categories.find(c => c.value === top);
+  if (!t) return raw;
+  if (!sub) return t.label;
+  return `${t.label} - ${categoryNameOf(sub)}`;
+};
+
 const accessType = 1; // 默认 SDK 对接（实际从 userStore 取）
 
 // ========== 抽屉 + 表单状态 ==========
@@ -486,7 +570,7 @@ const searchInStore = () => {
 };
 
 const requiredBasicCount = computed(() => {
-  const arr = [form.appName, form.packageName, form.platform, form.category, form.orientation];
+  const arr = [form.appName, form.packageName, form.platform, form.category.length >= 2, form.orientation];
   if (form.storeListed) arr.push(form.storeName, form.storeUrl);
   return arr.filter(Boolean).length;
 });
@@ -503,7 +587,7 @@ const form = reactive({
   downloadUrl: '',          // 下载链接（未上架时）
   // 基础信息
   appDomain: '',            // 应用域名
-  category: '',
+  category: [] as string[],       // 应用分类 [大类, 子类]，如 ['Game','Action']
   authSubaccount: '',       // 授权子账号
   orientation: 1 as number, // 屏幕方向
   // 业务
@@ -553,7 +637,14 @@ const formRules: FormRules = {
     { required: true, message: '请选择系统平台', trigger: 'change' },
   ],
   category: [
-    { required: true, message: '请选择应用分类', trigger: 'change' },
+    {
+      required: true,
+      validator: (_: unknown, val: string[], cb: (err?: Error) => void) => {
+        if (!val || val.length < 2) cb(new Error('请选择应用分类（需选到子类）'));
+        else cb();
+      },
+      trigger: 'change',
+    },
   ],
   storeListed: [
     { required: true, message: '请选择是否上架', trigger: 'change' },
@@ -685,7 +776,7 @@ const openEdit = async (row: any): Promise<void> => {
       form.appName = d.app_name || d.appName || '';
       form.packageName = d.package_name || d.packageName || '';
       form.platform = d.platform ?? 1;
-      form.category = d.category || '';
+      form.category = Array.isArray(d.category) ? d.category : (typeof d.category === 'string' && d.category.includes('/') ? d.category.split('/') : (d.category ? [d.category] : []));
       form.timeoutMs = d.timeout_ms ?? d.timeoutMs ?? 5000;
       form.iconUrl = d.iconUrlResolved || d.icon_url || '';
       form.appDomain = d.app_domain || d.appDomain || '';
@@ -716,7 +807,7 @@ const resetForm = (): void => {
   form.appName = '';
   form.packageName = '';
   form.platform = 1;
-  form.category = '';
+  form.category = [];
   form.timeoutMs = 5000;
   form.storeListed = true;
   form.storeName = 'google-play';
@@ -776,7 +867,7 @@ const handleSubmit = async (): Promise<void> => {
       appName: form.appName,
       packageName: form.packageName,
       platform: form.platform,
-      category: form.category,
+      category: Array.isArray(form.category) ? form.category.join('/') : (form.category || ''),
       timeoutMs: form.timeoutMs,
       storeListed: form.storeListed,
       storeName: form.storeListed ? form.storeName : '',
