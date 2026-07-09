@@ -142,7 +142,7 @@
             </h2>
             <div class="detail-card-actions">
               <el-button :icon="Setting" size="small" @click="openAppSettings">频次设置</el-button>
-              <el-button type="primary" plain :icon="Plus" size="small" @click="goNetwork">关联广告平台</el-button>
+              <el-button type="primary" :icon="Plus" size="small" @click="goNetwork">关联广告平台</el-button>
             </div>
           </div>
           <div class="detail-card-body">
@@ -210,8 +210,8 @@
 
             <!-- 广告位表格 -->
             <div class="page-table-wrap">
-              <el-table :data="placementList" v-loading="placementLoading" size="default">
-                <el-table-column prop="placement_id" label="广告位" min-width="200">
+              <el-table :data="placementList" v-loading="placementLoading" size="default" :cell-style="{ textAlign: 'center' }" :header-cell-style="{ textAlign: 'center', background: 'var(--color-slate-50, #F8FAFC)', color: 'var(--color-slate-700, #334155)', fontWeight: 600 }">
+                <el-table-column prop="placement_id" label="广告位" min-width="200" align="left" header-align="left">
                   <template #default="{ row }">
                     <div class="cell-icon-text">
                       <span class="cell-link" @click="copyText(row.placement_id)">{{ row.name }}</span>
@@ -220,15 +220,15 @@
                     <div class="cell-sub">ID: {{ row.placement_id }}</div>
                   </template>
                 </el-table-column>
-                <el-table-column prop="format" label="广告类型" width="100">
+                <el-table-column prop="format" label="广告类型" width="110" align="center" header-align="center">
                   <template #default="{ row }">
                     <span class="status-tag status-tag--info">{{ formatLabel(row.format) }}</span>
                   </template>
                 </el-table-column>
-                <el-table-column prop="bidding_type" label="竞价类型" width="80">
+                <el-table-column prop="bidding_type" label="竞价类型" width="100" align="center" header-align="center">
                   <template #default="{ row }">{{ biddingLabel(row.bidding_type) }}</template>
                 </el-table-column>
-                <el-table-column prop="screen_orientation" label="屏幕方向" width="100">
+                <el-table-column prop="screen_orientation" label="屏幕方向" width="110" align="center" header-align="center">
                   <template #default="{ row }">
                     <span class="orientation-tag" v-if="row.screen_orientation">
                       <el-icon :size="11"><component :is="orientationIcon(row.screen_orientation)" /></el-icon>
@@ -237,7 +237,7 @@
                     <span v-else>—</span>
                   </template>
                 </el-table-column>
-                <el-table-column prop="status" label="状态" width="80">
+                <el-table-column prop="status" label="状态" width="100" align="center" header-align="center">
                   <template #default="{ row }">
                     <el-switch
                       :model-value="row.status === 1"
@@ -245,10 +245,10 @@
                     />
                   </template>
                 </el-table-column>
-                <el-table-column prop="created_at" label="创建时间" width="160">
+                <el-table-column prop="created_at" label="创建时间" width="180" align="center" header-align="center">
                   <template #default="{ row }">{{ formatTime(row.created_at) }}</template>
                 </el-table-column>
-                <el-table-column label="操作" width="160" fixed="right">
+                <el-table-column label="操作" width="160" fixed="right" align="center" header-align="center">
                   <template #default="{ row }">
                     <el-button link type="primary" size="small" @click="editPlacement(row)">编辑</el-button>
                     <el-button link type="danger" size="small" @click="deletePlacement(row)">删除</el-button>

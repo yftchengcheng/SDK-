@@ -5371,7 +5371,7 @@ html, body, #app {
   flex-wrap: wrap;
 }
 .app-detail-app-name {
-  font-size: 18px;
+  font-size: 20px;
   font-weight: 600;
   color: var(--color-slate-900, #0F172A);
   margin: 0;
@@ -5398,9 +5398,20 @@ html, body, #app {
   font-family: 'SF Mono', Monaco, Consolas, monospace;
 }
 .app-detail-meta-divider {
-  width: 1px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
   height: 12px;
-  background: var(--color-slate-200, #E2E8F0);
+  font-size: 14px;
+  line-height: 1;
+  color: var(--color-slate-300, #CBD5E1);
+  user-select: none;
+}
+.app-detail-meta-divider::before {
+  content: "·";
+  position: relative;
+  top: -2px;
 }
 .app-detail-header-actions {
   display: flex;
@@ -5578,8 +5589,13 @@ html, body, #app {
 }
 .placement-filter-spacer { flex: 1; }
 .placement-filter-meta {
+  display: inline-flex;
+  align-items: center;
+  height: 28px;
+  padding: 0 4px 0 10px;
   font-size: 12px;
   color: var(--color-slate-500, #64748B);
+  white-space: nowrap;
 }
 .placement-filter-meta b {
   color: var(--color-primary-600, #2563EB);
@@ -5857,4 +5873,12 @@ html, body, #app {
   gap: 8px;
   padding: 12px 16px;
   border-top: 1px solid #F1F5F9;
+}
+
+/* /app 页面表格内 Tag 居中 */
+.app-detail-card .el-table .el-tag {
+  display: inline-flex;
+  align-items: center;
+  line-height: 1;
+  vertical-align: middle;
 }
