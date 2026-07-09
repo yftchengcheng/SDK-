@@ -9,7 +9,7 @@ if (!VERIFY_TOKEN) throw new Error('VERIFY_TOKEN required');
 fs.mkdirSync(OUT_DIR, { recursive: true });
 
 const browser = await puppeteer.launch({
-  headless: 'new',
+  headless: 'new', executablePath: '/root/.cache/ms-playwright/chromium-1161/chrome-linux/chrome',
   args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
 });
 try {

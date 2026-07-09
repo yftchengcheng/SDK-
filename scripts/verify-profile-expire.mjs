@@ -7,7 +7,7 @@ const OUT_DIR = process.env.OUT_DIR || '/tmp/verify-screenshots';
 fs.mkdirSync(OUT_DIR, { recursive: true });
 
 const browser = await puppeteer.launch({
-  headless: 'new',
+  headless: 'new', executablePath: '/root/.cache/ms-playwright/chromium-1161/chrome-linux/chrome',
   args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
 });
 try {

@@ -1,6 +1,6 @@
 import puppeteer from 'puppeteer';
 const token = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJkZXZlbG9wZXJJZCI6ImRldl8yTEdiZEdWRk5jbDRIUG5vIiwiZW1haWwiOiJkYXNoX3Rlc3QyQGNvemUuY29tIiwicm9sZSI6ImRldmVsb3BlciIsImlhdCI6MTc4MzU3MDE5NSwiZXhwIjoxNzg0MTc0OTk1fQ.YahcCHF5p5V-Y7iKp8ZeZtU6ff22zp_4MDGhHv57vyg';
-const browser = await puppeteer.launch({ headless: 'new', args: ['--no-sandbox', '--disable-setuid-sandbox'] });
+const browser = await puppeteer.launch({ headless: 'new', executablePath: '/root/.cache/ms-playwright/chromium-1161/chrome-linux/chrome', args: ['--no-sandbox', '--disable-setuid-sandbox'] });
 const page = await browser.newPage();
 await page.setViewport({ width: 1440, height: 1100, deviceScaleFactor: 1 });
 await page.evaluateOnNewDocument((tk) => {

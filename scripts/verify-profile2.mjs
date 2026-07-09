@@ -3,7 +3,7 @@ import fs from 'fs';
 
 const VERIFY_TOKEN = process.env.VERIFY_TOKEN;
 const browser = await puppeteer.launch({
-  headless: 'new',
+  headless: 'new', executablePath: '/root/.cache/ms-playwright/chromium-1161/chrome-linux/chrome',
   args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
 });
 try {
