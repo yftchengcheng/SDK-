@@ -347,7 +347,7 @@
       @saved="onPlacementSaved"
     />
 
-    <!-- ============ 频次设置 Drawer（Taku SDK v6.4.50+）============ -->
+    <!-- ============ 频次设置 Drawer（Adtalos SDK v6.1.0+）============ -->
     <FrequencyDrawer
       v-model:visible="freqDrawerVisible"
       :app-key="currentAppKey"

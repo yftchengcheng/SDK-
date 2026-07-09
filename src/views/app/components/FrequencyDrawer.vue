@@ -10,7 +10,7 @@
     <div class="fd-body" v-loading="loading">
       <div class="fd-tips">
         <el-icon><InfoFilled /></el-icon>
-        <span>Taku SDK v6.4.50 及以上版本，支持在 APP 维度设置每台设备上的广告平台或广告样式频次</span>
+        <span>Adtalos SDK v6.1.0 及以上版本，支持在 APP 维度设置每台设备上的广告平台或广告样式频次</span>
       </div>
 
       <template v-for="(module, mi) in modules" :key="module.key">

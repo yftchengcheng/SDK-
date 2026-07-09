@@ -405,7 +405,7 @@ router.delete('/delete', authMiddleware, async (req: express.Request, res: expre
 export default router;
 
 // ============================================================
-// 频次设置（Taku SDK v6.4.50+）
+// 频次设置（Adtalos SDK v6.1.0+）
 // 存储：app.frequency_config JSONB
 // 数据结构：{ impCapDay: [{id,value,unlimited,platforms[],adTypes[]},...], impCapHour: [...], impIntervalSec: [...], reqCap: [{id,value,unlimited,window,platforms[],adTypes[]},...] }
 // ============================================================
