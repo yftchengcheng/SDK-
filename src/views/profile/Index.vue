@@ -49,20 +49,26 @@
             <div class="api-field api-field--grow">
               <div class="api-label">生效时间</div>
               <div class="api-value">
-                <el-date-picker
-                  v-model="tokenExpireDraft"
-                  type="datetime"
-                  placeholder="选择过期时间"
-                  format="YYYY-MM-DD HH:mm:ss"
-                  value-format="YYYY-MM-DDTHH:mm:ss[Z]"
-                  :disabled-date="(d: Date) => d.getTime() <= Date.now() - 86400000"
-                  size="default"
-                  class="api-expire-picker"
-                />
+                <el-radio-group
+                  v-model="expirePresetKey"
+                  class="expire-preset-group"
+                  @change="onExpirePresetChange"
+                >
+                  <el-radio-button
+                    v-for="preset in expirePresets"
+                    :key="preset.key"
+                    :value="preset.key"
+                    :label="preset.key"
+                  >
+                    {{ preset.label }}
+                  </el-radio-button>
+                </el-radio-group>
+                <div v-if="expirePresetHint" class="expire-preset-hint">
+                  将于 <strong>{{ expirePresetHint }}</strong> 到期
+                </div>
               </div>
             </div>
             <div class="api-field api-field--actions">
-              <el-button type="primary" :loading="savingExpire" @click="saveTokenExpire">保存生效时间</el-button>
               <el-button @click="generateApiToken">刷新密钥</el-button>
             </div>
           </div>
@@ -143,51 +149,71 @@ const changePassword = async () => {
   } catch { /* ignore */ }
 };
 
-// 生效时间草稿（独立于 userInfo.api_token_expire，用户可改）
-const tokenExpireDraft = ref<string>('');
+// 生效时间预设（用户点选后立即 PATCH 保存）
+const FAR_FUTURE = '2099-12-31T23:59:59.000Z';
+type ExpirePreset = { key: string; label: string; compute: () => string };
+const expirePresets: ExpirePreset[] = [
+  { key: '7d', label: '7 天', compute: () => new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString() },
+  { key: '1m', label: '1 个月', compute: () => new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() },
+  { key: '3m', label: '3 个月', compute: () => new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString() },
+  { key: '6m', label: '6 个月', compute: () => new Date(Date.now() + 180 * 24 * 60 * 60 * 1000).toISOString() },
+  { key: '1y', label: '1 年', compute: () => new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString() },
+  { key: 'forever', label: '永久', compute: () => FAR_FUTURE },
+];
+const expirePresetKey = ref<string>('1y');
+const expirePresetHint = ref<string>('');
 
-// 同步草稿为当前过期时间
-const syncExpireDraft = () => {
-  if (userInfo.value.api_token_expire) {
-    tokenExpireDraft.value = new Date(userInfo.value.api_token_expire).toISOString();
-  } else {
-    tokenExpireDraft.value = '';
+// 根据当前 api_token_expire 反推匹配哪个预设（用于 UI 高亮）
+const matchPresetByExpireDate = (expire: string): string => {
+  if (!expire) return '1y';
+  const target = new Date(expire).getTime();
+  if (Math.abs(target - new Date(FAR_FUTURE).getTime()) < 1000) return 'forever';
+  for (const p of expirePresets) {
+    if (p.key === 'forever') continue;
+    const t = new Date(p.compute()).getTime();
+    // 24h 误差容差：把 "现在" 当作下界
+    if (Math.abs(target - t) < 24 * 60 * 60 * 1000) return p.key;
   }
+  return '';
+};
+
+const syncExpirePreset = () => {
+  const matched = matchPresetByExpireDate(userInfo.value.api_token_expire);
+  if (matched) {
+    expirePresetKey.value = matched;
+    expirePresetHint.value = '';
+  } else {
+    // 匹配不上（如后端返回自定义时间），保持当前值并提示
+    expirePresetHint.value = userInfo.value.api_token_expire
+      ? formatExpire(userInfo.value.api_token_expire)
+      : '';
+  }
+};
+
+const onExpirePresetChange = async (key: string | number | boolean | undefined) => {
+  const preset = expirePresets.find((p) => p.key === key);
+  if (!preset) return;
+  const expireDate = preset.compute();
+  try {
+    await request.patch('/api/v1/console/profile/api-token/expire', { expireDate });
+    ElMessage.success(`生效时间已更新为：${preset.label}`);
+    await fetchInfo();
+    syncExpirePreset();
+  } catch { /* ignore */ }
 };
 
 const generateApiToken = async () => {
   try {
-    const body: Record<string, unknown> = {};
-    if (tokenExpireDraft.value) body.expireDate = tokenExpireDraft.value;
-    const res: any = await request.post('/api/v1/console/profile/api-token', body);
+    const res: any = await request.post('/api/v1/console/profile/api-token', {});
     ElMessage.success('Report API 密钥已重新生成');
     await fetchInfo();
-    syncExpireDraft();
+    syncExpirePreset();
   } catch { /* ignore */ }
-};
-
-const savingExpire = ref(false);
-const saveTokenExpire = async () => {
-  if (!tokenExpireDraft.value) {
-    ElMessage.warning('请选择生效时间');
-    return;
-  }
-  savingExpire.value = true;
-  try {
-    const res: any = await request.patch('/api/v1/console/profile/api-token/expire', {
-      expireDate: tokenExpireDraft.value,
-    });
-    ElMessage.success('生效时间已保存');
-    await fetchInfo();
-  } catch { /* ignore */ }
-  finally {
-    savingExpire.value = false;
-  }
 };
 
 onMounted(async () => {
   await fetchInfo();
-  syncExpireDraft();
+  syncExpirePreset();
 });
 </script>
 
