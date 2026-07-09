@@ -5489,52 +5489,146 @@ html, body, #app {
   gap: 12px;
 }
 .metric-item {
-  padding: 14px 16px;
+  padding: 16px 16px 14px;
   background: var(--color-slate-50, #F8FAFC);
   border: 1px solid var(--color-slate-100, #F1F5F9);
-  border-radius: 6px;
+  border-radius: 8px;
   transition: all 0.18s ease;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
 .metric-item:hover {
   background: var(--color-primary-50, #EFF6FF);
   border-color: var(--color-primary-200, #BFDBFE);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.08);
 }
 .metric-head {
   display: flex;
   align-items: center;
-  gap: 4px;
-  margin-bottom: 8px;
+  justify-content: space-between;
+  gap: 6px;
+  min-height: 22px;
+}
+.metric-head-l {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  flex: 1;
+}
+.metric-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 5px;
+  color: var(--color-primary-600, #2563EB);
+  flex-shrink: 0;
 }
 .metric-label {
   font-size: 12px;
   color: var(--color-slate-500, #64748B);
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .metric-tip {
   color: var(--color-slate-300, #CBD5E1);
   cursor: help;
+  flex-shrink: 0;
+}
+.metric-value-row {
+  display: flex;
+  align-items: baseline;
+  gap: 3px;
+  margin-top: 2px;
 }
 .metric-value {
-  font-size: 20px;
+  font-size: 22px;
   font-weight: 700;
   color: var(--color-slate-900, #0F172A);
   letter-spacing: -0.01em;
-  line-height: 1.2;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+.metric-unit {
+  font-size: 12px;
+  color: var(--color-slate-400, #94A3B8);
+  font-weight: 500;
+}
+.metric-spark {
+  height: 32px;
+  width: 100%;
+  margin: 2px 0 2px;
+  overflow: hidden;
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.metric-spark svg {
+  width: 100%;
+  height: 24px;
+  display: block;
+  flex: 1;
+}
+.metric-spark--empty svg line { opacity: 0.7; }
+.metric-spark.spark-up { color: #10B981; }
+.metric-spark.spark-down { color: #EF4444; }
+.metric-spark.spark-flat { color: #2563EB; }
+.metric-spark-label {
+  position: absolute;
+  right: 0;
+  top: 0;
+  font-size: 10px;
+  color: var(--color-slate-300, #CBD5E1);
+  background: rgba(255,255,255,0.7);
+  padding-left: 4px;
+  pointer-events: none;
+}
+.metric-foot {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--color-slate-500, #64748B);
+  line-height: 1.4;
+  flex-wrap: nowrap;
+  overflow: hidden;
 }
 .metric-trend {
-  display: flex;
-  align-items: baseline;
-  gap: 4px;
-  margin-top: 6px;
-  font-size: 11px;
-  color: var(--color-slate-400, #94A3B8);
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
 }
 .metric-trend.up { color: var(--color-success, #059669); }
 .metric-trend.down { color: var(--color-danger, #DC2626); }
-.metric-trend-label { color: var(--color-slate-400, #94A3B8); }
-.metric-trend--empty {
+.metric-trend-label {
+  color: var(--color-slate-400, #94A3B8);
+  font-weight: 400;
+  margin-left: 2px;
+}
+.metric-trend-empty {
   color: var(--color-slate-400, #94A3B8);
   font-size: 11px;
-  font-style: italic;
+}
+.metric-dot {
+  color: var(--color-slate-300, #CBD5E1);
+  margin: 0 1px;
+}
+.metric-sub {
+  color: var(--color-slate-400, #94A3B8);
+}
+.metric-sub-val {
+  font-weight: 600;
+  color: var(--color-slate-600, #475569);
+  font-variant-numeric: tabular-nums;
 }
 
 /* 广告平台 */

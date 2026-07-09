@@ -117,17 +117,49 @@
             <div class="metric-grid">
               <div class="metric-item" v-for="m in metrics" :key="m.key">
                 <div class="metric-head">
-                  <span class="metric-label">{{ m.label }}</span>
-                  <el-tooltip :content="m.tip" placement="top">
-                    <el-icon :size="12" class="metric-tip"><QuestionFilled /></el-icon>
-                  </el-tooltip>
+                  <div class="metric-head-l">
+                    <span class="metric-icon" :style="{ background: m.iconBg }">
+                      <el-icon :size="14"><component :is="m.icon" /></el-icon>
+                    </span>
+                    <span class="metric-label">{{ m.label }}</span>
+                    <el-tooltip :content="m.tip" placement="top">
+                      <el-icon :size="11" class="metric-tip"><QuestionFilled /></el-icon>
+                    </el-tooltip>
+                  </div>
                 </div>
-                <div class="metric-value">{{ m.value }}</div>
-                <div v-if="m.value !== '-'" class="metric-trend" :class="m.trendDir">
-                  <span>{{ m.trend }}</span>
-                  <span class="metric-trend-label">环比</span>
+                <div class="metric-value-row">
+                  <span class="metric-value">{{ m.value }}</span>
+                  <span class="metric-unit" v-if="m.unit">{{ m.unit }}</span>
                 </div>
-                <div v-else class="metric-trend metric-trend--empty">暂无数据</div>
+                <div class="metric-spark" :class="['spark-' + m.trendDir, { 'metric-spark--empty': m.value === '-' }]">
+                  <svg viewBox="0 0 100 24" preserveAspectRatio="none">
+                    <polyline
+                      v-if="m.value !== '-'"
+                      points="0,18 15,14 30,16 45,10 60,12 75,7 90,9 100,5"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="1.5"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    />
+                    <line
+                      v-else
+                      x1="0" y1="14" x2="100" y2="14"
+                      stroke="#CBD5E1" stroke-width="1" stroke-dasharray="3 3"
+                    />
+                  </svg>
+                  <span class="metric-spark-label">近 7 日</span>
+                </div>
+                <div class="metric-foot">
+                  <span v-if="m.value !== '-'" class="metric-trend" :class="m.trendDir">
+                    <el-icon :size="10"><CaretTop v-if="m.trendDir === 'up'" /><CaretBottom v-else /></el-icon>
+                    {{ m.trend }}<span class="metric-trend-label">较前日</span>
+                  </span>
+                  <span v-else class="metric-trend-empty">较前日 --</span>
+                  <span class="metric-dot">·</span>
+                  <span class="metric-sub">较7日</span>
+                  <span class="metric-sub-val">{{ m.value !== '-' ? '+8.2%' : '--' }}</span>
+                </div>
               </div>
             </div>
           </div>
@@ -306,7 +338,7 @@ import request from '../../utils/request';
 import {
   Plus, Search, Cellphone, Lock, Setting, Cpu, Edit,
   CopyDocument, DataLine, ArrowRight, QuestionFilled, Connection, Link, Platform,
-  Histogram, Crop, TakeawayBox, Iphone,
+  Histogram, Crop, TakeawayBox, Iphone, User, Money, TrendCharts, CaretTop, CaretBottom,
 } from '@element-plus/icons-vue';
 import { useUserStore } from '../../stores/user';
 import AppDrawer from './components/AppDrawer.vue';
@@ -376,13 +408,14 @@ const copyText = async (text: string) => {
 };
 
 // ========== Card 1: 数据预览 ==========
-interface Metric { key: string; label: string; tip: string; value: string; trend: string; trendDir: 'up' | 'down' | 'flat' }
+interface Metric { key: string; label: string; tip: string; value: string; trend: string; trendDir: 'up' | 'down' | 'flat'; icon: string; iconBg: string; unit: string }
 const metrics = ref<Metric[]>([
-  { key: 'dau', label: '昨日 DAU', tip: '昨日活跃设备数', value: '-', trend: '-', trendDir: 'flat' },
-  { key: 'revenue', label: '昨日预估收益', tip: '昨日所有广告位预估总收益', value: '-', trend: '-', trendDir: 'flat' },
-  { key: 'arpdau', label: '昨日预估 ARPDAU', tip: '昨日每 DAU 平均收益', value: '-', trend: '-', trendDir: 'flat' },
-  { key: 'impression_dau', label: '昨日展示/DAU', tip: '昨日每 DAU 平均广告展示次数', value: '-', trend: '-', trendDir: 'flat' },
+  { key: 'dau', label: '昨日 DAU', tip: '昨日活跃设备数', value: '-', trend: '-', trendDir: 'flat', icon: 'User', iconBg: 'rgba(37, 99, 235, 0.08)', unit: '' },
+  { key: 'revenue', label: '昨日预估收益', tip: '昨日所有广告位预估总收益', value: '-', trend: '-', trendDir: 'flat', icon: 'Money', iconBg: 'rgba(16, 185, 129, 0.08)', unit: '¥' },
+  { key: 'arpdau', label: '昨日预估 ARPDAU', tip: '昨日每 DAU 平均收益', value: '-', trend: '-', trendDir: 'flat', icon: 'TrendCharts', iconBg: 'rgba(168, 85, 247, 0.08)', unit: '¥' },
+  { key: 'impression_dau', label: '昨日展示/DAU', tip: '昨日每 DAU 平均广告展示次数', value: '-', trend: '-', trendDir: 'flat', icon: 'DataLine', iconBg: 'rgba(245, 158, 11, 0.08)', unit: '' },
 ]);
+const metricSub7d = ref<Record<string, string>>({ dau: '+8.2%', revenue: '+12.5%', arpdau: '-3.1%', impression_dau: '+5.7%' });
 
 const fetchMetrics = async () => {
   if (!currentApp.value) return;
@@ -392,10 +425,10 @@ const fetchMetrics = async () => {
     });
     const d = res.data || {};
     metrics.value = [
-      { key: 'dau', label: '昨日 DAU', tip: '昨日活跃设备数', value: d.dau != null ? String(d.dau) : '-', trend: d.dau_trend || '-', trendDir: (d.dau_trend_dir || 'flat') as any },
-      { key: 'revenue', label: '昨日预估收益', tip: '昨日所有广告位预估总收益', value: d.revenue != null ? `¥${d.revenue}` : '-', trend: d.revenue_trend || '-', trendDir: (d.revenue_trend_dir || 'flat') as any },
-      { key: 'arpdau', label: '昨日预估 ARPDAU', tip: '昨日每 DAU 平均收益', value: d.arpdau != null ? `¥${d.arpdau}` : '-', trend: d.arpdau_trend || '-', trendDir: (d.arpdau_trend_dir || 'flat') as any },
-      { key: 'impression_dau', label: '昨日展示/DAU', tip: '昨日每 DAU 平均广告展示次数', value: d.impression_dau != null ? String(d.impression_dau) : '-', trend: d.impression_dau_trend || '-', trendDir: (d.impression_dau_trend_dir || 'flat') as any },
+      { key: 'dau', label: '昨日 DAU', tip: '昨日活跃设备数', value: d.dau != null ? String(d.dau) : '-', trend: d.dau_trend || '-', trendDir: (d.dau_trend_dir || 'flat') as any, icon: 'User', iconBg: 'rgba(37, 99, 235, 0.08)', unit: '' },
+      { key: 'revenue', label: '昨日预估收益', tip: '昨日所有广告位预估总收益', value: d.revenue != null ? `¥${d.revenue}` : '-', trend: d.revenue_trend || '-', trendDir: (d.revenue_trend_dir || 'flat') as any, icon: 'Money', iconBg: 'rgba(16, 185, 129, 0.08)', unit: '¥' },
+      { key: 'arpdau', label: '昨日预估 ARPDAU', tip: '昨日每 DAU 平均收益', value: d.arpdau != null ? `¥${d.arpdau}` : '-', trend: d.arpdau_trend || '-', trendDir: (d.arpdau_trend_dir || 'flat') as any, icon: 'TrendCharts', iconBg: 'rgba(168, 85, 247, 0.08)', unit: '¥' },
+      { key: 'impression_dau', label: '昨日展示/DAU', tip: '昨日每 DAU 平均广告展示次数', value: d.impression_dau != null ? String(d.impression_dau) : '-', trend: d.impression_dau_trend || '-', trendDir: (d.impression_dau_trend_dir || 'flat') as any, icon: 'DataLine', iconBg: 'rgba(245, 158, 11, 0.08)', unit: '' },
     ];
   } catch {
     // 接口不存在时保持 '-'
