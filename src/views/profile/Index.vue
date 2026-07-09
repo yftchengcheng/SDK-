@@ -95,16 +95,32 @@
       </template>
     </el-dialog>
     <!-- Password Dialog -->
-    <el-dialog v-model="showPasswordDialog" title="修改密码" width="480px" destroy-on-close>
-      <el-form :model="passwordForm" label-position="top">
-        <el-form-item label="旧密码"><el-input v-model="passwordForm.oldPassword" type="password" show-password /></el-form-item>
-        <el-form-item label="新密码"><el-input v-model="passwordForm.newPassword" type="password" show-password /></el-form-item>
-      </el-form>
+    <!-- 修改密码抽屉: 原密码 / 新密码 / 确认新密码 -->
+    <el-drawer v-model="showPasswordDialog" title="修改密码" direction="rtl" :size="480" destroy-on-close>
+      <div class="password-drawer-body">
+        <el-form :model="passwordForm" label-position="top">
+          <el-form-item label="原密码" required>
+            <el-input v-model="passwordForm.oldPassword" type="password" show-password placeholder="请输入当前使用的密码" clearable />
+          </el-form-item>
+          <el-form-item label="新密码" required>
+            <el-input v-model="passwordForm.newPassword" type="password" show-password placeholder="6-32 位，建议字母+数字组合" clearable />
+          </el-form-item>
+          <el-form-item label="确认新密码" required>
+            <el-input v-model="passwordForm.confirmPassword" type="password" show-password placeholder="请再次输入新密码" clearable />
+          </el-form-item>
+          <div class="password-tips">
+            <el-icon><InfoFilled /></el-icon>
+            <span>新密码修改成功后需重新登录，且不能与原密码相同</span>
+          </div>
+        </el-form>
+      </div>
       <template #footer>
-        <el-button @click="showPasswordDialog = false">取消</el-button>
-        <el-button type="primary" @click="changePassword">确定</el-button>
+        <div class="password-drawer-footer">
+          <el-button @click="showPasswordDialog = false">取消</el-button>
+          <el-button type="primary" :loading="changingPassword" @click="changePassword">确定修改</el-button>
+        </div>
       </template>
-    </el-dialog>
+    </el-drawer>
   </div>
 </template>
 
@@ -116,8 +132,9 @@ import { ElMessage } from 'element-plus';
 const userInfo = reactive<any>({});
 const showEditDialog = ref(false);
 const showPasswordDialog = ref(false);
+const changingPassword = ref(false);
 const editForm = reactive({ company: '', contact_name: '', phone: '' });
-const passwordForm = reactive({ oldPassword: '', newPassword: '' });
+const passwordForm = reactive({ oldPassword: '', newPassword: '', confirmPassword: '' });
 
 const copyText = (text: string) => navigator.clipboard.writeText(text).then(() => ElMessage.success('已复制'));
 const maskToken = (t: string) => t ? t.substring(0, 8) + '****' + t.substring(t.length - 4) : '--';
@@ -141,12 +158,41 @@ const saveInfo = async () => {
 };
 
 const changePassword = async () => {
-  if (!passwordForm.oldPassword || !passwordForm.newPassword) return ElMessage.warning('请填写完整');
+  if (!passwordForm.oldPassword || !passwordForm.newPassword || !passwordForm.confirmPassword) {
+    return ElMessage.warning('请填写完整');
+  }
+  if (passwordForm.newPassword.length < 6) {
+    return ElMessage.warning('新密码至少 6 位');
+  }
+  if (passwordForm.newPassword === passwordForm.oldPassword) {
+    return ElMessage.warning('新密码不能与原密码相同');
+  }
+  if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+    return ElMessage.warning('两次输入的新密码不一致');
+  }
+  changingPassword.value = true;
   try {
-    await request.put('/api/v1/console/profile/password', passwordForm);
-    ElMessage.success('密码修改成功');
+    await request.put('/api/v1/console/profile/password', {
+      oldPassword: passwordForm.oldPassword,
+      newPassword: passwordForm.newPassword,
+    });
+    ElMessage.success('密码修改成功，请重新登录');
     showPasswordDialog.value = false;
-  } catch { /* ignore */ }
+    passwordForm.oldPassword = '';
+    passwordForm.newPassword = '';
+    passwordForm.confirmPassword = '';
+    // 清除本地凭据, 跳回登录页
+    setTimeout(() => {
+      localStorage.removeItem('token');
+      localStorage.removeItem('userInfo');
+      localStorage.removeItem('userRole');
+      location.href = '/login';
+    }, 800);
+  } catch {
+    /* ignore */
+  } finally {
+    changingPassword.value = false;
+  }
 };
 
 // 生效时间预设（用户点选后立即 PATCH 保存）

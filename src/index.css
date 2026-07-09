@@ -4527,3 +4527,59 @@ html, body, #app {
   gap: 8px;
   font-size: 13px;
 }
+
+/* ============================================================
+ * 修改密码抽屉
+ * ============================================================ */
+.password-drawer-body {
+  padding: 8px 4px 24px;
+}
+.password-drawer-body .el-form-item {
+  margin-bottom: 18px;
+}
+.password-drawer-body .el-form-item__label {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-slate-700);
+  padding-bottom: 6px;
+  line-height: 1.4;
+}
+.password-drawer-body .el-form-item__label::before {
+  margin-right: 4px;
+  color: var(--color-danger-500);
+}
+.password-drawer-body .el-input__wrapper {
+  border-radius: 8px;
+  box-shadow: 0 0 0 1px var(--color-slate-200) inset;
+  transition: box-shadow 160ms ease;
+}
+.password-drawer-body .el-input__wrapper:hover {
+  box-shadow: 0 0 0 1px var(--color-primary-400) inset;
+}
+.password-drawer-body .el-input__wrapper.is-focus {
+  box-shadow: 0 0 0 1px var(--color-primary-500) inset, 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+.password-tips {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 10px 12px;
+  margin-top: 4px;
+  background: var(--color-primary-50);
+  border: 1px solid var(--color-primary-100);
+  border-radius: 8px;
+  font-size: 12px;
+  color: var(--color-slate-600);
+  line-height: 1.6;
+}
+.password-tips .el-icon {
+  color: var(--color-primary-500);
+  font-size: 14px;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+.password-drawer-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
