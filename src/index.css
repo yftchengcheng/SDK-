@@ -5757,6 +5757,16 @@ html, body, #app {
   font-family: 'SF Mono', Monaco, Consolas, monospace;
   margin-top: 2px;
 }
+.cell-sub--token {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  transition: color 150ms ease;
+}
+.cell-sub--token:hover { color: var(--color-primary-600, #2563EB); }
+.cell-sub--token:active { color: var(--color-primary-700, #1D4ED8); }
+.cell-sub--token .el-icon { color: inherit; }
 .cell-icon-text {
   display: flex;
   align-items: center;

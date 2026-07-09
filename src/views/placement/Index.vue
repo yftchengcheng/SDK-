@@ -42,18 +42,13 @@
     <div class="page-card">
       <div class="page-table-wrap">
         <el-table :data="tableData" v-loading="loading">
-          <el-table-column prop="placement_id" label="广告位TOKEN" min-width="200">
-            <template #default="{ row }">
-              <div class="cell-icon-text">
-                <span class="cell-link" @click="copyText(row.placement_id)">{{ row.placement_id }}</span>
-                <el-icon class="copy-btn" @click="copyText(row.placement_id)"><CopyDocument /></el-icon>
-              </div>
-            </template>
-          </el-table-column>
-          <el-table-column prop="name" label="广告位名称" min-width="140">
+          <el-table-column prop="name" label="广告位名称" min-width="220">
             <template #default="{ row }">
               <div class="cell-name">{{ row.name }}</div>
-              <div v-if="row.placement_id" class="cell-sub">ID: {{ row.placement_id }}</div>
+              <div v-if="row.placement_id" class="cell-sub cell-sub--token" @click="copyText(row.placement_id)" :title="row.placement_id">
+                <el-icon :size="10"><Key /></el-icon>
+                <span>广告位TOKEN：{{ row.placement_id }}</span>
+              </div>
             </template>
           </el-table-column>
           <el-table-column prop="app_name" label="所属应用" min-width="120">
@@ -300,7 +295,7 @@ import { ElMessage, ElMessageBox } from 'element-plus';
 import type { FormInstance, FormRules } from 'element-plus';
 import dayjs from 'dayjs';
 import { useUserStore } from '../../stores/user';
-import { Plus, Search, RefreshLeft, Edit, InfoFilled, Monitor, Picture, VideoCamera, Close, Check } from '@element-plus/icons-vue';
+import { Plus, Search, RefreshLeft, Edit, InfoFilled, Monitor, Picture, VideoCamera, Close, Check, Key } from '@element-plus/icons-vue';
 
 const userStore = useUserStore();
 
