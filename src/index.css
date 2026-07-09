@@ -5847,15 +5847,14 @@ html, body, #app {
 }
 
 .pd-format-grid {
-  display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  display: flex;
+  flex-wrap: wrap;
   gap: 6px;
   width: 100%;
 }
 .pd-format-grid :deep(.el-radio-button) { margin-right: 0 !important; }
 .pd-format-grid :deep(.el-radio-button__inner) {
-  width: 100%;
-  padding: 6px 8px;
+  padding: 6px 14px;
   font-size: 12px;
 }
 
