@@ -366,7 +366,7 @@ onMounted(() => {
     <el-dialog v-model="importDialogVisible" title="导入对账数据" width="560px">
       <el-form label-position="top">
         <div class="dialog-section">
-          <div class="dialog-section-title">网络与文件</div>
+          <div class="dialog-section-title">平台与文件</div>
           <div class="dialog-form-row dialog-form-row--full">
             <el-form-item label="广告平台">
               <el-input v-model="importForm.networkCode" placeholder="选填，CSV 中无 network_code 列时使用" />

@@ -17,7 +17,7 @@
     <div class="page-filter">
       <el-form :inline="true" :model="filter" class="page-filter-form" @submit.prevent>
         <el-form-item label="广告平台">
-          <el-select v-model="filter.networkCode" placeholder="全部网络" clearable @change="onSearch">
+          <el-select v-model="filter.networkCode" placeholder="全部平台" clearable @change="onSearch">
             <el-option v-for="n in networks" :key="n.network_code" :label="n.network_name" :value="n.network_code" />
           </el-select>
         </el-form-item>
@@ -190,7 +190,7 @@
               </el-icon>
               <span>创建自定义广告源</span>
             </h1>
-            <p class="page-form-header-subtitle">绑定已通过审核的自定义 Adapter 网络</p>
+            <p class="page-form-header-subtitle">绑定已通过审核的自定义 Adapter 平台</p>
           </div>
           <div class="page-form-header-actions">
             <el-button :icon="RefreshLeft" @click="onCustomFormReset">重置</el-button>

@@ -22,10 +22,10 @@
 
         <!-- Preset Networks -->
         <div class="page-card"><div class="page-table-wrap">
-          <div class="page-card-header"><div class="page-card-title">预置网络（系统内置）</div></div>
+          <div class="page-card-header"><div class="page-card-title">预置平台（系统内置）</div></div>
           <el-table :data="presetNetworks" stripe style="width: 100%; margin-top: 12px">
-            <el-table-column prop="network_code" label="网络代码" width="120" />
-            <el-table-column prop="network_name" label="网络名称" min-width="140" />
+            <el-table-column prop="network_code" label="平台代码" width="120" />
+            <el-table-column prop="network_name" label="平台名称" min-width="140" />
             <el-table-column prop="supports_bidding" label="支持Bidding" width="120">
               <template #default="{ row }">{{ row.supports_bidding ? '是' : '否' }}</template>
             </el-table-column>
@@ -38,8 +38,8 @@
         <div class="page-card"><div class="page-table-wrap">
           <div class="page-card-header"><div class="page-card-title">自定义广告平台</div></div>
           <el-table :data="customNetworks" v-loading="loading" stripe style="width: 100%; margin-top: 12px">
-            <el-table-column prop="network_code" label="网络代码" width="160" />
-            <el-table-column prop="network_name" label="网络名称" min-width="140" />
+            <el-table-column prop="network_code" label="平台代码" width="160" />
+            <el-table-column prop="network_name" label="平台名称" min-width="140" />
             <el-table-column prop="supports_bidding" label="支持Bidding" width="120">
               <template #default="{ row }">{{ row.supports_bidding ? '是' : '否' }}</template>
             </el-table-column>
@@ -115,15 +115,15 @@
                   <span>基础信息</span>
                 </h2>
               </div>
-              <p class="page-form-section-desc">网络名称和唯一代码（CUSTOM_ 前缀自动补全）</p>
+              <p class="page-form-section-desc">平台名称和唯一代码（CUSTOM_ 前缀自动补全）</p>
 
               <div class="page-form-grid">
-                <el-form-item label="网络名称" prop="network_name" class="span-2">
-                  <template #label><span class="required-mark">*</span><span>网络名称</span></template>
+                <el-form-item label="平台名称" prop="network_name" class="span-2">
+                  <template #label><span class="required-mark">*</span><span>平台名称</span></template>
                   <el-input v-model="editForm.network_name" placeholder="如 MyAdNetwork" />
                 </el-form-item>
-                <el-form-item label="网络代码" prop="network_code" class="span-2">
-                  <template #label><span class="required-mark">*</span><span>网络代码</span></template>
+                <el-form-item label="平台代码" prop="network_code" class="span-2">
+                  <template #label><span class="required-mark">*</span><span>平台代码</span></template>
                   <el-input v-model="editForm.network_code" placeholder="如 CUSTOM_MYAD (大写+下划线)" :disabled="!!editForm.id" />
                   <div class="form-help">创建后不可修改，全局唯一，建议大写 + 下划线</div>
                 </el-form-item>
@@ -176,7 +176,7 @@
               <div class="page-form-grid">
                 <el-form-item label="支持 Bidding" class="span-2">
                   <el-switch v-model="editForm.supports_bidding" />
-                  <div class="form-help">开启后此网络会参与竞价排序，否则只按瀑布流优先级出价</div>
+                  <div class="form-help">开启后此平台会参与竞价排序，否则只按瀑布流优先级出价</div>
                 </el-form-item>
               </div>
             </section>
@@ -358,7 +358,7 @@
               <span>应用关联</span>
               <el-tag type="info" effect="light" size="small">{{ bindingDialog.networkName }}</el-tag>
             </h1>
-            <p class="page-form-header-subtitle">为不同应用配置独立的网络凭证和 Adapter 版本</p>
+            <p class="page-form-header-subtitle">为不同应用配置独立的平台凭证和 Adapter 版本</p>
           </div>
           <div class="page-form-header-actions">
             <el-button type="primary" :icon="Plus" @click="openBinding">新增关联</el-button>
@@ -369,7 +369,7 @@
         <div class="page-form-body">
           <el-table :data="bindingDialog.bindings" v-loading="bindingDialog.loading" stripe>
             <el-table-column prop="app_key" label="应用" min-width="160" />
-            <el-table-column prop="network_app_id" label="网络 AppId" min-width="160" />
+            <el-table-column prop="network_app_id" label="平台 AppId" min-width="160" />
             <el-table-column prop="adapter_version_id" label="Adapter 版本" width="140">
               <template #default="{ row }">
                 <span v-if="row.adapter_version_id">v{{ findAdapterVersion(row.adapter_version_id) }}</span>
@@ -410,7 +410,7 @@
               <span>新增应用关联</span>
               <el-tag type="info" effect="light" size="small">{{ bindingDialog.networkName }}</el-tag>
             </h1>
-            <p class="page-form-header-subtitle">为该网络选择应用、配置 AppId 和 Adapter 版本</p>
+            <p class="page-form-header-subtitle">为该平台选择应用、配置 AppId 和 Adapter 版本</p>
           </div>
           <div class="page-form-header-actions">
             <el-button :icon="RefreshLeft" @click="onBindingReset">重置</el-button>
@@ -436,9 +436,9 @@
                     <el-option v-for="app in appList" :key="app.app_key" :label="`${app.app_name} (${app.app_key})`" :value="app.app_key" />
                   </el-select>
                 </el-form-item>
-                <el-form-item label="网络 AppId" class="span-2" required>
-                  <template #label><span class="required-mark">*</span><span>网络 AppId</span></template>
-                  <el-input v-model="newBindingDialog.form.network_app_id" placeholder="该网络为此应用分配的 AppId" />
+                <el-form-item label="平台 AppId" class="span-2" required>
+                  <template #label><span class="required-mark">*</span><span>平台 AppId</span></template>
+                  <el-input v-model="newBindingDialog.form.network_app_id" placeholder="该平台为此应用分配的 AppId" />
                 </el-form-item>
               </div>
             </section>
@@ -514,8 +514,8 @@ const defaultForm = {
 const editForm = reactive({ ...defaultForm });
 
 const formRules: FormRules = {
-  network_name: [{ required: true, message: '请输入网络名称', trigger: 'blur' }],
-  network_code: [{ required: true, message: '请输入网络代码', trigger: 'blur' }],
+  network_name: [{ required: true, message: '请输入平台名称', trigger: 'blur' }],
+  network_code: [{ required: true, message: '请输入平台代码', trigger: 'blur' }],
 };
 
 const fetchList = async () => {
@@ -703,7 +703,7 @@ const openBinding = async () => {
 const submitBinding = async () => {
   const f = newBindingDialog.form;
   if (!f.app_key || !f.network_app_id) {
-    ElMessage.warning('请选择应用并填写网络AppId');
+    ElMessage.warning('请选择应用并填写平台AppId');
     return;
   }
   try {
@@ -724,7 +724,7 @@ const submitBinding = async () => {
 };
 
 const unbindNetwork = async (row: any) => {
-  await ElMessageBox.confirm(`确定解除 "${row.app_key}" 与此网络的关联吗？`, '警告', { type: 'error' });
+  await ElMessageBox.confirm(`确定解除 "${row.app_key}" 与此平台的关联吗？`, '警告', { type: 'error' });
   try {
     await request.post('/api/v1/console/network/app/unbind', {
       appKey: row.app_key,

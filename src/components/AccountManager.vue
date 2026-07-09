@@ -40,7 +40,7 @@
       </el-table-column>
       <el-table-column label="广告平台" min-width="140">
         <template #default="{ row }">
-          <span class="account-net">{{ row.network_name || `网络 #${row.network_def_id}` }}</span>
+          <span class="account-net">{{ row.network_name || `平台 #${row.network_def_id}` }}</span>
         </template>
       </el-table-column>
       <el-table-column label="账号 ID" min-width="160" prop="account_id" show-overflow-tooltip />
