@@ -47,33 +47,6 @@
           <span class="stat-card__currency">¥</span>
           <span class="stat-card__value">{{ card.revenueDisplay }}</span>
         </div>
-
-        <div v-if="card.trend != null && card.compareWith" class="stat-card__trend">
-          <span :class="['trend-arrow', card.trend > 0 ? 'up' : card.trend < 0 ? 'down' : 'flat']">
-            <el-icon v-if="card.trend > 0"><CaretTop /></el-icon>
-            <el-icon v-else-if="card.trend < 0"><CaretBottom /></el-icon>
-            <span v-else>·</span>
-          </span>
-          <span :class="['trend-text', card.trend > 0 ? 'up' : card.trend < 0 ? 'down' : 'flat']">
-            {{ Math.abs(card.trend).toFixed(1) }}%
-          </span>
-          <span class="stat-card__compare">{{ card.compareWith }}</span>
-        </div>
-
-        <div class="stat-card__sub">
-          <div class="stat-card__sub-item">
-            <span class="stat-card__sub-label">展示</span>
-            <span class="stat-card__sub-value">{{ card.impressionsDisplay }}</span>
-          </div>
-          <div class="stat-card__sub-item">
-            <span class="stat-card__sub-label">DAU</span>
-            <span class="stat-card__sub-value">{{ card.dauDisplay }}</span>
-          </div>
-          <div class="stat-card__sub-item">
-            <span class="stat-card__sub-label">预估</span>
-            <span class="stat-card__sub-value">¥{{ card.estimatedDisplay }}</span>
-          </div>
-        </div>
       </div>
     </div>
 
@@ -187,8 +160,8 @@ import {
 import VChart from 'vue-echarts'
 import {
   DataAnalysis,
-  CaretTop,
-  CaretBottom,
+  ArrowUp,
+  ArrowDown,
   Refresh,
   Calendar,
   Trophy,
@@ -396,10 +369,7 @@ async function loadOverview() {
   try {
     const res = await request.get<unknown>('/api/v1/console/dashboard/overview')
     const inner = (res as { data?: unknown })?.data
-    const stats: Array<{
-      key: string; label: string; period: string; compareWith: string; trend: number
-      values: { revenue: number; impressions: number; dau: number; estimatedRevenue: number }
-    }> = Array.isArray(inner)
+    const stats: Array<{ key: string; label: string; period: string; revenue: number }> = Array.isArray(inner)
       ? (inner as never)
       : (inner && typeof inner === 'object' && Array.isArray((inner as { stats?: unknown[] }).stats))
         ? ((inner as { stats: never[] }).stats)
@@ -408,12 +378,7 @@ async function loadOverview() {
       key: s.key,
       label: s.label,
       period: s.period,
-      compareWith: s.compareWith,
-      revenueDisplay: formatNumber(s.values.revenue, 'revenue'),
-      impressionsDisplay: formatNumber(s.values.impressions, 'impressions'),
-      dauDisplay: formatNumber(s.values.dau, 'dau'),
-      estimatedDisplay: formatNumber(s.values.estimatedRevenue, 'estimatedRevenue'),
-      trend: s.trend,
+      revenueDisplay: formatNumber(s.revenue, 'revenue'),
     }))
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : '加载收入详情失败'

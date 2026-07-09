@@ -83,12 +83,6 @@ async function aggregateRange(
   };
 }
 
-/** 计算环比 %：prev=0 时返回 0 */
-function pct(cur: number, prev: number): number {
-  if (prev <= 0) return 0;
-  return Number((((cur - prev) / prev) * 100).toFixed(2));
-}
-
 /** metric → report_daily 列名映射 + 估算公式
  * - revenue / impressions : 真实列
  * - estimatedRevenue : revenue × 1.0
@@ -171,43 +165,31 @@ router.get('/overview', authMiddleware, async (req: express.Request, res: expres
       aggregateRange(developerId, lastMonthStart, lastMonthEnd),
     ]);
 
-    // 4 个 stat-card：每个含 revenue/impressions/estimatedRevenue/dau + 对比基准
+    // 4 个 stat-card：每个只含 revenue + 期间
     const stats = [
       {
         key: 'yesterday',
         label: '昨天',
         period: yesterdayStr,
-        compareWith: '较前天',
-        compareDate: dayBeforeStr,
-        values: yesterday,
-        trend: pct(yesterday.revenue, dayBefore.revenue),
+        revenue: yesterday.revenue,
       },
       {
         key: 'dayBefore',
         label: '前天',
         period: dayBeforeStr,
-        compareWith: '',
-        compareDate: '',
-        values: dayBefore,
-        trend: 0,
+        revenue: dayBefore.revenue,
       },
       {
         key: 'thisMonth',
         label: '本月',
         period: `${thisMonthStart} 至 ${todayStr}`,
-        compareWith: '较上月',
-        compareDate: '',
-        values: thisMonth,
-        trend: pct(thisMonth.revenue, lastMonth.revenue),
+        revenue: thisMonth.revenue,
       },
       {
         key: 'lastMonth',
         label: '上月',
         period: `${lastMonthStart} 至 ${lastMonthEnd}`,
-        compareWith: '',
-        compareDate: '',
-        values: lastMonth,
-        trend: 0,
+        revenue: lastMonth.revenue,
       },
     ];
 

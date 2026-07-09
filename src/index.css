@@ -3755,32 +3755,8 @@ html, body, #app {
   .stat-grid { grid-template-columns: 1fr; }
 }
 
-/* ---------- Stat Card 内部结构（基于 DESIGN.md Stat Card 规范扩展） ---------- */
-.stat-card__trend {
-  display: inline-flex;
-  align-items: center;
-  gap: 2px;
-  margin-top: var(--space-sm);
-  font-size: var(--text-sm);
-  font-weight: 500;
-  font-variant-numeric: tabular-nums;
-}
-.trend-arrow.up   { color: #059669; font-weight: 700; }
-.trend-arrow.down { color: #DC2626; font-weight: 700; }
-.trend-arrow.flat { color: var(--color-slate-400); font-weight: 700; }
-.trend-text.up    { color: #059669; }
-.trend-text.down  { color: #DC2626; }
-.trend-text.flat  { color: var(--color-slate-400); }
-/* 对比基准文案：trend 数字后说明百分比是与哪个时间点对比的（如"较昨日"） */
-.stat-card__compare {
-  margin-left: 4px;
-  font-size: 11px;
-  font-weight: 500;
-  color: #94A3B8;
-  letter-spacing: 0;
-}
-
 /* ---------- Chart Card（趋势图，直接用 .page-card 容器） ---------- */
+
 .page-chart-card {
   /* 卡片整体内边距，避免 ECharts / 标题贴卡片边（数据看板硬规范） */
   padding: 20px 24px;
@@ -4629,10 +4605,10 @@ html, body, #app {
   background: #FFFFFF;
   border-radius: var(--radius-lg);
   border: 1px solid var(--color-slate-200);
-  padding: 18px 20px;
+  padding: 20px 22px 24px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
   position: relative;
   overflow: hidden;
   transition: all 150ms ease;
@@ -4681,39 +4657,12 @@ html, body, #app {
   color: var(--color-slate-500, #64748B);
 }
 .stat-card--income .stat-card__value {
-  font-size: 28px;
+  font-size: 32px;
   font-weight: 700;
   color: var(--color-slate-900, #0F172A);
   letter-spacing: -0.02em;
   font-variant-numeric: tabular-nums;
   line-height: 1.1;
-}
-.stat-card--income .stat-card__sub {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 8px;
-  margin-top: 6px;
-  padding-top: 10px;
-  border-top: 1px solid var(--color-slate-100, #F1F5F9);
-}
-.stat-card--income .stat-card__sub-item {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-}
-.stat-card--income .stat-card__sub-label {
-  font-size: 11px;
-  color: var(--color-slate-400, #94A3B8);
-}
-.stat-card--income .stat-card__sub-value {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--color-slate-700, #334155);
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 /* ---------- 中：数据趋势（page-section） ---------- */
