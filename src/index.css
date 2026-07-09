@@ -4744,6 +4744,163 @@ html, body, #app {
 .filter-date {
   position: relative;
 }
+
+/* ==========================================================================
+   日期选择器 · 固定周期快捷按钮（今天/昨天/过去7天...）
+   容器：.el-picker-panel__sidebar
+   按钮：.el-picker-panel__shortcut
+   通过 nth-child 给不同按钮配不同 SVG 图标
+   ========================================================================== */
+.el-picker-panel__sidebar {
+  padding: 12px 10px !important;
+  background: linear-gradient(180deg, #F8FAFC 0%, #F1F5F9 100%) !important;
+  border-right: 1px solid #E2E8F0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 4px !important;
+  min-width: 132px !important;
+}
+
+.el-picker-panel__shortcut {
+  position: relative !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  padding: 8px 10px 8px 34px !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  color: #334155 !important;
+  background: #ffffff !important;
+  border: 1px solid #E2E8F0 !important;
+  border-radius: 8px !important;
+  cursor: pointer !important;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  text-align: left !important;
+  white-space: nowrap !important;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04) !important;
+}
+
+.el-picker-panel__shortcut::before {
+  content: '';
+  position: absolute;
+  left: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 18px;
+  height: 18px;
+  background-color: #94A3B8;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  mask-position: center;
+  -webkit-mask-size: 16px 16px;
+  mask-size: 16px 16px;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* 今天：太阳 */
+.el-picker-panel__shortcut:nth-child(1)::before {
+  -webkit-mask-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1024 1024'><path fill='black' d='M512 320a192 192 0 1 0 0 384 192 192 0 0 0 0-384m0-64a256 256 0 1 1 0 512 256 256 0 0 1 0-512m0-192a32 32 0 0 1 32 32v96a32 32 0 0 1-64 0V96a32 32 0 0 1 32-32m0 768a32 32 0 0 1 32 32v96a32 32 0 0 1-64 0v-96a32 32 0 0 1 32-32m96-768h96a32 32 0 0 1 0 64h-96a32 32 0 0 1 0-64M320 896H224a32 32 0 0 1 0-64h96a32 32 0 0 1 0 64m512 0h-96a32 32 0 0 1 0-64h96a32 32 0 0 1 0 64M64 320h96a32 32 0 0 1 0 64H64a32 32 0 0 1 0-64m32 192a32 32 0 0 1-32 32H64v-64a32 32 0 0 1 64 0zm0-192a32 32 0 0 1-32-32V192h32a32 32 0 0 1 0 64m864 192a32 32 0 0 1 32 32v32h-32a32 32 0 0 1 0-64m0-192a32 32 0 0 1 32 32v96a32 32 0 0 1-64 0v-96a32 32 0 0 1 32-32M224 224a32 32 0 0 1-45.312 0L128 173.312 173.312 128l50.688 50.688a32 32 0 0 1 0 45.312m640 640a32 32 0 0 1-45.312 0L768 813.312 813.312 768l50.688 50.688a32 32 0 0 1 0 45.312M224 864a32 32 0 0 1 0-45.312l50.688-50.688L325.312 768 224 869.312zm640-640a32 32 0 0 1 0 45.312l-50.688 50.688L768 173.312 864 77.312z'/></svg>");
+  mask-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1024 1024'><path fill='black' d='M512 320a192 192 0 1 0 0 384 192 192 0 0 0 0-384m0-64a256 256 0 1 1 0 512 256 256 0 0 1 0-512m0-192a32 32 0 0 1 32 32v96a32 32 0 0 1-64 0V96a32 32 0 0 1 32-32m0 768a32 32 0 0 1 32 32v96a32 32 0 0 1-64 0v-96a32 32 0 0 1 32-32m96-768h96a32 32 0 0 1 0 64h-96a32 32 0 0 1 0-64M320 896H224a32 32 0 0 1 0-64h96a32 32 0 0 1 0 64m512 0h-96a32 32 0 0 1 0-64h96a32 32 0 0 1 0 64M64 320h96a32 32 0 0 1 0 64H64a32 32 0 0 1 0-64m32 192a32 32 0 0 1-32 32H64v-64a32 32 0 0 1 64 0zm0-192a32 32 0 0 1-32-32V192h32a32 32 0 0 1 0 64m864 192a32 32 0 0 1 32 32v32h-32a32 32 0 0 1 0-64m0-192a32 32 0 0 1 32 32v96a32 32 0 0 1-64 0v-96a32 32 0 0 1 32-32M224 224a32 32 0 0 1-45.312 0L128 173.312 173.312 128l50.688 50.688a32 32 0 0 1 0 45.312m640 640a32 32 0 0 1-45.312 0L768 813.312 813.312 768l50.688 50.688a32 32 0 0 1 0 45.312M224 864a32 32 0 0 1 0-45.312l50.688-50.688L325.312 768 224 869.312zm640-640a32 32 0 0 1 0 45.312l-50.688 50.688L768 173.312 864 77.312z'/></svg>");
+}
+
+/* 昨天：月亮 */
+.el-picker-panel__shortcut:nth-child(2)::before {
+  -webkit-mask-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1024 1024'><path fill='black' d='M611.328 92.992c-7.36 12.672-15.04 25.024-23.04 37.024-49.344 73.984-90.624 161.984-103.296 268.992C467.328 605.312 540.992 768 705.984 768c83.328 0 159.04-31.328 216.32-82.688C887.328 869.024 716.992 992 512 992 264.576 992 64 791.424 64 544S264.576 96 512 96c34.688 0 68.32 4.032 100.992 11.008zM224 480a32 32 0 0 1 32 32 256 256 0 0 0 256 256 32 32 0 0 1 0 64 320 320 0 0 1-320-320 32 32 0 0 1 32-32'/></svg>");
+  mask-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1024 1024'><path fill='black' d='M611.328 92.992c-7.36 12.672-15.04 25.024-23.04 37.024-49.344 73.984-90.624 161.984-103.296 268.992C467.328 605.312 540.992 768 705.984 768c83.328 0 159.04-31.328 216.32-82.688C887.328 869.024 716.992 992 512 992 264.576 992 64 791.424 64 544S264.576 96 512 96c34.688 0 68.32 4.032 100.992 11.008zM224 480a32 32 0 0 1 32 32 256 256 0 0 0 256 256 32 32 0 0 1 0 64 320 320 0 0 1-320-320 32 32 0 0 1 32-32'/></svg>");
+}
+
+/* 过去 7 天：日历+7 */
+.el-picker-panel__shortcut:nth-child(3)::before {
+  -webkit-mask-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1024 1024'><path fill='black' d='M128 224v64a32 32 0 0 1-64 0V224a64 64 0 0 1 64-64h128v-32a32 32 0 0 1 64 0v32h256v-32a32 32 0 0 1 64 0v32h128a64 64 0 0 1 64 64v64a32 32 0 0 1-64 0v-32H128v32zM128 320h768v576a64 64 0 0 1-64 64H192a64 64 0 0 1-64-64zm448 224H448a32 32 0 0 0 0 64h128a32 32 0 0 0 0-64'/></svg>");
+  mask-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1024 1024'><path fill='black' d='M128 224v64a32 32 0 0 1-64 0V224a64 64 0 0 1 64-64h128v-32a32 32 0 0 1 64 0v32h256v-32a32 32 0 0 1 64 0v32h128a64 64 0 0 1 64 64v64a32 32 0 0 1-64 0v-32H128v32zM128 320h768v576a64 64 0 0 1-64 64H192a64 64 0 0 1-64-64zm448 224H448a32 32 0 0 0 0 64h128a32 32 0 0 0 0-64'/></svg>");
+}
+
+/* 过去 14 天：日历+14 */
+.el-picker-panel__shortcut:nth-child(4)::before {
+  -webkit-mask-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1024 1024'><path fill='black' d='M128 224v64a32 32 0 0 1-64 0V224a64 64 0 0 1 64-64h128v-32a32 32 0 0 1 64 0v32h256v-32a32 32 0 0 1 64 0v32h128a64 64 0 0 1 64 64v64a32 32 0 0 1-64 0v-32H128v32zM128 320h768v576a64 64 0 0 1-64 64H192a64 64 0 0 1-64-64zm128 160a32 32 0 0 0 0 64h64a32 32 0 0 0 0-64zm192 0a32 32 0 0 0 0 64h64a32 32 0 0 0 0-64zm192 0a32 32 0 0 0 0 64h64a32 32 0 0 0 0-64zm-384 192a32 32 0 0 0 0 64h64a32 32 0 0 0 0-64zm192 0a32 32 0 0 0 0 64h64a32 32 0 0 0 0-64zm192 0a32 32 0 0 0 0 64h64a32 32 0 0 0 0-64z'/></svg>");
+  mask-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1024 1024'><path fill='black' d='M128 224v64a32 32 0 0 1-64 0V224a64 64 0 0 1 64-64h128v-32a32 32 0 0 1 64 0v32h256v-32a32 32 0 0 1 64 0v32h128a64 64 0 0 1 64 64v64a32 32 0 0 1-64 0v-32H128v32zM128 320h768v576a64 64 0 0 1-64 64H192a64 64 0 0 1-64-64zm128 160a32 32 0 0 0 0 64h64a32 32 0 0 0 0-64zm192 0a32 32 0 0 0 0 64h64a32 32 0 0 0 0-64zm192 0a32 32 0 0 0 0 64h64a32 32 0 0 0 0-64zm-384 192a32 32 0 0 0 0 64h64a32 32 0 0 0 0-64zm192 0a32 32 0 0 0 0 64h64a32 32 0 0 0 0-64zm192 0a32 32 0 0 0 0 64h64a32 32 0 0 0 0-64z'/></svg>");
+}
+
+/* 过去 30 天：日历+30 */
+.el-picker-panel__shortcut:nth-child(5)::before {
+  -webkit-mask-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1024 1024'><path fill='black' d='M128 224v64a32 32 0 0 1-64 0V224a64 64 0 0 1 64-64h128v-32a32 32 0 0 1 64 0v32h256v-32a32 32 0 0 1 64 0v32h128a64 64 0 0 1 64 64v64a32 32 0 0 1-64 0v-32H128v32zM128 320h768v576a64 64 0 0 1-64 64H192a64 64 0 0 1-64-64zm160 144a32 32 0 0 0 0 64h64a32 32 0 0 0 0-64zm160 0a32 32 0 0 0 0 64h64a32 32 0 0 0 0-64zm192 0a32 32 0 0 0 0 64h64a32 32 0 0 0 0-64zm-352 192a32 32 0 0 0 0 64h64a32 32 0 0 0 0-64zm192 0a32 32 0 0 0 0 64h64a32 32 0 0 0 0-64zm160 0a32 32 0 0 0 0 64h64a32 32 0 0 0 0-64zM288 864a32 32 0 0 0 0 64h64a32 32 0 0 0 0-64zm160 0a32 32 0 0 0 0 64h64a32 32 0 0 0 0-64zm192 0a32 32 0 0 0 0 64h64a32 32 0 0 0 0-64z'/></svg>");
+  mask-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1024 1024'><path fill='black' d='M128 224v64a32 32 0 0 1-64 0V224a64 64 0 0 1 64-64h128v-32a32 32 0 0 1 64 0v32h256v-32a32 32 0 0 1 64 0v32h128a64 64 0 0 1 64 64v64a32 32 0 0 1-64 0v-32H128v32zM128 320h768v576a64 64 0 0 1-64 64H192a64 64 0 0 1-64-64zm160 144a32 32 0 0 0 0 64h64a32 32 0 0 0 0-64zm160 0a32 32 0 0 0 0 64h64a32 32 0 0 0 0-64zm192 0a32 32 0 0 0 0 64h64a32 32 0 0 0 0-64zm-352 192a32 32 0 0 0 0 64h64a32 32 0 0 0 0-64zm192 0a32 32 0 0 0 0 64h64a32 32 0 0 0 0-64zm160 0a32 32 0 0 0 0 64h64a32 32 0 0 0 0-64zM288 864a32 32 0 0 0 0 64h64a32 32 0 0 0 0-64zm160 0a32 32 0 0 0 0 64h64a32 32 0 0 0 0-64zm192 0a32 32 0 0 0 0 64h64a32 32 0 0 0 0-64z'/></svg>");
+}
+
+/* 自定义：齿轮 */
+.el-picker-panel__shortcut:nth-child(6)::before {
+  -webkit-mask-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1024 1024'><path fill='black' d='M513.024 192c-16.384 0-32.768.256-49.408.768l-29.696 59.392-66.048 6.656-46.592-46.08a514.048 514.048 0 0 0-85.504 49.408l16.128 67.328-50.304 50.432-67.328-16.128a514.048 514.048 0 0 0-49.408 85.504l46.08 46.592-6.656 66.048-59.392 29.696C6.4 615.04 0 631.68 0 648.96c0 16.384.256 32.768.768 49.408l59.392 29.696 6.656 66.048-46.08 46.592a514.048 514.048 0 0 0 49.408 85.504l67.328-16.128 50.432 50.304-16.128 67.328a514.048 514.048 0 0 0 85.504 49.408l46.592-46.08 66.048 6.656 29.696 59.392c16.64.512 33.024.768 49.408.768 16.384 0 32.768-.256 49.408-.768l29.696-59.392 66.048-6.656 46.592 46.08a514.048 514.048 0 0 0 85.504-49.408l-16.128-67.328 50.304-50.432 67.328 16.128a514.048 514.048 0 0 0 49.408-85.504l-46.08-46.592 6.656-66.048 59.392-29.696c.512-16.64.768-33.024.768-49.408 0-16.384-.256-32.768-.768-49.408l-59.392-29.696-6.656-66.048 46.08-46.592a514.048 514.048 0 0 0-49.408-85.504l-67.328 16.128-50.432-50.304 16.128-67.328a514.048 514.048 0 0 0-85.504-49.408l-46.592 46.08-66.048-6.656L562.432 192.768C545.792 192.256 529.408 192 513.024 192M256 640a128 128 0 1 1 256 0 128 128 0 0 1-256 0'/></svg>");
+  mask-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1024 1024'><path fill='black' d='M513.024 192c-16.384 0-32.768.256-49.408.768l-29.696 59.392-66.048 6.656-46.592-46.08a514.048 514.048 0 0 0-85.504 49.408l16.128 67.328-50.304 50.432-67.328-16.128a514.048 514.048 0 0 0-49.408 85.504l46.08 46.592-6.656 66.048-59.392 29.696C6.4 615.04 0 631.68 0 648.96c0 16.384.256 32.768.768 49.408l59.392 29.696 6.656 66.048-46.08 46.592a514.048 514.048 0 0 0 49.408 85.504l67.328-16.128 50.432 50.304-16.128 67.328a514.048 514.048 0 0 0 85.504 49.408l46.592-46.08 66.048 6.656 29.696 59.392c16.64.512 33.024.768 49.408.768 16.384 0 32.768-.256 49.408-.768l29.696-59.392 66.048-6.656 46.592 46.08a514.048 514.048 0 0 0 85.504-49.408l-16.128-67.328 50.304-50.432 67.328 16.128a514.048 514.048 0 0 0 49.408-85.504l-46.08-46.592 6.656-66.048 59.392-29.696c.512-16.64.768-33.024.768-49.408 0-16.384-.256-32.768-.768-49.408l-59.392-29.696-6.656-66.048 46.08-46.592a514.048 514.048 0 0 0-49.408-85.504l-67.328 16.128-50.432-50.304 16.128-67.328a514.048 514.048 0 0 0-85.504-49.408l-46.592 46.08-66.048-6.656L562.432 192.768C545.792 192.256 529.408 192 513.024 192M256 640a128 128 0 1 1 256 0 128 128 0 0 1-256 0'/></svg>");
+}
+
+/* 7/14/30 的数字角标 */
+.el-picker-panel__shortcut:nth-child(3)::after,
+.el-picker-panel__shortcut:nth-child(4)::after,
+.el-picker-panel__shortcut:nth-child(5)::after {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  min-width: 18px;
+  height: 16px;
+  padding: 0 4px;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 16px;
+  text-align: center;
+  color: #94A3B8;
+  background: #F1F5F9;
+  border-radius: 8px;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  letter-spacing: -0.5px;
+}
+
+.el-picker-panel__shortcut:nth-child(3)::after { content: '7'; }
+.el-picker-panel__shortcut:nth-child(4)::after { content: '14'; }
+.el-picker-panel__shortcut:nth-child(5)::after { content: '30'; }
+
+.el-picker-panel__shortcut:hover::after {
+  color: #2563EB;
+  background: #ffffff;
+  box-shadow: 0 1px 2px rgba(37, 99, 235, 0.15);
+}
+
+.el-picker-panel__shortcut:active::after,
+.el-picker-panel__shortcut:focus::after {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.2);
+}
+
+/* hover 状态 */
+.el-picker-panel__shortcut:hover {
+  background: linear-gradient(135deg, #EFF6FF 0%, #DBEAFE 100%) !important;
+  border-color: #93C5FD !important;
+  color: #1E40AF !important;
+  transform: translateX(2px) !important;
+  box-shadow: 0 2px 6px rgba(37, 99, 235, 0.10) !important;
+}
+
+.el-picker-panel__shortcut:hover::before {
+  background-color: #2563EB !important;
+}
+
+/* active/selected 状态（Element Plus 用 :focus 或 :active 标记） */
+.el-picker-panel__shortcut:active,
+.el-picker-panel__shortcut:focus,
+.el-picker-panel__shortcut.is-active {
+  background: linear-gradient(135deg, #2563EB 0%, #1E40AF 100%) !important;
+  border-color: #1E40AF !important;
+  color: #ffffff !important;
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25) !important;
+}
+
+.el-picker-panel__shortcut:active::before,
+.el-picker-panel__shortcut:focus::before,
+.el-picker-panel__shortcut.is-active::before {
+  background-color: #ffffff !important;
+}
+
 .page-section__foot {
   display: flex;
   align-items: center;
