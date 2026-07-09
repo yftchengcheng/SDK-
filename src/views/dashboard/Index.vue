@@ -331,6 +331,9 @@ const rangeLabel = computed(() => {
   const end = dayjs(r[1])
   if (!start.isValid() || !end.isValid()) return '—'
   const days = end.diff(start, 'day') + 1
+  if (days === 1) {
+    return `${r[0]} · 按小时`
+  }
   return `${r[0]} 至 ${r[1]} · 共 ${days} 天`
 })
 
@@ -403,9 +406,14 @@ async function loadTrend() {
     const res = await request.get<{ code: number; data: {
       dimension: string
       metric: string
-      points?: Array<{ date: string; value: number }>
+      granularity?: 'day' | 'hour'
+      startDate?: string
+      endDate?: string
+      points?: Array<{ date: string; hour?: number; value: number }>
       dates?: string[]
+      hours?: number[]
       series?: Array<{ name: string; data: number[] }>
+      xAxis?: Array<string | number>
     } }>('/api/v1/console/dashboard/trend', { params })
 
     const d = res.data
@@ -417,20 +425,38 @@ async function loadTrend() {
     const metric = d.metric
     const isRevenue = metric === 'revenue' || metric === 'estimatedRevenue'
     const yFormatter = isRevenue ? '¥{value}' : '{value}'
+    const isHourly = d.granularity === 'hour'
+
+    // x 轴标签
+    const buildXAxisData = (): string[] => {
+      if (d.points) return d.points.map((p) => isHourly ? `${String(p.hour ?? 0).padStart(2, '0')}:00` : p.date)
+      if (d.hours) return d.hours.map((h) => `${String(h).padStart(2, '0')}:00`)
+      if (d.xAxis) return d.xAxis.map((x) => isHourly ? `${String(x).padStart(2, '0')}:00` : String(x))
+      return d.dates || []
+    }
 
     // summary：单 series
     if (d.dimension === 'summary' && d.points) {
+      const xData = buildXAxisData()
       trendOption.value = {
-        grid: { left: 56, right: 24, top: 36, bottom: 36 },
+        grid: { left: 56, right: 24, top: 36, bottom: isHourly ? 40 : 36 },
         tooltip: {
           trigger: 'axis',
-          valueFormatter: (v: unknown) => isRevenue ? `¥${Number(v).toFixed(2)}` : `${Number(v).toLocaleString('en-US')}`,
+          formatter: (params: unknown) => {
+            const arr = Array.isArray(params) ? params : [params]
+            const p = arr[0] as { dataIndex: number }
+            const idx = p.dataIndex
+            const point = d.points![idx]
+            const label = isHourly ? `${point.date} ${String(point.hour ?? 0).padStart(2, '0')}:00` : point.date
+            const v = point.value
+            return `<div style="font-size:12px;color:#475569">${label}</div><div style="font-weight:600;color:#1E293B;margin-top:2px">${isRevenue ? `¥${Number(v).toFixed(2)}` : Number(v).toLocaleString('en-US')}</div>`
+          },
         },
         xAxis: {
           type: 'category',
-          data: d.points.map((p) => p.date),
+          data: xData,
           axisLine: { lineStyle: { color: '#CBD5E1' } },
-          axisLabel: { color: '#64748B', fontSize: 11 },
+          axisLabel: { color: '#64748B', fontSize: 11, interval: isHourly ? 'auto' : 0, rotate: isHourly ? 0 : 0 },
         },
         yAxis: {
           type: 'value',
@@ -451,21 +477,34 @@ async function loadTrend() {
           areaStyle: { color: 'rgba(37, 99, 235, 0.10)' },
         }],
       }
-    } else if (d.dates && d.series) {
-      // 多 series
+    } else if (d.series) {
+      // 多 series（API 返回 xAxis + series，summary 维度无 dates 但 series 字段也不存在）
       const colors = ['#2563EB', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6']
+      const xData = buildXAxisData()
       trendOption.value = {
-        grid: { left: 56, right: 24, top: 50, bottom: 36 },
+        grid: { left: 56, right: 24, top: 50, bottom: isHourly ? 40 : 36 },
         tooltip: {
           trigger: 'axis',
-          valueFormatter: (v: unknown) => isRevenue ? `¥${Number(v).toFixed(2)}` : `${Number(v).toLocaleString('en-US')}`,
+          formatter: (params: unknown) => {
+            const arr = Array.isArray(params) ? params : [params]
+            const p = arr[0] as { dataIndex: number; seriesName: string; value: number }
+            const idx = p.dataIndex
+            const label = isHourly
+              ? `${dateRange.value[0]} ${String(d.xAxis?.[idx] ?? idx).padStart(2, '0')}:00`
+              : String(d.xAxis?.[idx] ?? d.dates?.[idx] ?? '')
+            const lines = arr.map((x) => {
+              const xi = x as { seriesName: string; value: number }
+              return `<div style="display:flex;align-items:center;gap:6px;margin-top:2px"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${colors[arr.indexOf(x) % colors.length] ?? '#2563EB'}"></span><span style="flex:1;color:#475569">${xi.seriesName}</span><span style="font-weight:600;color:#1E293B">${isRevenue ? `¥${Number(xi.value).toFixed(2)}` : Number(xi.value).toLocaleString('en-US')}</span></div>`
+            }).join('')
+            return `<div style="font-size:12px;color:#475569;margin-bottom:4px">${label}</div>${lines}`
+          },
         },
         legend: { top: 6, textStyle: { color: '#475569', fontSize: 12 } },
         xAxis: {
           type: 'category',
-          data: d.dates,
+          data: xData,
           axisLine: { lineStyle: { color: '#CBD5E1' } },
-          axisLabel: { color: '#64748B', fontSize: 11 },
+          axisLabel: { color: '#64748B', fontSize: 11, interval: isHourly ? 'auto' : 0 },
         },
         yAxis: {
           type: 'value',

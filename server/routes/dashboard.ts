@@ -230,11 +230,15 @@ router.get('/trend', authMiddleware, async (req: express.Request, res: express.R
     const start = startDate || fmtDate(shiftDate(today, -6));
     const end = endDate || fmtDate(today);
 
+    // 公共：单日模式（start === end）按小时聚合；多日模式按天聚合
+    const isHourly = start === end;
+    const granularity = isHourly ? 'hour' : 'day';
+
     // summary：单 series
     if (dim === 'summary') {
       const { data, error } = await db
         .from('report_daily')
-        .select(`stat_date, ${metricCol}`)
+        .select(isHourly ? `stat_date, hour, ${metricCol}` : `stat_date, ${metricCol}`)
         .eq('developer_id', developerId)
         .gte('stat_date', start)
         .lte('stat_date', end)
@@ -243,12 +247,21 @@ router.get('/trend', authMiddleware, async (req: express.Request, res: express.R
 
       const map: Record<string, number> = {};
       for (const r of (data || []) as unknown as Array<Record<string, unknown>>) {
-        const d = r.stat_date as string;
-        map[d] = (map[d] || 0) + Number(r[metricCol] || 0);
+        const k = isHourly ? String(r.hour ?? 0) : (r.stat_date as string);
+        map[k] = (map[k] || 0) + Number(r[metricCol] || 0);
       }
+
+      if (isHourly) {
+        const points = Array.from({ length: 24 }, (_, h) => ({
+          hour: h,
+          value: roundMetric(m, rawToMetric(m, map[String(h)] || 0)),
+        }));
+        return success(res, { dimension: dim, metric: m, granularity, mode: 'hourly', points });
+      }
+
       const rows = Object.entries(map).map(([date, v]) => ({ date, value: roundMetric(m, rawToMetric(m, v)) }));
       const filled = fillDateRange(rows, start, end, { value: 0 });
-      return success(res, { dimension: dim, metric: m, points: filled });
+      return success(res, { dimension: dim, metric: m, granularity, mode: granularity === 'hour' ? 'hourly' : 'daily', points: filled });
     }
 
     // 多 series：按 dimension 聚合
@@ -263,7 +276,7 @@ router.get('/trend', authMiddleware, async (req: express.Request, res: express.R
 
     const { data, error } = await db
       .from('report_daily')
-      .select(`stat_date, ${cfg.reportCol}, ${metricCol}`)
+      .select(isHourly ? `stat_date, hour, ${cfg.reportCol}, ${metricCol}` : `stat_date, ${cfg.reportCol}, ${metricCol}`)
       .eq('developer_id', developerId)
       .gte('stat_date', start)
       .lte('stat_date', end)
@@ -284,27 +297,39 @@ router.get('/trend', authMiddleware, async (req: express.Request, res: express.R
     // 2) 批量查表取名称
     const nameMap = await enrichNames(cfg, topEntities);
 
-    // 3) 按 entity + date 聚合
-    const byEntityDate: Record<string, Record<string, number>> = {};
+    // 3) 按 entity + xField 聚合
+    const byEntityX: Record<string, Record<string, number>> = {};
     for (const r of (data || []) as unknown as Array<Record<string, unknown>>) {
       const e = String(r[cfg.reportCol || cfg.idCol] || 'unknown');
       if (!topEntities.includes(e)) continue;
-      const d = r.stat_date as string;
-      if (!byEntityDate[e]) byEntityDate[e] = {};
-      byEntityDate[e][d] = (byEntityDate[e][d] || 0) + Number(r[metricCol] || 0);
+      const k = isHourly ? String(r.hour ?? 0) : (r.stat_date as string);
+      if (!byEntityX[e]) byEntityX[e] = {};
+      byEntityX[e][k] = (byEntityX[e][k] || 0) + Number(r[metricCol] || 0);
     }
 
-    // 4) 每个 entity 一个 series（X 轴按日期补齐）
-    const dates = fillDateRange<{ date: string; value: number }>([], start, end, { value: 0 }).map((p) => p.date);
+    // 4) 每个 entity 一个 series
+    let xAxis: Array<string | number>;
+    if (isHourly) {
+      xAxis = Array.from({ length: 24 }, (_, h) => h);
+    } else {
+      xAxis = fillDateRange<{ date: string; value: number }>([], start, end, { value: 0 }).map((p) => p.date);
+    }
     const series = topEntities.map((e) => {
-      const perDate = byEntityDate[e] || {};
+      const perX = byEntityX[e] || {};
       return {
         name: nameMap[e] || e,
-        data: dates.map((d) => roundMetric(m, rawToMetric(m, perDate[d] || 0))),
+        data: xAxis.map((x) => roundMetric(m, rawToMetric(m, perX[String(x)] || 0))),
       };
     });
 
-    return success(res, { dimension: dim, metric: m, dates, series });
+    return success(res, {
+      dimension: dim,
+      metric: m,
+      granularity,
+      mode: isHourly ? 'hourly' : 'daily',
+      xAxis,
+      series,
+    });
   } catch (err) {
     console.error('Dashboard trend error:', err);
     fail(res, 500, '获取趋势数据失败');
