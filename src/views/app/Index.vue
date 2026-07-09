@@ -114,8 +114,8 @@
             </div>
           </div>
           <div class="app-detail-header-actions">
-            <el-button :icon="Setting" @click="openAppSettings">频次设置</el-button>
-            <el-button :icon="Cpu" @click="openAppSettings">SDK预置策略</el-button>
+            <el-button :icon="Setting" @click="openFrequencyDrawer">频次设置</el-button>
+            <el-button :icon="Cpu" @click="ElMessage.info('SDK 预置策略开发中')">SDK预置策略</el-button>
             <el-button type="primary" :icon="Edit" @click="openEditApp">编辑应用</el-button>
           </div>
         </div>
@@ -194,7 +194,7 @@
               <span class="detail-card-sub">该应用已关联的广告平台与频次</span>
             </h2>
             <div class="detail-card-actions">
-              <el-button :icon="Setting" size="small" @click="openAppSettings">频次设置</el-button>
+              <el-button :icon="Setting" size="small" @click="openFrequencyDrawer">频次设置</el-button>
               <el-button type="primary" :icon="Plus" size="small" @click="goNetwork">关联广告平台</el-button>
             </div>
           </div>
@@ -347,6 +347,12 @@
       :edit-placement="editPlacementPayload"
       @saved="onPlacementSaved"
     />
+
+    <!-- ============ 频次设置 Drawer（Taku SDK v6.4.50+）============ -->
+    <FrequencyDrawer
+      v-model:visible="freqDrawerVisible"
+      :app-key="currentAppKey"
+    />
   </div>
 </template>
 
@@ -365,6 +371,7 @@ import {
 import { useUserStore } from '../../stores/user';
 import AppDrawer from './components/AppDrawer.vue';
 import PlacementDrawer from './components/PlacementDrawer.vue';
+import FrequencyDrawer from './components/FrequencyDrawer.vue';
 
 const router = useRouter();
 const userStore = useUserStore();
@@ -576,7 +583,9 @@ const appDrawerVisible = ref(false);
 const editAppPayload = ref<any>(null);
 const openCreateApp = () => { editAppPayload.value = null; appDrawerVisible.value = true; };
 const openEditApp = () => { editAppPayload.value = currentApp.value; appDrawerVisible.value = true; };
-const openAppSettings = () => ElMessage.info('频次设置 / SDK 预置策略开发中');
+const openAppSettings = () => ElMessage.info('SDK 预置策略开发中');
+const freqDrawerVisible = ref(false);
+const openFrequencyDrawer = () => { freqDrawerVisible.value = true; };
 const onAppSaved = () => { appDrawerVisible.value = false; fetchApps(); };
 
 const placementDrawerVisible = ref(false);

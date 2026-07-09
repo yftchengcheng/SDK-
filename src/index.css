@@ -6023,3 +6023,166 @@ html, body, #app {
   line-height: 1;
   vertical-align: middle;
 }
+
+/* ============================================================
+   Frequency Drawer（频次设置）2026-07
+   位置：右侧 560px 侧边抽屉
+   父：app 详情头部「频次设置」按钮触发
+   ============================================================ */
+.fd-body {
+  padding: 20px 24px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.fd-tips {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px 12px;
+  background: #EFF6FF;
+  border: 1px solid #BFDBFE;
+  border-radius: 6px;
+  color: #1E40AF;
+  font-size: 12px;
+  line-height: 1.6;
+}
+.fd-tips .el-icon {
+  flex-shrink: 0;
+  margin-top: 2px;
+  font-size: 14px;
+}
+
+.fd-module {
+  background: #FFFFFF;
+  border: 1px solid #E2E8F0;
+  border-radius: 8px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.fd-module-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #F1F5F9;
+}
+.fd-module-head-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #1E293B;
+  font-weight: 600;
+  font-size: 14px;
+}
+.fd-module-head-left .el-icon {
+  color: #2563EB;
+  font-size: 16px;
+}
+.fd-module-title {
+  letter-spacing: 0.2px;
+}
+.fd-module-remove-all {
+  font-size: 12px !important;
+}
+
+.fd-rule {
+  background: #F8FAFC;
+  border: 1px solid #E2E8F0;
+  border-radius: 6px;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.fd-rule-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.fd-rule-index {
+  font-size: 12px;
+  font-weight: 600;
+  color: #475569;
+}
+.fd-rule-remove {
+  font-size: 12px !important;
+  color: #94A3B8 !important;
+}
+.fd-rule-remove:hover {
+  color: #EF4444 !important;
+}
+
+.fd-rule-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.fd-rule-label {
+  flex-shrink: 0;
+  width: 64px;
+  font-size: 13px;
+  color: #475569;
+}
+.fd-rule-control {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.fd-rule-toggle {
+  width: 80px;
+  flex-shrink: 0;
+}
+.fd-rule-input {
+  flex: 1;
+  max-width: 180px;
+}
+.fd-rule-input :deep(.el-input__inner) {
+  text-align: left;
+}
+.fd-rule-unit {
+  font-size: 13px;
+  color: #64748B;
+  flex-shrink: 0;
+  min-width: 16px;
+}
+.fd-rule-select {
+  flex: 1;
+}
+
+.fd-add-rule {
+  align-self: flex-start;
+  font-size: 13px !important;
+  padding: 4px 8px !important;
+  margin-left: 0;
+}
+
+.fd-hint {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  padding-top: 6px;
+  border-top: 1px dashed #E2E8F0;
+  font-size: 12px;
+  color: #94A3B8;
+}
+.fd-hint .el-icon {
+  color: #3B82F6;
+  font-size: 13px;
+}
+
+.fd-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 12px 24px;
+  border-top: 1px solid #E2E8F0;
+  background: #FFFFFF;
+}

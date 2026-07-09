@@ -403,3 +403,104 @@ router.delete('/delete', authMiddleware, async (req: express.Request, res: expre
 });
 
 export default router;
+
+// ============================================================
+// 频次设置（Taku SDK v6.4.50+）
+// 存储：app.frequency_config JSONB
+// 数据结构：{ impCapDay: [{id,value,unlimited,platforms[],adTypes[]},...], impCapHour: [...], impIntervalSec: [...], reqCap: [{id,value,unlimited,window,platforms[],adTypes[]},...] }
+// ============================================================
+
+// GET /api/v1/console/app/:id/frequency
+router.get('/:id/frequency', authMiddleware, async (req: express.Request, res: express.Response) => {
+  try {
+    const developerId = getDeveloper(req).developerId;
+    const appId = req.params.id;
+    if (!appId) {
+      fail(res, 400, '缺少应用 ID');
+      return;
+    }
+    const { data, error } = await db
+      .from('app')
+      .select('id, app_key, developer_id, frequency_config')
+      .eq('app_key', appId)
+      .eq('developer_id', developerId)
+      .maybeSingle();
+    if (error) throw new Error(`Query failed: ${error.message}`);
+    if (!data) {
+      fail(res, 404, '应用不存在');
+      return;
+    }
+    success(res, data.frequency_config ?? { impCapDay: [], impCapHour: [], impIntervalSec: [], reqCap: [] });
+  } catch (err) {
+    console.error('Get frequency config error:', err);
+    fail(res, 500, '获取频次设置失败');
+  }
+});
+
+// PUT /api/v1/console/app/:id/frequency
+router.put('/:id/frequency', authMiddleware, async (req: express.Request, res: express.Response) => {
+  try {
+    const developerId = getDeveloper(req).developerId;
+    const appId = req.params.id;
+    const config = req.body;
+    if (!appId) {
+      fail(res, 400, '缺少应用 ID');
+      return;
+    }
+    if (typeof config !== 'object' || config === null || Array.isArray(config)) {
+      fail(res, 400, 'config 必须是对象');
+      return;
+    }
+    const { impCapDay, impCapHour, impIntervalSec, reqCap } = config as {
+      impCapDay?: unknown[];
+      impCapHour?: unknown[];
+      impIntervalSec?: unknown[];
+      reqCap?: unknown[];
+    };
+    // 校验：至少一条规则
+    const total =
+      (Array.isArray(impCapDay) ? impCapDay.length : 0) +
+      (Array.isArray(impCapHour) ? impCapHour.length : 0) +
+      (Array.isArray(impIntervalSec) ? impIntervalSec.length : 0) +
+      (Array.isArray(reqCap) ? reqCap.length : 0);
+    if (total === 0) {
+      fail(res, 400, '请至少配置一条频次规则');
+      return;
+    }
+    // 校验：每条规则 value 必须 > 0（当 unlimited=false）
+    const isInvalid = (arr: unknown[]) =>
+      arr.some((r) => {
+        const rule = r as { unlimited?: boolean; value?: number; window?: number };
+        if (rule.unlimited) return false;
+        if (typeof rule.value !== 'number' || rule.value <= 0) return true;
+        if ('window' in rule && (typeof rule.window !== 'number' || rule.window <= 0)) return true;
+        return false;
+      });
+    if (Array.isArray(impCapDay) && isInvalid(impCapDay)) { fail(res, 400, '展示上限（天）数值必须 > 0'); return; }
+    if (Array.isArray(impCapHour) && isInvalid(impCapHour)) { fail(res, 400, '展示上限（小时）数值必须 > 0'); return; }
+    if (Array.isArray(impIntervalSec) && isInvalid(impIntervalSec)) { fail(res, 400, '展示间隔（秒）数值必须 > 0'); return; }
+    if (Array.isArray(reqCap) && isInvalid(reqCap)) { fail(res, 400, '请求上限数值必须 > 0'); return; }
+
+    const { data: appRow, error: appError } = await db
+      .from('app')
+      .select('app_key, developer_id')
+      .eq('app_key', appId)
+      .eq('developer_id', developerId)
+      .maybeSingle();
+    if (appError) throw new Error(`Query app failed: ${appError.message}`);
+    if (!appRow) {
+      fail(res, 404, '应用不存在');
+      return;
+    }
+    const { error: updateError } = await db
+      .from('app')
+      .update({ frequency_config: config, updated_at: new Date().toISOString() })
+      .eq('app_key', appId)
+      .eq('developer_id', developerId);
+    if (updateError) throw new Error(`Update failed: ${updateError.message}`);
+    success(res, config, '保存成功');
+  } catch (err) {
+    console.error('Save frequency config error:', err);
+    fail(res, 500, '保存频次设置失败');
+  }
+});

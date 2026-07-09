@@ -603,6 +603,111 @@ B2B 企业级广告数据管理控制台。沉稳、专业、精准。蓝+灰+�
 - **禁止**用页面 `body` / `el-main` 滚动 —— 抽屉出现时锁定背景滚动
 - 当抽屉高度 > 视口时，`.page-form-body` 独立滚，`.page-form-header` 和 `.page-form-footer` 保持在抽屉内 sticky
 
+## 频次抽屉规范（2026-07 /app 页面新增 FrequencyDrawer）
+
+频次控制是 /app 详情区"频次控制"按钮触发的右侧抽屉，独立于「创建/编辑抽屉」—— 它承载的是 **规则集合**（多条规则聚合），而不是单一表单。
+
+### 视觉定位
+
+| 维度 | 取值 |
+|------|------|
+| 抽屉宽度 | 540px（与创建/编辑抽屉一致） |
+| 背景 | `#FFFFFF`（主区） / `#F8FAFC`（tips 提示条底） |
+| 头部背景 | 浅蓝渐变 `linear-gradient(135deg, #EFF6FF 0%, #F0F9FF 100%)` |
+| 主色 | `#2563EB`（按钮 + 选中状态） |
+| 标题 | "频次控制" 16px / 600 / `--color-text-primary` |
+| 副标题 | 描述当前应用的名称 |
+
+### 4 个规则模块结构
+
+频次控制是**分维度**配置的：每个维度是一组规则集合，规则之间是**或**关系（任一规则命中即生效）。
+
+| 模块 | 字段名 | 规则字段 | 业务含义 |
+|------|--------|---------|---------|
+| 展示上限（天） | `impCapDay` | `value`(>0) / `unlimited` / `platforms[]` / `adTypes[]` | 单日同一广告对同一用户最多展示 N 次 |
+| 展示上限（小时） | `impCapHour` | `value`(>0) / `unlimited` / `platforms[]` / `adTypes[]` | 单小时最多展示 N 次 |
+| 展示间隔（秒） | `impIntervalSec` | `value`(>0) / `unlimited` / `platforms[]` / `adTypes[]` | 两次展示间隔至少 N 秒 |
+| 请求上限 | `reqCap` | `value`(>0) / `unlimited` / `window`(秒) / `platforms[]` / `adTypes[]` | 时间窗 N 秒内最多请求 N 次 |
+
+> `unlimited = true` 时 `value` 无效（前端禁用输入，后端忽略）
+
+### 单条规则数据契约
+
+```typescript
+interface FrequencyRule {
+  id: string;              // uuid v4，前端生成，删除/编辑时定位
+  value: number;           // 上限数值（unlimited=false 时 > 0）
+  unlimited: boolean;      // 是否不限
+  platforms: string[];     // 适用平台，[] 表示全部
+  adTypes: string[];       // 适用广告类型，[] 表示全部
+  window?: number;         // 仅 reqCap 使用，时间窗秒数
+}
+```
+
+### 抽屉命名空间（fd-*）
+
+所有样式类使用 `fd-` 前缀（frequency drawer），集中写在 `src/index.css`：
+
+| 类 | 用途 |
+|---|---|
+| `.fd-body` | 抽屉主区，padding 20px，flex column |
+| `.fd-tips` | 顶部蓝色提示条（说明规则是"或"关系） |
+| `.fd-module` | 单个维度模块，bg `#FFFFFF`，border `#E2E8F0`，radius 10px |
+| `.fd-module__head` | 模块头（标题 + 描述 + "+"添加规则按钮） |
+| `.fd-module__title` | 模块标题 14px / 600 |
+| `.fd-module__desc` | 模块副标题 12px / 400 / `#64748B` |
+| `.fd-rule` | 单条规则，bg `#F8FAFC`，radius 8px，padding 12px |
+| `.fd-rule__row` | 一行输入（label + control） |
+| `.fd-rule__toggle` | "不限" Switch 容器 |
+| `.fd-rule__input` | 数值输入框（compact 尺寸） |
+| `.fd-rule__select` | 平台/广告类型多选 |
+| `.fd-rule__remove` | 删除规则按钮（hover 红色） |
+| `.fd-add-rule` | "+ 添加规则" 文字按钮 |
+| `.fd-empty` | 空态（未配置任何规则时显示） |
+| `.fd-hint` | 字段下方灰色提示 |
+| `.fd-footer` | 底部 sticky footer，bg `#FFFFFF`，border-top |
+
+### 关键交互
+
+- **未配置规则** → 显示空态：虚线边框 + 灰色"+"按钮
+- **添加规则** → 自动生成 uuid v4 作为 id，value 默认 10
+- **删除规则** → 直接从数组移除（不需要确认）
+- **未保存切换模块** → 不做实时保存，统一在 footer「保存」按钮触发
+- **保存校验** → 至少 1 条规则 + 每条 value > 0（unlimited 时跳过）
+- **错误反馈** → 顶部 ElMessage.error，不弹 Modal
+
+### API 契约
+
+```
+GET  /api/v1/console/app/:appKey/frequency
+  → { code:0, data: { impCapDay, impCapHour, impIntervalSec, reqCap } }
+
+PUT  /api/v1/console/app/:appKey/frequency
+  body: 完整 4 模块配置对象
+  校验: 至少 1 条规则 + 每条 value>0（unlimited 跳过）
+  → { code:0, data: <回写后的对象>, message:'保存成功' }
+```
+
+后端字段名 `frequency_config JSONB` 存于 `app` 表。空对象时返回：
+```json
+{ "impCapDay": [], "impCapHour": [], "impIntervalSec": [], "reqCap": [] }
+```
+
+### PostgREST 缓存陷阱（重要）
+
+`ALTER TABLE app ADD COLUMN frequency_config JSONB` 之后必须**重启 dev server**（杀掉 tsx watch 进程重启），否则 PostgREST schema cache 不会感知新列，查询报：
+```
+Could not find the 'frequency_config' column of 'app' in the schema cache
+```
+
+### 实施避坑
+
+1. **统一在 src/index.css 写 fd-* 样式**——AGENTS.md 禁止 .vue 写 `<style scoped>`（CDN 拦截）
+2. **数据契约沿用 snake_case 字段名**——与后端 `frequency_config` 一致
+3. **空数据容错**——`data.frequency_config ?? { ...默认值 }` 防止 null 崩溃
+4. **平台/广告类型数据来源**——前端从 appDetail 接口或下拉字典取，禁止硬编码
+5. **抽屉打开时 reset 状态**——避免上一次未保存配置污染当前编辑
+
 ## 动效规范
 
 | 类型 | 时长 | 曲线 |
