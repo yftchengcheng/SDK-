@@ -42,6 +42,9 @@ router.post('/register', async (req: express.Request, res: express.Response) => 
 
     const developerId = genDeveloperId();
     const hashedPassword = await bcrypt.hash(password, 10);
+    // 注册完成自动生成 Report API 密钥 + 1 年过期时间
+    const apiAccessToken = genApiAccessToken();
+    const apiTokenExpire = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString();
 
     const { error } = await db.from('developer').insert({
       developer_id: developerId,
@@ -52,6 +55,8 @@ router.post('/register', async (req: express.Request, res: express.Response) => 
       contact_name: contactName,
       phone,
       access_type: accessType || 1,
+      api_access_token: apiAccessToken,
+      api_token_expire: apiTokenExpire,
     });
     if (error) throw new Error(`Insert failed: ${error.message}`);
 
@@ -69,6 +74,8 @@ router.post('/register', async (req: express.Request, res: express.Response) => 
       contactName: contactName || null,
       phone: phone || null,
       accessType: accessType || 1,
+      apiAccessToken,
+      apiTokenExpire,
     }, '注册成功');
   } catch (err) {
     console.error('Register error:', err);

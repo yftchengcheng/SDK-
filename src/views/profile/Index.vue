@@ -13,6 +13,7 @@
         </el-descriptions-item>
         <el-descriptions-item label="邮箱">{{ userInfo.email }}</el-descriptions-item>
         <el-descriptions-item label="公司名称">{{ userInfo.company }}</el-descriptions-item>
+        <el-descriptions-item label="公司简称">{{ userInfo.company_short_name || '--' }}</el-descriptions-item>
         <el-descriptions-item label="联系人">{{ userInfo.contact_name }}</el-descriptions-item>
         <el-descriptions-item label="联系电话">{{ userInfo.phone }}</el-descriptions-item>
         <el-descriptions-item label="接入方式">{{ userInfo.access_type === 1 ? 'SDK接入' : 'API接入' }}</el-descriptions-item>
@@ -26,19 +27,22 @@
         <el-button size="small" @click="showPasswordDialog = true">修改密码</el-button>
       </div>
     </div>
-    <!-- API Token -->
-    <div class="table-card mb-base" v-if="userInfo.access_type === 2">
-      <div class="card-title">API管理</div>
+    <!-- Report API Token -->
+    <div class="table-card mb-base">
+      <div class="card-title">Report API 密钥</div>
       <div style="margin-top: 12px">
         <template v-if="userInfo.api_access_token">
-          <span class="text-primary">API Token: {{ maskToken(userInfo.api_access_token) }}</span>
+          <span class="text-primary">密钥: {{ maskToken(userInfo.api_access_token) }}</span>
           <el-icon class="copy-btn" @click="copyText(userInfo.api_access_token)"><CopyDocument /></el-icon>
+          <div class="text-secondary" style="font-size: 12px; margin-top: 6px">
+            过期时间: {{ formatExpire(userInfo.api_token_expire) }}
+          </div>
         </template>
         <template v-else>
-          <span class="text-secondary">尚未生成API Token</span>
+          <span class="text-secondary">尚未生成 Report API 密钥</span>
         </template>
         <el-button type="primary" size="small" style="margin-left: 12px" @click="generateApiToken">
-          {{ userInfo.api_access_token ? '刷新Token' : '生成Token' }}
+          {{ userInfo.api_access_token ? '刷新密钥' : '生成密钥' }}
         </el-button>
       </div>
     </div>
@@ -46,6 +50,7 @@
     <el-dialog v-model="showEditDialog" title="编辑信息" width="480px" destroy-on-close>
       <el-form ref="editFormRef" :model="editForm" label-position="top">
         <el-form-item label="公司名称"><el-input v-model="editForm.company" /></el-form-item>
+        <el-form-item label="公司简称"><el-input v-model="editForm.company_short_name" /></el-form-item>
         <el-form-item label="联系人"><el-input v-model="editForm.contact_name" /></el-form-item>
         <el-form-item label="联系电话"><el-input v-model="editForm.phone" /></el-form-item>
       </el-form>
@@ -81,12 +86,13 @@ const passwordForm = reactive({ oldPassword: '', newPassword: '' });
 
 const copyText = (text: string) => navigator.clipboard.writeText(text).then(() => ElMessage.success('已复制'));
 const maskToken = (t: string) => t ? t.substring(0, 8) + '****' + t.substring(t.length - 4) : '--';
+const formatExpire = (ts: string) => ts ? new Date(ts).toLocaleString('zh-CN', { hour12: false }) : '--';
 
 const fetchInfo = async () => {
   try {
     const res: any = await request.get('/api/v1/console/profile/info');
     Object.assign(userInfo, res.data);
-    Object.assign(editForm, { company: res.data.company, contact_name: res.data.contact_name, phone: res.data.phone });
+    Object.assign(editForm, { company: res.data.company, company_short_name: res.data.company_short_name, contact_name: res.data.contact_name, phone: res.data.phone });
   } catch { /* ignore */ }
 };
 

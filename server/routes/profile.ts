@@ -12,7 +12,7 @@ router.get('/info', authMiddleware, async (req: express.Request, res: express.Re
   try {
     const { developerId } = getDeveloper(req);
 
-    const { data, error } = await db.from('developer').select('developer_id, email, company, contact_name, phone, access_type, api_access_token, status, created_at').eq('developer_id', developerId).single();
+    const { data, error } = await db.from('developer').select('developer_id, email, company, company_short_name, contact_name, phone, access_type, api_access_token, api_token_expire, status, created_at').eq('developer_id', developerId).single();
     if (error) throw new Error(`Query failed: ${error.message}`);
     if (!data) {
       fail(res, 404, '开发者不存在');
@@ -30,10 +30,11 @@ router.get('/info', authMiddleware, async (req: express.Request, res: express.Re
 router.put('/info', authMiddleware, async (req: express.Request, res: express.Response) => {
   try {
     const { developerId } = getDeveloper(req);
-    const { company, contactName, phone } = req.body;
+    const { company, companyShortName, contactName, phone } = req.body;
 
     const updateData: Record<string, unknown> = {};
     if (company !== undefined) updateData.company = company;
+    if (companyShortName !== undefined) updateData.company_short_name = companyShortName;
     if (contactName !== undefined) updateData.contact_name = contactName;
     if (phone !== undefined) updateData.phone = phone;
 
