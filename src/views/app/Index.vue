@@ -360,9 +360,10 @@
 
     <!-- ============ 关联广告平台 Drawer ============ -->
     <BindNetworkDrawer
+      v-if="currentApp"
       v-model="bindDrawerVisible"
-      :app-key="appDetail.app_key"
-      :app-name="appDetail.app_name"
+      :app-key="currentApp.app_key"
+      :app-name="currentApp.app_name"
       @success="onBindSuccess"
     />
   </div>
