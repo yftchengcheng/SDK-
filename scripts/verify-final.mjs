@@ -33,7 +33,7 @@ await page.evaluate(() => Array.from(document.querySelectorAll('.page-filter-act
 await new Promise(r => setTimeout(r, 1500))
 
 // Issue 1: Platform auto-selected
-const platformText = await page.evaluate(() => document.querySelector('.el-dialog .el-form-item:nth-child(2) .el-select')?.textContent?.trim())
+const platformText = await page.evaluate(() => document.querySelector('.el-dialog .el-form-item:nth-child(1) .el-select')?.textContent?.trim())
 platformText ? pass(`1. platform auto-selected: "${platformText}"`) : fail('1. not auto-selected')
 
 // Issue 2: Schema fields visible immediately
@@ -42,7 +42,7 @@ const hasCredField = fields.some(f => /账户ID|Secret Key|用户ID|RoleID|Secur
 hasCredField ? pass(`2. schema fields render on open (${fields.length} fields)`) : fail('2. no schema fields: ' + fields)
 
 // Issue 3: Inline Chinese validation
-const nameInput = await page.$('.el-dialog .el-form-item:nth-child(1) input')
+const nameInput = await page.$('.el-dialog .el-form-item:nth-child(2) input')
 await nameInput.click({ clickCount: 3 })
 await page.keyboard.type('TestDefault')
 await new Promise(r => setTimeout(r, 200))
@@ -59,9 +59,9 @@ dialogOpen ? pass('3b. dialog stays open') : fail('3b. dialog closed unexpectedl
 const networks = await api('GET', '/api/v1/console/network/list', null, token)
 const firstNet = networks.data.list[0]
 const createR = await api('POST', '/api/v1/console/network/account/create', {
-  accountName: 'VFFinal',
-  networkDefId: firstNet.id,
-  accountId: 'A123',
+  account_name: 'VFFinal',
+  network_def_id: firstNet.id,
+  account_id: 'A123',
   credentials: { accountId: 'u1', secretKey: 's1' },
   status: 1,
   remark: 'final',

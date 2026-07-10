@@ -623,17 +623,17 @@ router.get('/custom/report/query', authMiddleware, async (req: express.Request, 
 router.post('/account/create', authMiddleware, async (req: express.Request, res: express.Response) => {
   try {
     const { developerId } = getDeveloper(req);
-    const { networkDefId, appId, accountName, accountId, credentials, status, remark } = req.body as Record<string, unknown>;
+    const { network_def_id, app_id, account_name, account_id, credentials, status, remark } = req.body as Record<string, unknown>;
 
-    if (!networkDefId) return fail(res, 400, '网络定义 ID 不能为空');
-    if (!accountName) return fail(res, 400, '账号名称不能为空');
+    if (!network_def_id) return fail(res, 400, '广告平台不能为空');
+    if (!account_name) return fail(res, 400, '账号名称不能为空');
 
     const insertData = {
       developer_id: developerId,
-      network_def_id: Number(networkDefId),
-      app_id: appId ? Number(appId) : null,
-      account_name: String(accountName),
-      account_id: accountId ? String(accountId) : null,
+      network_def_id: Number(network_def_id),
+      app_id: app_id ? Number(app_id) : null,
+      account_name: String(account_name),
+      account_id: account_id ? String(account_id) : null,
       credentials: credentials || {},
       status: status ? Number(status) : 1,
       remark: remark ? String(remark) : null,
@@ -653,11 +653,11 @@ router.post('/account/create', authMiddleware, async (req: express.Request, res:
 router.get('/account/list', authMiddleware, async (req: express.Request, res: express.Response) => {
   try {
     const { developerId } = getDeveloper(req);
-    const { networkDefId, appId, status, page = 1, pageSize = 20 } = req.query as Record<string, string>;
+    const { network_def_id, app_id, status, page = 1, pageSize = 20 } = req.query as Record<string, string>;
 
     let query = db.from('ad_network_account').select('*', { count: 'exact' }).eq('developer_id', developerId);
-    if (networkDefId) query = query.eq('network_def_id', Number(networkDefId));
-    if (appId) query = query.eq('app_id', Number(appId));
+    if (network_def_id) query = query.eq('network_def_id', Number(network_def_id));
+    if (app_id) query = query.eq('app_id', Number(app_id));
     if (status) query = query.eq('status', Number(status));
 
     const p = Number(page);
@@ -717,19 +717,19 @@ router.get('/account/detail', authMiddleware, async (req: express.Request, res: 
 });
 
 // Update network account
-router.patch('/account/:id', authMiddleware, async (req: express.Request, res: express.Response) => {
+router.put('/account/:id', authMiddleware, async (req: express.Request, res: express.Response) => {
   try {
     const { developerId } = getDeveloper(req);
     const { id } = req.params;
-    const { accountName, accountId, credentials, status, appId, remark } = req.body as Record<string, unknown>;
+    const { account_name, account_id, credentials, status, app_id, remark } = req.body as Record<string, unknown>;
     if (!id) return fail(res, 400, '账号 ID 不能为空');
 
     const updateData: Record<string, unknown> = { updated_at: new Date().toISOString() };
-    if (accountName !== undefined) updateData.account_name = String(accountName);
-    if (accountId !== undefined) updateData.account_id = accountId ? String(accountId) : null;
+    if (account_name !== undefined) updateData.account_name = String(account_name);
+    if (account_id !== undefined) updateData.account_id = account_id ? String(account_id) : null;
     if (credentials !== undefined) updateData.credentials = credentials;
     if (status !== undefined) updateData.status = Number(status);
-    if (appId !== undefined) updateData.app_id = appId ? Number(appId) : null;
+    if (app_id !== undefined) updateData.app_id = app_id ? Number(app_id) : null;
     if (remark !== undefined) updateData.remark = remark ? String(remark) : null;
 
     const { data, error } = await db.from('ad_network_account')
