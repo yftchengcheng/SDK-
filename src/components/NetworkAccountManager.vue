@@ -108,10 +108,6 @@
       destroy-on-close
     >
       <el-form ref="formRef" :model="form" :rules="formRules" label-width="120px" label-position="right">
-        <el-form-item label="账号名称" prop="account_name">
-          <el-input v-model="form.account_name" placeholder="例如：穿山甲默认账号" maxlength="30" show-word-limit />
-        </el-form-item>
-
         <el-form-item label="广告平台" prop="network_def_id">
           <el-select
             v-model="form.network_def_id"
@@ -136,6 +132,10 @@
               </span>
             </el-option>
           </el-select>
+        </el-form-item>
+
+        <el-form-item label="账号名称" prop="account_name">
+          <el-input v-model="form.account_name" placeholder="例如：穿山甲默认账号" maxlength="30" show-word-limit />
         </el-form-item>
 
         <!-- Schema-driven dynamic credential fields -->
