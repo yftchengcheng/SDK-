@@ -194,7 +194,7 @@
               <span class="detail-card-sub">该应用已关联的广告平台与频次</span>
             </h2>
             <div class="detail-card-actions">
-              <el-button type="primary" :icon="Plus" size="small" @click="goNetwork">关联广告平台</el-button>
+              <el-button type="primary" :icon="Plus" size="small" @click="openBindDrawer">关联广告平台</el-button>
             </div>
           </div>
           <div class="detail-card-body">
@@ -357,6 +357,14 @@
       v-model:visible="freqDrawerVisible"
       :app-key="currentAppKey"
     />
+
+    <!-- ============ 关联广告平台 Drawer ============ -->
+    <BindNetworkDrawer
+      v-model="bindDrawerVisible"
+      :app-key="appDetail.app_key"
+      :app-name="appDetail.app_name"
+      @success="onBindSuccess"
+    />
   </div>
 </template>
 
@@ -490,6 +498,20 @@ const unbindNetwork = async (n: any) => {
   } catch { /* ignore */ }
 };
 const goNetwork = () => router.push('/network');
+
+// ========== 关联广告平台抽屉 ==========
+import BindNetworkDrawer from './components/BindNetworkDrawer.vue';
+const bindDrawerVisible = ref(false);
+const openBindDrawer = () => {
+  if (!appDetail.value?.app_key) {
+    ElMessage.warning('请先选择应用');
+    return;
+  }
+  bindDrawerVisible.value = true;
+};
+const onBindSuccess = () => {
+  fetchBoundNetworks();
+};
 
 // ========== Card 3: 广告位 ==========
 const placementList = ref<any[]>([]);
