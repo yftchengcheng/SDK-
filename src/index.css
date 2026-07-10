@@ -6298,3 +6298,39 @@ html, body, #app {
   border-top: 1px solid #E2E8F0;
   background: #FFFFFF;
 }
+
+/* 关联广告平台 弹窗 - 静态字段（应用名只读） */
+.bnd-static-field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: #F8FAFC;
+  border: 1px solid #E2E8F0;
+  border-radius: 6px;
+  color: #475569;
+  font-size: 13px;
+}
+.bnd-static-icon {
+  color: #10B981;
+  font-size: 16px;
+}
+.bnd-static-name {
+  font-weight: 500;
+  color: #1E293B;
+}
+
+/* 关联广告平台 弹窗 - 空态 */
+.bnd-empty {
+  margin-top: 12px;
+  padding: 16px 12px;
+  background: #FAFBFC;
+  border: 1px dashed #CBD5E1;
+  border-radius: 6px;
+  text-align: center;
+}
+.bnd-empty-tip {
+  margin: 0 0 10px;
+  font-size: 12px;
+  color: #94A3B8;
+}

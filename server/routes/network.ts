@@ -427,11 +427,12 @@ router.post('/app/bind', authMiddleware, async (req: express.Request, res: expre
   try {
     const { developerId } = getDeveloper(req);
     const { appKey, networkDefId, adapterVersionId, networkAppId, extraParams } = req.body;
-
-    if (!appKey || !networkDefId || !networkAppId) {
+    if (!appKey || !networkDefId) {
       fail(res, 400, '缺少必填参数');
       return;
     }
+    // 平台应用 ID 缺省回退为 appKey（用于简化关联流程，后续可在网络平台详情补填）
+    const finalNetworkAppId = (networkAppId && String(networkAppId).trim()) || appKey;
 
     // Verify app ownership
     const { data: appData } = await db.from('app').select('developer_id').eq('app_key', appKey).single();
@@ -444,7 +445,7 @@ router.post('/app/bind', authMiddleware, async (req: express.Request, res: expre
       app_key: appKey,
       network_def_id: Number(networkDefId),
       adapter_version_id: adapterVersionId ? Number(adapterVersionId) : 0,
-      network_app_id: networkAppId,
+      network_app_id: finalNetworkAppId,
       extra_params: extraParams || null,
     }).select().single();
 
