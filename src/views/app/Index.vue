@@ -204,12 +204,16 @@
             </div>
             <div v-else class="network-grid">
               <div v-for="n in boundNetworks" :key="n.id" class="network-item">
-                <div class="network-item-icon">
-                  <el-icon :size="18"><Platform /></el-icon>
+                <div class="network-item-icon" :class="networkAvatarClass(n.network_code)">
+                  {{ networkAvatarText(n) }}
                 </div>
                 <div class="network-item-info">
-                  <div class="network-item-name">{{ n.name }}</div>
-                  <div class="network-item-meta">频次：{{ n.frequency || '默认' }}</div>
+                  <div class="network-item-name">{{ n.network_name || '—' }}</div>
+                  <div class="network-item-meta">
+                    <span class="meta-chip">{{ n.network_code || '—' }}</span>
+                    <span class="meta-dot">·</span>
+                    <span>频次：默认</span>
+                  </div>
                 </div>
                 <el-button link type="danger" size="small" @click="unbindNetwork(n)">解绑</el-button>
               </div>
@@ -377,7 +381,7 @@ import { ElMessage, ElMessageBox } from 'element-plus';
 import request from '../../utils/request';
 import {
   Plus, Search, Cellphone, Lock, Setting, Cpu, Edit,
-  CopyDocument, DataLine, ArrowRight, QuestionFilled, Connection, Link, Platform,
+  CopyDocument, DataLine, ArrowRight, QuestionFilled, Connection, Link,
   Histogram, Crop, TakeawayBox, Iphone, User, Money, TrendCharts, CaretTop, CaretBottom,
   Key,
 } from '@element-plus/icons-vue';
@@ -491,13 +495,34 @@ const fetchBoundNetworks = async () => {
   }
 };
 const unbindNetwork = async (n: any) => {
-  await ElMessageBox.confirm(`确定解绑广告平台「${n.name}」吗？`, '提示', { type: 'warning' });
+  await ElMessageBox.confirm(`确定解绑广告平台「${n.network_name || n.network_code}」吗？`, '提示', { type: 'warning' });
   try {
-    await request.post('/api/v1/console/network/app/unbind', { appKey: currentAppKey.value, networkId: n.id });
+    await request.post('/api/v1/console/network/app/unbind', { appKey: currentAppKey.value, networkDefId: n.network_def_id });
     ElMessage.success('已解绑');
     fetchBoundNetworks();
   } catch { /* ignore */ }
 };
+// 网络代码 → 字母 avatar 文本（无 icon_url，用首字母代替）
+function networkAvatarText(n: any): string {
+  const code = (n.network_code || '').toUpperCase();
+  if (!code) return 'AD';
+  // CUSTOM_xxx 取首字母
+  if (code.startsWith('CUSTOM_')) return 'C';
+  return code.slice(0, 1);
+}
+// 网络代码 → 配色 class（按 network_code 哈希到 5 个预设色）
+function networkAvatarClass(code?: string): string {
+  const c = (code || '').toUpperCase();
+  if (!c) return 'nac-muted';
+  const map: Record<string, string> = {
+    CSJ: 'nac-blue',      // 穿山甲
+    YLH: 'nac-green',     // 优量汇
+    KS:  'nac-orange',    // 快手
+    BD:  'nac-red',       // 百度
+  };
+  if (map[c]) return map[c];
+  return 'nac-slate';
+}
 const goNetwork = () => router.push('/network');
 
 // ========== 关联广告平台抽屉 ==========

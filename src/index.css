@@ -5699,13 +5699,29 @@ html, body, #app {
   width: 32px;
   height: 32px;
   border-radius: 6px;
-  background: var(--color-primary-100, #DBEAFE);
-  color: var(--color-primary-600, #2563EB);
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  font-family: 'Inter', -apple-system, sans-serif;
+  /* 配色由 modifier class 决定（nac-blue / green / orange / red / slate / muted） */
 }
+/* 穿山甲 蓝 */
+.nac-blue   { background: #DBEAFE; color: #1E40AF; }
+/* 优量汇 绿 */
+.nac-green  { background: #D1FAE5; color: #047857; }
+/* 快手 橙（DESIGN 禁用琥珀黄作强调色，但 B2B 工具的 icon 可用，限于此一处） */
+.nac-orange { background: #FED7AA; color: #9A3412; }
+/* 百度 红 */
+.nac-red    { background: #FEE2E2; color: #991B1B; }
+/* 自定义网络 紫蓝（避免与其他撞色） */
+.nac-slate  { background: #E0E7FF; color: #3730A3; }
+/* 异常 灰 */
+.nac-muted  { background: #F1F5F9; color: #64748B; }
+
 .network-item-info {
   flex: 1;
   min-width: 0;
@@ -5714,11 +5730,31 @@ html, body, #app {
   font-size: 13px;
   font-weight: 500;
   color: var(--color-slate-900, #0F172A);
+  line-height: 1.3;
 }
 .network-item-meta {
   font-size: 11px;
   color: var(--color-slate-400, #94A3B8);
-  margin-top: 2px;
+  margin-top: 3px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.meta-chip {
+  display: inline-block;
+  padding: 0 5px;
+  height: 16px;
+  line-height: 16px;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.3px;
+  background: #F1F5F9;
+  color: #475569;
+  border-radius: 3px;
+  font-family: 'Inter', -apple-system, sans-serif;
+}
+.meta-dot {
+  color: #CBD5E1;
 }
 
 /* 广告位表格 */

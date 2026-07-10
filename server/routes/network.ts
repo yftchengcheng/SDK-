@@ -501,10 +501,58 @@ router.get('/app/list', authMiddleware, async (req: express.Request, res: expres
       return;
     }
 
-    const { data, error } = await db.from('app_network_binding').select('*').eq('app_key', appKey);
-    if (error) throw new Error(`Query failed: ${error.message}`);
+    // 1) 查 binding 列表
+    const { data: bindings, error: bindErr } = await db
+      .from('app_network_binding')
+      .select('id, app_key, network_def_id, adapter_version_id, network_app_id, extra_params, status, created_at')
+      .eq('app_key', appKey);
+    if (bindErr) throw new Error(`Query failed: ${bindErr.message}`);
+    if (!bindings || bindings.length === 0) {
+      success(res, { list: [] });
+      return;
+    }
 
-    success(res, data);
+    // 2) 一次性查出所有相关 ad_network_def（避免 N+1）
+    interface NetworkDef {
+      id: number
+      network_code: string
+      network_name: string
+      network_type: number
+    }
+    interface Binding {
+      id: number
+      app_key: string
+      network_def_id: number
+      adapter_version_id: number
+      network_app_id: string
+      extra_params: Record<string, unknown> | null
+      status: number
+      created_at: string
+    }
+    const bindList = bindings as Binding[]
+    const defIds = Array.from(new Set(bindList.map(b => b.network_def_id).filter(Boolean)));
+    let defMap: Record<number, NetworkDef> = {};
+    if (defIds.length > 0) {
+      const { data: defs, error: defErr } = await db
+        .from('ad_network_def')
+        .select('id, network_code, network_name, network_type')
+        .in('id', defIds);
+      if (defErr) throw new Error(`Query defs failed: ${defErr.message}`);
+      defMap = Object.fromEntries(((defs || []) as NetworkDef[]).map(d => [d.id, d]));
+    }
+
+    // 3) 合并返回
+    const list = bindList.map(b => {
+      const def = defMap[b.network_def_id] || ({} as Partial<NetworkDef>);
+      return {
+        ...b,
+        network_name: def.network_name || '',
+        network_code: def.network_code || '',
+        network_type: def.network_type,
+      };
+    });
+
+    success(res, { list });
   } catch (err) {
     console.error('List app networks error:', err);
     fail(res, 500, '获取应用网络列表失败');
