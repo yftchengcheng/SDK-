@@ -81,7 +81,7 @@
 import { ref, reactive, watch } from 'vue'
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
 import { Promotion } from '@element-plus/icons-vue'
-import { request } from '@/utils/request'
+import request from '@/utils/request'
 
 interface Network {
   id: number

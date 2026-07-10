@@ -94,7 +94,7 @@ import { ref, reactive, watch, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
 import { ArrowRight, Plus, Connection } from '@element-plus/icons-vue'
-import { request } from '@/utils/request'
+import request from '@/utils/request'
 import AddNetworkAccountDrawer from './AddNetworkAccountDrawer.vue'
 
 interface Network {
@@ -149,7 +149,7 @@ const loadNetworks = async () => {
   loadingNetwork.value = true
   try {
     const res: any = await request.get('/api/v1/console/network/list')
-    networkList.value = res.data || []
+    networkList.value = res.data?.list || res.data || []
   } catch (e) {
     networkList.value = []
   } finally {
@@ -163,7 +163,7 @@ const loadAccounts = async (networkDefId: number) => {
     const res: any = await request.get('/api/v1/console/network/account/list', {
       params: { networkDefId },
     })
-    accountList.value = res.data || []
+    accountList.value = res.data?.list || res.data || []
   } catch (e) {
     accountList.value = []
   } finally {
