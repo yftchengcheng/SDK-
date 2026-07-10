@@ -253,7 +253,7 @@ import {
   Plus, Delete, Refresh, CopyDocument, InfoFilled,
 } from '@element-plus/icons-vue'
 import request from '@/utils/request'
-import { getSchemaByNetwork, makeInitialData, type FieldDef } from './network-field-schemas'
+import { getSchemaByNetwork, makeInitialData, type FieldDef } from '@/shared/network-schemas'
 
 // 模板辅助：避免模板里写 (field as any) TS 断言
 function getAddText(field: FieldDef): string {

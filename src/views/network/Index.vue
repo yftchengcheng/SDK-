@@ -11,39 +11,25 @@
     </div>
 
     <el-tabs v-model="activeTab" class="network-tabs">
-      <!-- 平台管理 Tab -->
-      <el-tab-pane label="平台管理" name="manage">
+      <!-- 广告平台账号 Tab（第一 Tab） -->
+      <el-tab-pane label="广告平台账号" name="accounts">
+        <div class="tab-toolbar-info">
+          <el-text type="info" size="small">
+            管理各广告平台的账号凭证，选择平台后按平台 schema 填写专属字段
+          </el-text>
+        </div>
+        <NetworkAccountManager />
+      </el-tab-pane>
+
+      <!-- 自定义广告平台 Tab -->
+      <el-tab-pane label="自定义广告平台" name="custom">
         <div class="page-filter">
           <div class="page-filter-form"></div>
           <div class="page-filter-actions">
-            <el-button :icon="CreditCard" @click="goCreateAccount()">+ 新建账号</el-button>
             <el-button type="primary" :icon="Plus" @click="openCustomDrawer">创建自定义广告平台</el-button>
           </div>
         </div>
 
-        <!-- Preset Networks -->
-        <div class="page-card"><div class="page-table-wrap">
-          <div class="page-card-header">
-            <div class="page-card-title">预置平台（系统内置）</div>
-            <div class="page-card-extra">仅展示已创建账号的预置平台；想新增时点击右上角「+ 新建账号」</div>
-          </div>
-          <el-table :data="presetNetworks" stripe style="width: 100%; margin-top: 12px">
-            <el-table-column prop="network_code" label="平台代码" width="120" />
-            <el-table-column prop="network_name" label="平台名称" min-width="140" />
-            <el-table-column prop="supports_bidding" label="支持Bidding" width="120">
-              <template #default="{ row }">{{ row.supports_bidding ? '是' : '否' }}</template>
-            </el-table-column>
-            <el-table-column label="类型" width="100">
-              <template #default><span class="status-tag status-tag--neutral">预置</span></template>
-            </el-table-column>
-            <el-table-column label="操作" width="120" fixed="right">
-              <template #default="{ row }">
-                <el-button link type="primary" size="small" @click="goCreateAccount(row.id)">+ 新建账号</el-button>
-              </template>
-            </el-table-column>
-          </el-table></div></div>
-
-        <!-- Custom Networks -->
         <div class="page-card"><div class="page-table-wrap">
           <div class="page-card-header"><div class="page-card-title">自定义广告平台</div></div>
           <el-table :data="customNetworks" v-loading="loading" stripe style="width: 100%; margin-top: 12px">
@@ -63,16 +49,6 @@
               </template>
             </el-table-column>
           </el-table></div></div>
-      </el-tab-pane>
-
-      <!-- 广告平台账号 Tab -->
-      <el-tab-pane label="广告平台账号" name="accounts">
-        <div class="tab-toolbar-info">
-          <el-text type="info" size="small">
-            管理各广告平台的账号凭证，支持 JSON 键值对存储与敏感字段脱敏
-          </el-text>
-        </div>
-        <AccountManager />
       </el-tab-pane>
     </el-tabs>
 
@@ -492,40 +468,21 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted, computed, nextTick } from 'vue';
+import { ref, reactive, onMounted, computed } from 'vue';
 import request from '../../utils/request';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import type { FormInstance, FormRules } from 'element-plus';
-import { Plus, CreditCard, Connection, Search, RefreshLeft, UploadFilled, Filter, Edit, InfoFilled, Box, Document, Cellphone, Setting, Close, Check } from '@element-plus/icons-vue';
-import AccountManager from '../../components/AccountManager.vue';
+import { Plus, Connection, Search, RefreshLeft, UploadFilled, Filter, Edit, InfoFilled, Box, Document, Cellphone, Setting, Close, Check } from '@element-plus/icons-vue';
+import NetworkAccountManager from '../../components/NetworkAccountManager.vue';
 import ReviewPanel, { type AdapterVersion } from '../../components/ReviewPanel.vue';
 
-const activeTab = ref<'manage' | 'accounts'>('manage');
+const activeTab = ref<'accounts' | 'custom'>('accounts');
 
 const loading = ref(false);
 const allNetworks = ref<any[]>([]);
 const appList = ref<any[]>([]);
-// 已有账号的广告平台 network_def_id 集合（用于过滤预置平台表格）
-const accountNetworkDefIds = ref<Set<number>>(new Set());
-const accountManagerRef = ref<InstanceType<typeof AccountManager> | null>(null);
-const prefillNetworkDefId = ref<number | null>(null);
 
-/** 预置平台表格：只展示「至少建过 1 个账号」的预置平台
- *  对齐参考图（Taku）：表格里不展示没创建过账号的预置平台，
- *  想新增时通过「+ 新建账号」按钮从完整预置列表里选 */
-const presetNetworks = computed(() =>
-  allNetworks.value.filter(n => n.network_type === 1 && accountNetworkDefIds.value.has(n.id))
-);
-const customNetworks = computed(() => allNetworks.value.filter(n => n.network_type === 2));
-
-/** 切到「广告平台账号」Tab 并打开新建弹窗（可预选某预置平台） */
-const goCreateAccount = async (networkDefId?: number) => {
-  activeTab.value = 'accounts';
-  prefillNetworkDefId.value = networkDefId ?? null;
-  await nextTick();
-  // AccountManager 已在切 tab 时挂载
-  accountManagerRef.value?.openCreate(prefillNetworkDefId.value ?? undefined);
-};
+const customNetworks = computed(() => allNetworks.value.filter(n => !n.is_preset));
 
 const customDrawerVisible = ref(false);
 const drawerSize = '720px';
@@ -548,23 +505,10 @@ const formRules: FormRules = {
 const fetchList = async () => {
   loading.value = true;
   try { const res: any = await request.get('/api/v1/console/network/list'); allNetworks.value = res.data?.list || []; } catch { /* ignore */ } finally { loading.value = false; }
-  // 同步拉账号列表，用于过滤预置平台表格
-  await fetchAccounts();
 };
 
 const fetchAppList = async () => {
   try { const res: any = await request.get('/api/v1/console/app/list?pageSize=1000'); appList.value = res.data?.list || []; } catch { /* ignore */ }
-};
-
-/** 拉当前 developer 的所有广告平台账号，收集 network_def_id 集合 */
-const fetchAccounts = async () => {
-  try {
-    const res: any = await request.get('/api/v1/console/network/account/list?pageSize=1000');
-    const list = res.data?.list || res.data || [];
-    accountNetworkDefIds.value = new Set(
-      (list as any[]).map((a: any) => Number(a.network_def_id)).filter(Boolean)
-    );
-  } catch { /* ignore */ }
 };
 
 const openCustomDrawer = () => { isEdit.value = false; Object.assign(editForm, defaultForm); customDrawerVisible.value = true; };

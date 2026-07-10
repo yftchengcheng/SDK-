@@ -10,12 +10,12 @@ router.get('/list', authMiddleware, async (req: express.Request, res: express.Re
   try {
     const { developerId } = getDeveloper(req);
 
-    // Get builtin networks (network_type=1) + user's custom networks (network_type=2)
+    // Get builtin networks (is_preset=true) + user's custom networks (developer_id=me)
     const { data, error } = await db.from('ad_network_def')
       .select('*')
-      .or(`network_type.eq.1,created_by.eq.${developerId}`)
+      .or(`is_preset.eq.true,developer_id.eq.${developerId}`)
       .eq('status', 1)
-      .order('network_type', { ascending: true })
+      .order('is_preset', { ascending: false })
       .order('created_at', { ascending: false });
 
     if (error) throw new Error(`Query failed: ${error.message}`);
@@ -37,8 +37,8 @@ router.get('/custom/list', authMiddleware, async (req: express.Request, res: exp
     const ps = Number(pageSize);
     const { data, count, error } = await db.from('ad_network_def')
       .select('*', { count: 'exact' })
-      .eq('created_by', developerId)
-      .eq('network_type', 2)
+      .eq('developer_id', developerId)
+      .eq('is_preset', false)
       .order('created_at', { ascending: false })
       .range((p - 1) * ps, p * ps - 1);
 
@@ -68,7 +68,8 @@ router.post('/custom/create', authMiddleware, async (req: express.Request, res: 
     const { data, error } = await db.from('ad_network_def').insert({
       network_code: networkCode,
       network_name: networkName,
-      network_type: 2,
+      is_preset: false,
+      developer_id: developerId,
       adapter_class_init: adapterClassInit || null,
       adapter_class_banner: adapterClassBanner || null,
       adapter_class_interstitial: adapterClassInterstitial || null,
@@ -76,7 +77,6 @@ router.post('/custom/create', authMiddleware, async (req: express.Request, res: 
       adapter_class_native: adapterClassNative || null,
       adapter_class_splash: adapterClassSplash || null,
       supports_bidding: supportsBidding ? 1 : 0,
-      created_by: developerId,
     }).select().single();
 
     if (error) throw new Error(`Insert failed: ${error.message}`);
@@ -100,8 +100,8 @@ router.post('/custom/update', authMiddleware, async (req: express.Request, res: 
     }
 
     // Verify ownership
-    const { data: existing, error: checkError } = await db.from('ad_network_def').select('created_by').eq('id', id).single();
-    if (checkError || !existing || existing.created_by !== developerId) {
+    const { data: existing, error: checkError } = await db.from('ad_network_def').select('developer_id').eq('id', id).single();
+    if (checkError || !existing || existing.developer_id !== developerId) {
       fail(res, 403, '无权操作此网络');
       return;
     }
@@ -135,8 +135,8 @@ router.put('/custom/:id', authMiddleware, async (req: express.Request, res: expr
     const { networkName, networkCode, adapterClassInit, adapterClassBanner, adapterClassInterstitial, adapterClassRewarded, adapterClassNative, adapterClassSplash, supportsBidding, status } = req.body as Record<string, unknown>;
     if (!id) return fail(res, 400, '缺少网络id');
 
-    const { data: existing, error: checkError } = await db.from('ad_network_def').select('created_by').eq('id', Number(id)).single();
-    if (checkError || !existing || existing.created_by !== developerId) {
+    const { data: existing, error: checkError } = await db.from('ad_network_def').select('developer_id').eq('id', Number(id)).single();
+    if (checkError || !existing || existing.developer_id !== developerId) {
       fail(res, 403, '无权操作此网络');
       return;
     }
@@ -170,8 +170,8 @@ router.delete('/custom/:id', authMiddleware, async (req: express.Request, res: e
     const { id } = req.params;
     if (!id) return fail(res, 400, '缺少网络id');
 
-    const { data: existing, error: checkError } = await db.from('ad_network_def').select('created_by').eq('id', Number(id)).single();
-    if (checkError || !existing || existing.created_by !== developerId) {
+    const { data: existing, error: checkError } = await db.from('ad_network_def').select('developer_id').eq('id', Number(id)).single();
+    if (checkError || !existing || existing.developer_id !== developerId) {
       fail(res, 403, '无权操作此网络');
       return;
     }
@@ -309,10 +309,10 @@ router.delete('/adapter/:id', authMiddleware, async (req: express.Request, res: 
 
     // Step 2: 校验所属网络是否属于当前 developer
     const { data: net } = await db.from('ad_network_def')
-      .select('created_by')
+      .select('developer_id')
       .eq('id', adapter.network_def_id)
       .maybeSingle();
-    if (!net || net.created_by !== developerId) {
+    if (!net || net.developer_id !== developerId) {
       fail(res, 403, '无权操作此 Adapter');
       return;
     }
@@ -517,7 +517,7 @@ router.get('/app/list', authMiddleware, async (req: express.Request, res: expres
       id: number
       network_code: string
       network_name: string
-      network_type: number
+      is_preset: boolean
     }
     interface Binding {
       id: number
@@ -528,6 +528,7 @@ router.get('/app/list', authMiddleware, async (req: express.Request, res: expres
       extra_params: Record<string, unknown> | null
       status: number
       created_at: string
+      account_id: number | null
     }
     const bindList = bindings as Binding[]
     const defIds = Array.from(new Set(bindList.map(b => b.network_def_id).filter(Boolean)));
@@ -535,7 +536,7 @@ router.get('/app/list', authMiddleware, async (req: express.Request, res: expres
     if (defIds.length > 0) {
       const { data: defs, error: defErr } = await db
         .from('ad_network_def')
-        .select('id, network_code, network_name, network_type')
+        .select('id, network_code, network_name, is_preset')
         .in('id', defIds);
       if (defErr) throw new Error(`Query defs failed: ${defErr.message}`);
       defMap = Object.fromEntries(((defs || []) as NetworkDef[]).map(d => [d.id, d]));
@@ -548,7 +549,7 @@ router.get('/app/list', authMiddleware, async (req: express.Request, res: expres
         ...b,
         network_name: def.network_name || '',
         network_code: def.network_code || '',
-        network_type: def.network_type,
+        is_preset: def.is_preset ?? false,
       };
     });
 
@@ -664,7 +665,22 @@ router.get('/account/list', authMiddleware, async (req: express.Request, res: ex
     const { data, count, error } = await query.order('created_at', { ascending: false }).range((p - 1) * ps, p * ps - 1);
     if (error) throw new Error(`Query failed: ${error.message}`);
 
-    success(res, { list: data, total: count, page: p, pageSize: ps });
+    // Enrich with network name + code from ad_network_def
+    const defIds = Array.from(new Set((data || []).map(d => d.network_def_id).filter(Boolean)));
+    const defMap: Record<number, { network_name: string, network_code: string }> = {};
+    if (defIds.length) {
+      const { data: defs } = await db.from('ad_network_def').select('id, network_name, network_code').in('id', defIds);
+      (defs || []).forEach((d: { id: number, network_name: string, network_code: string }) => {
+        defMap[d.id] = { network_name: d.network_name, network_code: d.network_code };
+      });
+    }
+    const enriched = (data || []).map(d => ({
+      ...d,
+      network_name: defMap[d.network_def_id]?.network_name || null,
+      network_code: defMap[d.network_def_id]?.network_code || null,
+    }));
+
+    success(res, { list: enriched, total: count, page: p, pageSize: ps });
   } catch (err) {
     console.error('List network accounts error:', err);
     fail(res, 500, '获取账号列表失败');
@@ -685,7 +701,15 @@ router.get('/account/detail', authMiddleware, async (req: express.Request, res: 
       .single();
     if (error) throw new Error(`Query failed: ${error.message}`);
 
-    success(res, data);
+    // Enrich with network name + code
+    let network_name: string | null = null;
+    let network_code: string | null = null;
+    if (data?.network_def_id) {
+      const { data: def } = await db.from('ad_network_def').select('network_name, network_code').eq('id', data.network_def_id).maybeSingle();
+      network_name = def?.network_name || null;
+      network_code = def?.network_code || null;
+    }
+    success(res, { ...data, network_name, network_code });
   } catch (err) {
     console.error('Detail network account error:', err);
     fail(res, 500, '获取账号详情失败');

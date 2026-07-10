@@ -11,34 +11,30 @@ async function api(method, url, body, token) {
   })
   return r.json()
 }
-
 const reg = await api('POST', '/api/v1/auth/register', {
-  email: 'snap-' + Date.now() + '@x.com', password: 'Test123456',
+  email: 'sf-' + Date.now() + '@x.com', password: 'Test123456',
   company: 'c', companyShortName: 'c', contactName: 'c', phone: '13800000000', accessType: 1,
 })
 const token = reg.data?.token
-
 const browser = await puppeteer.launch({ executablePath: CHROME, headless: 'new', args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'] })
 const page = await browser.newPage()
-page.on('pageerror', e => console.log('[pageerror]', e.message))
-page.on('console', m => { if (m.type() === 'error') console.log('[console.error]', m.text()) })
-await page.setViewport({ width: 1440, height: 900 })
+await page.setViewport({ width: 1440, height: 1100 })
 await page.goto('http://localhost:5000/login', { waitUntil: 'domcontentloaded' })
 await page.evaluate((tk) => { localStorage.setItem('token', tk); localStorage.setItem('userInfo', JSON.stringify({ token: tk })) }, token)
 await page.goto('http://localhost:5000/network', { waitUntil: 'networkidle2' })
-await new Promise(r => setTimeout(r, 3000))
-
-const result = await page.evaluate(() => {
-  return {
-    title: document.querySelector('.page-header-title')?.textContent,
-    activeTab: document.querySelector('.el-tabs__item.is-active')?.textContent,
-    tabs: Array.from(document.querySelectorAll('.el-tabs__item')).map(t => t.textContent.trim()),
-    cardTitles: Array.from(document.querySelectorAll('.page-card-title')).map(t => t.textContent.trim()),
-    namToolbar: !!document.querySelector('.page-filter'),
-    namCreateBtn: !!Array.from(document.querySelectorAll('button')).find(b => b.textContent.includes('新建账号')),
-  }
-})
-console.log(JSON.stringify(result, null, 2))
-await page.screenshot({ path: '/tmp/network-after.png', fullPage: true })
-console.log('saved /tmp/network-after.png')
+await new Promise(r => setTimeout(r, 2500))
+await page.evaluate(() => Array.from(document.querySelectorAll('.page-filter-actions button')).find(b => b.textContent.includes('新建账号'))?.click())
+await new Promise(r => setTimeout(r, 1000))
+const sel = await page.$('.el-dialog .el-select')
+await sel.click()
+await new Promise(r => setTimeout(r, 1000))
+const input = await page.$('.el-dialog .el-select input')
+await input.focus()
+await new Promise(r => setTimeout(r, 200))
+const opts = await page.evaluate(() => Array.from(document.querySelectorAll('.el-select-dropdown__item')).map(o => o.textContent?.trim()))
+const csjIdx = opts.indexOf('穿山甲')
+for (let i = 0; i <= csjIdx; i++) { await page.keyboard.press('ArrowDown'); await new Promise(r => setTimeout(r, 50)) }
+await page.keyboard.press('Enter')
+await new Promise(r => setTimeout(r, 1500))
+await page.screenshot({ path: '/tmp/nam-form.png', fullPage: true })
 await browser.close()

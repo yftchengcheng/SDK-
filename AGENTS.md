@@ -252,17 +252,18 @@
 
 ### 5. 组件差距（PLAN 新增 2 个）
 
-- **未实现**：
-  - `KVEditor` - 键值对编辑器（用于凭证 JSON 输入）
-  - `AccountManager` - 账号管理组件（含凭证加密展示）
-- 替代方案：当前用 `el-form-item` + `el-input` 临时实现，但缺乏 JSON 可视化、加密、批量管理能力
+- **已实现（升级版）**：
+  - `KVEditor` → 改用 `src/shared/network-schemas.ts` schema-driven 字段定义（`FieldDef` 类型：text/password/switch/currency/select/key-value/pub-key）
+  - `AccountManager` → 改用 `src/components/NetworkAccountManager.vue`（schema-driven 弹窗 + 凭证查看 drawer + JSON 脱敏）
+- **核心模式**：弹窗「凭证字段」分隔线后，由 `schemaFields` computed 根据所选平台动态渲染表单项，提交时所有字段打平进 `credentials` JSONB
+- 旧 `src/components/AccountManager.vue` 已删除（被 `NetworkAccountManager` 替代）
 
 ### 6. 6 步对接流程落地情况
 
 | 步骤 | 名称 | 落地状态 | 备注 |
 |------|------|---------|------|
 | 1 | 上传 Adapter | ✅ 已实现 | network.ts upload 接口 |
-| 2 | 广告平台账号 | ✅ 已实现 | ad_network_account 表 + 5 个 API + /network Tab + AccountManager 组件 |
+| 2 | 广告平台账号 | ✅ 已实现 | ad_network_account 表 + 5 个 API + /network Tab + NetworkAccountManager 组件 |
 | 3 | 数据上报格式 | ✅ 已实现 | custom/report/upload + custom_network_report 表 |
 | 4 | 联调测试 | ✅ 已实现 | /ad-source/create-custom（绑定到自定义广告平台）|
 | 5 | 上线 | ✅ 已实现 | /custom/adapter/status + review 接口（PASS/REJECT） |

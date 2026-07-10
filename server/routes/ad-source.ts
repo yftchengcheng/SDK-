@@ -151,7 +151,7 @@ router.delete('/:id', authMiddleware, async (req: express.Request, res: express.
 // Get network definitions
 router.get('/networks', authMiddleware, async (_req: express.Request, res: express.Response) => {
   try {
-    const { data, error } = await db.from('ad_network_def').select('*').eq('status', 1).order('network_type', { ascending: true });
+    const { data, error } = await db.from('ad_network_def').select('*').eq('status', 1).order('is_preset', { ascending: false });
     if (error) throw new Error(`Query failed: ${error.message}`);
 
     success(res, data);
