@@ -100,11 +100,21 @@
                 </div>
               </template>
 
-              <!-- text / password -->
+              <!-- 普通文本 -->
               <el-input
-                v-if="field.type === 'text' || field.type === 'password'"
+                v-if="field.type === 'text'"
                 v-model="formData[field.key]"
-                :type="field.type === 'password' ? 'password' : 'text'"
+                type="text"
+                :placeholder="field.placeholder || '请输入'"
+                :maxlength="field.maxlength"
+                clearable
+              />
+
+              <!-- 密码 -->
+              <el-input
+                v-else-if="field.type === 'password'"
+                v-model="formData[field.key]"
+                type="password"
                 :placeholder="field.placeholder || '请输入'"
                 :maxlength="field.maxlength"
                 show-password
