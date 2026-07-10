@@ -60,30 +60,37 @@
         </div>
         <el-form :model="form" label-position="top" class="ad-form">
           <el-form-item label="App Icon">
-            <div class="ad-icon-uploader">
-              <div class="ad-icon-box">
-                <img v-if="form.iconUrl" :src="form.iconUrl" :alt="form.appName" @error="onIconError" />
-                <el-icon v-else :size="32"><Picture /></el-icon>
+            <div class="ad-icon-block">
+              <!-- 上排：图标预览 + 操作 -->
+              <div class="ad-icon-uploader">
+                <div class="ad-icon-box">
+                  <img v-if="form.iconUrl" :src="form.iconUrl" :alt="form.appName" @error="onIconError" />
+                  <el-icon v-else :size="32"><Picture /></el-icon>
+                </div>
+                <input ref="fileInput" type="file" accept="image/png,image/jpeg" @change="onFileChange" hidden />
+                <div class="ad-icon-actions">
+                  <el-button :icon="Upload" plain size="small" @click="triggerUpload">点击上传</el-button>
+                  <el-button v-if="form.iconUrl" link size="small" type="danger" @click="form.iconUrl = ''">移除</el-button>
+                </div>
               </div>
-              <input ref="fileInput" type="file" accept="image/png,image/jpeg" @change="onFileChange" hidden />
-              <div class="ad-icon-actions">
-                <el-button :icon="Upload" plain size="small" @click="triggerUpload">点击上传</el-button>
-                <el-button v-if="form.iconUrl" link size="small" type="danger" @click="form.iconUrl = ''">移除</el-button>
+              <!-- 下排：要求说明（独立分组） -->
+              <div class="ad-icon-hint">
+                <span class="ad-icon-hint-label">要求</span>
+                <span class="ad-icon-chips">
+                  <span class="ad-icon-chip">
+                    <el-icon><Picture /></el-icon>
+                    PNG / JPG / JPEG
+                  </span>
+                  <span class="ad-icon-chip">
+                    <el-icon><FullScreen /></el-icon>
+                    512×512px
+                  </span>
+                  <span class="ad-icon-chip">
+                    <el-icon><Files /></el-icon>
+                    ≤ 1MB
+                  </span>
+                </span>
               </div>
-            </div>
-            <div class="ad-icon-hint">
-              <span class="ad-icon-chip">
-                <el-icon><Picture /></el-icon>
-                PNG / JPG / JPEG
-              </span>
-              <span class="ad-icon-chip">
-                <el-icon><FullScreen /></el-icon>
-                512×512px
-              </span>
-              <span class="ad-icon-chip">
-                <el-icon><Files /></el-icon>
-                ≤ 1MB
-              </span>
             </div>
           </el-form-item>
           <el-form-item label="应用域名" prop="appDomain">
