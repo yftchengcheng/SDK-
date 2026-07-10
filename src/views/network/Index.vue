@@ -551,7 +551,13 @@ const handleSubmit = async () => {
 
 const handleDelete = async (row: any) => {
   await ElMessageBox.confirm(`确定删除自定义广告平台"${row.network_name}"吗？`, '警告', { type: 'error' });
-  try { await request.delete(`/api/v1/console/network/custom/${row.id}`); ElMessage.success('删除成功'); fetchList(); } catch { /* ignore */ }
+  try {
+    await request.delete(`/api/v1/console/network/custom/${row.id}`);
+    ElMessage.success('删除成功');
+    fetchList();
+  } catch (e: any) {
+    ElMessage.error(e?.response?.data?.message || '删除失败');
+  }
 };
 
 // ===== Adapter Manager =====

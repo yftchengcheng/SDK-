@@ -176,6 +176,27 @@ router.delete('/custom/:id', authMiddleware, async (req: express.Request, res: e
       return;
     }
 
+    // Guard: 平台下还有账号时禁止删除
+    const { count: accountCount, error: accountErr } = await db.from('ad_network_account')
+      .select('*', { count: 'exact', head: true })
+      .eq('developer_id', developerId)
+      .eq('network_def_id', Number(id));
+    if (accountErr) throw new Error(`Account count failed: ${accountErr.message}`);
+    if (accountCount && accountCount > 0) {
+      fail(res, 400, `该平台下还有 ${accountCount} 个账号，请先删除账号`);
+      return;
+    }
+
+    // Guard: 平台下还有应用绑定时禁止删除
+    const { count: bindingCount, error: bindingErr } = await db.from('app_network_binding')
+      .select('*', { count: 'exact', head: true })
+      .eq('network_def_id', Number(id));
+    if (bindingErr) throw new Error(`Binding count failed: ${bindingErr.message}`);
+    if (bindingCount && bindingCount > 0) {
+      fail(res, 400, `该平台下还有 ${bindingCount} 个应用绑定，请先解除绑定`);
+      return;
+    }
+
     const { error } = await db.from('ad_network_def').delete().eq('id', Number(id));
     if (error) throw new Error(`Delete failed: ${error.message}`);
 
