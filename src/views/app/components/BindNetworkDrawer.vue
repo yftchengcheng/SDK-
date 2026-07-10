@@ -3,98 +3,110 @@
     v-model="visible"
     title="关联广告平台账号"
     direction="rtl"
-    size="460px"
-    :destroy-on-close="false"
-    @closed="handleClosed"
+    size="420px"
+    :close-on-click-modal="false"
+    destroy-on-close
   >
     <div class="bnd-body">
-      <!-- 面包屑：关联广告平台账号 - 应用 - {appName} -->
-      <div class="bnd-header">
-        <div class="bnd-header-crumbs">
-          <span>关联广告平台账号</span>
-          <el-icon><ArrowRight /></el-icon>
-          <span>应用</span>
-          <el-icon><ArrowRight /></el-icon>
-          <span class="bnd-header-crumbs-app">{{ props.appName || props.appKey }}</span>
-        </div>
-        <p class="bnd-header-sub">为该应用绑定一个广告平台账号，关联后可同步该平台的广告数据</p>
+      <div class="bnd-crumbs">
+        <span class="bnd-crumb bnd-crumb--app">应用</span>
+        <el-icon class="bnd-crumb-sep"><ArrowRight /></el-icon>
+        <span class="bnd-crumb bnd-crumb--static">{{ appName || '-' }}</span>
       </div>
 
-      <!-- 表单：仅 2 字段（应用 + 广告平台） -->
       <el-form
         ref="formRef"
         :model="form"
         :rules="rules"
         label-position="top"
         class="bnd-form"
+        @submit.prevent
       >
-        <el-form-item label="应用">
-          <div class="bnd-static-field">
-            <el-icon class="bnd-static-icon"><Cellphone /></el-icon>
-            <span class="bnd-static-name">{{ props.appName || props.appKey }}</span>
-          </div>
-        </el-form-item>
-        <el-form-item label="广告平台" prop="networkDefId">
+        <el-form-item label="广告平台" prop="networkId">
           <el-select
-            v-model="form.networkDefId"
-            placeholder="请选择"
+            v-model="form.networkId"
+            placeholder="请选择广告平台"
             style="width: 100%"
-            :loading="loadingList"
-            :empty-values="[]"
-            no-data-text="暂无可关联的广告平台"
+            :loading="loadingNetwork"
+            @change="onNetworkChange"
           >
             <el-option
-              v-for="n in networkList"
-              :key="n.id"
-              :label="n.network_name"
-              :value="n.id"
-            >
-              <div class="bnd-option">
-                <span class="bnd-option-name">{{ n.network_name }}</span>
-                <el-tag v-if="n.network_type === 2" type="warning" size="small">自定义</el-tag>
-                <el-tag v-else type="info" size="small">内置</el-tag>
-              </div>
-            </el-option>
+              v-for="item in networkList"
+              :key="item.id"
+              :value="item.id"
+              :label="item.network_name"
+            />
           </el-select>
-          <div v-if="!loadingList && networkList.length === 0" class="bnd-empty">
-            <p class="bnd-empty-tip">暂无可关联的广告平台</p>
-            <el-button type="primary" plain size="small" @click="goCreateNetwork">
+        </el-form-item>
+
+        <el-form-item label="账号名称" prop="accountId">
+          <div class="bnd-account-row">
+            <el-select
+              v-model="form.accountId"
+              placeholder="请选择账号"
+              style="flex: 1"
+              :loading="loadingAccount"
+              :no-data-text="form.networkId ? '该平台暂无账号，请点击右侧添加' : '请先选择广告平台'"
+              @focus="onAccountFocus"
+            >
+              <el-option
+                v-for="item in accountList"
+                :key="item.id"
+                :value="item.id"
+                :label="item.account_name"
+              />
+            </el-select>
+            <a class="bnd-add-link" href="javascript:void(0);" @click="openAddAccount">
               <el-icon><Plus /></el-icon>
-              去创建广告平台
-            </el-button>
+              <span>添加账号</span>
+            </a>
           </div>
         </el-form-item>
       </el-form>
+
+      <div v-if="networkList.length === 0 && !loadingNetwork" class="bnd-empty">
+        <div class="bnd-empty-icon">
+          <el-icon><Connection /></el-icon>
+        </div>
+        <div class="bnd-empty-tip">暂无广告平台</div>
+        <el-button type="primary" plain @click="goCreate">去创建广告平台</el-button>
+      </div>
     </div>
 
     <template #footer>
       <div class="bnd-footer">
-        <el-button @click="close">取消</el-button>
-        <el-button
-          type="primary"
-          :loading="submitting"
-          :disabled="!form.networkDefId"
-          @click="submit"
-        >
-          确定
-        </el-button>
+        <el-button @click="visible = false">取消</el-button>
+        <el-button type="primary" :loading="submitting" @click="onSubmit">确认关联</el-button>
       </div>
     </template>
+
+    <AddNetworkAccountDrawer
+      v-model="addAccountVisible"
+      :network="activeNetwork"
+      :app-key="appKey"
+      @success="onAccountCreated"
+    />
   </el-drawer>
 </template>
 
 <script setup lang="ts">
-import { ref, watch, computed } from 'vue'
+import { ref, reactive, watch, computed } from 'vue'
 import { useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
-import { ArrowRight, Cellphone, Plus } from '@element-plus/icons-vue'
-import type { FormInstance, FormRules } from 'element-plus'
-import request from '@/utils/request'
+import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
+import { ArrowRight, Plus, Connection } from '@element-plus/icons-vue'
+import { request } from '@/utils/request'
+import AddNetworkAccountDrawer from './AddNetworkAccountDrawer.vue'
 
-interface NetworkItem {
+interface Network {
   id: number
   network_name: string
-  network_type: number
+  logo_color?: string
+}
+interface Account {
+  id: number
+  account_name: string
+  account_id: string
+  network_def_id: number
 }
 
 const props = defineProps<{
@@ -104,81 +116,123 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{
-  'update:modelValue': [val: boolean]
+  'update:modelValue': [v: boolean]
   success: []
 }>()
 
 const router = useRouter()
-
-const visible = computed({
-  get: () => props.modelValue,
-  set: (v) => emit('update:modelValue', v)
-})
+const visible = ref(props.modelValue)
+watch(() => props.modelValue, v => { visible.value = v })
+watch(visible, v => emit('update:modelValue', v))
 
 const formRef = ref<FormInstance>()
-const form = ref({ networkDefId: undefined as number | undefined })
+const loadingNetwork = ref(false)
+const loadingAccount = ref(false)
+const submitting = ref(false)
+const networkList = ref<Network[]>([])
+const accountList = ref<Account[]>([])
+const addAccountVisible = ref(false)
+
+const form = reactive({
+  networkId: null as number | null,
+  accountId: null as number | null,
+})
+
 const rules: FormRules = {
-  networkDefId: [{ required: true, message: '请选择广告平台', trigger: 'change' }]
+  networkId: [{ required: true, message: '请选择广告平台', trigger: 'change' }],
+  accountId: [{ required: true, message: '请选择账号', trigger: 'change' }],
 }
 
-const networkList = ref<NetworkItem[]>([])
-const loadingList = ref(false)
-const submitting = ref(false)
+const activeNetwork = computed(() => networkList.value.find(n => n.id === form.networkId) || null)
 
-async function loadNetworkList() {
-  loadingList.value = true
+const loadNetworks = async () => {
+  loadingNetwork.value = true
   try {
-    const res = await request.get<{ list: NetworkItem[] }>('/api/v1/console/network/list')
-    networkList.value = res.data?.list || []
+    const res: any = await request.get('/api/v1/console/network/list')
+    networkList.value = res.data || []
   } catch (e) {
     networkList.value = []
   } finally {
-    loadingList.value = false
+    loadingNetwork.value = false
   }
 }
 
-function reset() {
-  form.value.networkDefId = undefined
-  formRef.value?.clearValidate()
+const loadAccounts = async (networkDefId: number) => {
+  loadingAccount.value = true
+  try {
+    const res: any = await request.get('/api/v1/console/network/account/list', {
+      params: { networkDefId },
+    })
+    accountList.value = res.data || []
+  } catch (e) {
+    accountList.value = []
+  } finally {
+    loadingAccount.value = false
+  }
 }
 
-function close() {
-  visible.value = false
+const onNetworkChange = (val: number | null) => {
+  form.accountId = null
+  accountList.value = []
+  if (val) loadAccounts(val)
 }
 
-function handleClosed() {
-  reset()
+const onAccountFocus = () => {
+  if (form.networkId && accountList.value.length === 0 && !loadingAccount.value) {
+    loadAccounts(form.networkId)
+  }
 }
 
-function goCreateNetwork() {
+const openAddAccount = () => {
+  if (!form.networkId) {
+    ElMessage.warning('请先选择广告平台')
+    return
+  }
+  addAccountVisible.value = true
+}
+
+const onAccountCreated = (acc: { id: number; account_name: string; account_id: string }) => {
+  if (form.networkId) {
+    loadAccounts(form.networkId).then(() => {
+      form.accountId = acc.id
+    })
+  }
+}
+
+const goCreate = () => {
   visible.value = false
   router.push('/network')
 }
 
-async function submit() {
-  try {
-    await formRef.value?.validate()
-  } catch {
-    return
-  }
-  if (!props.appKey || !form.value.networkDefId) return
-  submitting.value = true
-  try {
-    await request.post('/api/v1/console/network/app/bind', {
-      appKey: props.appKey,
-      networkDefId: form.value.networkDefId
-    })
-    ElMessage.success('关联成功')
-    emit('success')
-    close()
-  } catch (e) {
-    // request 已统一 ElMessage
-  } finally {
-    submitting.value = false
-  }
+const onSubmit = async () => {
+  if (!formRef.value) return
+  await formRef.value.validate(async valid => {
+    if (!valid) return
+    submitting.value = true
+    try {
+      const res: any = await request.post('/api/v1/console/network/app/bind', {
+        appKey: props.appKey,
+        networkDefId: form.networkId,
+        networkAppId: form.accountId,
+      })
+      ElMessage.success(res.message || '关联成功')
+      emit('success')
+      visible.value = false
+    } catch (e: any) {
+      ElMessage.error(e?.response?.data?.message || e?.message || '关联失败')
+    } finally {
+      submitting.value = false
+    }
+  })
 }
 
-watch(visible, (v) => {
-  if (v) loadNetworkList()
+watch(visible, async v => {
+  if (v) {
+    form.networkId = null
+    form.accountId = null
+    accountList.value = []
+    await loadNetworks()
+  }
 })
 </script>
+
