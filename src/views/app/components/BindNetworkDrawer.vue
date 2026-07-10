@@ -47,39 +47,8 @@
           </el-select>
         </el-form-item>
 
-        <!-- 账号选择 + 添加账号链接 -->
-        <el-form-item label="账号" prop="accountId" required>
-          <div class="bnd-account-row">
-            <el-select
-              v-model="formData.accountId"
-              placeholder="请选择账号"
-              :loading="loadingAccounts"
-              :disabled="!formData.networkDefId"
-              class="bnd-account-select"
-              @change="onAccountChange"
-            >
-              <el-option
-                v-for="acc in accountList"
-                :key="acc.id"
-                :label="acc.account_name"
-                :value="acc.id"
-              />
-            </el-select>
-            <el-button
-              v-if="formData.networkDefId"
-              type="primary"
-              link
-              class="bnd-add-account"
-              @click="openAddAccount"
-            >
-              <el-icon><Plus /></el-icon>
-              <span>添加账号</span>
-            </el-button>
-          </div>
-        </el-form-item>
-
-        <!-- 自定义网络：K-V 编辑器直接展示（不需要先选账号） -->
-        <template v-if="isCustomNetwork">
+        <!-- 选了广告平台之后：直接显示该网络的字段配置 -->
+        <template v-if="formData.networkDefId && isCustomNetwork && visibleFields.length > 0">
           <el-form-item
             v-for="field in visibleFields"
             :key="field.key"
@@ -142,8 +111,8 @@
           </el-form-item>
         </template>
 
-        <!-- 预置网络：选了账号之后才显示动态字段 -->
-        <template v-else-if="formData.accountId">
+        <!-- 预置网络字段：选完网络直接展示 -->
+        <template v-else-if="formData.networkDefId && visibleFields.length > 0">
           <el-divider class="bnd-divider">
             <span class="bnd-divider-text">账号配置</span>
           </el-divider>
@@ -186,7 +155,7 @@
 
             <!-- currency 固定显示 -->
             <div v-else-if="field.type === 'currency'" class="bnd-currency">
-              <span class="bnd-currency-fixed">{{ (field as any).fixed }}</span>
+              <span class="bnd-currency-fixed">{{ getFixed(field) }}</span>
               <span class="bnd-currency-lock">不可修改</span>
             </div>
 
@@ -198,7 +167,7 @@
               class="bnd-select"
             >
               <el-option
-                v-for="opt in (field as any).options"
+                v-for="opt in getOptions(field)"
                 :key="opt.value"
                 :label="opt.label"
                 :value="opt.value"
@@ -251,15 +220,6 @@
         >确认关联</el-button>
       </div>
     </template>
-
-    <!-- 嵌套 drawer：添加账号 -->
-    <AddNetworkAccountDrawer
-      v-model="addAccountVisible"
-      :network-id="currentNetworkId"
-      :network-code="currentNetworkCode"
-      :network-name="currentNetworkName"
-      @success="onAccountCreated"
-    />
   </el-drawer>
 </template>
 
@@ -270,8 +230,33 @@ import {
   Box, Plus, Delete, Refresh, CopyDocument, QuestionFilled, InfoFilled,
 } from '@element-plus/icons-vue'
 import request from '@/utils/request'
-import AddNetworkAccountDrawer from './AddNetworkAccountDrawer.vue'
 import { getSchemaByNetwork, makeInitialData, validateRequired, type FieldDef } from './network-field-schemas'
+
+// 模板辅助：避免模板里写 (field as any) TS 断言
+function getAddText(field: FieldDef): string {
+  const f = field as FieldDef & { addText?: string }
+  return f.addText || '增加参数'
+}
+function getFixed(field: FieldDef): string {
+  const f = field as FieldDef & { fixed?: string }
+  return f.fixed || ''
+}
+function getOptions(field: FieldDef): { label: string; value: string | number }[] {
+  const f = field as FieldDef & { options?: { label: string; value: string | number }[] }
+  return f.options || []
+}
+function getDefault(field: FieldDef): string | number | boolean | undefined {
+  const f = field as FieldDef & { default?: string | number | boolean }
+  return f.default
+}
+function getBtnText(field: FieldDef): string {
+  const f = field as FieldDef & { btnText?: string }
+  return f.btnText || '生成'
+}
+function getCopyText(field: FieldDef): string {
+  const f = field as FieldDef & { copyText?: string }
+  return f.copyText || '复制'
+}
 
 interface Network {
   id: number
@@ -299,19 +284,15 @@ const visible = computed(() => props.modelValue)
 const formRef = ref()
 const submitting = ref(false)
 const loadingNetworks = ref(false)
-const loadingAccounts = ref(false)
 
 const networkList = ref<Network[]>([])
-const accountList = ref<any[]>([])
 
-const addAccountVisible = ref(false)
 const currentNetworkId = ref<number | null>(null)
 const currentNetworkCode = ref('')
 const currentNetworkName = ref('')
 
 const formData = ref<Record<string, any>>({
   networkDefId: null,
-  accountId: null,
 })
 
 const isCustomNetwork = computed(() => {
@@ -326,10 +307,13 @@ const schema = computed<FieldDef[]>(() => {
 })
 
 const visibleFields = computed(() => {
-  return schema.value.filter(f => {
+  const fields = schema.value.filter(f => {
     if (!f.showWhen) return true
     return formData.value[f.showWhen.key] === f.showWhen.value
   })
+  // eslint-disable-next-line no-console
+  console.log('[bnd] visibleFields:', fields.length, JSON.stringify(fields.map(f => ({ k: f.key, t: f.type }))))
+  return fields
 })
 
 const rules = computed(() => {
@@ -389,80 +373,15 @@ async function loadNetworks() {
   }
 }
 
-async function loadAccounts(networkDefId: number) {
-  loadingAccounts.value = true
-  accountList.value = []
-  formData.value.accountId = null
-  try {
-    const res: any = await request.get('/api/v1/console/network/account/list', {
-      params: { networkDefId, pageSize: 100 },
-    })
-    if (res?.code === 0) {
-      accountList.value = res.data?.list || []
-      // 默认选第一个
-      if (accountList.value.length > 0) {
-        formData.value.accountId = accountList.value[0].id
-        onAccountChange(accountList.value[0].id)
-      }
-    }
-  } catch (e) {
-    // ignore
-  } finally {
-    loadingAccounts.value = false
-  }
-}
-
 function onNetworkChange(networkDefId: number) {
   const n = networkList.value.find(x => x.id === networkDefId)
   if (!n) return
   currentNetworkId.value = n.id
   currentNetworkCode.value = n.network_code
   currentNetworkName.value = n.network_name
-  // 预置网络：加载账号
-  if (n.network_type === 1) {
-    loadAccounts(n.id)
-  } else {
-    // 自定义网络：直接展示 K-V
-    accountList.value = []
-    formData.value.accountId = null
-    const initData = makeInitialData(schema.value)
-    Object.assign(formData.value, initData)
-  }
-}
-
-function onAccountChange(accountId: number) {
-  // 把账号 credentials 填进 formData（可编辑）
-  const acc = accountList.value.find(x => x.id === accountId)
-  if (!acc) return
+  // 选完网络：直接初始化 schema 字段（预置/自定义都直接展示）
   const initData = makeInitialData(schema.value)
-  // 覆盖默认值
-  if (acc.credentials && typeof acc.credentials === 'object') {
-    for (const f of schema.value) {
-      if (acc.credentials[f.key] !== undefined) {
-        initData[f.key] = acc.credentials[f.key]
-      }
-    }
-  }
-  // accountName
-  if (acc.account_name) {
-    initData.accountName = acc.account_name
-  }
   Object.assign(formData.value, initData)
-}
-
-function openAddAccount() {
-  if (!formData.value.networkDefId) {
-    ElMessage.warning('请先选择广告平台')
-    return
-  }
-  addAccountVisible.value = true
-}
-
-function onAccountCreated(account: any) {
-  // 刷新账号列表
-  if (formData.value.networkDefId) {
-    loadAccounts(formData.value.networkDefId)
-  }
 }
 
 function addKV(key: string) {
@@ -520,14 +439,30 @@ async function onSubmit() {
         credentials[f.key] = formData.value[f.key]
       }
     }
+    // 1. 先在 ad_network_account 创建/取一个「默认账号」拿到 accountId
+    const accountName = formData.value.accountName || '默认账号'
+    const createRes: any = await request.post('/api/v1/console/network/account/create', {
+      networkDefId: formData.value.networkDefId,
+      appId: props.appKey,
+      accountName,
+      accountId: formData.value.accountId || `acc_${Date.now()}`,
+      credentials,
+      status: 1,
+    })
+    if (createRes?.code !== 0) {
+      ElMessage.error(createRes?.message || '创建账号失败')
+      return
+    }
+    const accountId = createRes.data?.id
+    // 2. 调用 app/bind，把 accountId 写到 network_app_id
     const payload = {
       appKey: props.appKey,
       networkDefId: formData.value.networkDefId,
-      networkAppId: String(formData.value.accountId || ''),
+      networkAppId: String(accountId || ''),
       adapterVersionId: 0,
       extraParams: {
         credentials,
-        accountId: formData.value.accountId,
+        accountId,
       },
       status: 1,
     }
