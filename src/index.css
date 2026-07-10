@@ -6232,33 +6232,79 @@ html, body, #app {
 
 /* ========================================================
    关联广告平台 抽屉（BindNetworkDrawer）
+   与主页面卡片化分区风格统一：
+   - 抽屉头部：浅灰底 + 蓝色 icon + 标题/副标题
+   - 卡片：白底 + 1px E2E8F0 边框 + 8px 圆角 + 卡片标题
+   - 字段：13px 标签，蓝色 hint 卡片（左竖条 #3B82F6）
+   - Footer：#F8FAFC 底 + 上边线
    ======================================================== */
-.bnd-body {
-  padding: 20px 24px;
+
+/* 抽屉外壳 */
+.bnd-drawer :deep(.el-drawer__header) {
+  margin: 0;
+  padding: 14px 20px;
+  background: #F8FAFC;
+  border-bottom: 1px solid #E2E8F0;
+  font-size: 15px;
+  font-weight: 600;
+  color: #0F172A;
 }
+.bnd-drawer :deep(.el-drawer__body) {
+  padding: 0;
+  background: #F8FAFC;
+  display: flex;
+  flex-direction: column;
+}
+
+/* 抽屉内滚动区 */
+.bnd-body {
+  flex: 1;
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  overflow-y: auto;
+}
+
+/* 顶部头部（应用信息条） */
 .bnd-header {
-  margin-bottom: 20px;
-  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
   background: linear-gradient(135deg, #EFF6FF 0%, #DBEAFE 100%);
   border: 1px solid #BFDBFE;
   border-radius: 8px;
 }
-.bnd-header-crumbs {
+.bnd-header-icon {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #FFFFFF;
+  border: 1px solid #BFDBFE;
+  border-radius: 6px;
+  color: #1E40AF;
+  font-size: 16px;
+  flex-shrink: 0;
+}
+.bnd-header-content {
+  flex: 1;
+  min-width: 0;
+}
+.bnd-header-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #1E3A8A;
+  line-height: 1.4;
+  margin: 0 0 2px 0;
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 13px;
-  color: #1E40AF;
-  font-weight: 500;
-  margin-bottom: 6px;
 }
-.bnd-header-crumbs .el-icon {
-  color: #93C5FD;
-  font-size: 12px;
-}
-.bnd-header-crumbs-app {
+.bnd-header-app-name {
   color: #1D4ED8;
-  font-weight: 600;
 }
 .bnd-header-sub {
   margin: 0;
@@ -6266,149 +6312,143 @@ html, body, #app {
   color: #475569;
   line-height: 1.5;
 }
-.bnd-form {
-  padding: 0 4px;
+
+/* 卡片通用 */
+.bnd-card {
+  background: #FFFFFF;
+  border: 1px solid #E2E8F0;
+  border-radius: 8px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+  overflow: hidden;
 }
-.bnd-form .el-form-item__label {
-  color: #475569;
-  font-size: 13px;
-  font-weight: 500;
-}
-.bnd-form-hint {
-  font-size: 11px;
-  color: #94A3B8;
-  line-height: 1.5;
-  margin-top: 4px;
-}
-.bnd-option {
+.bnd-card-head {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-.bnd-option-name {
-  font-size: 13px;
-  color: #1E293B;
-}
-.bnd-footer {
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-  padding: 12px 24px;
-  border-top: 1px solid #E2E8F0;
+  gap: 6px;
+  padding: 10px 14px;
+  border-bottom: 1px solid #F1F5F9;
   background: #FFFFFF;
 }
-
-/* ============================================================
- * 关联广告平台弹窗 - BindNetworkDrawer (.bnd-*)
- * ============================================================ */
-.bnd-root {
-  display: flex;
-  flex-direction: column;
-  gap: 18px;
-  padding: 8px 4px 12px 4px;
+.bnd-card-head-icon {
+  color: #2563EB;
+  font-size: 14px;
 }
-
-.bnd-static {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  padding: 12px 14px;
-  background: linear-gradient(135deg, #F1F5F9 0%, #E2E8F0 100%);
-  border: 1px solid #CBD5E1;
-  border-radius: 8px;
-}
-.bnd-static-label {
-  font-size: 12px;
-  color: #64748B;
-  font-weight: 500;
-}
-.bnd-static-name {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.bnd-static-tag {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  font-weight: 500;
-  background-color: #DBEAFE;
-  border-color: #93C5FD;
-  color: #1E40AF;
-}
-.bnd-static-badge {
-  font-size: 10px;
-  color: #FFFFFF;
-  background: linear-gradient(135deg, #3B82F6, #1E40AF);
-  padding: 2px 6px;
-  border-radius: 4px;
+.bnd-card-head-title {
+  font-size: 13px;
   font-weight: 600;
-  letter-spacing: 0.5px;
+  color: #1E293B;
+}
+.bnd-card-head-extra {
+  margin-left: auto;
+  font-size: 12px;
+  color: #94A3B8;
+  font-weight: 400;
+}
+.bnd-card-body {
+  padding: 14px;
 }
 
+/* 表单 */
 .bnd-form {
   display: flex;
   flex-direction: column;
   gap: 14px;
 }
-.bnd-form .el-form-item {
+.bnd-form :deep(.el-form-item) {
   margin-bottom: 0;
 }
-.bnd-form .el-form-item__label {
+.bnd-form :deep(.el-form-item__label) {
   font-weight: 500;
-  color: #1E293B;
-  padding-bottom: 4px;
+  color: #334155;
+  font-size: 13px;
   line-height: 1.4;
+  padding-bottom: 4px;
 }
-
 .bnd-select {
   width: 100%;
 }
 
-.bnd-divider {
-  margin: 4px 0 8px 0;
-}
-.bnd-divider-text {
-  font-size: 12px;
-  color: #64748B;
-  font-weight: 500;
-}
-
+/* 字段标签：带 hint 提示图标 */
 .bnd-field-label {
   display: inline-flex;
   align-items: center;
   gap: 4px;
 }
-.bnd-tooltip-icon {
-  font-size: 14px;
-  color: #94A3B8;
-  cursor: help;
-  transition: color 0.2s;
+.bnd-field-label-text {
+  color: #334155;
+  font-weight: 500;
+  font-size: 13px;
 }
-.bnd-tooltip-icon:hover {
-  color: #3B82F6;
+.bnd-field-label-required {
+  color: #DC2626;
+  font-size: 13px;
+  margin-left: 2px;
+}
+.bnd-hint-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #DBEAFE;
+  color: #1E40AF;
+  font-size: 10px;
+  cursor: help;
+  transition: all 0.15s;
+  flex-shrink: 0;
+}
+.bnd-hint-trigger:hover {
+  background: #BFDBFE;
+  color: #1E3A8A;
 }
 
+/* Hint 提示卡片（内嵌在 label 下方） */
+.bnd-hint {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin-top: 4px;
+  padding: 6px 10px;
+  background: #F8FAFC;
+  border-left: 2px solid #3B82F6;
+  border-radius: 0 4px 4px 0;
+  font-size: 12px;
+  color: #475569;
+  line-height: 1.5;
+}
+.bnd-hint-icon {
+  color: #3B82F6;
+  font-size: 12px;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+/* 币种锁死 */
 .bnd-currency {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  padding: 6px 12px;
+  padding: 5px 12px;
   background: #F1F5F9;
-  border: 1px solid #CBD5E1;
+  border: 1px solid #E2E8F0;
   border-radius: 6px;
+  height: 28px;
 }
-.bnd-currency-fixed {
-  font-size: 14px;
+.bnd-currency-value {
+  font-size: 13px;
   font-weight: 600;
   color: #1E293B;
 }
 .bnd-currency-lock {
   font-size: 11px;
   color: #94A3B8;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
 }
 
+/* 百度公钥 */
 .bnd-pubkey {
   display: flex;
   flex-direction: column;
@@ -6418,12 +6458,14 @@ html, body, #app {
   font-family: 'Monaco', 'Menlo', 'Courier New', monospace;
   font-size: 11px;
   background: #F8FAFC;
+  line-height: 1.5;
 }
 .bnd-pubkey-actions {
   display: flex;
   gap: 8px;
 }
 
+/* K-V 编辑器 */
 .bnd-kv {
   display: flex;
   flex-direction: column;
@@ -6441,7 +6483,7 @@ html, body, #app {
 .bnd-kv-eq {
   font-size: 14px;
   font-weight: 600;
-  color: #64748B;
+  color: #94A3B8;
   flex-shrink: 0;
 }
 .bnd-kv-del {
@@ -6449,31 +6491,29 @@ html, body, #app {
 }
 .bnd-kv-add {
   align-self: flex-start;
+  margin-top: 2px;
 }
 
-.bnd-help {
-  display: flex;
-  align-items: flex-start;
-  gap: 6px;
-  padding: 10px 12px;
-  background: #EFF6FF;
-  border: 1px solid #BFDBFE;
-  border-radius: 6px;
-  font-size: 12px;
-  color: #1E40AF;
-  line-height: 1.5;
+/* 空状态 */
+.bnd-empty {
+  text-align: center;
+  padding: 32px 16px;
+  color: #94A3B8;
+  font-size: 13px;
 }
-.bnd-help .el-icon {
-  margin-top: 1px;
-  flex-shrink: 0;
+.bnd-empty-icon {
+  font-size: 32px;
+  color: #CBD5E1;
+  margin-bottom: 8px;
 }
 
+/* 底部 footer */
 .bnd-footer {
   display: flex;
   justify-content: flex-end;
   gap: 8px;
-  padding: 12px 24px;
+  padding: 12px 20px;
   border-top: 1px solid #E2E8F0;
-  background: #FFFFFF;
+  background: #F8FAFC;
 }
 

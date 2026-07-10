@@ -1,213 +1,224 @@
 <template>
   <el-drawer
     :model-value="visible"
-    title="关联广告平台账号"
+    title="关联广告平台"
     direction="rtl"
     size="560px"
     :with-header="true"
     :destroy-on-close="true"
     :append-to-body="true"
+    class="bnd-drawer"
     @update:model-value="onVisibleChange"
   >
-    <div class="bnd-root">
-      <!-- 应用只读 -->
-      <div class="bnd-static">
-        <span class="bnd-static-label">应用</span>
-        <span class="bnd-static-name">
-          <el-tag size="small" type="info" effect="plain" class="bnd-static-tag">
-            <el-icon><Box /></el-icon>
-            <span>{{ appName }}</span>
-          </el-tag>
-        </span>
+    <div class="bnd-body">
+      <!-- 顶部应用信息条 -->
+      <div class="bnd-header">
+        <div class="bnd-header-icon">
+          <el-icon><Cellphone /></el-icon>
+        </div>
+        <div class="bnd-header-content">
+          <p class="bnd-header-title">
+            <el-icon :size="12" color="#3B82F6"><Promotion /></el-icon>
+            <span>正在为</span>
+            <span class="bnd-header-app-name">{{ appName }}</span>
+            <span>关联广告平台</span>
+          </p>
+          <p class="bnd-header-sub">关联后可在「广告平台 → 账号管理」中查看与编辑</p>
+        </div>
       </div>
 
-      <!-- 广告平台选择 -->
-      <el-form
-        ref="formRef"
-        :model="formData"
-        :rules="rules"
-        label-position="top"
-        class="bnd-form"
-      >
-        <el-form-item label="广告平台" prop="networkDefId" required>
-          <el-select
-            v-model="formData.networkDefId"
-            placeholder="请选择广告平台"
-            filterable
-            class="bnd-select"
-            :loading="loadingNetworks"
-            @change="onNetworkChange"
+      <!-- 卡片 1：选择广告平台 -->
+      <section class="bnd-card">
+        <header class="bnd-card-head">
+          <el-icon class="bnd-card-head-icon"><Link /></el-icon>
+          <span class="bnd-card-head-title">选择广告平台</span>
+          <span class="bnd-card-head-extra">必选</span>
+        </header>
+        <div class="bnd-card-body">
+          <el-form
+            ref="formRef"
+            :model="formData"
+            :rules="rules"
+            label-position="top"
+            class="bnd-form"
           >
-            <el-option
-              v-for="n in networkList"
-              :key="n.id"
-              :label="`${n.network_name} (${n.network_code})`"
-              :value="n.id"
-            />
-          </el-select>
-        </el-form-item>
-
-        <!-- 选了广告平台之后：直接显示该网络的字段配置 -->
-        <template v-if="formData.networkDefId && isCustomNetwork && visibleFields.length > 0">
-          <el-form-item
-            v-for="field in visibleFields"
-            :key="field.key"
-            :prop="field.key"
-          >
-            <template #label>
-              <div class="bnd-field-label">
-                <span>{{ field.label }}</span>
-                <el-tooltip
-                  v-if="field.tooltip"
-                  :content="field.tooltip"
-                  placement="top"
-                  :show-after="200"
-                  effect="light"
-                  raw-content
-                >
-                  <el-icon class="bnd-tooltip-icon"><QuestionFilled /></el-icon>
-                </el-tooltip>
-              </div>
-            </template>
-
-            <!-- key-value 编辑器 -->
-            <div v-if="field.type === 'key-value'" class="bnd-kv">
-              <div
-                v-for="(pair, idx) in formData[field.key]"
-                :key="idx"
-                class="bnd-kv-row"
+            <el-form-item label="广告平台" prop="networkDefId">
+              <el-select
+                v-model="formData.networkDefId"
+                placeholder="请选择广告平台"
+                filterable
+                class="bnd-select"
+                :loading="loadingNetworks"
+                @change="onNetworkChange"
               >
-                <el-input
-                  v-model="pair.key"
-                  placeholder="参数 key"
-                  class="bnd-kv-input-key"
-                  clearable
+                <el-option
+                  v-for="n in networkList"
+                  :key="n.id"
+                  :label="`${n.network_name} (${n.network_code})`"
+                  :value="n.id"
                 />
-                <span class="bnd-kv-eq">=</span>
-                <el-input
-                  v-model="pair.value"
-                  placeholder="参数 value"
-                  class="bnd-kv-input-val"
-                  clearable
+              </el-select>
+            </el-form-item>
+          </el-form>
+        </div>
+      </section>
+
+      <!-- 卡片 2：网络字段配置（选了广告平台后出现） -->
+      <section v-if="formData.networkDefId" class="bnd-card">
+        <header class="bnd-card-head">
+          <el-icon class="bnd-card-head-icon"><Setting /></el-icon>
+          <span class="bnd-card-head-title">账号与字段配置</span>
+          <span class="bnd-card-head-extra">{{ currentNetworkName || '—' }}</span>
+        </header>
+        <div class="bnd-card-body">
+          <!-- 选了网络但没字段（异常） -->
+          <div v-if="visibleFields.length === 0" class="bnd-empty">
+            <div class="bnd-empty-icon">
+              <el-icon><DocumentRemove /></el-icon>
+            </div>
+            <div>该广告平台暂无可配置字段</div>
+          </div>
+
+          <el-form
+            v-else
+            ref="fieldsFormRef"
+            :model="formData"
+            :rules="rules"
+            label-position="top"
+            class="bnd-form"
+            @submit.prevent
+          >
+            <el-form-item
+              v-for="field in visibleFields"
+              :key="field.key"
+              :prop="field.key"
+            >
+              <template #label>
+                <div class="bnd-field-label">
+                  <span class="bnd-field-label-text">{{ field.label }}</span>
+                  <span v-if="field.required" class="bnd-field-label-required">*</span>
+                </div>
+              </template>
+
+              <!-- text / password -->
+              <el-input
+                v-if="field.type === 'text' || field.type === 'password'"
+                v-model="formData[field.key]"
+                :type="field.type === 'password' ? 'password' : 'text'"
+                :placeholder="field.placeholder || '请输入'"
+                :maxlength="field.maxlength"
+                show-password
+                clearable
+              />
+
+              <!-- switch -->
+              <el-switch
+                v-else-if="field.type === 'switch'"
+                v-model="formData[field.key]"
+                inline-prompt
+                active-text="是"
+                inactive-text="否"
+              />
+
+              <!-- currency 锁死显示 -->
+              <div v-else-if="field.type === 'currency'" class="bnd-currency">
+                <span class="bnd-currency-value">{{ getFixed(field) }}</span>
+                <span class="bnd-currency-lock">
+                  <el-icon :size="11"><Lock /></el-icon>
+                  不可修改
+                </span>
+              </div>
+
+              <!-- select -->
+              <el-select
+                v-else-if="field.type === 'select'"
+                v-model="formData[field.key]"
+                placeholder="请选择"
+                class="bnd-select"
+              >
+                <el-option
+                  v-for="opt in getOptions(field)"
+                  :key="opt.value"
+                  :label="opt.label"
+                  :value="opt.value"
                 />
+              </el-select>
+
+              <!-- pub-key 百度新义公钥 -->
+              <div v-else-if="field.type === 'pub-key'" class="bnd-pubkey">
+                <el-input
+                  v-model="formData[field.key]"
+                  type="textarea"
+                  :rows="4"
+                  readonly
+                  placeholder="点击「生成公钥」按钮自动生成新义公钥"
+                  class="bnd-pubkey-input"
+                />
+                <div class="bnd-pubkey-actions">
+                  <el-button size="small" :icon="Refresh" @click="generatePubKey">
+                    {{ getBtnText(field) }}
+                  </el-button>
+                  <el-button
+                    size="small"
+                    type="primary"
+                    :icon="CopyDocument"
+                    :disabled="!formData[field.key]"
+                    plain
+                    @click="copyPubKey"
+                  >
+                    {{ getCopyText(field) }}
+                  </el-button>
+                </div>
+              </div>
+
+              <!-- key-value 自定义参数 -->
+              <div v-else-if="field.type === 'key-value'" class="bnd-kv">
+                <div
+                  v-for="(pair, idx) in formData[field.key]"
+                  :key="idx"
+                  class="bnd-kv-row"
+                >
+                  <el-input
+                    v-model="pair.key"
+                    placeholder="参数 key"
+                    class="bnd-kv-input-key"
+                    clearable
+                  />
+                  <span class="bnd-kv-eq">=</span>
+                  <el-input
+                    v-model="pair.value"
+                    placeholder="参数 value"
+                    class="bnd-kv-input-val"
+                    clearable
+                  />
+                  <el-button
+                    link
+                    type="danger"
+                    :icon="Delete"
+                    class="bnd-kv-del"
+                    @click="removeKV(field.key, idx)"
+                  />
+                </div>
                 <el-button
                   link
-                  type="danger"
-                  :icon="Delete"
-                  class="bnd-kv-del"
-                  @click="removeKV(field.key, idx)"
-                />
-              </div>
-              <el-button
-                link
-                type="primary"
-                :icon="Plus"
-                class="bnd-kv-add"
-                @click="addKV(field.key)"
-              >
-                {{ (field as any).addText || '增加参数' }}
-              </el-button>
-            </div>
-          </el-form-item>
-        </template>
-
-        <!-- 预置网络字段：选完网络直接展示 -->
-        <template v-else-if="formData.networkDefId && visibleFields.length > 0">
-          <el-divider class="bnd-divider">
-            <span class="bnd-divider-text">账号配置</span>
-          </el-divider>
-
-          <el-form-item
-            v-for="field in visibleFields"
-            :key="field.key"
-            :prop="field.key"
-          >
-            <template #label>
-              <div class="bnd-field-label">
-                <span>{{ field.label }}</span>
-                <el-tooltip
-                  v-if="field.tooltip"
-                  :content="field.tooltip"
-                  placement="top"
-                  :show-after="200"
-                  effect="light"
-                >
-                  <el-icon class="bnd-tooltip-icon"><QuestionFilled /></el-icon>
-                </el-tooltip>
-              </div>
-            </template>
-
-            <!-- text / password -->
-            <el-input
-              v-if="field.type === 'text' || field.type === 'password'"
-              v-model="formData[field.key]"
-              :type="field.type === 'password' ? 'password' : 'text'"
-              :placeholder="field.placeholder || '请输入'"
-              :maxlength="field.maxlength"
-              clearable
-            />
-
-            <!-- switch -->
-            <el-switch
-              v-else-if="field.type === 'switch'"
-              v-model="formData[field.key]"
-            />
-
-            <!-- currency 固定显示 -->
-            <div v-else-if="field.type === 'currency'" class="bnd-currency">
-              <span class="bnd-currency-fixed">{{ getFixed(field) }}</span>
-              <span class="bnd-currency-lock">不可修改</span>
-            </div>
-
-            <!-- select -->
-            <el-select
-              v-else-if="field.type === 'select'"
-              v-model="formData[field.key]"
-              placeholder="请选择"
-              class="bnd-select"
-            >
-              <el-option
-                v-for="opt in getOptions(field)"
-                :key="opt.value"
-                :label="opt.label"
-                :value="opt.value"
-              />
-            </el-select>
-
-            <!-- pub-key 百度 -->
-            <div v-else-if="field.type === 'pub-key'" class="bnd-pubkey">
-              <el-input
-                v-model="formData[field.key]"
-                type="textarea"
-                :rows="3"
-                readonly
-                placeholder="点击「生成公钥」按钮自动生成"
-                class="bnd-pubkey-input"
-              />
-              <div class="bnd-pubkey-actions">
-                <el-button size="small" @click="generatePubKey">
-                  <el-icon><Refresh /></el-icon>
-                  <span>生成公钥</span>
-                </el-button>
-                <el-button
-                  size="small"
                   type="primary"
-                  :disabled="!formData[field.key]"
-                  @click="copyPubKey"
+                  :icon="Plus"
+                  class="bnd-kv-add"
+                  @click="addKV(field.key)"
                 >
-                  <el-icon><CopyDocument /></el-icon>
-                  <span>复制</span>
+                  {{ getAddText(field) }}
                 </el-button>
               </div>
-            </div>
-          </el-form-item>
-        </template>
-      </el-form>
 
-      <div class="bnd-help">
-        <el-icon><InfoFilled /></el-icon>
-        <span>关联后可在「广告平台 → 账号管理」查看与编辑</span>
-      </div>
+              <!-- 内嵌 hint（替代 el-tooltip 浅框） -->
+              <div v-if="field.tooltip" class="bnd-hint">
+                <el-icon class="bnd-hint-icon"><InfoFilled /></el-icon>
+                <span>{{ field.tooltip }}</span>
+              </div>
+            </el-form-item>
+          </el-form>
+        </div>
+      </section>
     </div>
 
     <template #footer>
@@ -216,6 +227,7 @@
         <el-button
           type="primary"
           :loading="submitting"
+          :disabled="!formData.networkDefId"
           @click="onSubmit"
         >确认关联</el-button>
       </div>
@@ -227,10 +239,11 @@
 import { ref, computed, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import {
-  Box, Plus, Delete, Refresh, CopyDocument, QuestionFilled, InfoFilled,
+  Cellphone, Promotion, Link, Setting, DocumentRemove, Lock,
+  Plus, Delete, Refresh, CopyDocument, InfoFilled,
 } from '@element-plus/icons-vue'
 import request from '@/utils/request'
-import { getSchemaByNetwork, makeInitialData, validateRequired, type FieldDef } from './network-field-schemas'
+import { getSchemaByNetwork, makeInitialData, type FieldDef } from './network-field-schemas'
 
 // 模板辅助：避免模板里写 (field as any) TS 断言
 function getAddText(field: FieldDef): string {
@@ -244,10 +257,6 @@ function getFixed(field: FieldDef): string {
 function getOptions(field: FieldDef): { label: string; value: string | number }[] {
   const f = field as FieldDef & { options?: { label: string; value: string | number }[] }
   return f.options || []
-}
-function getDefault(field: FieldDef): string | number | boolean | undefined {
-  const f = field as FieldDef & { default?: string | number | boolean }
-  return f.default
 }
 function getBtnText(field: FieldDef): string {
   const f = field as FieldDef & { btnText?: string }
@@ -287,17 +296,10 @@ const loadingNetworks = ref(false)
 
 const networkList = ref<Network[]>([])
 
-const currentNetworkId = ref<number | null>(null)
-const currentNetworkCode = ref('')
 const currentNetworkName = ref('')
 
 const formData = ref<Record<string, any>>({
   networkDefId: null,
-})
-
-const isCustomNetwork = computed(() => {
-  const n = networkList.value.find(x => x.id === formData.value.networkDefId)
-  return n?.network_type === 2
 })
 
 const schema = computed<FieldDef[]>(() => {
@@ -307,19 +309,15 @@ const schema = computed<FieldDef[]>(() => {
 })
 
 const visibleFields = computed(() => {
-  const fields = schema.value.filter(f => {
+  return schema.value.filter(f => {
     if (!f.showWhen) return true
     return formData.value[f.showWhen.key] === f.showWhen.value
   })
-  // eslint-disable-next-line no-console
-  console.log('[bnd] visibleFields:', fields.length, JSON.stringify(fields.map(f => ({ k: f.key, t: f.type }))))
-  return fields
 })
 
 const rules = computed(() => {
   const r: Record<string, any> = {
     networkDefId: [{ required: true, message: '请选择广告平台', trigger: 'change' }],
-    accountId: [{ required: true, message: '请选择账号', trigger: 'change' }],
   }
   for (const f of schema.value) {
     if (f.required) {
@@ -352,8 +350,8 @@ watch(
     if (v) {
       formData.value = {
         networkDefId: null,
-        accountId: null,
       }
+      currentNetworkName.value = ''
       loadNetworks()
     }
   }
@@ -376,10 +374,8 @@ async function loadNetworks() {
 function onNetworkChange(networkDefId: number) {
   const n = networkList.value.find(x => x.id === networkDefId)
   if (!n) return
-  currentNetworkId.value = n.id
-  currentNetworkCode.value = n.network_code
   currentNetworkName.value = n.network_name
-  // 选完网络：直接初始化 schema 字段（预置/自定义都直接展示）
+  // 选完网络：直接初始化 schema 字段
   const initData = makeInitialData(schema.value)
   Object.assign(formData.value, initData)
 }
