@@ -203,7 +203,15 @@
               <span>暂未关联广告平台</span>
             </div>
             <div v-else class="network-grid">
-              <div v-for="n in boundNetworks" :key="n.id" class="network-item">
+              <div
+                v-for="n in boundNetworks"
+                :key="n.id"
+                class="network-item network-item-clickable"
+                role="button"
+                tabindex="0"
+                @click="openViewNetwork(n)"
+                @keyup.enter="openViewNetwork(n)"
+              >
                 <div class="network-item-icon" :class="networkAvatarClass(n.network_code)">
                   {{ networkAvatarText(n) }}
                 </div>
@@ -215,7 +223,10 @@
                     <span>频次：默认</span>
                   </div>
                 </div>
-                <el-button link type="danger" size="small" @click="unbindNetwork(n)">解绑</el-button>
+                <div class="network-item-actions" @click.stop>
+                  <el-button link type="primary" size="small" @click="openViewNetwork(n)">查看</el-button>
+                  <el-button link type="danger" size="small" @click="unbindNetwork(n)">解绑</el-button>
+                </div>
               </div>
             </div>
           </div>
@@ -369,6 +380,14 @@
       :app-key="currentApp.app_key"
       :app-name="currentApp.app_name"
       @success="onBindSuccess"
+    />
+
+    <!-- ============ 广告平台配置详情 Drawer（只读）============ -->
+    <ViewNetworkDrawer
+      v-if="viewDrawerVisible && viewingBinding"
+      :model-value="viewDrawerVisible"
+      :binding="viewingBinding"
+      @update:model-value="viewDrawerVisible = $event"
     />
   </div>
 </template>
@@ -527,6 +546,7 @@ const goNetwork = () => router.push('/network');
 
 // ========== 关联广告平台抽屉 ==========
 import BindNetworkDrawer from './components/BindNetworkDrawer.vue';
+import ViewNetworkDrawer from './components/ViewNetworkDrawer.vue';
 const bindDrawerVisible = ref(false);
 const openBindDrawer = () => {
   if (!currentApp.value?.app_key) {
@@ -537,6 +557,14 @@ const openBindDrawer = () => {
 };
 const onBindSuccess = () => {
   fetchBoundNetworks();
+};
+
+// ========== 广告平台配置详情（只读） ==========
+const viewDrawerVisible = ref(false);
+const viewingBinding = ref<any | null>(null);
+const openViewNetwork = (binding: any) => {
+  viewingBinding.value = binding;
+  viewDrawerVisible.value = true;
 };
 
 // ========== Card 3: 广告位 ==========
