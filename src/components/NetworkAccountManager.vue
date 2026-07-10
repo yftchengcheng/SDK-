@@ -145,7 +145,8 @@
             v-for="field in schemaFields"
             :key="field.key"
             :label="field.label"
-            :prop="field.key"
+            :prop="`credentials.${field.key}`"
+            :rules="getFieldRules(field)"
             :required="field.required"
           >
             <!-- text -->
@@ -352,10 +353,30 @@ const form = reactive<{
   remark: '',
 });
 
-const formRules: FormRules = {
+const baseFormRules: FormRules = {
   account_name: [{ required: true, message: '请输入账号名称', trigger: 'blur' }],
   network_def_id: [{ required: true, message: '请选择广告平台', trigger: 'change' }],
 };
+
+// 动态生成 schema 字段的验证规则（与 baseFormRules 合并）
+const formRules = computed<FormRules>(() => {
+  const rules: FormRules = { ...baseFormRules };
+  for (const f of schemaFields.value) {
+    if (f.required) {
+      // 字段在表单模型中以 `credentials.<key>` 形式存在
+      rules[`credentials.${f.key}`] = [{
+        validator: (_r: unknown, value: unknown, cb: (e?: Error) => void) => {
+          if (value === undefined || value === null || value === '') {
+            return cb(new Error(`请填写${f.label}`));
+          }
+          cb();
+        },
+        trigger: 'blur',
+      }];
+    }
+  }
+  return rules;
+});
 
 const viewDrawerVisible = ref(false);
 const viewingAccount = ref<AccountRow | null>(null);
@@ -498,6 +519,12 @@ function resetForm() {
 
 function openCreate() {
   resetForm();
+  // 默认选中第一个平台（让 schema 字段立即可见）
+  const first = networks.value[0];
+  if (first) {
+    form.network_def_id = first.id;
+    onPlatformChange();
+  }
   dialogVisible.value = true;
   editing.value = false;
 }
@@ -514,6 +541,21 @@ function openEdit(row: AccountRow) {
   editing.value = true;
   dialogVisible.value = true;
 }
+
+function getFieldRules(field: FieldDef) {
+  const rules: any[] = []
+  if (field.required) {
+    rules.push({ required: true, message: `请填写${field.label}`, trigger: ['blur', 'change'] })
+  }
+  if (field.type === 'password' && field.minLength !== undefined) {
+    rules.push({ min: field.minLength, message: `至少${field.minLength}位`, trigger: 'blur' })
+  }
+  if (field.validator) {
+    rules.push({ validator: field.validator, trigger: 'blur' })
+  }
+  return rules
+}
+
 
 function onPlatformChange() {
   if (!form.network_def_id) return;
@@ -537,12 +579,6 @@ async function submit() {
   if (!formRef.value) return;
   const valid = await formRef.value.validate().catch(() => false);
   if (!valid) return;
-  // 验证必填的 schema 字段
-  const missingField = schemaFields.value.find(f => f.required && (form.credentials[f.key] === undefined || form.credentials[f.key] === '' || form.credentials[f.key] === null));
-  if (missingField) {
-    ElMessage.warning(`请填写凭证字段：${missingField.label}`);
-    return;
-  }
   saving.value = true;
   try {
     const payload = {
