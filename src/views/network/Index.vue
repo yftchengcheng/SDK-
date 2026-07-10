@@ -16,13 +16,17 @@
         <div class="page-filter">
           <div class="page-filter-form"></div>
           <div class="page-filter-actions">
-            <el-button type="primary" :icon="Plus" @click="openCreate">创建自定义广告平台</el-button>
+            <el-button :icon="CreditCard" @click="goCreateAccount()">+ 新建账号</el-button>
+            <el-button type="primary" :icon="Plus" @click="openCustomDrawer">创建自定义广告平台</el-button>
           </div>
         </div>
 
         <!-- Preset Networks -->
         <div class="page-card"><div class="page-table-wrap">
-          <div class="page-card-header"><div class="page-card-title">预置平台（系统内置）</div></div>
+          <div class="page-card-header">
+            <div class="page-card-title">预置平台（系统内置）</div>
+            <div class="page-card-extra">仅展示已创建账号的预置平台；想新增时点击右上角「+ 新建账号」</div>
+          </div>
           <el-table :data="presetNetworks" stripe style="width: 100%; margin-top: 12px">
             <el-table-column prop="network_code" label="平台代码" width="120" />
             <el-table-column prop="network_name" label="平台名称" min-width="140" />
@@ -31,6 +35,11 @@
             </el-table-column>
             <el-table-column label="类型" width="100">
               <template #default><span class="status-tag status-tag--neutral">预置</span></template>
+            </el-table-column>
+            <el-table-column label="操作" width="120" fixed="right">
+              <template #default="{ row }">
+                <el-button link type="primary" size="small" @click="goCreateAccount(row.id)">+ 新建账号</el-button>
+              </template>
             </el-table-column>
           </el-table></div></div>
 
@@ -69,7 +78,7 @@
 
     <!-- Drawer: Create / Edit Custom Network（侧边抽屉，保留列表上下文） -->
     <el-drawer
-      v-model="drawerVisible"
+      v-model="customDrawerVisible"
       direction="rtl"
       :size="drawerSize"
       :with-header="false"
@@ -483,11 +492,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted, computed } from 'vue';
+import { ref, reactive, onMounted, computed, nextTick } from 'vue';
 import request from '../../utils/request';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import type { FormInstance, FormRules } from 'element-plus';
-import { Plus, Connection, Search, RefreshLeft, UploadFilled, Filter, Edit, InfoFilled, Box, Document, Cellphone, Setting, Close, Check } from '@element-plus/icons-vue';
+import { Plus, CreditCard, Connection, Search, RefreshLeft, UploadFilled, Filter, Edit, InfoFilled, Box, Document, Cellphone, Setting, Close, Check } from '@element-plus/icons-vue';
 import AccountManager from '../../components/AccountManager.vue';
 import ReviewPanel, { type AdapterVersion } from '../../components/ReviewPanel.vue';
 
@@ -496,11 +505,29 @@ const activeTab = ref<'manage' | 'accounts'>('manage');
 const loading = ref(false);
 const allNetworks = ref<any[]>([]);
 const appList = ref<any[]>([]);
+// 已有账号的广告平台 network_def_id 集合（用于过滤预置平台表格）
+const accountNetworkDefIds = ref<Set<number>>(new Set());
+const accountManagerRef = ref<InstanceType<typeof AccountManager> | null>(null);
+const prefillNetworkDefId = ref<number | null>(null);
 
-const presetNetworks = computed(() => allNetworks.value.filter(n => n.network_type === 1));
+/** 预置平台表格：只展示「至少建过 1 个账号」的预置平台
+ *  对齐参考图（Taku）：表格里不展示没创建过账号的预置平台，
+ *  想新增时通过「+ 新建账号」按钮从完整预置列表里选 */
+const presetNetworks = computed(() =>
+  allNetworks.value.filter(n => n.network_type === 1 && accountNetworkDefIds.value.has(n.id))
+);
 const customNetworks = computed(() => allNetworks.value.filter(n => n.network_type === 2));
 
-const drawerVisible = ref(false);
+/** 切到「广告平台账号」Tab 并打开新建弹窗（可预选某预置平台） */
+const goCreateAccount = async (networkDefId?: number) => {
+  activeTab.value = 'accounts';
+  prefillNetworkDefId.value = networkDefId ?? null;
+  await nextTick();
+  // AccountManager 已在切 tab 时挂载
+  accountManagerRef.value?.openCreate(prefillNetworkDefId.value ?? undefined);
+};
+
+const customDrawerVisible = ref(false);
 const drawerSize = '720px';
 const drawerSizeLg = '880px';
 const isEdit = ref(false);
@@ -521,13 +548,26 @@ const formRules: FormRules = {
 const fetchList = async () => {
   loading.value = true;
   try { const res: any = await request.get('/api/v1/console/network/list'); allNetworks.value = res.data?.list || []; } catch { /* ignore */ } finally { loading.value = false; }
+  // 同步拉账号列表，用于过滤预置平台表格
+  await fetchAccounts();
 };
 
 const fetchAppList = async () => {
   try { const res: any = await request.get('/api/v1/console/app/list?pageSize=1000'); appList.value = res.data?.list || []; } catch { /* ignore */ }
 };
 
-const openCreate = () => { isEdit.value = false; Object.assign(editForm, defaultForm); drawerVisible.value = true; };
+/** 拉当前 developer 的所有广告平台账号，收集 network_def_id 集合 */
+const fetchAccounts = async () => {
+  try {
+    const res: any = await request.get('/api/v1/console/network/account/list?pageSize=1000');
+    const list = res.data?.list || res.data || [];
+    accountNetworkDefIds.value = new Set(
+      (list as any[]).map((a: any) => Number(a.network_def_id)).filter(Boolean)
+    );
+  } catch { /* ignore */ }
+};
+
+const openCustomDrawer = () => { isEdit.value = false; Object.assign(editForm, defaultForm); customDrawerVisible.value = true; };
 
 const handleEdit = (row: any) => {
   isEdit.value = true;
@@ -538,10 +578,10 @@ const handleEdit = (row: any) => {
     adapter_class_native: row.adapter_class_native || '', adapter_class_splash: row.adapter_class_splash || '',
     supports_bidding: !!row.supports_bidding,
   });
-  drawerVisible.value = true;
+  customDrawerVisible.value = true;
 };
 
-const closeDrawer = () => { drawerVisible.value = false; };
+const closeDrawer = () => { customDrawerVisible.value = false; };
 const onFormReset = () => { Object.assign(editForm, defaultForm); };
 const onUploadReset = () => { Object.assign(uploadDialog.form, { version: '', adapter_type: 1, file_name: '', file_size: 0, file_content: '', remark: '' }); };
 const onBindingReset = () => { Object.assign(newBindingDialog.form, { app_key: '', network_app_id: '', adapter_version_id: null, extra_params: '' }); };
@@ -560,7 +600,7 @@ const handleSubmit = async () => {
       await request.post('/api/v1/console/network/custom/create', payload);
       ElMessage.success('创建成功');
     }
-    drawerVisible.value = false;
+    customDrawerVisible.value = false;
     fetchList();
   } catch { /* ignore */ } finally { submitting.value = false; }
 };
