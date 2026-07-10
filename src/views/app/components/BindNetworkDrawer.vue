@@ -54,10 +54,32 @@
                 <el-option
                   v-for="n in networkList"
                   :key="n.id"
-                  :label="`${n.network_name} (${n.network_code})`"
+                  :label="networkOptionLabel(n)"
                   :value="n.id"
                 />
+                <template #empty>
+                  <div class="bnd-select-empty">
+                    <div class="bnd-select-empty-title">暂无可绑定的广告平台</div>
+                    <div class="bnd-select-empty-desc">
+                      预置平台需先在「广告平台」模块创建账号；自定义平台可直接新建。
+                    </div>
+                    <button type="button" class="bnd-select-empty-cta" @click="goCreateAccount">
+                      <el-icon><Position /></el-icon>
+                      前往广告平台管理
+                    </button>
+                  </div>
+                </template>
               </el-select>
+              <div v-if="!loadingNetworks && networkList.length === 0" class="bnd-select-tip">
+                <el-icon><InfoFilled /></el-icon>
+                <span>
+                  暂无可选项。如需绑定预置平台，请先到
+                  <a class="bnd-link" @click="goCreateAccount">广告平台</a>
+                  模块创建账号；如需使用自定义平台，请到
+                  <a class="bnd-link" @click="goCreateAccount">广告平台</a>
+                  模块创建自定义广告平台。
+                </span>
+              </div>
             </el-form-item>
           </el-form>
         </div>
@@ -250,9 +272,10 @@ import { ref, computed, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import {
   Cellphone, Promotion, Link, Setting, DocumentRemove, Lock,
-  Plus, Delete, Refresh, CopyDocument, InfoFilled,
+  Plus, Delete, Refresh, CopyDocument, InfoFilled, Position,
 } from '@element-plus/icons-vue'
 import request from '@/utils/request'
+import { useRouter } from 'vue-router'
 import { getSchemaByNetwork, makeInitialData, type FieldDef } from './network-field-schemas'
 
 // 模板辅助：避免模板里写 (field as any) TS 断言
@@ -362,23 +385,41 @@ watch(
         networkDefId: null,
       }
       currentNetworkName.value = ''
-      loadNetworks()
+      loadAvailableNetworks()
     }
   }
 )
 
-async function loadNetworks() {
+const availableNetworkIds = ref<Set<number>>(new Set()) // 已有账号的网络 def id 集合（预置平台过滤用）
+
+async function loadAvailableNetworks() {
   loadingNetworks.value = true
   try {
-    const res: any = await request.get('/api/v1/console/network/list', { params: { status: 1 } })
-    if (res?.code === 0) {
-      networkList.value = res.data?.list || []
-    }
+    // 并行：所有平台定义 + 当前开发者已创建的账号
+    const [netRes, accRes] = await Promise.all([
+      request.get('/api/v1/console/network/list', { params: { status: 1 } }),
+      request.get('/api/v1/console/network/account/list', { params: { pageSize: 100 } }),
+    ])
+    const allNetworks: Network[] = netRes?.code === 0 ? (netRes.data?.list || []) : []
+    const accounts: Array<{ network_def_id: number }> = accRes?.code === 0 ? (accRes.data?.list || []) : []
+    // 收集已建账号的网络 def id
+    availableNetworkIds.value = new Set(accounts.map(a => a.network_def_id))
+    // 过滤：
+    //   - 自定义平台 (network_type=2) 一直可见
+    //   - 预置平台 (network_type=1) 必须在 ad_network_account 里有至少一个
+    networkList.value = allNetworks.filter(n =>
+      n.network_type === 2 || availableNetworkIds.value.has(n.id)
+    )
   } catch (e) {
     // ignore
   } finally {
     loadingNetworks.value = false
   }
+}
+
+function networkOptionLabel(n: Network): string {
+  const tag = n.network_type === 1 ? '预置' : '自定义'
+  return `${n.network_name} (${n.network_code}) · ${tag}`
 }
 
 function onNetworkChange(networkDefId: number) {
@@ -388,6 +429,13 @@ function onNetworkChange(networkDefId: number) {
   // 选完网络：直接初始化 schema 字段
   const initData = makeInitialData(schema.value)
   Object.assign(formData.value, initData)
+}
+
+// 跳转到广告平台管理模块（让用户先创建账号/自定义平台）
+const router = useRouter()
+function goCreateAccount() {
+  emit('update:modelValue', false)
+  router.push('/network')
 }
 
 function addKV(key: string) {

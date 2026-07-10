@@ -6972,3 +6972,77 @@ html, body, #app {
   color: #1E40AF;
   background: #EFF6FF;
 }
+
+/* ===========================================
+   BindNetworkDrawer - 下拉空状态 + 引导 CTA
+=========================================== */
+.bnd-select-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 16px 12px;
+  text-align: center;
+}
+.bnd-select-empty-title {
+  font-size: 13px;
+  font-weight: 500;
+  color: #475569;
+}
+.bnd-select-empty-desc {
+  font-size: 11px;
+  color: #94A3B8;
+  line-height: 1.5;
+  max-width: 240px;
+}
+.bnd-select-empty-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 4px;
+  padding: 5px 12px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #1E40AF;
+  background: #EFF6FF;
+  border: 1px solid #BFDBFE;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.bnd-select-empty-cta:hover {
+  background: #DBEAFE;
+  border-color: #1E40AF;
+}
+
+.bnd-select-tip {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin-top: 8px;
+  padding: 8px 10px;
+  background: #FFF7ED;
+  border-left: 2px solid #F59E0B;
+  border-radius: 0 4px 4px 0;
+  font-size: 12px;
+  color: #92400E;
+  line-height: 1.6;
+}
+.bnd-select-tip .el-icon {
+  flex-shrink: 0;
+  margin-top: 2px;
+  color: #F59E0B;
+}
+.bnd-link {
+  color: #1E40AF;
+  font-weight: 500;
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-color: #93C5FD;
+  text-underline-offset: 2px;
+  transition: color 0.15s ease;
+}
+.bnd-link:hover {
+  color: #1E3A8A;
+  text-decoration-color: #1E40AF;
+}
