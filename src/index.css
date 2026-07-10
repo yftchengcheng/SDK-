@@ -6062,8 +6062,14 @@ html, body, #app {
   color: #94A3B8;
 }
 .pd-required-hint b { color: #2563EB; font-weight: 600; }
-.pd-form { padding: 14px; }
+.pd-form {
+  padding: 14px;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 4px 20px;
+}
 .pd-form :deep(.el-form-item) { margin-bottom: 14px; }
+.pd-form :deep(.span-2) { grid-column: 1 / -1; }
 .pd-form :deep(.el-form-item__label) {
   font-size: 12px;
   font-weight: 500;
