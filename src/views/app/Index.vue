@@ -504,7 +504,7 @@ const goNetwork = () => router.push('/network');
 import BindNetworkDrawer from './components/BindNetworkDrawer.vue';
 const bindDrawerVisible = ref(false);
 const openBindDrawer = () => {
-  if (!appDetail.value?.app_key) {
+  if (!currentApp.value?.app_key) {
     ElMessage.warning('请先选择应用');
     return;
   }
