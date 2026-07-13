@@ -803,7 +803,7 @@ router.post('/adapter/review/:id', authMiddleware, async (req: express.Request, 
 router.post('/app/bind', authMiddleware, async (req: express.Request, res: express.Response) => {
   try {
     const { developerId } = getDeveloper(req);
-    const { appKey, networkDefId, adapterVersionId, networkAppId, extraParams, accountId } = req.body;
+    const { appKey, networkDefId, adapterVersionId, networkAppId, extraParams, accountId, appDimParams } = req.body;
     if (!appKey || !networkDefId) {
       fail(res, 400, '缺少必填参数');
       return;
@@ -848,7 +848,21 @@ router.post('/app/bind', authMiddleware, async (req: express.Request, res: expre
       if (typeof extraParams === 'string') {
         try { finalExtraParams = JSON.parse(extraParams); } catch { finalExtraParams = { raw: extraParams }; }
       } else if (typeof extraParams === 'object') {
-        finalExtraParams = extraParams as Record<string, unknown>;
+        finalExtraParams = { ...(extraParams as Record<string, unknown>) };
+      }
+    }
+    if (!finalExtraParams) finalExtraParams = {};
+
+    // appDimParams（自定义网络「应用维度参数」K-V）合并进 extra_params.app_dim_params
+    if (appDimParams && typeof appDimParams === 'object' && !Array.isArray(appDimParams)) {
+      const cleanKvs: Record<string, string> = {};
+      for (const [k, v] of Object.entries(appDimParams as Record<string, unknown>)) {
+        const key = String(k).trim();
+        if (!key) continue;
+        cleanKvs[key] = String(v ?? '');
+      }
+      if (Object.keys(cleanKvs).length > 0) {
+        finalExtraParams.app_dim_params = cleanKvs;
       }
     }
 
@@ -857,7 +871,7 @@ router.post('/app/bind', authMiddleware, async (req: express.Request, res: expre
       network_def_id: Number(networkDefId),
       adapter_version_id: adapterVersionId ? Number(adapterVersionId) : 0,
       network_app_id: finalNetworkAppId,
-      extra_params: finalExtraParams,
+      extra_params: Object.keys(finalExtraParams).length > 0 ? finalExtraParams : null,
       account_id: finalAccountId,
     }).select().single();
 
@@ -956,14 +970,33 @@ router.get('/app/list', authMiddleware, async (req: express.Request, res: expres
       defMap = Object.fromEntries(((defs || []) as NetworkDef[]).map(d => [d.id, d]));
     }
 
+    // 2.5) 一次性查出所有相关 ad_network_account（避免 N+1）
+    interface AccountItem {
+      id: number
+      account_name: string
+      network_def_id: number
+    }
+    const acctIds = Array.from(new Set(bindList.map(b => b.account_id).filter((id): id is number => typeof id === 'number')));
+    let acctMap: Record<number, AccountItem> = {};
+    if (acctIds.length > 0) {
+      const { data: accts, error: acctErr } = await db
+        .from('ad_network_account')
+        .select('id, account_name, network_def_id')
+        .in('id', acctIds);
+      if (acctErr) throw new Error(`Query accounts failed: ${acctErr.message}`);
+      acctMap = Object.fromEntries(((accts || []) as AccountItem[]).map(a => [a.id, a]));
+    }
+
     // 3) 合并返回
     const list = bindList.map(b => {
       const def = defMap[b.network_def_id] || ({} as Partial<NetworkDef>);
+      const acct = b.account_id ? acctMap[b.account_id] : null;
       return {
         ...b,
         network_name: def.network_name || '',
         network_code: def.network_code || '',
         is_preset: def.is_preset ?? false,
+        account_name: acct?.account_name || '',
       };
     });
 

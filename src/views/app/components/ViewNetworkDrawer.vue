@@ -18,11 +18,13 @@ interface BoundNetworkItem {
   network_name?: string
   network_code?: string
   network_type?: number
+  is_preset?: boolean
   network_app_id?: string
+  account_id?: number | null
+  account_name?: string
   extra_params?: {
-    accountId?: number
+    app_dim_params?: Record<string, string>
     credentials?: Record<string, unknown>
-    customParams?: Array<{ key: string; value: string }>
   } | null
   created_at?: string
   status?: number
@@ -35,11 +37,11 @@ const schema = computed<FieldDef[]>(() => {
   if (!props.binding) return []
   return getSchemaByNetwork({
     network_code: props.binding.network_code,
-    network_type: props.binding.network_type,
+    is_preset: props.binding.is_preset,
   })
 })
 
-const isCustom = computed(() => props.binding?.network_type === 2)
+const isCustom = computed(() => props.binding?.is_preset === false)
 
 /** 字段值：优先 credentials，再 fallback customParams */
 const fieldValue = (key: string): unknown => {
@@ -49,8 +51,11 @@ const fieldValue = (key: string): unknown => {
   return ''
 }
 
-const customParams = computed<Array<{ key: string; value: string }>>(() => {
-  return props.binding?.extra_params?.customParams ?? []
+/** 自定义网络：app_dim_params 是 { [key]: value } 对象，转成 [{key,value}] 列表 */
+const appDimParams = computed<Array<{ key: string; value: string }>>(() => {
+  const m = props.binding?.extra_params?.app_dim_params
+  if (!m || typeof m !== 'object') return []
+  return Object.entries(m).map(([k, v]) => ({ key: k, value: String(v ?? '') }))
 })
 
 /** 字段类型为 switch 时显示"是"/"否" */
@@ -71,9 +76,7 @@ const selectText = (field: FieldDef): string => {
 
 /** K-V 多对（custom 网络） */
 const kvList = computed(() => {
-  if (isCustom.value) return customParams.value
-  const v = fieldValue('customParams')
-  return Array.isArray(v) ? (v as Array<{ key: string; value: string }>) : []
+  return appDimParams.value
 })
 
 /** status 文案 */
@@ -84,13 +87,13 @@ const statusText = computed(() => {
   return '—'
 })
 
-/** 复制 account_id 到剪贴板 */
+/** 复制账号ID/账号名称到剪贴板 */
 const copyAccountId = async () => {
-  const id = props.binding?.network_app_id
-  if (!id) return
+  const v = isCustom.value ? props.binding?.account_name : props.binding?.network_app_id
+  if (!v) return
   try {
-    await navigator.clipboard.writeText(id)
-    ElMessage.success('账号ID 已复制')
+    await navigator.clipboard.writeText(v)
+    ElMessage.success(isCustom.value ? '账号名称已复制' : '账号ID 已复制')
   } catch {
     ElMessage.error('复制失败，请手动选择')
   }
@@ -152,10 +155,11 @@ const close = () => emit('update:modelValue', false)
               </div>
             </div>
             <div class="vnd-info-row">
-              <span class="vnd-info-label">账号 ID</span>
+              <span class="vnd-info-label">{{ isCustom ? '账号名称' : '账号 ID' }}</span>
               <div class="vnd-info-value vnd-account">
-                <code class="vnd-account-id">{{ binding.network_app_id || '—' }}</code>
-                <button v-if="binding.network_app_id" class="vnd-copy-btn" @click="copyAccountId">复制</button>
+                <code v-if="isCustom" class="vnd-account-id">{{ binding.account_name || '—' }}</code>
+                <code v-else class="vnd-account-id">{{ binding.network_app_id || '—' }}</code>
+                <button v-if="(isCustom && binding.account_name) || (!isCustom && binding.network_app_id)" class="vnd-copy-btn" @click="copyAccountId">复制</button>
               </div>
             </div>
             <div class="vnd-info-row">
