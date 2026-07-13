@@ -146,13 +146,19 @@ router.post('/custom/upload-icon', authMiddleware, async (req: express.Request, 
     }
 
     const id = networkDefId != null ? Number(networkDefId) : undefined;
-    const key = buildNetworkIconKey(developerId, id, 'png');
+    const keyHint = buildNetworkIconKey(developerId, id, 'png');
     const s3 = getStorage();
-    await s3.uploadFile({ fileContent: buffer, fileName: key, contentType: mime });
+    // SDK 的 uploadFile 内部会对 fileName 调用 generateObjectKey 添加 UUID 后缀，
+    // 返回值才是真实写入 bucket 的 key；预签名 URL 必须用这个真实 key
+    const realKey = (await s3.uploadFile({
+      fileContent: buffer,
+      fileName: keyHint,
+      contentType: mime,
+    })) as string;
 
-    const iconUrl = await generatePresignedUrlCached(key, 7 * 24 * 3600);
+    const iconUrl = await generatePresignedUrlCached(realKey, 7 * 24 * 3600);
 
-    success(res, { key, iconUrl, mime: 'image/png', size: buffer.length }, '上传成功');
+    success(res, { key: realKey, iconUrl, mime: 'image/png', size: buffer.length }, '上传成功');
   } catch (err) {
     console.error('Upload network icon error:', err);
     fail(res, 500, '图标上传失败');

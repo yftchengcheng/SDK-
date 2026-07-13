@@ -37,7 +37,7 @@
             <el-table-column label="图标" width="64">
               <template #default="{ row }">
                 <div class="network-icon-cell">
-                  <img v-if="row.icon_url" :src="row.icon_url" :alt="row.network_name" />
+                  <img v-if="row.iconUrlResolved || row.icon_url" :src="row.iconUrlResolved || row.icon_url" :alt="row.network_name" @error="onIconError($event, row)" />
                   <div v-else class="network-icon-cell--empty">
                     <el-icon :size="16" color="#94A3B8"><Picture /></el-icon>
                   </div>
@@ -132,7 +132,7 @@
                 <el-form-item label="平台图标" class="span-2">
                   <div class="network-icon-uploader">
                     <div class="network-icon-preview" :class="{ 'network-icon-preview--empty': !editForm.icon_url }" @click="openIconFilePicker">
-                      <img v-if="editForm.icon_url" :src="editForm.icon_url" alt="icon" />
+                      <img v-if="editForm.iconUrlPreview" :src="editForm.iconUrlPreview" alt="icon" @error="onIconError" />
                       <el-icon v-else :size="28" color="#94A3B8"><Picture /></el-icon>
                       <div v-if="iconUploading" class="network-icon-mask">
                         <el-icon class="is-loading" :size="20" color="#fff"><Loading /></el-icon>
@@ -639,7 +639,8 @@ const formRef = ref<FormInstance>();
 //   init 必填至少一个（系统类型由这两个 init 字段是否填写自动推导）
 const defaultForm = {
   id: 0, network_name: '', network_code: '',
-  icon_url: '', // 自定义广告平台图标 URL（PNG），由上传接口返回
+  icon_url: '',         // 自定义广告平台图标 storage key（PNG），由上传接口返回 key
+  iconUrlPreview: '',   // 图标预览用的 fresh presigned URL（不存 DB）
   // Android
   adapter_class_init_android: '',
   adapter_class_banner_android: '',
@@ -695,7 +696,9 @@ const onIconFileChange = async (e: Event) => {
       dataUrl,
       networkDefId: editForm.id || undefined,
     });
-    editForm.icon_url = data.iconUrl;
+    // DB 存 key（持久化）；preview 存 fresh presigned URL（仅用于 <img> 展示）
+    editForm.icon_url = data.key;
+    editForm.iconUrlPreview = data.iconUrl;
     ElMessage.success('图标上传成功');
   } catch (err: any) {
     const msg = err?.response?.data?.message || err?.message || '图标上传失败';
@@ -707,6 +710,7 @@ const onIconFileChange = async (e: Event) => {
 
 const clearIcon = () => {
   editForm.icon_url = '';
+  editForm.iconUrlPreview = '';
   ElMessage.info('已清除图标，保存后生效');
 };
 
@@ -802,6 +806,7 @@ const handleEdit = (row: any) => {
   Object.assign(editForm, {
     id: row.id, network_name: row.network_name, network_code: row.network_code,
     icon_url: row.icon_url || '',
+    iconUrlPreview: row.iconUrlResolved || row.icon_url || '',
     // Android
     adapter_class_init_android: row.adapter_class_init_android || '',
     adapter_class_banner_android: row.adapter_class_banner_android || '',

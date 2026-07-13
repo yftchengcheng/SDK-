@@ -231,9 +231,39 @@ async function main() {
     const list = await http('/api/v1/console/network/list?page=1&pageSize=200');
     const found = (list.data?.data?.list || []).find((n) => n.network_code === code);
     const url = found?.iconUrlResolved || '';
-    // 不直接 GET（沙箱 CDN 偶尔返回 404）；只验证 URL 结构
     const validUrl = /^https:\/\/[^/]+\/coze_storage_\d+\/networks\/icons\/.+\?sign=\d+-[0-9a-f]+-0-[0-9a-f]+$/i.test(url);
     log('T8 iconUrlResolved URL 格式正确（含 sign 签名）', validUrl, `url=${url.slice(0, 80)}...`);
+  }
+
+  // ===== T9: 验证 presigned URL 真的能下载到 PNG（关键回归测试）=====
+  {
+    const up = await http('/api/v1/console/network/custom/upload-icon', {
+      method: 'POST',
+      body: { dataUrl: `data:image/png;base64,${PNG_1X1_BASE64}` },
+    });
+    // 上传返回的 key 必须能作为 presigned URL 的 key（之前用 hint key 而非 realKey 会 404）
+    const uploadedUrl = up.data?.data?.iconUrl || '';
+    const realKey = up.data?.data?.key || '';
+    const okKey = realKey && !realKey.startsWith('http') && realKey.startsWith('networks/');
+    // GET presigned URL 验证能下载到真实 PNG
+    let status = 0;
+    let bodyLen = 0;
+    let isPng = false;
+    try {
+      const r = await fetch(uploadedUrl);
+      status = r.status;
+      const buf = Buffer.from(await r.arrayBuffer());
+      bodyLen = buf.length;
+      // PNG magic: 89 50 4E 47 0D 0A 1A 0A
+      isPng = buf.length >= 8
+        && buf[0] === 0x89 && buf[1] === 0x50 && buf[2] === 0x4E && buf[3] === 0x47
+        && buf[4] === 0x0D && buf[5] === 0x0A && buf[6] === 0x1A && buf[7] === 0x0A;
+    } catch (e) {
+      status = -1;
+    }
+    const ok = okKey && status === 200 && isPng;
+    log('T9 presigned URL 能下载到 PNG（key 用对）', ok,
+      `key=${realKey?.slice(0, 60)}... status=${status} bodyLen=${bodyLen} isPng=${isPng}`);
   }
 
   console.log(`\n=== ${pass} 通过 / ${fail} 失败 / 共 ${pass + fail} ===`);

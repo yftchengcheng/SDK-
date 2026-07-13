@@ -68,15 +68,21 @@ router.post('/upload-icon', authMiddleware, async (req: express.Request, res: ex
     }
 
     // appKey 在创建应用前为 undefined，函数内部会用 UUID 作为占位
-    const key = buildAppIconKey(developerId, undefined, ext);
+    const keyHint = buildAppIconKey(developerId, undefined, ext);
     const contentType = ext === 'png' ? 'image/png' : 'image/jpeg';
     const s3 = getStorage();
-    await s3.uploadFile({ fileContent: buffer, fileName: key, contentType });
+    // SDK 的 uploadFile 内部会对 fileName 调用 generateObjectKey 添加 UUID 后缀，
+    // 返回值才是真实写入 bucket 的 key；预签名 URL 必须用这个真实 key
+    const realKey = (await s3.uploadFile({
+      fileContent: buffer,
+      fileName: keyHint,
+      contentType,
+    })) as string;
 
     // 生成 7 天有效的访问 URL（用于前端展示，缓存以加速后续访问）
-    const iconUrl = await generatePresignedUrlCached(key, 7 * 24 * 3600);
+    const iconUrl = await generatePresignedUrlCached(realKey, 7 * 24 * 3600);
 
-    success(res, { key, iconUrl }, '上传成功');
+    success(res, { key: realKey, iconUrl }, '上传成功');
   } catch (err) {
     console.error('Upload app icon error:', err);
     fail(res, 500, '图标上传失败');
