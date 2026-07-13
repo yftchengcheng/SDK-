@@ -946,6 +946,7 @@ router.get('/app/list', authMiddleware, async (req: express.Request, res: expres
       network_code: string
       network_name: string
       is_preset: boolean
+      icon_url: string | null
     }
     interface Binding {
       id: number
@@ -964,7 +965,7 @@ router.get('/app/list', authMiddleware, async (req: express.Request, res: expres
     if (defIds.length > 0) {
       const { data: defs, error: defErr } = await db
         .from('ad_network_def')
-        .select('id, network_code, network_name, is_preset')
+        .select('id, network_code, network_name, is_preset, icon_url')
         .in('id', defIds);
       if (defErr) throw new Error(`Query defs failed: ${defErr.message}`);
       defMap = Object.fromEntries(((defs || []) as NetworkDef[]).map(d => [d.id, d]));
@@ -987,8 +988,8 @@ router.get('/app/list', authMiddleware, async (req: express.Request, res: expres
       acctMap = Object.fromEntries(((accts || []) as AccountItem[]).map(a => [a.id, a]));
     }
 
-    // 3) 合并返回
-    const list = bindList.map(b => {
+    // 3) 合并返回 + 解析 iconUrl
+    const merged = bindList.map(b => {
       const def = defMap[b.network_def_id] || ({} as Partial<NetworkDef>);
       const acct = b.account_id ? acctMap[b.account_id] : null;
       return {
@@ -997,8 +998,10 @@ router.get('/app/list', authMiddleware, async (req: express.Request, res: expres
         network_code: def.network_code || '',
         is_preset: def.is_preset ?? false,
         account_name: acct?.account_name || '',
+        icon_url: def.icon_url || null,
       };
     });
+    const list = await enrichWithIconUrl(merged);
 
     success(res, { list });
   } catch (err) {

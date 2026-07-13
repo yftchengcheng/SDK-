@@ -212,15 +212,22 @@
                 @click="openViewNetwork(n)"
                 @keyup.enter="openViewNetwork(n)"
               >
-                <div class="network-item-icon" :class="networkAvatarClass(n.network_code)">
-                  {{ networkAvatarText(n) }}
+                <div class="network-item-icon" :class="networkAvatarClass(n)">
+                  <img
+                    v-if="n.iconUrlResolved"
+                    :src="n.iconUrlResolved"
+                    :alt="n.network_name || n.network_code"
+                    class="network-item-icon-img"
+                    @error="onIconError($event)"
+                  />
+                  <span v-else>{{ networkAvatarText(n) }}</span>
                 </div>
                 <div class="network-item-info">
                   <div class="network-item-name">{{ n.network_name || '—' }}</div>
                   <div class="network-item-meta">
                     <span class="meta-chip">{{ n.network_code || '—' }}</span>
-                    <span class="meta-dot">·</span>
-                    <span>频次：默认</span>
+                    <span v-if="n.is_preset === false" class="meta-dot">·</span>
+                    <span v-if="n.is_preset === false" class="meta-chip meta-chip-custom">自定义</span>
                   </div>
                 </div>
                 <div class="network-item-actions" @click.stop>
@@ -524,23 +531,35 @@ const unbindNetwork = async (n: any) => {
 // 网络代码 → 字母 avatar 文本（无 icon_url，用首字母代替）
 function networkAvatarText(n: any): string {
   const code = (n.network_code || '').toUpperCase();
-  if (!code) return 'AD';
-  // CUSTOM_xxx 取首字母
-  if (code.startsWith('CUSTOM_')) return 'C';
+  const name = (n.network_name || '').trim();
+  if (!code && !name) return 'AD';
+  // 优先用网络名的首字（中英文都 OK），否则用 code 首字母
+  if (name) {
+    // 取第一个可见字符
+    const first = Array.from(name)[0];
+    if (first) return first;
+  }
   return code.slice(0, 1);
 }
 // 网络代码 → 配色 class（按 network_code 哈希到 5 个预设色）
-function networkAvatarClass(code?: string): string {
-  const c = (code || '').toUpperCase();
-  if (!c) return 'nac-muted';
+function networkAvatarClass(n: any): string {
+  const code = (n?.network_code || '').toUpperCase();
+  if (!code) return 'nac-muted';
   const map: Record<string, string> = {
     CSJ: 'nac-blue',      // 穿山甲
     YLH: 'nac-green',     // 优量汇
     KS:  'nac-orange',    // 快手
     BD:  'nac-red',       // 百度
   };
-  if (map[c]) return map[c];
+  if (map[code]) return map[code];
   return 'nac-slate';
+}
+// icon 加载失败 → 回退到字母 avatar
+function onIconError(ev: Event) {
+  const img = ev.target as HTMLImageElement;
+  img.style.display = 'none';
+  const parent = img.parentElement;
+  if (parent) parent.classList.add('nac-muted');
 }
 const goNetwork = () => router.push('/network');
 
