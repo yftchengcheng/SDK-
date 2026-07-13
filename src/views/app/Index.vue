@@ -223,11 +223,18 @@
                   <span v-else>{{ networkAvatarText(n) }}</span>
                 </div>
                 <div class="network-item-info">
-                  <div class="network-item-name">{{ n.network_name || '—' }}</div>
+                  <div class="network-item-name-row">
+                    <span class="network-item-name">{{ n.network_name || '—' }}</span>
+                    <el-tag
+                      v-if="n.is_preset === false"
+                      size="small"
+                      type="info"
+                      effect="plain"
+                      class="network-item-tag"
+                    >自定义</el-tag>
+                  </div>
                   <div class="network-item-meta">
                     <span class="meta-chip">{{ n.network_code || '—' }}</span>
-                    <span v-if="n.is_preset === false" class="meta-dot">·</span>
-                    <span v-if="n.is_preset === false" class="meta-chip meta-chip-custom">自定义</span>
                   </div>
                 </div>
                 <div class="network-item-actions" @click.stop>

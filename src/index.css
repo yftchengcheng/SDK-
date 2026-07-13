@@ -5891,11 +5891,41 @@ html, body, #app {
   flex: 1;
   min-width: 0;
 }
+.network-item-name-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  flex-wrap: nowrap;
+}
 .network-item-name {
   font-size: 13px;
   font-weight: 500;
   color: var(--color-slate-900, #0F172A);
   line-height: 1.3;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+  flex: 0 1 auto;
+}
+.network-item-tag {
+  flex: 0 0 auto;
+  height: 18px !important;
+  line-height: 16px !important;
+  padding: 0 6px !important;
+  font-size: 11px !important;
+  font-weight: 500 !important;
+  background: #E0E7FF !important;
+  color: #3730A3 !important;
+  border: none !important;
+  border-radius: 3px !important;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+}
+.network-item-tag .el-tag__content {
+  line-height: 1 !important;
 }
 .network-item-meta {
   font-size: 11px;
@@ -5917,9 +5947,6 @@ html, body, #app {
   color: #475569;
   border-radius: 3px;
   font-family: 'Inter', -apple-system, sans-serif;
-}
-.meta-dot {
-  color: #CBD5E1;
 }
 
 /* 广告位表格 */
