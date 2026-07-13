@@ -380,8 +380,16 @@ const fetchPlacements = async (appId: number) => {
 
 const fetchPlatformInfo = async (networkId: number) => {
   try {
-    const res: any = await request.get('/api/v1/console/network/detail', { params: { id: networkId } });
-    if (res.data) {
+    // /network/custom/detail 走 authMiddleware ?id=...; 预设网络可能不在 custom 表，走 list 兜底
+    let res: any;
+    try {
+      res = await request.get('/api/v1/console/network/custom/detail', { params: { id: networkId } });
+    } catch {
+      res = await request.get('/api/v1/console/network/list', { params: { page: 1, pageSize: 200 } });
+      const row = (res.data?.list || []).find((n: any) => n.id === networkId);
+      if (row) res = { data: row };
+    }
+    if (res?.data) {
       platformName.value = res.data.network_name || '';
     }
   } catch { /* ignore */ }
