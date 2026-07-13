@@ -40,35 +40,40 @@ function check(label, ok, detail) {
 }
 
 // ============== A. API: create/list/update system_type ==============
-console.log('=== A. API: system_type CRUD ===')
+//   新语义：system_type 由 init 字段自动推导，不再是独立输入
+//   1: 仅 android init
+//   2: 仅 iOS init
+//   3: 两者都填
+console.log('=== A. API: system_type CRUD (auto-derive) ===')
 const regA = await registerUser()
 const tA = regA.data.token
 
 const createA = await api('POST', '/api/v1/console/network/custom/create', {
   networkName: 'AndroidTest', networkCode: 'CUSTOM_ST_AND',
-  systemType: 1, adapterClassInit: 'com.test.Init',
+  adapterClassInitAndroid: 'com.test.Init',  // 仅 android → 派生 system_type=1
 }, tA)
-check('Create with systemType=1 (Android)', createA.code === 0, createA.message)
+check('Create with only android init → system_type=1', createA.code === 0, createA.message)
 check('Returns systemType in response', createA.data?.system_type === 1, 'got: ' + createA.data?.system_type)
 
 const listA = await api('GET', '/api/v1/console/network/list?pageSize=200', null, tA)
 const foundA = listA.data?.list?.find(n => n.network_code === 'CUSTOM_ST_AND')
 check('List includes system_type', !!foundA && foundA.system_type === 1, 'system_type: ' + foundA?.system_type)
 
+// Update: 加上 iOS init → 派生 system_type=3 (Both)
 const updateA = await api('PUT', '/api/v1/console/network/custom/' + createA.data?.id, {
-  systemType: 2, networkName: 'AndroidTest',
+  networkName: 'AndroidTest', adapterClassInitIos: 'com.test.IosInit',
 }, tA)
-check('Update systemType 1→2 (iOS)', updateA.code === 0, updateA.message)
+check('Add ios init → system_type becomes 3', updateA.code === 0, updateA.message)
 
 const afterUpdate = await api('GET', '/api/v1/console/network/list?pageSize=200', null, tA)
 const foundAfter = afterUpdate.data?.list?.find(n => n.id === createA.data?.id)
-check('Updated system_type=2', foundAfter?.system_type === 2, 'got: ' + foundAfter?.system_type)
+check('Updated system_type=3 (Both)', foundAfter?.system_type === 3, 'got: ' + foundAfter?.system_type)
 
 const createDefault = await api('POST', '/api/v1/console/network/custom/create', {
   networkName: 'DefaultTest', networkCode: 'CUSTOM_ST_DEF',
-  adapterClassInit: 'com.test.Init',  // 不传 systemType
+  adapterClassInitAndroid: 'com.test.Init',  // 仅 android init → 派生 system_type=1
 }, tA)
-check('Default systemType = 3 (Both)', createDefault.code === 0 && createDefault.data?.system_type === 3, 'got: ' + createDefault.data?.system_type)
+check('Only android init → system_type=1 (auto-derive)', createDefault.code === 0 && createDefault.data?.system_type === 1, 'got: ' + createDefault.data?.system_type)
 
 for (const r of [createA, createDefault]) {
   if (r.data?.id) await fetch(BASE + '/api/v1/console/network/custom/' + r.data.id, { method: 'DELETE', headers: { 'Authorization': 'Bearer ' + tA } })
@@ -80,13 +85,13 @@ const regB = await registerUser()
 const tB = regB.data.token
 
 const andNet = await api('POST', '/api/v1/console/network/custom/create', {
-  networkName: 'AND_B', networkCode: 'CUSTOM_ST_AND_B', systemType: 1, adapterClassInit: 'com.a.B',
+  networkName: 'AND_B', networkCode: 'CUSTOM_ST_AND_' + Math.random().toString(36).slice(2, 7).toUpperCase(), adapterClassInitAndroid: 'com.a.B',  // 仅 android init → system_type=1
 }, tB)
 const iosNet = await api('POST', '/api/v1/console/network/custom/create', {
-  networkName: 'IOS_B', networkCode: 'CUSTOM_ST_IOS_B', systemType: 2, adapterClassInit: 'com.i.B',
+  networkName: 'IOS_B', networkCode: 'CUSTOM_ST_IOS_' + Math.random().toString(36).slice(2, 7).toUpperCase(), adapterClassInitIos: 'com.i.B',  // 仅 iOS init → system_type=2
 }, tB)
 const bothNet = await api('POST', '/api/v1/console/network/custom/create', {
-  networkName: 'BOTH_B', networkCode: 'CUSTOM_ST_BOTH_B', systemType: 3, adapterClassInit: 'com.b.B',
+  networkName: 'BOTH_B', networkCode: 'CUSTOM_ST_BOTH_' + Math.random().toString(36).slice(2, 7).toUpperCase(), adapterClassInitAndroid: 'com.b.BA', adapterClassInitIos: 'com.b.BI',  // 双 init → system_type=3
 }, tB)
 check('Created AND/IOS/BOTH networks', andNet.code === 0 && iosNet.code === 0 && bothNet.code === 0, `${andNet.message} / ${iosNet.message} / ${bothNet.message}`)
 
@@ -108,11 +113,11 @@ for (const net of [andNet, iosNet, bothNet]) {
 
 const sdkAnd = await api('GET', '/api/v1/sdk/config?app_key=' + andApp.data.app_key, null, null)
 const andCodes = (sdkAnd.data?.customAdapters || []).map(a => a.networkCode).sort()
-check('Android app gets AND+BOTH (no IOS)', JSON.stringify(andCodes) === JSON.stringify(['CUSTOM_ST_AND_B', 'CUSTOM_ST_BOTH_B']), 'got: ' + JSON.stringify(andCodes))
+check('Android app gets AND+BOTH (no IOS)', JSON.stringify(andCodes) === JSON.stringify([andNet.data.network_code, bothNet.data.network_code]), 'got: ' + JSON.stringify(andCodes))
 
 const sdkIos = await api('GET', '/api/v1/sdk/config?app_key=' + iosApp.data.app_key, null, null)
 const iosCodes = (sdkIos.data?.customAdapters || []).map(a => a.networkCode).sort()
-check('iOS app gets IOS+BOTH (no AND)', JSON.stringify(iosCodes) === JSON.stringify(['CUSTOM_ST_BOTH_B', 'CUSTOM_ST_IOS_B']), 'got: ' + JSON.stringify(iosCodes))
+check('iOS app gets IOS+BOTH (no AND)', JSON.stringify(iosCodes) === JSON.stringify([bothNet.data.network_code, iosNet.data.network_code]), 'got: ' + JSON.stringify(iosCodes))
 
 // Cleanup
 for (const r of [andNet, iosNet, bothNet]) {
@@ -141,7 +146,7 @@ const tests = [
 for (const t of tests) {
   const r = await api('POST', '/api/v1/console/network/custom/create', {
     networkName: t.code + '_Net', networkCode: 'CUSTOM_' + t.code,
-    systemType: 3, adapterClassInit: t.init,
+    systemType: 3, adapterClassInitAndroid: t.init,
   }, tC)
   check(`[${t.name}] init="${t.init}" expect ${t.expect === 0 ? 'OK' : 'REJECTED'}`, r.code === t.expect, `got ${r.code}: ${r.message}`)
   if (r.data?.id) await fetch(BASE + '/api/v1/console/network/custom/' + r.data.id, { method: 'DELETE', headers: { 'Authorization': 'Bearer ' + tC } })
@@ -149,10 +154,9 @@ for (const t of tests) {
 
 // Test optional adapter fields format validation
 const optionalTest = await api('POST', '/api/v1/console/network/custom/create', {
-  networkName: 'OptTest', networkCode: 'CUSTOM_ST_OPT',
-  systemType: 3,
-  adapterClassInit: 'com.test.Init',
-  adapterClassBanner: 'bad-banner',  // invalid
+  networkName: 'OptTest', networkCode: 'CUSTOM_ST_OPT_' + Math.random().toString(36).slice(2, 7).toUpperCase(),
+  adapterClassInitAndroid: 'com.test.Init',
+  adapterClassBannerAndroid: 'bad-banner',  // invalid
 }, tC)
 check('Invalid optional banner rejected', optionalTest.code === 400 && optionalTest.message?.includes('格式错误'), `got: ${optionalTest.code} ${optionalTest.message}`)
 

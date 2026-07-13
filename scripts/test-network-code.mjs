@@ -192,10 +192,10 @@ async function run() {
   const t2 = reg2.data.token
 
   const cases = [
-    { body: { networkName: 'APIReg1', networkCode: 'CUSTOM_API_REG1', adapterClassInit: 'com.R1' }, expectOk: true, label: 'camelCase' },
-    { body: { network_name: 'APIReg2', network_code: 'CUSTOM_API_REG2', adapter_class_init: 'com.R2' }, expectOk: true, label: 'snake_case' },
-    { body: { network_name: 'APIReg3', network_code: 'AB', adapter_class_init: 'com.R3' }, expectOk: false, label: '2字符拒绝' },
-    { body: { network_name: 'APIReg4', network_code: 'CSJ', adapterClassInit: 'com.R4' }, expectOk: false, label: '预置CSJ拒绝' },
+    { body: { networkName: 'APIReg1', networkCode: 'CUSTOM_API_REG1', adapterClassInitAndroid: 'com.R1' }, expectOk: true, label: 'camelCase' },
+    { body: { network_name: 'APIReg2', network_code: 'CUSTOM_API_REG2', adapter_class_init_android: 'com.R2' }, expectOk: true, label: 'snake_case' },
+    { body: { network_name: 'APIReg3', network_code: 'AB', adapter_class_init_android: 'com.R3' }, expectOk: false, label: '2字符拒绝' },
+    { body: { network_name: 'APIReg4', network_code: 'CSJ', adapterClassInitAndroid: 'com.R4' }, expectOk: false, label: '预置CSJ拒绝' },
   ]
   for (const c of cases) {
     const r = await api('POST', '/api/v1/console/network/custom/create', c.body, t2)
@@ -210,8 +210,8 @@ async function run() {
   }
 
   // 唯一性测试
-  await api('POST', '/api/v1/console/network/custom/create', { network_name: 'DupTest', network_code: 'CUSTOM_DUP_TEST', adapter_class_init: 'com.test.X' }, t2)
-  const dup = await api('POST', '/api/v1/console/network/custom/create', { network_name: 'DupTest2', network_code: 'CUSTOM_DUP_TEST' }, t2)
+  await api('POST', '/api/v1/console/network/custom/create', { network_name: 'DupTest', network_code: 'CUSTOM_DUP_TEST', adapter_class_init_android: 'com.test.X' }, t2)
+  const dup = await api('POST', '/api/v1/console/network/custom/create', { network_name: 'DupTest2', network_code: 'CUSTOM_DUP_TEST', adapter_class_init_android: 'com.test.Y' }, t2)
   if (dup.code === 400 && dup.message?.includes('占用')) {
     console.log(`  ✓ 唯一性约束: ${dup.message}`)
     pass++

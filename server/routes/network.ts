@@ -5,6 +5,82 @@ import { success, fail } from '../utils/response';
 
 const router = Router();
 
+// ========== Adapter 字段常量（per-system：每个系统一套） ==========
+// 6 种 Adapter × 2 个系统 = 12 个 DB 列
+//   列名格式：adapter_class_{type}_{system}
+//   例：adapter_class_init_android / adapter_class_init_ios
+const ADAPTER_TYPES = ['init', 'banner', 'interstitial', 'rewarded', 'native', 'splash'] as const;
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+const ADAPTER_SYSTEMS = ['android', 'ios'] as const;
+type AdapterSystem = typeof ADAPTER_SYSTEMS[number];
+type AdapterType = typeof ADAPTER_TYPES[number];
+
+const ADAPTER_LABELS: Record<AdapterType, string> = {
+  init: '初始化 Adapter',
+  banner: 'Banner Adapter',
+  interstitial: '插屏 Adapter',
+  rewarded: '激励视频 Adapter',
+  native: '原生 Adapter',
+  splash: '开屏 Adapter',
+};
+
+// Java/ObjC/Swift FQN 格式：包名（小写/数字/下划线，可分段） + 点 + 类名（PascalCase）
+const FQN_REGEX = /^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)*\.[A-Z][A-Za-z0-9_]*$/;
+
+const col = (t: AdapterType, s: AdapterSystem) => `adapter_class_${t}_${s}`;
+const toCamel = (s: string) => s[0].toUpperCase() + s.slice(1);
+const camelKey = (t: AdapterType, s: AdapterSystem) => `adapterClass${toCamel(t)}${toCamel(s)}`;
+
+/**
+ * 从请求体读取某个 adapter 字段（兼容 snake_case 和 camelCase）
+ * 返回 undefined 表示未传；返回 null 表示显式传 null；返回 string 表示有值
+ */
+function pickAdapter(body: Record<string, unknown>, t: AdapterType, s: AdapterSystem): string | null | undefined {
+  const snake = body?.[col(t, s)] as unknown;
+  const camel = body?.[camelKey(t, s)] as unknown;
+  const v = snake ?? camel;
+  if (v === undefined) return undefined;
+  if (v === null) return null;
+  return String(v);
+}
+
+/**
+ * 收集一个系统在所有 type 上的字段（trim + null 标准化）
+ *   返回 { init: string|null, banner: string|null, ... }
+ *   未传字段标记为 undefined（用于 update 区分"没传"vs"传空"）
+ */
+function collectAdapterMap(
+  body: Record<string, unknown>,
+  system: AdapterSystem,
+  mode: 'create' | 'update',
+): Partial<Record<AdapterType, string | null | undefined>> {
+  const out: Partial<Record<AdapterType, string | null | undefined>> = {};
+  for (const t of ADAPTER_TYPES) {
+    const raw = pickAdapter(body, t, system);
+    if (raw === undefined) {
+      if (mode === 'create') out[t] = null; // create 没传等价于 null
+      // update 保留 undefined 表示"不更新"
+      continue;
+    }
+    out[t] = raw === null || raw === '' ? null : raw.trim();
+  }
+  return out;
+}
+
+function validateAdapterMap(
+  map: Partial<Record<AdapterType, string | null | undefined>>,
+  systemLabel: string,
+): { ok: true } | { ok: false; msg: string } {
+  for (const t of ADAPTER_TYPES) {
+    const v = map[t];
+    if (v == null || v === '') continue;
+    if (!FQN_REGEX.test(v as string)) {
+      return { ok: false, msg: `${systemLabel} ${ADAPTER_LABELS[t]} 格式错误：必须为完整类路径（包名.类名），如 com.myadapter.MyInitAdapter` };
+    }
+  }
+  return { ok: true };
+}
+
 // List all networks (builtin + custom)
 router.get('/list', authMiddleware, async (req: express.Request, res: express.Response) => {
   try {
@@ -55,29 +131,14 @@ router.get('/custom/list', authMiddleware, async (req: express.Request, res: exp
 router.post('/custom/create', authMiddleware, async (req: express.Request, res: express.Response) => {
   try {
     const { developerId } = getDeveloper(req);
+    const body = (req.body ?? {}) as Record<string, unknown>;
     // 前端表单 v-model 使用 snake_case（与数据库列名一致），同时兼容 camelCase（API 直接调用）
-    const {
-      network_name: networkNameSnake, networkName: networkNameCamel,
-      network_code: networkCodeSnake, networkCode: networkCodeCamel,
-      adapter_class_init: aciSnake, adapterClassInit: aciCamel,
-      adapter_class_banner: acbSnake, adapterClassBanner: acbCamel,
-      adapter_class_interstitial: aciS2Snake, adapterClassInterstitial: aciS2Camel,
-      adapter_class_rewarded: acrSnake, adapterClassRewarded: acrCamel,
-      adapter_class_native: acnSnake, adapterClassNative: acnCamel,
-      adapter_class_splash: acsSnake, adapterClassSplash: acsCamel,
-      supports_bidding: sbSnake, supportsBidding: sbCamel,
-      system_type: stSnake, systemType: stCamel,
-    } = req.body;
-    const networkName = networkNameSnake ?? networkNameCamel;
-    const networkCode = networkCodeSnake ?? networkCodeCamel;
-    const adapterClassInit = aciSnake ?? aciCamel;
-    const adapterClassBanner = acbSnake ?? acbCamel;
-    const adapterClassInterstitial = aciS2Snake ?? aciS2Camel;
-    const adapterClassRewarded = acrSnake ?? acrCamel;
-    const adapterClassNative = acnSnake ?? acnCamel;
-    const adapterClassSplash = acsSnake ?? acsCamel;
-    const supportsBidding = sbSnake ?? sbCamel;
-    const systemTypeRaw = stSnake ?? stCamel;
+    const networkName = (body.network_name ?? body.networkName) as string | undefined;
+    const networkCode = (body.network_code ?? body.networkCode) as string | undefined;
+    const supportsBidding = (body.supports_bidding ?? body.supportsBidding) as boolean | undefined;
+    // system_type 仅用于展示的向后兼容字段：现在由"已填的 init 字段"自动推导
+    // 若调用方显式传了 systemType 且和推导结果一致，则按调用方传的；否则以推导为准
+    const systemTypeExplicit = (body.system_type ?? body.systemType) as number | undefined;
 
     if (!networkName) {
       fail(res, 400, '网络名称不能为空');
@@ -114,58 +175,55 @@ router.post('/custom/create', authMiddleware, async (req: express.Request, res: 
       return;
     }
 
-    // ========== 初始化 Adapter 校验（必填） ==========
-    if (!adapterClassInit || typeof adapterClassInit !== 'string' || !adapterClassInit.trim()) {
-      fail(res, 400, '初始化 Adapter 不能为空（App 启动时由 SDK 反射加载，必须有）');
+    // ========== 收集两个系统的 Adapter 字段（per-system） ==========
+    const androidMap = collectAdapterMap(body, 'android', 'create');
+    const iosMap = collectAdapterMap(body, 'ios', 'create');
+
+    // ========== 校验：Android / iOS 两组字段格式 ==========
+    const androidCheck = validateAdapterMap(androidMap, 'Android');
+    if (!androidCheck.ok) { fail(res, 400, androidCheck.msg); return; }
+    const iosCheck = validateAdapterMap(iosMap, 'iOS');
+    if (!iosCheck.ok) { fail(res, 400, iosCheck.msg); return; }
+
+    // ========== 校验：至少一个系统填写了 init（必填项） ==========
+    const hasAndroid = !!(androidMap.init && (androidMap.init as string).trim());
+    const hasIos = !!(iosMap.init && (iosMap.init as string).trim());
+    if (!hasAndroid && !hasIos) {
+      fail(res, 400, '初始化 Adapter 至少需要配置一个系统（Android 或 iOS）');
       return;
     }
-    // 5. Adapter 类名格式校验：Java/ObjC/Swift FQN
-    //    - 包名：反向域名，全小写字母开头，可含数字/下划线
-    //    - 类名：PascalCase，大写字母开头，可含字母/数字/下划线
-    const FQN_REGEX = /^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)*\.[A-Z][A-Za-z0-9_]*$/;
-    const adapterFields: { name: string; value: unknown }[] = [
-      { name: '初始化 Adapter', value: adapterClassInit },
-      { name: 'Banner Adapter', value: adapterClassBanner },
-      { name: '插屏 Adapter', value: adapterClassInterstitial },
-      { name: '激励视频 Adapter', value: adapterClassRewarded },
-      { name: '原生 Adapter', value: adapterClassNative },
-      { name: '开屏 Adapter', value: adapterClassSplash },
-    ];
-    for (const f of adapterFields) {
-      if (f.value == null || f.value === '') continue; // 选填字段允许为空
-      const v = String(f.value).trim();
-      if (!FQN_REGEX.test(v)) {
-        fail(res, 400, `${f.name} 格式错误：必须为完整类路径（包名.类名），如 com.myadapter.MyInitAdapter`);
-        return;
-      }
-    }
 
-    // ========== 系统类型（system_type）校验 ==========
-    // 1=Android, 2=iOS, 3=通用（Both）
-    let systemType = 3;
-    if (systemTypeRaw != null) {
-      const n = Number(systemTypeRaw);
+    // ========== 自动推导 system_type ==========
+    //   1 = Android, 2 = iOS, 3 = Both
+    const systemTypeDerived = hasAndroid && hasIos ? 3 : hasAndroid ? 1 : 2;
+    const systemType = systemTypeDerived;
+    if (systemTypeExplicit != null) {
+      const n = Number(systemTypeExplicit);
       if (![1, 2, 3].includes(n)) {
         fail(res, 400, '系统类型取值错误：1=Android, 2=iOS, 3=通用（Both）');
         return;
       }
-      systemType = n;
+      // 提示：若显式 systemType 与推导不一致，以推导为准（防止数据不一致）
+      if (n !== systemTypeDerived) {
+        console.warn(`[network/create] systemType explicit=${n} but derived=${systemTypeDerived}, use derived`);
+      }
     }
 
-    const { data, error } = await db.from('ad_network_def').insert({
+    // ========== 写入 DB：12 个 per-system 字段 ==========
+    const insertRow: Record<string, unknown> = {
       network_code: code,
       network_name: networkName,
       is_preset: false,
       developer_id: developerId,
-      adapter_class_init: adapterClassInit.trim(),
-      adapter_class_banner: adapterClassBanner?.trim() || null,
-      adapter_class_interstitial: adapterClassInterstitial?.trim() || null,
-      adapter_class_rewarded: adapterClassRewarded?.trim() || null,
-      adapter_class_native: adapterClassNative?.trim() || null,
-      adapter_class_splash: adapterClassSplash?.trim() || null,
       supports_bidding: supportsBidding ? 1 : 0,
       system_type: systemType,
-    }).select().single();
+    };
+    for (const t of ADAPTER_TYPES) {
+      insertRow[col(t, 'android')] = (androidMap[t] as string | null) ?? null;
+      insertRow[col(t, 'ios')] = (iosMap[t] as string | null) ?? null;
+    }
+
+    const { data, error } = await db.from('ad_network_def').insert(insertRow).select().single();
 
     if (error) throw new Error(`Insert failed: ${error.message}`);
 
@@ -180,29 +238,12 @@ router.post('/custom/create', authMiddleware, async (req: express.Request, res: 
 router.post('/custom/update', authMiddleware, async (req: express.Request, res: express.Response) => {
   try {
     const { developerId } = getDeveloper(req);
-    // 兼容 snake_case（前端 v-model）+ camelCase（API 直接调用）
-    const {
-      id,
-      network_name: networkNameSnake, networkName: networkNameCamel,
-      adapter_class_init: aciSnake, adapterClassInit: aciCamel,
-      adapter_class_banner: acbSnake, adapterClassBanner: acbCamel,
-      adapter_class_interstitial: acisSnake, adapterClassInterstitial: acisCamel,
-      adapter_class_rewarded: acrSnake, adapterClassRewarded: acrCamel,
-      adapter_class_native: acnSnake, adapterClassNative: acnCamel,
-      adapter_class_splash: acsSnake, adapterClassSplash: acsCamel,
-      supports_bidding: sbSnake, supportsBidding: sbCamel,
-      system_type: stSnake, systemType: stCamel,
-      status,
-    } = req.body;
-    const networkName = networkNameSnake ?? networkNameCamel;
-    const adapterClassInit = aciSnake ?? aciCamel;
-    const adapterClassBanner = acbSnake ?? acbCamel;
-    const adapterClassInterstitial = acisSnake ?? acisCamel;
-    const adapterClassRewarded = acrSnake ?? acrCamel;
-    const adapterClassNative = acnSnake ?? acnCamel;
-    const adapterClassSplash = acsSnake ?? acsCamel;
-    const supportsBidding = sbSnake ?? sbCamel;
-    const systemTypeRaw = stSnake ?? stCamel;
+    const body = (req.body ?? {}) as Record<string, unknown>;
+    const id = body.id;
+    const networkName = (body.network_name ?? body.networkName) as string | undefined;
+    const supportsBidding = (body.supports_bidding ?? body.supportsBidding) as boolean | undefined;
+    const status = body.status as number | undefined;
+    const systemTypeExplicit = (body.system_type ?? body.systemType) as number | undefined;
 
     if (!id) {
       fail(res, 400, '缺少网络id');
@@ -216,44 +257,57 @@ router.post('/custom/update', authMiddleware, async (req: express.Request, res: 
       return;
     }
 
+    // 收集 per-system 字段（未传字段保持 undefined）
+    const androidMap = collectAdapterMap(body, 'android', 'update');
+    const iosMap = collectAdapterMap(body, 'ios', 'update');
+
+    // 校验传入字段的格式
+    const androidCheck = validateAdapterMap(androidMap, 'Android');
+    if (!androidCheck.ok) { fail(res, 400, androidCheck.msg); return; }
+    const iosCheck = validateAdapterMap(iosMap, 'iOS');
+    if (!iosCheck.ok) { fail(res, 400, iosCheck.msg); return; }
+
     const updateData: Record<string, unknown> = {};
     if (networkName !== undefined) updateData.network_name = networkName;
 
-    // Adapter 字段格式校验（仅当传入时校验；不传=不更新该字段）
-    const FQN_REGEX = /^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)*\.[A-Z][A-Za-z0-9_]*$/;
-    const adapterFields: { key: string; name: string; value: unknown }[] = [
-      { key: 'adapter_class_init', name: '初始化 Adapter', value: adapterClassInit },
-      { key: 'adapter_class_banner', name: 'Banner Adapter', value: adapterClassBanner },
-      { key: 'adapter_class_interstitial', name: '插屏 Adapter', value: adapterClassInterstitial },
-      { key: 'adapter_class_rewarded', name: '激励视频 Adapter', value: adapterClassRewarded },
-      { key: 'adapter_class_native', name: '原生 Adapter', value: adapterClassNative },
-      { key: 'adapter_class_splash', name: '开屏 Adapter', value: adapterClassSplash },
-    ];
-    for (const f of adapterFields) {
-      if (f.value === undefined) continue; // 没传就不动
-      const v = f.value == null ? null : String(f.value).trim();
-      // init 必填，如果显式传了空字符串就报错
-      if (f.key === 'adapter_class_init' && !v) {
-        fail(res, 400, '初始化 Adapter 不能为空');
-        return;
-      }
-      if (v && !FQN_REGEX.test(v)) {
-        fail(res, 400, `${f.name} 格式错误：必须为完整类路径（包名.类名），如 com.myadapter.MyInitAdapter`);
-        return;
-      }
-      updateData[f.key] = v || null;
+    // 写入 per-system 字段（仅当有传入时）
+    for (const t of ADAPTER_TYPES) {
+      if (androidMap[t] !== undefined) updateData[col(t, 'android')] = androidMap[t] ?? null;
+      if (iosMap[t] !== undefined) updateData[col(t, 'ios')] = iosMap[t] ?? null;
     }
 
-    if (supportsBidding !== undefined) updateData.supports_bidding = supportsBidding ? 1 : 0;
-    if (status !== undefined) updateData.status = status;
-    if (systemTypeRaw !== undefined) {
-      const n = Number(systemTypeRaw);
+    // ========== 重新推导 system_type（基于更新后的值） ==========
+    //   1) 读取当前 DB 中的 androidMap / iosMap（如果未传则用现值）
+    //   2) 校验：更新后必须至少有一个 init
+    const { data: current, error: curErr } = await db.from('ad_network_def')
+      .select('adapter_class_init_android, adapter_class_init_ios')
+      .eq('id', id).single();
+    if (curErr) throw new Error(`Read current failed: ${curErr.message}`);
+
+    const finalAndroidInit = (androidMap.init !== undefined ? androidMap.init : current?.adapter_class_init_android) as string | null;
+    const finalIosInit = (iosMap.init !== undefined ? iosMap.init : current?.adapter_class_init_ios) as string | null;
+    const hasAndroid = !!(finalAndroidInit && (finalAndroidInit as string).trim());
+    const hasIos = !!(finalIosInit && (finalIosInit as string).trim());
+
+    if (!hasAndroid && !hasIos) {
+      fail(res, 400, '初始化 Adapter 至少需要配置一个系统（Android 或 iOS）');
+      return;
+    }
+    const systemTypeDerived = hasAndroid && hasIos ? 3 : hasAndroid ? 1 : 2;
+    updateData.system_type = systemTypeDerived;
+    if (systemTypeExplicit != null) {
+      const n = Number(systemTypeExplicit);
       if (![1, 2, 3].includes(n)) {
         fail(res, 400, '系统类型取值错误：1=Android, 2=iOS, 3=通用（Both）');
         return;
       }
-      updateData.system_type = n;
+      if (n !== systemTypeDerived) {
+        console.warn(`[network/update] systemType explicit=${n} but derived=${systemTypeDerived}, use derived`);
+      }
     }
+
+    if (supportsBidding !== undefined) updateData.supports_bidding = supportsBidding ? 1 : 0;
+    if (status !== undefined) updateData.status = status;
 
     const { error } = await db.from('ad_network_def').update(updateData).eq('id', id);
     if (error) throw new Error(`Update failed: ${error.message}`);
@@ -270,7 +324,12 @@ router.put('/custom/:id', authMiddleware, async (req: express.Request, res: expr
   try {
     const { developerId } = getDeveloper(req);
     const { id } = req.params;
-    const { networkName, networkCode, adapterClassInit, adapterClassBanner, adapterClassInterstitial, adapterClassRewarded, adapterClassNative, adapterClassSplash, supportsBidding, systemType, status } = req.body as Record<string, unknown>;
+    const body = (req.body ?? {}) as Record<string, unknown>;
+    const networkName = (body.network_name ?? body.networkName) as string | undefined;
+    const networkCode = (body.network_code ?? body.networkCode) as string | undefined;
+    const supportsBidding = (body.supports_bidding ?? body.supportsBidding) as boolean | undefined;
+    const systemTypeExplicit = (body.system_type ?? body.systemType) as number | undefined;
+    const status = body.status as number | undefined;
     if (!id) return fail(res, 400, '缺少网络id');
 
     const { data: existing, error: checkError } = await db.from('ad_network_def').select('developer_id').eq('id', Number(id)).single();
@@ -279,24 +338,50 @@ router.put('/custom/:id', authMiddleware, async (req: express.Request, res: expr
       return;
     }
 
+    // 收集 per-system 字段
+    const androidMap = collectAdapterMap(body, 'android', 'update');
+    const iosMap = collectAdapterMap(body, 'ios', 'update');
+    const androidCheck = validateAdapterMap(androidMap, 'Android');
+    if (!androidCheck.ok) { fail(res, 400, androidCheck.msg); return; }
+    const iosCheck = validateAdapterMap(iosMap, 'iOS');
+    if (!iosCheck.ok) { fail(res, 400, iosCheck.msg); return; }
+
     const updateData: Record<string, unknown> = {};
     if (networkName !== undefined) updateData.network_name = String(networkName);
     if (networkCode !== undefined) updateData.network_code = String(networkCode);
-    if (adapterClassInit !== undefined) updateData.adapter_class_init = adapterClassInit ? String(adapterClassInit) : null;
-    if (adapterClassBanner !== undefined) updateData.adapter_class_banner = adapterClassBanner ? String(adapterClassBanner) : null;
-    if (adapterClassInterstitial !== undefined) updateData.adapter_class_interstitial = adapterClassInterstitial ? String(adapterClassInterstitial) : null;
-    if (adapterClassRewarded !== undefined) updateData.adapter_class_rewarded = adapterClassRewarded ? String(adapterClassRewarded) : null;
-    if (adapterClassNative !== undefined) updateData.adapter_class_native = adapterClassNative ? String(adapterClassNative) : null;
-    if (adapterClassSplash !== undefined) updateData.adapter_class_splash = adapterClassSplash ? String(adapterClassSplash) : null;
+    for (const t of ADAPTER_TYPES) {
+      if (androidMap[t] !== undefined) updateData[col(t, 'android')] = androidMap[t] ?? null;
+      if (iosMap[t] !== undefined) updateData[col(t, 'ios')] = iosMap[t] ?? null;
+    }
     if (supportsBidding !== undefined) updateData.supports_bidding = supportsBidding ? 1 : 0;
     if (status !== undefined) updateData.status = Number(status);
-    if (systemType !== undefined) {
-      const n = Number(systemType);
+
+    // 推导 system_type：基于更新后的 init 字段
+    const { data: current, error: curErr } = await db.from('ad_network_def')
+      .select('adapter_class_init_android, adapter_class_init_ios')
+      .eq('id', Number(id)).single();
+    if (curErr) throw new Error(`Read current failed: ${curErr.message}`);
+
+    const finalAndroidInit = (androidMap.init !== undefined ? androidMap.init : current?.adapter_class_init_android) as string | null;
+    const finalIosInit = (iosMap.init !== undefined ? iosMap.init : current?.adapter_class_init_ios) as string | null;
+    const hasAndroid = !!(finalAndroidInit && (finalAndroidInit as string).trim());
+    const hasIos = !!(finalIosInit && (finalIosInit as string).trim());
+
+    if (!hasAndroid && !hasIos) {
+      fail(res, 400, '初始化 Adapter 至少需要配置一个系统（Android 或 iOS）');
+      return;
+    }
+    const systemTypeDerived = hasAndroid && hasIos ? 3 : hasAndroid ? 1 : 2;
+    updateData.system_type = systemTypeDerived;
+    if (systemTypeExplicit != null) {
+      const n = Number(systemTypeExplicit);
       if (![1, 2, 3].includes(n)) {
         fail(res, 400, '系统类型取值错误：1=Android, 2=iOS, 3=通用（Both）');
         return;
       }
-      updateData.system_type = n;
+      if (n !== systemTypeDerived) {
+        console.warn(`[network/put] systemType explicit=${n} but derived=${systemTypeDerived}, use derived`);
+      }
     }
 
     const { error } = await db.from('ad_network_def').update(updateData).eq('id', Number(id));

@@ -62,6 +62,9 @@ router.get('/config', async (req: express.Request, res: express.Response) => {
     //   - system_type = 3 (Both) → 任何 platform 都匹配
     //   - system_type = 1 (Android) → app.platform 必须 = 1
     //   - system_type = 2 (iOS) → app.platform 必须 = 2
+    // 响应结构：adapterClasses 拆为 android / ios 两个子对象
+    //   iOS 客户端只会收到 ios 子对象有值；Android 客户端反之
+    //   但为方便服务端日志/调试，仍返回完整结构，客户端按 platform 取
     const { data: bindings } = await db.from('app_network_binding').select('*').eq('app_key', appKey).eq('status', 1);
     const customAdapters = [];
     if (bindings && bindings.length > 0) {
@@ -73,18 +76,23 @@ router.get('/config', async (req: express.Request, res: express.Response) => {
         if (defSysType !== 3 && defSysType !== app.platform) {
           continue; // 跳过系统类型不匹配的 Adapter
         }
+        // 仅下发当前 app.platform 对应系统的字段，避免泄漏另一系统的内部类名
+        const sysKey = app.platform === 1 ? 'android' : app.platform === 2 ? 'ios' : null;
+        if (!sysKey) continue;
+        const adapterMap: Record<string, string | null> = {
+          init: networkDef[`adapter_class_init_${sysKey}`] ?? null,
+          banner: networkDef[`adapter_class_banner_${sysKey}`] ?? null,
+          interstitial: networkDef[`adapter_class_interstitial_${sysKey}`] ?? null,
+          rewarded: networkDef[`adapter_class_rewarded_${sysKey}`] ?? null,
+          native: networkDef[`adapter_class_native_${sysKey}`] ?? null,
+          splash: networkDef[`adapter_class_splash_${sysKey}`] ?? null,
+        };
         customAdapters.push({
           networkCode: networkDef.network_code,
           networkName: networkDef.network_name,
           systemType: defSysType,
-          adapterClasses: {
-            init: networkDef.adapter_class_init,
-            banner: networkDef.adapter_class_banner,
-            interstitial: networkDef.adapter_class_interstitial,
-            rewarded: networkDef.adapter_class_rewarded,
-            native: networkDef.adapter_class_native,
-            splash: networkDef.adapter_class_splash,
-          },
+          currentSystem: sysKey,
+          adapterClasses: adapterMap,
           supportsBidding: networkDef.supports_bidding === 1,
         });
       }
