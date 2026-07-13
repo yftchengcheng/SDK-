@@ -286,6 +286,7 @@ interface Network {
   network_code: string
   network_name: string
   network_type: number
+  is_preset?: boolean
   status: number
 }
 
@@ -323,13 +324,13 @@ const formData = ref<Record<string, any>>({
 const schema = computed<FieldDef[]>(() => {
   const n = networkList.value.find(x => x.id === formData.value.networkDefId)
   if (!n) return []
-  return getSchemaByNetwork({ network_code: n.network_code, network_type: n.network_type })
+  return getSchemaByNetwork({ network_code: n.network_code, is_preset: n.is_preset })
 })
 
-/** 当前所选网络是否为自定义网络（network_type === 2） */
+/** 当前所选网络是否为自定义网络（is_preset === false） */
 const isCurrentCustom = computed(() => {
   const n = networkList.value.find(x => x.id === formData.value.networkDefId)
-  return !!(n && n.network_type === 2)
+  return !!(n && n.is_preset === false)
 })
 
 /** 给 schema 注入账号列表（仅对 CUSTOM_SCHEMA 的第一个 select 字段注入） */
@@ -435,8 +436,8 @@ async function onNetworkChange(networkDefId: number) {
   // 选完网络：直接初始化 schema 字段
   const initData = makeInitialData(schema.value)
   Object.assign(formData.value, initData)
-  // 自定义网络：拉取该网络下的账号列表
-  if (n.network_type === 2) {
+  // 自定义网络（is_preset=false）：拉取该网络下的账号列表
+  if (n.is_preset === false) {
     await fetchCustomAccounts(n.id)
     // 默认选第一个账号
     if (customAccountList.value.length > 0) {

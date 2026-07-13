@@ -209,11 +209,13 @@ const SCHEMAS_BY_CODE: Record<string, FieldDef[]> = {
 }
 
 /** 根据 network（id/code/type）取字段定义 */
-export function getSchemaByNetwork(network: { network_code?: string, network_type?: number }): FieldDef[] {
+export function getSchemaByNetwork(network: { network_code?: string, is_preset?: boolean }): FieldDef[] {
   if (network.network_code && SCHEMAS_BY_CODE[network.network_code]) {
     return SCHEMAS_BY_CODE[network.network_code]
   }
-  if (network.network_type === 2) {
+  // 自定义广告平台：is_preset=false（当前所有 ad_network_def 记录的 network_type 都为 1，
+  // 真正区分预设/自定义的是 is_preset 字段）
+  if (network.is_preset === false) {
     return CUSTOM_SCHEMA
   }
   return DEFAULT_PRESET_SCHEMA
