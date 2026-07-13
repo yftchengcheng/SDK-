@@ -214,6 +214,15 @@
           </el-form-item>
         </template>
 
+        <el-alert
+          v-if="form.network_def_id && !currentNetworkIsPreset"
+          type="info"
+          :closable="false"
+          show-icon
+          class="nam-custom-hint"
+          title="自定义广告平台无需在账号中填写凭证字段，凭证参数将在「应用绑定广告平台」步骤中配置。"
+        />
+
         <el-form-item label="账号 ID">
           <el-input v-model="form.account_id" placeholder="可选，平台侧账号 ID" clearable />
         </el-form-item>
@@ -383,6 +392,12 @@ const viewingAccount = ref<AccountRow | null>(null);
 
 // ===== Computed =====
 const availableNetworks = computed(() => networks.value);
+
+const currentNetworkIsPreset = computed(() => {
+  if (!form.network_def_id) return true;
+  const net = networks.value.find(n => n.id === form.network_def_id);
+  return net ? net.is_preset !== false : true;
+});
 
 const schemaFields = computed<FieldDef[]>(() => {
   if (!form.network_def_id) return [];

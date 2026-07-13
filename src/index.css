@@ -7247,6 +7247,15 @@ html, body, #app {
 
 .nam-platform-select { width: 100%; }
 
+.nam-custom-hint {
+  margin: 4px 0 16px;
+}
+
+.nam-custom-hint .el-alert__title {
+  font-size: 13px;
+  line-height: 1.5;
+}
+
 /* ============== ad-source 配置页布局（参考 Adtalos 左应用 + 右表格） ============== */
 .adsource-shell {
   display: flex;
