@@ -322,14 +322,21 @@ const formData = ref<Record<string, any>>({
 })
 
 const schema = computed<FieldDef[]>(() => {
-  const n = networkList.value.find(x => x.id === formData.value.networkDefId)
-  if (!n) return []
-  return getSchemaByNetwork({ network_code: n.network_code, is_preset: n.is_preset })
+  const target = formData.value.networkDefId
+  const n = networkList.value.find(x => x.id === target || Number(x.id) === Number(target))
+  if (!n) {
+    console.warn('[BindNetwork] schema=[]: target=', target, 'listIds=', networkList.value.map(x => x.id))
+    return []
+  }
+  const s = getSchemaByNetwork({ network_code: n.network_code, is_preset: n.is_preset })
+  console.log('[BindNetwork] schema for', n.network_name, 'is_preset=', n.is_preset, '→', s.length, 'fields')
+  return s
 })
 
 /** 当前所选网络是否为自定义网络（is_preset === false） */
 const isCurrentCustom = computed(() => {
-  const n = networkList.value.find(x => x.id === formData.value.networkDefId)
+  const target = formData.value.networkDefId
+  const n = networkList.value.find(x => x.id === target || Number(x.id) === Number(target))
   return !!(n && n.is_preset === false)
 })
 
