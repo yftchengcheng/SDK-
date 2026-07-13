@@ -1,5 +1,5 @@
 <template>
-  <div class="adsource-shell">
+  <div class="adsource-shell" data-hmr="v3-placement-fix-2026">
     <!-- 左侧：广告平台 + 应用列表 -->
     <aside class="adsource-side">
       <div class="adsource-side-platform">
@@ -79,7 +79,7 @@
             <el-option
               v-for="p in placements"
               :key="p.id"
-              :label="`${p.placement_name}（${formatPlacementType(p.placement_type)}）`"
+              :label="`${p.name}（${formatPlacementType(p.format)}）`"
               :value="p.id"
             />
           </el-select>
@@ -339,7 +339,7 @@ const selectedAppName = computed(() => {
 
 const selectedPlacementName = computed(() => {
   const p = placements.value.find(x => x.id === selectedPlacementId.value);
-  return p ? p.placement_name : '';
+  return p ? p.name : '';
 });
 
 const formatPlacementType = (t: number | string) => {
