@@ -803,7 +803,7 @@ router.post('/adapter/review/:id', authMiddleware, async (req: express.Request, 
 router.post('/app/bind', authMiddleware, async (req: express.Request, res: express.Response) => {
   try {
     const { developerId } = getDeveloper(req);
-    const { appKey, networkDefId, adapterVersionId, networkAppId, extraParams, accountId, appDimParams } = req.body;
+    const { appKey, networkDefId, adapterVersionId, networkAppId, extraParams, accountId } = req.body;
     if (!appKey || !networkDefId) {
       fail(res, 400, '缺少必填参数');
       return;
@@ -818,29 +818,31 @@ router.post('/app/bind', authMiddleware, async (req: express.Request, res: expre
       return;
     }
 
-    // 验证 accountId 归属（如果传入）
+    // 校验 accountId（如果传入）：必须属于当前开发者 + 属于该 networkDef
     let finalAccountId: number | null = null;
     if (accountId !== undefined && accountId !== null && accountId !== '') {
       const numericAccountId = Number(accountId);
-      if (Number.isFinite(numericAccountId) && numericAccountId > 0) {
-        const { data: accountRow } = await db
-          .from('ad_network_account')
-          .select('id, developer_id, network_def_id')
-          .eq('id', numericAccountId)
-          .maybeSingle();
-        if (!accountRow || accountRow.developer_id !== developerId) {
-          fail(res, 403, '账号不存在或无权使用');
-          return;
-        }
-        if (Number(accountRow.network_def_id) !== Number(networkDefId)) {
-          fail(res, 400, '账号不属于当前广告平台');
-          return;
-        }
-        finalAccountId = numericAccountId;
+      if (!Number.isFinite(numericAccountId) || numericAccountId <= 0) {
+        fail(res, 400, 'accountId 不合法');
+        return;
       }
+      const { data: accountRow } = await db
+        .from('ad_network_account')
+        .select('id, developer_id, network_def_id')
+        .eq('id', numericAccountId)
+        .maybeSingle();
+      if (!accountRow || accountRow.developer_id !== developerId) {
+        fail(res, 403, '账号不存在或无权使用');
+        return;
+      }
+      if (Number(accountRow.network_def_id) !== Number(networkDefId)) {
+        fail(res, 400, '账号不属于当前广告平台');
+        return;
+      }
+      finalAccountId = numericAccountId;
     }
 
-    // 构造 extra_params：自定义平台时，把 appDimParams 合并进 extra_params
+    // extraParams 兼容字符串/对象
     let finalExtraParams: Record<string, unknown> | null = null;
     if (extraParams) {
       if (typeof extraParams === 'string') {
@@ -848,9 +850,6 @@ router.post('/app/bind', authMiddleware, async (req: express.Request, res: expre
       } else if (typeof extraParams === 'object') {
         finalExtraParams = extraParams as Record<string, unknown>;
       }
-    }
-    if (appDimParams && typeof appDimParams === 'object' && !Array.isArray(appDimParams)) {
-      finalExtraParams = { ...(finalExtraParams || {}), app_dim_params: appDimParams };
     }
 
     const { data, error } = await db.from('app_network_binding').insert({

@@ -143,8 +143,9 @@
               <el-select
                 v-else-if="field.type === 'select'"
                 v-model="formData[field.key]"
-                placeholder="请选择"
+                :placeholder="field.placeholder || '请选择'"
                 class="bnd-select"
+                :loading="isCurrentCustom && field.key === 'accountId' && loadingCustomAccounts"
               >
                 <el-option
                   v-for="opt in getOptions(field)"
@@ -152,6 +153,9 @@
                   :label="opt.label"
                   :value="opt.value"
                 />
+                <template v-if="isCurrentCustom && field.key === 'accountId'" #empty>
+                  <div class="bnd-select-empty">该自定义平台下还没有账号，请先到「广告平台账号」创建</div>
+                </template>
               </el-select>
 
               <!-- pub-key 百度新义公钥 -->
@@ -237,7 +241,7 @@
         <el-button
           type="primary"
           :loading="submitting"
-          :disabled="!formData.networkDefId"
+          :disabled="!formData.networkDefId || (isCurrentCustom && customAccountList.length === 0)"
           @click="onSubmit"
         >确认关联</el-button>
       </div>
@@ -308,6 +312,10 @@ const networkList = ref<Network[]>([])
 
 const currentNetworkName = ref('')
 
+// 自定义网络专用：当前网络下的账号列表（用于注入到 CUSTOM_SCHEMA 第一个字段的 options）
+const customAccountList = ref<{ id: number, account_name: string }[]>([])
+const loadingCustomAccounts = ref(false)
+
 const formData = ref<Record<string, any>>({
   networkDefId: null,
 })
@@ -318,8 +326,29 @@ const schema = computed<FieldDef[]>(() => {
   return getSchemaByNetwork({ network_code: n.network_code, network_type: n.network_type })
 })
 
+/** 当前所选网络是否为自定义网络（network_type === 2） */
+const isCurrentCustom = computed(() => {
+  const n = networkList.value.find(x => x.id === formData.value.networkDefId)
+  return !!(n && n.network_type === 2)
+})
+
+/** 给 schema 注入账号列表（仅对 CUSTOM_SCHEMA 的第一个 select 字段注入） */
+const schemaWithAccounts = computed<FieldDef[]>(() => {
+  const s = schema.value
+  if (!isCurrentCustom.value) return s
+  return s.map((f) => {
+    if (f.type === 'select' && f.key === 'accountId') {
+      return {
+        ...f,
+        options: customAccountList.value.map(a => ({ label: a.account_name, value: a.id })),
+      } as FieldDef
+    }
+    return f
+  })
+})
+
 const visibleFields = computed(() => {
-  return schema.value.filter(f => {
+  return schemaWithAccounts.value.filter(f => {
     if (!f.showWhen) return true
     return formData.value[f.showWhen.key] === f.showWhen.value
   })
@@ -329,7 +358,7 @@ const rules = computed(() => {
   const r: Record<string, any> = {
     networkDefId: [{ required: true, message: '请选择广告平台', trigger: 'change' }],
   }
-  for (const f of schema.value) {
+  for (const f of schemaWithAccounts.value) {
     if (f.required) {
       r[f.key] = [
         {
@@ -362,6 +391,7 @@ watch(
         networkDefId: null,
       }
       currentNetworkName.value = ''
+      customAccountList.value = []
       loadNetworks()
     }
   }
@@ -379,13 +409,42 @@ async function loadNetworks() {
   }
 }
 
-function onNetworkChange(networkDefId: number) {
+/** 拉取指定自定义网络下的账号列表 */
+async function fetchCustomAccounts(networkDefId: number) {
+  loadingCustomAccounts.value = true
+  try {
+    const res: any = await request.get('/api/v1/console/network/account/list', {
+      params: { network_def_id: networkDefId, pageSize: 1000, status: 1 },
+    })
+    const items = res?.data?.list || res?.data || []
+    customAccountList.value = (items as any[]).map(it => ({
+      id: Number(it.id),
+      account_name: String(it.account_name || it.account_id || `账号 ${it.id}`),
+    }))
+  } catch (e) {
+    customAccountList.value = []
+  } finally {
+    loadingCustomAccounts.value = false
+  }
+}
+
+async function onNetworkChange(networkDefId: number) {
   const n = networkList.value.find(x => x.id === networkDefId)
   if (!n) return
   currentNetworkName.value = n.network_name
   // 选完网络：直接初始化 schema 字段
   const initData = makeInitialData(schema.value)
   Object.assign(formData.value, initData)
+  // 自定义网络：拉取该网络下的账号列表
+  if (n.network_type === 2) {
+    await fetchCustomAccounts(n.id)
+    // 默认选第一个账号
+    if (customAccountList.value.length > 0) {
+      formData.value.accountId = customAccountList.value[0].id
+    }
+  } else {
+    customAccountList.value = []
+  }
 }
 
 function addKV(key: string) {
@@ -443,31 +502,55 @@ async function onSubmit() {
         credentials[f.key] = formData.value[f.key]
       }
     }
-    // 1. 先在 ad_network_account 创建/取一个「默认账号」拿到 accountId
-    const accountName = formData.value.accountName || '默认账号'
-    const createRes: any = await request.post('/api/v1/console/network/account/create', {
-      networkDefId: formData.value.networkDefId,
-      appId: props.appKey,
-      accountName,
-      accountId: formData.value.accountId || `acc_${Date.now()}`,
-      credentials,
-      status: 1,
-    })
-    if (createRes?.code !== 0) {
-      ElMessage.error(createRes?.message || '创建账号失败')
-      return
+    // 自定义网络：账号名称 已下拉选择（accountId），不创建新账号；预设网络：先在 ad_network_account 创建/取一个「默认账号」
+    let accountId: number | null = null
+    let networkAppId: string = ''
+    let extraParams: Record<string, any> = { credentials }
+    if (isCurrentCustom.value) {
+      // 自定义网络：accountId 必填
+      if (!formData.value.accountId) {
+        ElMessage.error('请先选择账号')
+        submitting.value = false
+        return
+      }
+      accountId = Number(formData.value.accountId)
+      networkAppId = String(accountId)
+      // 应用维度参数打到 extra_params，方便后续透传给自定义平台
+      if (Array.isArray(formData.value.params) && formData.value.params.length > 0) {
+        const paramsObj: Record<string, string> = {}
+        for (const p of formData.value.params) {
+          if (p && p.key && p.value) paramsObj[p.key] = p.value
+        }
+        extraParams.app_dim_params = paramsObj
+      }
+    } else {
+      // 预设网络：自动创建一个默认账号
+      const accountName = formData.value.accountName || '默认账号'
+      const createRes: any = await request.post('/api/v1/console/network/account/create', {
+        networkDefId: formData.value.networkDefId,
+        appId: props.appKey,
+        accountName,
+        accountId: formData.value.accountId || `acc_${Date.now()}`,
+        credentials,
+        status: 1,
+      })
+      if (createRes?.code !== 0) {
+        ElMessage.error(createRes?.message || '创建账号失败')
+        submitting.value = false
+        return
+      }
+      accountId = createRes.data?.id ?? null
+      networkAppId = String(accountId || '')
+      extraParams.accountId = accountId
     }
-    const accountId = createRes.data?.id
-    // 2. 调用 app/bind，把 accountId 写到 network_app_id
+    // 调用 app/bind
     const payload = {
       appKey: props.appKey,
       networkDefId: formData.value.networkDefId,
-      networkAppId: String(accountId || ''),
+      networkAppId,
       adapterVersionId: 0,
-      extraParams: {
-        credentials,
-        accountId,
-      },
+      extraParams,
+      accountId: accountId,
       status: 1,
     }
     const res: any = await request.post('/api/v1/console/network/app/bind', payload)
