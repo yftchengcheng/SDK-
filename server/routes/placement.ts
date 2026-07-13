@@ -10,10 +10,10 @@ const router = Router();
 router.get('/list', authMiddleware, async (req: express.Request, res: express.Response) => {
   try {
     const { developerId } = getDeveloper(req);
-    const { appKey, status, format, page = 1, pageSize = 20 } = req.query as Record<string, string>;
+    const { appId, appKey, status, format, page = 1, pageSize = 20 } = req.query as Record<string, string>;
 
     // Get apps for this developer first
-    const { data: apps } = await db.from('app').select('app_key').eq('developer_id', developerId);
+    const { data: apps } = await db.from('app').select('id, app_key').eq('developer_id', developerId);
     const appKeys = (apps || []).map((a: { app_key: string }) => a.app_key);
 
     if (appKeys.length === 0) {
@@ -23,6 +23,12 @@ router.get('/list', authMiddleware, async (req: express.Request, res: express.Re
 
     let query = db.from('placement').select('*', { count: 'exact' }).in('app_key', appKeys);
 
+    if (appId) {
+      // appId → app_key 转换
+      const target = (apps || []).find((a: { id: number; app_key: string }) => a.id === Number(appId));
+      if (target) query = query.eq('app_key', target.app_key);
+      else { success(res, { list: [], total: 0, page: Number(page), pageSize: Number(pageSize) }); return; }
+    }
     if (appKey) query = query.eq('app_key', appKey);
     if (status) query = query.eq('status', Number(status));
     if (format) query = query.eq('format', Number(format));

@@ -9,12 +9,26 @@ const router = Router();
 router.get('/list', authMiddleware, async (req: express.Request, res: express.Response) => {
   try {
     const { developerId } = getDeveloper(req);
-    const { networkCode, status, page = 1, pageSize = 20 } = req.query as Record<string, string>;
+    const { networkCode, networkDefId, appId, placementId, status, page = 1, pageSize = 20 } = req.query as Record<string, string>;
 
     let query = db.from('ad_source').select('*', { count: 'exact' }).eq('developer_id', developerId);
 
-    if (networkCode) query = query.eq('network_code', networkCode);
-    if (status) query = query.eq('status', Number(status));
+    if (networkCode && networkCode !== 'undefined') query = query.eq('network_code', networkCode);
+    if (networkDefId && networkDefId !== 'undefined') {
+      // networkDefId → network_code 映射：custom_<id> 是自定义网络，前缀 ad_network_def.id 写入
+      // 由于 ad_source 的 network_code 既可能是 'YLH' 也可能是 'custom_123'，需要支持按 network_def_id
+      // 简化方案：直接根据 networkDefId 生成 custom_<id> 作为 networkCode 过滤
+      query = query.eq('network_code', `custom_${networkDefId}`);
+    }
+    if (appId && appId !== 'undefined') {
+      const n = Number(appId);
+      if (!Number.isNaN(n)) query = query.eq('app_id', n);
+    }
+    if (placementId && placementId !== 'undefined') {
+      const n = Number(placementId);
+      if (!Number.isNaN(n)) query = query.eq('placement_id', n);
+    }
+    if (status && status !== 'undefined') query = query.eq('status', Number(status));
 
     const p = Number(page);
     const ps = Number(pageSize);
@@ -32,14 +46,14 @@ router.get('/list', authMiddleware, async (req: express.Request, res: express.Re
 router.post('/create', authMiddleware, async (req: express.Request, res: express.Response) => {
   try {
     const { developerId } = getDeveloper(req);
-    const { networkCode, networkName, sourceName, thirdAppId, thirdPlacementId, extra } = req.body;
+    const { networkCode, networkName, sourceName, thirdAppId, thirdPlacementId, extra, appId, placementId } = req.body;
 
     if (!networkCode || !sourceName || !thirdAppId || !thirdPlacementId) {
       fail(res, 400, '缺少必填字段');
       return;
     }
 
-    const { data, error } = await db.from('ad_source').insert({
+    const insertData: Record<string, unknown> = {
       developer_id: developerId,
       network_code: networkCode,
       network_name: networkName || networkCode,
@@ -47,7 +61,11 @@ router.post('/create', authMiddleware, async (req: express.Request, res: express
       third_app_id: thirdAppId,
       third_placement_id: thirdPlacementId,
       extra: extra || null,
-    }).select().single();
+    };
+    if (appId !== undefined && appId !== null && appId !== '') insertData.app_id = Number(appId);
+    if (placementId !== undefined && placementId !== null && placementId !== '') insertData.placement_id = Number(placementId);
+
+    const { data, error } = await db.from('ad_source').insert(insertData).select().single();
     if (error) throw new Error(`Insert failed: ${error.message}`);
 
     success(res, data, '创建成功');
@@ -111,7 +129,17 @@ router.put('/:id', authMiddleware, async (req: express.Request, res: express.Res
   try {
     const { developerId } = getDeveloper(req);
     const { id } = req.params;
-    const { sourceName, thirdAppId, thirdPlacementId, extra, status } = req.body;
+    const body = req.body as Record<string, unknown>;
+    // 兼容 snake_case 和 camelCase 两种入参风格
+    const sourceName = (body.sourceName ?? body.source_name) as string | undefined;
+    const thirdAppId = (body.thirdAppId ?? body.third_app_id) as string | undefined;
+    const thirdPlacementId = (body.thirdPlacementId ?? body.third_placement_id) as string | undefined;
+    const extra = body.extra;
+    const status = body.status as number | undefined;
+    const networkCode = (body.networkCode ?? body.network_code) as string | undefined;
+    const networkName = (body.networkName ?? body.network_name) as string | undefined;
+    const appIdRaw = (body.appId ?? body.app_id) as number | string | null | undefined;
+    const placementIdRaw = (body.placementId ?? body.placement_id) as number | string | null | undefined;
     if (!id) return fail(res, 400, '缺少id');
 
     const updateData: Record<string, unknown> = { updated_at: new Date().toISOString() };
@@ -120,6 +148,14 @@ router.put('/:id', authMiddleware, async (req: express.Request, res: express.Res
     if (thirdPlacementId !== undefined) updateData.third_placement_id = thirdPlacementId;
     if (extra !== undefined) updateData.extra = extra;
     if (status !== undefined) updateData.status = status;
+    if (networkCode !== undefined) updateData.network_code = networkCode;
+    if (networkName !== undefined) updateData.network_name = networkName;
+    if (appIdRaw !== undefined) {
+      updateData.app_id = appIdRaw === null || appIdRaw === '' ? null : Number(appIdRaw);
+    }
+    if (placementIdRaw !== undefined) {
+      updateData.placement_id = placementIdRaw === null || placementIdRaw === '' ? null : Number(placementIdRaw);
+    }
 
     const { error } = await db.from('ad_source').update(updateData).eq('id', Number(id)).eq('developer_id', developerId);
     if (error) throw new Error(`Update failed: ${error.message}`);

@@ -7246,3 +7246,212 @@ html, body, #app {
 }
 
 .nam-platform-select { width: 100%; }
+
+/* ============== ad-source 配置页布局（参考 Adtalos 左应用 + 右表格） ============== */
+.adsource-shell {
+  display: flex;
+  gap: 0;
+  height: calc(100vh - 88px);
+  background: #F8FAFC;
+  border-radius: 12px;
+  overflow: hidden;
+}
+.adsource-side {
+  width: 220px;
+  background: #fff;
+  border-right: 1px solid #E2E8F0;
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+}
+.adsource-side-platform {
+  padding: 16px;
+  border-bottom: 1px solid #E2E8F0;
+}
+.adsource-side-platform-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.adsource-side-platform-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #3B82F6, #2563EB);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.adsource-side-platform-icon--custom {
+  background: linear-gradient(135deg, #8B5CF6, #6366F1);
+}
+.adsource-side-platform-info {
+  min-width: 0;
+}
+.adsource-side-platform-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: #0F172A;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.adsource-side-platform-sub {
+  font-size: 12px;
+  color: #64748B;
+  margin-top: 2px;
+}
+.adsource-side-apps {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  padding: 12px 0;
+}
+.adsource-side-apps-title {
+  padding: 4px 16px 8px;
+  font-size: 12px;
+  color: #64748B;
+  font-weight: 500;
+}
+.adsource-side-apps-search {
+  margin: 0 12px 8px;
+}
+.adsource-side-apps-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0 8px;
+}
+.adsource-side-app {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  margin-bottom: 2px;
+  transition: background 0.15s;
+}
+.adsource-side-app:hover {
+  background: #F1F5F9;
+}
+.adsource-side-app--active {
+  background: #EFF6FF;
+  color: #2563EB;
+}
+.adsource-side-app--active .adsource-side-app-name {
+  color: #2563EB;
+  font-weight: 600;
+}
+.adsource-side-app-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  background: #F1F5F9;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  overflow: hidden;
+}
+.adsource-side-app-icon img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.adsource-side-app-name {
+  font-size: 13px;
+  color: #334155;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.adsource-side-app--empty {
+  padding: 20px 12px;
+  text-align: center;
+  color: #94A3B8;
+  font-size: 12px;
+}
+.adsource-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  background: #fff;
+}
+.adsource-main-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 24px;
+  border-bottom: 1px solid #E2E8F0;
+  gap: 16px;
+}
+.adsource-main-header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  flex: 1;
+}
+.adsource-main-app {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.adsource-main-app-name {
+  font-size: 18px;
+  font-weight: 600;
+  color: #0F172A;
+}
+.adsource-main-context {
+  margin-left: 4px;
+}
+.adsource-main-header-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.adsource-main-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 24px;
+  border-bottom: 1px solid #F1F5F9;
+}
+.adsource-main-toolbar-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.adsource-main-toolbar-tip {
+  font-size: 12px;
+  color: #64748B;
+}
+.adsource-main-table {
+  flex: 1;
+  padding: 16px 24px 24px;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.adsource-cell-json {
+  font-family: 'SF Mono', Menlo, Consolas, monospace;
+  font-size: 12px;
+  color: #334155;
+  background: #F8FAFC;
+  padding: 2px 6px;
+  border-radius: 4px;
+  display: inline-block;
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  vertical-align: middle;
+}
+.adsource-main-pagination {
+  margin-top: 16px;
+  display: flex;
+  justify-content: flex-end;
+}

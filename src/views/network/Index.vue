@@ -62,7 +62,7 @@
             </el-table-column>
             <el-table-column label="操作" width="280" fixed="right">
               <template #default="{ row }">
-                <div class="cell-actions"><el-button link type="primary" @click="openAdapterManager(row)">Adapter</el-button><el-button link type="primary" @click="openAppBinding(row)">应用</el-button><el-button link type="primary" @click="handleEdit(row)">编辑</el-button><el-button link type="danger" @click="handleDelete(row)">删除</el-button></div>
+                <div class="cell-actions"><el-button link type="primary" @click="openAdapterManager(row)">Adapter</el-button><el-button link type="primary" @click="openAppBinding(row)">应用</el-button><el-button link type="primary" @click="goToAdSource(row)">广告源</el-button><el-button link type="primary" @click="handleEdit(row)">编辑</el-button><el-button link type="danger" @click="handleDelete(row)">删除</el-button></div>
               </template>
             </el-table-column>
           </el-table></div></div>
@@ -614,6 +614,7 @@
 
 <script setup lang="ts">
 import { ref, reactive, onMounted, computed } from 'vue';
+import { useRouter } from 'vue-router';
 import request from '../../utils/request';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import type { FormInstance, FormRules } from 'element-plus';
@@ -622,6 +623,7 @@ import NetworkAccountManager from '../../components/NetworkAccountManager.vue';
 import ReviewPanel, { type AdapterVersion } from '../../components/ReviewPanel.vue';
 
 const activeTab = ref<'accounts' | 'custom'>('accounts');
+const router = useRouter();
 
 const loading = ref(false);
 const allNetworks = ref<any[]>([]);
@@ -979,6 +981,15 @@ const newBindingDialog = reactive({
   show: false,
   form: { app_key: '', network_app_id: '', adapter_version_id: null as number | null, extra_params: '' },
 });
+
+const goToAdSource = (row: any) => {
+  // 仅自定义广告平台可配置广告源；预设平台不展示入口或提示
+  if (row.is_preset) {
+    ElMessage.warning('预设广告平台不支持配置广告源');
+    return;
+  }
+  router.push({ path: '/ad-source', query: { networkId: String(row.id), networkName: row.network_name } });
+};
 
 const openAppBinding = async (row: any) => {
   bindingDialog.show = true;
