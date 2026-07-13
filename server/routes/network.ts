@@ -16,14 +16,16 @@ const router = Router();
 
 /**
  * 辅助函数：给一组行附加 fresh presigned URL（iconUrlResolved）
- * - DB 中 icon_url 是 storage key
- * - iconUrlResolved 是每次查询时实时生成的 7 天有效 presigned URL
+ * - DB 中 icon_url 可能是 storage key（走签名）或已经是公网 http(s) URL（直接用）
+ * - iconUrlResolved：key 走签名，http URL 直接返回原值
  */
 async function enrichWithIconUrl<T extends { icon_url?: string | null }>(rows: T[]): Promise<(T & { iconUrlResolved: string | null })[]> {
   return Promise.all(
     rows.map(async (row) => {
       if (!row.icon_url) return { ...row, iconUrlResolved: null };
-      const resolved = await resolveIconUrl(String(row.icon_url));
+      const v = String(row.icon_url).trim();
+      if (/^https?:\/\//i.test(v)) return { ...row, iconUrlResolved: v };
+      const resolved = await resolveIconUrl(v);
       return { ...row, iconUrlResolved: resolved || null };
     }),
   );
@@ -1131,13 +1133,18 @@ router.get('/account/list', authMiddleware, async (req: express.Request, res: ex
       network_icon_url: defMap[d.network_def_id]?.icon_url || null,
     }));
     const enrichedWithIcon = await enrichWithIconUrl(enriched as { icon_url?: string | null }[]);
-    // network_icon_url 也走签名解析
+    // network_icon_url 也走签名解析（支持裸 http(s) URL 旁路）
     const networkIconResolved: Record<string, string | null> = {};
     await Promise.all(
       (enriched as { network_def_id: number, network_icon_url: string | null }[]).map(async (d) => {
         if (d.network_icon_url) {
-          const r = await resolveIconUrl(d.network_icon_url);
-          networkIconResolved[`${d.network_def_id}`] = r || null;
+          const v = String(d.network_icon_url).trim();
+          if (/^https?:\/\//i.test(v)) {
+            networkIconResolved[`${d.network_def_id}`] = v;
+          } else {
+            const r = await resolveIconUrl(v);
+            networkIconResolved[`${d.network_def_id}`] = r || null;
+          }
         }
       })
     );
@@ -1177,7 +1184,14 @@ router.get('/account/detail', authMiddleware, async (req: express.Request, res: 
       network_name = def?.network_name || null;
       network_code = def?.network_code || null;
       network_icon_url = def?.icon_url || null;
-      if (network_icon_url) networkIconResolved = await resolveIconUrl(network_icon_url);
+      if (network_icon_url) {
+        const v = String(network_icon_url).trim();
+        if (/^https?:\/\//i.test(v)) {
+          networkIconResolved = v;
+        } else {
+          networkIconResolved = await resolveIconUrl(v);
+        }
+      }
     }
     success(res, { ...data, network_name, network_code, network_icon_url, networkIconResolved });
   } catch (err) {
