@@ -6,9 +6,10 @@
  *  T2 上传 jpeg（纯 jpg dataURL）失败
  *  T3 上传非图片（纯文本 dataURL）失败
  *  T4 上传超过 2MB 失败
- *  T5 创建时带 icon_url → DB 中能查到
- *  T6 更新时清空 icon_url（传 null）→ DB 中变 null
- *  T7 列表接口返回 icon_url 字段
+ *  T5 创建时带 icon_url (presigned URL) → 后端提取为 key + 返回 fresh URL
+ *  T6 更新时清空 icon_url（传 null）→ DB 与 resolved 都为空
+ *  T7 列表接口返回 key + fresh presigned URL
+ *  T8 iconUrlResolved URL 格式正确（key → presigned，含 sign 签名）
  */
 
 import { Buffer } from 'node:buffer';
@@ -138,30 +139,36 @@ async function main() {
     log('T4 上传 > 2MB 被拒', ok, `status=${r.status} code=${r.data?.code} msg=${r.data?.message || r.data?.error || ''}`);
   }
 
-  // ===== T5: 创建时带 icon_url → DB 中能查到 =====
+  // ===== T5: 创建时带 icon_url → 存入 DB 为 key（提取自 presigned URL）=====
   let createdId = 0;
-  let uploadedIconUrl = '';
+  let uploadedKey = '';
+  let uploadedUrl = '';
   {
     // 先上传
     const up = await http('/api/v1/console/network/custom/upload-icon', {
       method: 'POST',
       body: { dataUrl: `data:image/png;base64,${PNG_1X1_BASE64}` },
     });
-    uploadedIconUrl = up.data?.data?.iconUrl || '';
-    // 再创建时携带 icon_url
+    uploadedKey = up.data?.data?.key || '';
+    uploadedUrl = up.data?.data?.iconUrl || '';
+    // 再创建时携带 presigned URL（应被后端提取为 key）
     const code = `CUSTOM_ICON_${Date.now().toString().slice(-7)}`;
     const r = await http('/api/v1/console/network/custom/create', {
       method: 'POST',
       body: {
         network_name: 'IconNetwork',
         network_code: code,
-        icon_url: uploadedIconUrl,
+        icon_url: uploadedUrl,
         adapter_class_init_android: 'com.icon.Init',
       },
     });
     createdId = r.data?.data?.id || 0;
-    const ok = r.data?.code === 0 && r.data?.data?.icon_url === uploadedIconUrl;
-    log('T5 创建带 icon_url 成功', ok, `id=${createdId} icon_url matched=${r.data?.data?.icon_url === uploadedIconUrl}`);
+    const ok = r.data?.code === 0
+      && r.data?.data?.icon_url === uploadedKey  // 存的是 key
+      && typeof r.data?.data?.iconUrlResolved === 'string'  // 响应含 fresh URL
+      && r.data?.data?.iconUrlResolved.startsWith('http');
+    log('T5 创建带 icon_url → 存 key + 返 fresh URL', ok,
+      `id=${createdId} stored=${r.data?.data?.icon_url} resolved=${r.data?.data?.iconUrlResolved?.slice(0, 60)}...`);
   }
 
   // ===== T6: 更新时清空 icon_url（传 null）→ DB 中变 null =====
@@ -172,13 +179,16 @@ async function main() {
     });
     const detail = await http('/api/v1/console/network/list?page=1&pageSize=200');
     const found = (detail.data?.data?.list || []).find((n) => n.id === createdId);
-    const ok = r.data?.code === 0 && found && found.icon_url === null;
-    log('T6 更新清空 icon_url → DB 为 null', ok, `rcode=${r.data?.code} rmsg=${r.data?.message} listCount=${(detail.data?.data?.list || []).length} foundId=${found?.id} actual=${found?.icon_url ?? 'undef'}`);
+    const ok = r.data?.code === 0
+      && found
+      && (found.icon_url === null || found.icon_url === undefined || found.icon_url === '')
+      && (found.iconUrlResolved === null || found.iconUrlResolved === undefined || found.iconUrlResolved === '');
+    log('T6 更新清空 icon_url → DB 与 resolved 都为空', ok,
+      `rcode=${r.data?.code} rmsg=${r.data?.message} stored=${found?.icon_url ?? 'undef'} resolved=${found?.iconUrlResolved ?? 'undef'}`);
   }
 
-  // ===== T7: 列表接口返回 icon_url 字段 =====
+  // ===== T7: 列表接口返回 key + fresh presigned URL =====
   {
-    // 先创建一个带 icon 的
     const up = await http('/api/v1/console/network/custom/upload-icon', {
       method: 'POST',
       body: { dataUrl: `data:image/png;base64,${PNG_1X1_BASE64}` },
@@ -189,14 +199,41 @@ async function main() {
       body: {
         network_name: 'IconList',
         network_code: code,
-        icon_url: up.data?.data?.iconUrl,
+        icon_url: up.data?.data?.key,  // 直接传 key
         adapter_class_init_ios: 'com.iconl.Ios',
       },
     });
     const list = await http('/api/v1/console/network/list?page=1&pageSize=200');
     const found = (list.data?.data?.list || []).find((n) => n.id === create.data?.data?.id);
-    const ok = !!found && found.icon_url && found.icon_url.startsWith('http');
-    log('T7 列表返回 icon_url 字段', ok, `icon_url=${found?.icon_url?.slice(0, 50)}...`);
+    const isKey = !!found && found.icon_url && !found.icon_url.startsWith('http') && found.icon_url.startsWith('networks/');
+    const hasResolved = !!found && typeof found.iconUrlResolved === 'string' && found.iconUrlResolved.startsWith('http');
+    const ok = isKey && hasResolved;
+    log('T7 列表返回 key + fresh presigned URL', ok,
+      `stored=${found?.icon_url?.slice(0, 50)} resolved=${found?.iconUrlResolved?.slice(0, 60)}...`);
+  }
+
+  // ===== T8: 验证 list 返回的 iconUrlResolved 格式正确（key → 7天 presigned URL）=====
+  {
+    const up = await http('/api/v1/console/network/custom/upload-icon', {
+      method: 'POST',
+      body: { dataUrl: `data:image/png;base64,${PNG_1X1_BASE64}` },
+    });
+    const code = `CUSTOM_ICONV_${Date.now().toString().slice(-6)}`;
+    await http('/api/v1/console/network/custom/create', {
+      method: 'POST',
+      body: {
+        network_name: 'IconV',
+        network_code: code,
+        icon_url: up.data?.data?.key,
+        adapter_class_init_android: 'com.iconv.Init',
+      },
+    });
+    const list = await http('/api/v1/console/network/list?page=1&pageSize=200');
+    const found = (list.data?.data?.list || []).find((n) => n.network_code === code);
+    const url = found?.iconUrlResolved || '';
+    // 不直接 GET（沙箱 CDN 偶尔返回 404）；只验证 URL 结构
+    const validUrl = /^https:\/\/[^/]+\/coze_storage_\d+\/networks\/icons\/.+\?sign=\d+-[0-9a-f]+-0-[0-9a-f]+$/i.test(url);
+    log('T8 iconUrlResolved URL 格式正确（含 sign 签名）', validUrl, `url=${url.slice(0, 80)}...`);
   }
 
   console.log(`\n=== ${pass} 通过 / ${fail} 失败 / 共 ${pass + fail} ===`);

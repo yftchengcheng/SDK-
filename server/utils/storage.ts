@@ -83,3 +83,44 @@ export function detectImageExt(input: string | Buffer): string {
       input[4] === 0x0d && input[5] === 0x0a && input[6] === 0x1a && input[7] === 0x0a) return 'png';
   return '';
 }
+
+/**
+ * 从一个值中提取出存储 key：
+ * - 如果本身已经是 key（不带协议头），原样返回（去掉首尾斜杠）
+ * - 如果是 presigned URL（含 http(s)://），解析后从 pathname 中找到 bucket 前缀之后的部分
+ * - 否则返回原值
+ *
+ * 用途：兼容老数据（之前误把 presigned URL 存进 DB）和新数据（直接存 key）
+ */
+export function extractStorageKey(urlOrKey: string | null | undefined): string | null {
+  if (!urlOrKey) return null;
+  const v = String(urlOrKey).trim();
+  if (!v) return null;
+  if (!/^https?:\/\//i.test(v)) {
+    return v.replace(/^\/+/, '');
+  }
+  try {
+    const u = new URL(v);
+    const path = u.pathname.replace(/^\/+/, '');
+    // pathname 形如：coze_storage_<bucketId>/<realKey...>
+    // 找到第一个 "/" 后的内容
+    const idx = path.indexOf('/');
+    return idx >= 0 ? path.slice(idx + 1) : path;
+  } catch {
+    return v;
+  }
+}
+
+/**
+ * 把 icon_url 字段（可能是 key 或过期的 presigned URL）转成一个新的 7 天有效期的 presigned URL。
+ * 失败时返回 null。
+ */
+export async function resolveIconUrl(iconValue: string | null | undefined): Promise<string | null> {
+  const key = extractStorageKey(iconValue);
+  if (!key) return null;
+  try {
+    return await generatePresignedUrlCached(key, 7 * 24 * 3600);
+  } catch {
+    return null;
+  }
+}

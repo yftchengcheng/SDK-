@@ -8,9 +8,26 @@ import {
   parseBase64PngImage,
   detectImageExt,
   generatePresignedUrlCached,
+  extractStorageKey,
+  resolveIconUrl,
 } from '../utils/storage';
 
 const router = Router();
+
+/**
+ * 辅助函数：给一组行附加 fresh presigned URL（iconUrlResolved）
+ * - DB 中 icon_url 是 storage key
+ * - iconUrlResolved 是每次查询时实时生成的 7 天有效 presigned URL
+ */
+async function enrichWithIconUrl<T extends { icon_url?: string | null }>(rows: T[]): Promise<(T & { iconUrlResolved: string | null })[]> {
+  return Promise.all(
+    rows.map(async (row) => {
+      if (!row.icon_url) return { ...row, iconUrlResolved: null };
+      const resolved = await resolveIconUrl(String(row.icon_url));
+      return { ...row, iconUrlResolved: resolved || null };
+    }),
+  );
+}
 
 // ========== Adapter 字段常量（per-system：每个系统一套） ==========
 // 6 种 Adapter × 2 个系统 = 12 个 DB 列
@@ -157,7 +174,8 @@ router.get('/list', authMiddleware, async (req: express.Request, res: express.Re
 
     if (error) throw new Error(`Query failed: ${error.message}`);
 
-    success(res, { list: data || [] });
+    const list = await enrichWithIconUrl(data || []);
+    success(res, { list });
   } catch (err) {
     console.error('List networks error:', err);
     fail(res, 500, '获取网络列表失败');
@@ -181,7 +199,8 @@ router.get('/custom/list', authMiddleware, async (req: express.Request, res: exp
 
     if (error) throw new Error(`Query failed: ${error.message}`);
 
-    success(res, { list: data, total: count, page: p, pageSize: ps });
+    const list = await enrichWithIconUrl(data || []);
+    success(res, { list, total: count, page: p, pageSize: ps });
   } catch (err) {
     console.error('List custom networks error:', err);
     fail(res, 500, '获取自定义网络列表失败');
@@ -288,9 +307,9 @@ router.post('/custom/create', authMiddleware, async (req: express.Request, res: 
       insertRow[col(t, 'android')] = (androidMap[t] as string | null) ?? null;
       insertRow[col(t, 'ios')] = (iosMap[t] as string | null) ?? null;
     }
-    // icon_url 可选：undefined → 写入 null（DB 默认 null）；空字符串 → 视为不传
+    // icon_url 可选：归一化为 storage key（去除 presigned URL 的 host + query）
     if (iconUrlInput && typeof iconUrlInput === 'string' && iconUrlInput.trim()) {
-      insertRow.icon_url = iconUrlInput.trim();
+      insertRow.icon_url = extractStorageKey(iconUrlInput.trim()) ?? iconUrlInput.trim();
     } else {
       insertRow.icon_url = null;
     }
@@ -299,7 +318,9 @@ router.post('/custom/create', authMiddleware, async (req: express.Request, res: 
 
     if (error) throw new Error(`Insert failed: ${error.message}`);
 
-    success(res, data, '创建成功');
+    // 附加 fresh presigned URL（与 list/detail 行为一致）
+    const enriched = await enrichWithIconUrl([data]);
+    success(res, enriched[0], '创建成功');
   } catch (err) {
     console.error('Create custom network error:', err);
     fail(res, 500, '创建自定义网络失败');
@@ -387,7 +408,11 @@ router.post('/custom/update', authMiddleware, async (req: express.Request, res: 
     if (status !== undefined) updateData.status = status;
     // icon_url：调用方传了字段（含空字符串）才覆盖
     if (iconUrlInput !== undefined) {
-      updateData.icon_url = iconUrlInput && iconUrlInput.trim() ? iconUrlInput.trim() : null;
+      if (iconUrlInput && typeof iconUrlInput === 'string' && iconUrlInput.trim()) {
+        updateData.icon_url = extractStorageKey(iconUrlInput.trim()) ?? iconUrlInput.trim();
+      } else {
+        updateData.icon_url = null;
+      }
     }
 
     const { error } = await db.from('ad_network_def').update(updateData).eq('id', id);
@@ -442,7 +467,11 @@ router.put('/custom/:id', authMiddleware, async (req: express.Request, res: expr
     if (status !== undefined) updateData.status = Number(status);
     // icon_url：调用方传了字段（含空字符串）才覆盖
     if (iconUrlInput !== undefined) {
-      updateData.icon_url = iconUrlInput && iconUrlInput.trim() ? iconUrlInput.trim() : null;
+      if (iconUrlInput && typeof iconUrlInput === 'string' && iconUrlInput.trim()) {
+        updateData.icon_url = extractStorageKey(iconUrlInput.trim()) ?? iconUrlInput.trim();
+      } else {
+        updateData.icon_url = null;
+      }
     }
 
     // 推导 system_type：基于更新后的 init 字段
@@ -539,7 +568,8 @@ router.get('/custom/detail', authMiddleware, async (req: express.Request, res: e
     const { data, error } = await db.from('ad_network_def').select('*').eq('id', Number(id)).single();
     if (error) throw new Error(`Query failed: ${error.message}`);
 
-    success(res, data);
+    const [enriched] = await enrichWithIconUrl([data]);
+    success(res, enriched || data);
   } catch (err) {
     console.error('Get network detail error:', err);
     fail(res, 500, '获取网络详情失败');
