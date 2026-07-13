@@ -66,6 +66,7 @@ router.post('/custom/create', authMiddleware, async (req: express.Request, res: 
       adapter_class_native: acnSnake, adapterClassNative: acnCamel,
       adapter_class_splash: acsSnake, adapterClassSplash: acsCamel,
       supports_bidding: sbSnake, supportsBidding: sbCamel,
+      system_type: stSnake, systemType: stCamel,
     } = req.body;
     const networkName = networkNameSnake ?? networkNameCamel;
     const networkCode = networkCodeSnake ?? networkCodeCamel;
@@ -76,6 +77,7 @@ router.post('/custom/create', authMiddleware, async (req: express.Request, res: 
     const adapterClassNative = acnSnake ?? acnCamel;
     const adapterClassSplash = acsSnake ?? acsCamel;
     const supportsBidding = sbSnake ?? sbCamel;
+    const systemTypeRaw = stSnake ?? stCamel;
 
     if (!networkName) {
       fail(res, 400, '网络名称不能为空');
@@ -112,18 +114,57 @@ router.post('/custom/create', authMiddleware, async (req: express.Request, res: 
       return;
     }
 
+    // ========== 初始化 Adapter 校验（必填） ==========
+    if (!adapterClassInit || typeof adapterClassInit !== 'string' || !adapterClassInit.trim()) {
+      fail(res, 400, '初始化 Adapter 不能为空（App 启动时由 SDK 反射加载，必须有）');
+      return;
+    }
+    // 5. Adapter 类名格式校验：Java/ObjC/Swift FQN
+    //    - 包名：反向域名，全小写字母开头，可含数字/下划线
+    //    - 类名：PascalCase，大写字母开头，可含字母/数字/下划线
+    const FQN_REGEX = /^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)*\.[A-Z][A-Za-z0-9_]*$/;
+    const adapterFields: { name: string; value: unknown }[] = [
+      { name: '初始化 Adapter', value: adapterClassInit },
+      { name: 'Banner Adapter', value: adapterClassBanner },
+      { name: '插屏 Adapter', value: adapterClassInterstitial },
+      { name: '激励视频 Adapter', value: adapterClassRewarded },
+      { name: '原生 Adapter', value: adapterClassNative },
+      { name: '开屏 Adapter', value: adapterClassSplash },
+    ];
+    for (const f of adapterFields) {
+      if (f.value == null || f.value === '') continue; // 选填字段允许为空
+      const v = String(f.value).trim();
+      if (!FQN_REGEX.test(v)) {
+        fail(res, 400, `${f.name} 格式错误：必须为完整类路径（包名.类名），如 com.myadapter.MyInitAdapter`);
+        return;
+      }
+    }
+
+    // ========== 系统类型（system_type）校验 ==========
+    // 1=Android, 2=iOS, 3=通用（Both）
+    let systemType = 3;
+    if (systemTypeRaw != null) {
+      const n = Number(systemTypeRaw);
+      if (![1, 2, 3].includes(n)) {
+        fail(res, 400, '系统类型取值错误：1=Android, 2=iOS, 3=通用（Both）');
+        return;
+      }
+      systemType = n;
+    }
+
     const { data, error } = await db.from('ad_network_def').insert({
       network_code: code,
       network_name: networkName,
       is_preset: false,
       developer_id: developerId,
-      adapter_class_init: adapterClassInit || null,
-      adapter_class_banner: adapterClassBanner || null,
-      adapter_class_interstitial: adapterClassInterstitial || null,
-      adapter_class_rewarded: adapterClassRewarded || null,
-      adapter_class_native: adapterClassNative || null,
-      adapter_class_splash: adapterClassSplash || null,
+      adapter_class_init: adapterClassInit.trim(),
+      adapter_class_banner: adapterClassBanner?.trim() || null,
+      adapter_class_interstitial: adapterClassInterstitial?.trim() || null,
+      adapter_class_rewarded: adapterClassRewarded?.trim() || null,
+      adapter_class_native: adapterClassNative?.trim() || null,
+      adapter_class_splash: adapterClassSplash?.trim() || null,
       supports_bidding: supportsBidding ? 1 : 0,
+      system_type: systemType,
     }).select().single();
 
     if (error) throw new Error(`Insert failed: ${error.message}`);
@@ -150,6 +191,7 @@ router.post('/custom/update', authMiddleware, async (req: express.Request, res: 
       adapter_class_native: acnSnake, adapterClassNative: acnCamel,
       adapter_class_splash: acsSnake, adapterClassSplash: acsCamel,
       supports_bidding: sbSnake, supportsBidding: sbCamel,
+      system_type: stSnake, systemType: stCamel,
       status,
     } = req.body;
     const networkName = networkNameSnake ?? networkNameCamel;
@@ -160,6 +202,7 @@ router.post('/custom/update', authMiddleware, async (req: express.Request, res: 
     const adapterClassNative = acnSnake ?? acnCamel;
     const adapterClassSplash = acsSnake ?? acsCamel;
     const supportsBidding = sbSnake ?? sbCamel;
+    const systemTypeRaw = stSnake ?? stCamel;
 
     if (!id) {
       fail(res, 400, '缺少网络id');
@@ -175,14 +218,42 @@ router.post('/custom/update', authMiddleware, async (req: express.Request, res: 
 
     const updateData: Record<string, unknown> = {};
     if (networkName !== undefined) updateData.network_name = networkName;
-    if (adapterClassInit !== undefined) updateData.adapter_class_init = adapterClassInit;
-    if (adapterClassBanner !== undefined) updateData.adapter_class_banner = adapterClassBanner;
-    if (adapterClassInterstitial !== undefined) updateData.adapter_class_interstitial = adapterClassInterstitial;
-    if (adapterClassRewarded !== undefined) updateData.adapter_class_rewarded = adapterClassRewarded;
-    if (adapterClassNative !== undefined) updateData.adapter_class_native = adapterClassNative;
-    if (adapterClassSplash !== undefined) updateData.adapter_class_splash = adapterClassSplash;
+
+    // Adapter 字段格式校验（仅当传入时校验；不传=不更新该字段）
+    const FQN_REGEX = /^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)*\.[A-Z][A-Za-z0-9_]*$/;
+    const adapterFields: { key: string; name: string; value: unknown }[] = [
+      { key: 'adapter_class_init', name: '初始化 Adapter', value: adapterClassInit },
+      { key: 'adapter_class_banner', name: 'Banner Adapter', value: adapterClassBanner },
+      { key: 'adapter_class_interstitial', name: '插屏 Adapter', value: adapterClassInterstitial },
+      { key: 'adapter_class_rewarded', name: '激励视频 Adapter', value: adapterClassRewarded },
+      { key: 'adapter_class_native', name: '原生 Adapter', value: adapterClassNative },
+      { key: 'adapter_class_splash', name: '开屏 Adapter', value: adapterClassSplash },
+    ];
+    for (const f of adapterFields) {
+      if (f.value === undefined) continue; // 没传就不动
+      const v = f.value == null ? null : String(f.value).trim();
+      // init 必填，如果显式传了空字符串就报错
+      if (f.key === 'adapter_class_init' && !v) {
+        fail(res, 400, '初始化 Adapter 不能为空');
+        return;
+      }
+      if (v && !FQN_REGEX.test(v)) {
+        fail(res, 400, `${f.name} 格式错误：必须为完整类路径（包名.类名），如 com.myadapter.MyInitAdapter`);
+        return;
+      }
+      updateData[f.key] = v || null;
+    }
+
     if (supportsBidding !== undefined) updateData.supports_bidding = supportsBidding ? 1 : 0;
     if (status !== undefined) updateData.status = status;
+    if (systemTypeRaw !== undefined) {
+      const n = Number(systemTypeRaw);
+      if (![1, 2, 3].includes(n)) {
+        fail(res, 400, '系统类型取值错误：1=Android, 2=iOS, 3=通用（Both）');
+        return;
+      }
+      updateData.system_type = n;
+    }
 
     const { error } = await db.from('ad_network_def').update(updateData).eq('id', id);
     if (error) throw new Error(`Update failed: ${error.message}`);
@@ -199,7 +270,7 @@ router.put('/custom/:id', authMiddleware, async (req: express.Request, res: expr
   try {
     const { developerId } = getDeveloper(req);
     const { id } = req.params;
-    const { networkName, networkCode, adapterClassInit, adapterClassBanner, adapterClassInterstitial, adapterClassRewarded, adapterClassNative, adapterClassSplash, supportsBidding, status } = req.body as Record<string, unknown>;
+    const { networkName, networkCode, adapterClassInit, adapterClassBanner, adapterClassInterstitial, adapterClassRewarded, adapterClassNative, adapterClassSplash, supportsBidding, systemType, status } = req.body as Record<string, unknown>;
     if (!id) return fail(res, 400, '缺少网络id');
 
     const { data: existing, error: checkError } = await db.from('ad_network_def').select('developer_id').eq('id', Number(id)).single();
@@ -219,6 +290,14 @@ router.put('/custom/:id', authMiddleware, async (req: express.Request, res: expr
     if (adapterClassSplash !== undefined) updateData.adapter_class_splash = adapterClassSplash ? String(adapterClassSplash) : null;
     if (supportsBidding !== undefined) updateData.supports_bidding = supportsBidding ? 1 : 0;
     if (status !== undefined) updateData.status = Number(status);
+    if (systemType !== undefined) {
+      const n = Number(systemType);
+      if (![1, 2, 3].includes(n)) {
+        fail(res, 400, '系统类型取值错误：1=Android, 2=iOS, 3=通用（Both）');
+        return;
+      }
+      updateData.system_type = n;
+    }
 
     const { error } = await db.from('ad_network_def').update(updateData).eq('id', Number(id));
     if (error) throw new Error(`Update failed: ${error.message}`);

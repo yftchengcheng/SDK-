@@ -58,26 +58,35 @@ router.get('/config', async (req: express.Request, res: express.Response) => {
     }
 
     // Get custom adapters for this app
+    // 过滤规则：app.platform 与 network_def.system_type 匹配
+    //   - system_type = 3 (Both) → 任何 platform 都匹配
+    //   - system_type = 1 (Android) → app.platform 必须 = 1
+    //   - system_type = 2 (iOS) → app.platform 必须 = 2
     const { data: bindings } = await db.from('app_network_binding').select('*').eq('app_key', appKey).eq('status', 1);
     const customAdapters = [];
     if (bindings && bindings.length > 0) {
       for (const binding of bindings) {
         const { data: networkDef } = await db.from('ad_network_def').select('*').eq('id', binding.network_def_id).maybeSingle();
-        if (networkDef) {
-          customAdapters.push({
-            networkCode: networkDef.network_code,
-            networkName: networkDef.network_name,
-            adapterClasses: {
-              init: networkDef.adapter_class_init,
-              banner: networkDef.adapter_class_banner,
-              interstitial: networkDef.adapter_class_interstitial,
-              rewarded: networkDef.adapter_class_rewarded,
-              native: networkDef.adapter_class_native,
-              splash: networkDef.adapter_class_splash,
-            },
-            supportsBidding: networkDef.supports_bidding === 1,
-          });
+        if (!networkDef) continue;
+        // system_type 过滤：Both(3) 永远通过；否则必须严格匹配 app.platform
+        const defSysType = networkDef.system_type ?? 3;
+        if (defSysType !== 3 && defSysType !== app.platform) {
+          continue; // 跳过系统类型不匹配的 Adapter
         }
+        customAdapters.push({
+          networkCode: networkDef.network_code,
+          networkName: networkDef.network_name,
+          systemType: defSysType,
+          adapterClasses: {
+            init: networkDef.adapter_class_init,
+            banner: networkDef.adapter_class_banner,
+            interstitial: networkDef.adapter_class_interstitial,
+            rewarded: networkDef.adapter_class_rewarded,
+            native: networkDef.adapter_class_native,
+            splash: networkDef.adapter_class_splash,
+          },
+          supportsBidding: networkDef.supports_bidding === 1,
+        });
       }
     }
 

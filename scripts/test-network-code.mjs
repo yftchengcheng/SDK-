@@ -210,7 +210,7 @@ async function run() {
   }
 
   // 唯一性测试
-  await api('POST', '/api/v1/console/network/custom/create', { network_name: 'DupTest', network_code: 'CUSTOM_DUP_TEST' }, t2)
+  await api('POST', '/api/v1/console/network/custom/create', { network_name: 'DupTest', network_code: 'CUSTOM_DUP_TEST', adapter_class_init: 'com.test.X' }, t2)
   const dup = await api('POST', '/api/v1/console/network/custom/create', { network_name: 'DupTest2', network_code: 'CUSTOM_DUP_TEST' }, t2)
   if (dup.code === 400 && dup.message?.includes('占用')) {
     console.log(`  ✓ 唯一性约束: ${dup.message}`)

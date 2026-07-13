@@ -35,6 +35,13 @@
           <el-table :data="customNetworks" v-loading="loading" stripe style="width: 100%; margin-top: 12px">
             <el-table-column prop="network_code" label="平台代码" width="160" />
             <el-table-column prop="network_name" label="平台名称" min-width="140" />
+            <el-table-column label="系统" width="100">
+              <template #default="{ row }">
+                <el-tag v-if="row.system_type === 1" type="success" size="small">Android</el-tag>
+                <el-tag v-else-if="row.system_type === 2" type="warning" size="small">iOS</el-tag>
+                <el-tag v-else type="info" size="small">通用</el-tag>
+              </template>
+            </el-table-column>
             <el-table-column prop="supports_bidding" label="支持Bidding" width="120">
               <template #default="{ row }">{{ row.supports_bidding ? '是' : '否' }}</template>
             </el-table-column>
@@ -100,7 +107,7 @@
                   <span>基础信息</span>
                 </h2>
               </div>
-              <p class="page-form-section-desc">平台名称和唯一代码（CUSTOM_ 前缀自动补全）</p>
+              <p class="page-form-section-desc">平台名称、唯一代码和适配的操作系统</p>
 
               <div class="page-form-grid">
                 <el-form-item label="平台名称" prop="network_name" class="span-2">
@@ -111,6 +118,18 @@
                   <template #label><span class="required-mark">*</span><span>平台代码</span></template>
                   <el-input v-model="editForm.network_code" placeholder="如 MYAD（不输 CUSTOM_ 前缀则自动补全）" :disabled="!!editForm.id" />
                   <div class="form-help">大写字母 + 数字 + 下划线，3-32 位；不与系统预置代码冲突；创建后不可修改</div>
+                </el-form-item>
+                <el-form-item label="系统类型" prop="system_type" class="span-2">
+                  <template #label><span class="required-mark">*</span><span>系统类型</span></template>
+                  <el-radio-group v-model="editForm.system_type">
+                    <el-radio :value="1">Android</el-radio>
+                    <el-radio :value="2">iOS</el-radio>
+                    <el-radio :value="3">通用（Android + iOS）</el-radio>
+                  </el-radio-group>
+                  <div class="form-help">
+                    不同 Adapter 对应不同平台的 .class 文件，请按实际支持的操作系统选择。
+                    客户端 SDK 拉取配置时会按 App 系统自动过滤（如 iOS App 不会拉取 system_type=Android 的 Adapter）
+                  </div>
                 </el-form-item>
               </div>
             </section>
@@ -124,27 +143,38 @@
                 </h2>
                 <span class="page-form-section-tag">各广告形式对应一个 Adapter 类，初始化类必填</span>
               </div>
-              <p class="page-form-section-desc">每个广告形式可绑定一个 Adapter 实现类，未填则不参与瀑布流</p>
+              <p class="page-form-section-desc">
+                格式：<code>包路径.类名</code>（反向域名 + PascalCase）。
+                示例：<code>com.myadapter.MyCustomInitAdapter</code>。
+                客户端 SDK 通过 <code>Class.forName()</code> 反射加载。
+              </p>
 
               <div class="page-form-grid">
-                <el-form-item label="初始化 Adapter" class="span-2" required>
+                <el-form-item label="初始化 Adapter" prop="adapter_class_init" class="span-2">
                   <template #label><span class="required-mark">*</span><span>初始化 Adapter</span></template>
-                  <el-input v-model="editForm.adapter_class_init" placeholder="如 com.myadapter.MyCustomInitAdapter" />
+                  <el-input
+                    v-model="editForm.adapter_class_init"
+                    placeholder="如 com.myadapter.MyCustomInitAdapter"
+                  />
+                  <div class="form-help">
+                    App 启动时由 SDK 反射加载并调用 <code>initializeADN(context, serverExtra)</code>，初始化第三方 SDK。
+                    没有此 Adapter，整个自定义平台不可用。
+                  </div>
                 </el-form-item>
-                <el-form-item label="Banner Adapter">
-                  <el-input v-model="editForm.adapter_class_banner" placeholder="选填" />
+                <el-form-item label="Banner Adapter" prop="adapter_class_banner">
+                  <el-input v-model="editForm.adapter_class_banner" placeholder="选填，如 com.myadapter.MyBannerAdapter" />
                 </el-form-item>
-                <el-form-item label="插屏 Adapter">
-                  <el-input v-model="editForm.adapter_class_interstitial" placeholder="选填" />
+                <el-form-item label="插屏 Adapter" prop="adapter_class_interstitial">
+                  <el-input v-model="editForm.adapter_class_interstitial" placeholder="选填，如 com.myadapter.MyInterstitialAdapter" />
                 </el-form-item>
-                <el-form-item label="激励视频 Adapter">
-                  <el-input v-model="editForm.adapter_class_rewarded" placeholder="选填" />
+                <el-form-item label="激励视频 Adapter" prop="adapter_class_rewarded">
+                  <el-input v-model="editForm.adapter_class_rewarded" placeholder="选填，如 com.myadapter.MyRewardedAdapter" />
                 </el-form-item>
-                <el-form-item label="原生 Adapter">
-                  <el-input v-model="editForm.adapter_class_native" placeholder="选填" />
+                <el-form-item label="原生 Adapter" prop="adapter_class_native">
+                  <el-input v-model="editForm.adapter_class_native" placeholder="选填，如 com.myadapter.MyNativeAdapter" />
                 </el-form-item>
-                <el-form-item label="开屏 Adapter">
-                  <el-input v-model="editForm.adapter_class_splash" placeholder="选填" />
+                <el-form-item label="开屏 Adapter" prop="adapter_class_splash">
+                  <el-input v-model="editForm.adapter_class_splash" placeholder="选填，如 com.myadapter.MySplashAdapter" />
                 </el-form-item>
               </div>
             </section>
@@ -491,14 +521,49 @@ const isEdit = ref(false);
 const submitting = ref(false);
 const formRef = ref<FormInstance>();
 const defaultForm = {
-  id: 0, network_name: '', network_code: '', adapter_class_init: '',
-  adapter_class_banner: '', adapter_class_interstitial: '', adapter_class_rewarded: '',
-  adapter_class_native: '', adapter_class_splash: '', supports_bidding: false,
+  id: 0, network_name: '', network_code: '', system_type: 3,
+  adapter_class_init: '', adapter_class_banner: '', adapter_class_interstitial: '',
+  adapter_class_rewarded: '', adapter_class_native: '', adapter_class_splash: '',
+  supports_bidding: false,
 };
 const editForm = reactive({ ...defaultForm });
 
+// Java FQN 校验：包路径小写+下划线+数字，类名 PascalCase
+// 例：com.myadapter.MyCustomInitAdapter
+const FQN_REGEX = /^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)*\.[A-Z][A-Za-z0-9_]*$/;
+const validateFQN = (_rule: any, value: any, callback: any) => {
+  if (!value || !value.trim()) { callback(); return; }
+  if (!FQN_REGEX.test(value.trim())) {
+    callback(new Error('格式错误：应为 包路径.类名（包路径小写+下划线+数字，类名以大写字母开头，如 com.myadapter.MyInit）'));
+    return;
+  }
+  callback();
+};
+
 const formRules: FormRules = {
   network_name: [{ required: true, message: '请输入平台名称', trigger: 'blur' }],
+  system_type: [
+    { required: true, message: '请选择系统类型', trigger: 'change' },
+    {
+      validator: (_rule, value, callback) => {
+        if (![1, 2, 3].includes(Number(value))) {
+          callback(new Error('系统类型必须为 1=Android / 2=iOS / 3=通用'));
+          return;
+        }
+        callback();
+      },
+      trigger: 'change',
+    },
+  ],
+  adapter_class_init: [
+    { required: true, message: '请输入初始化 Adapter 类名', trigger: 'blur' },
+    { validator: validateFQN, trigger: 'blur' },
+  ],
+  adapter_class_banner: [{ validator: validateFQN, trigger: 'blur' }],
+  adapter_class_interstitial: [{ validator: validateFQN, trigger: 'blur' }],
+  adapter_class_rewarded: [{ validator: validateFQN, trigger: 'blur' }],
+  adapter_class_native: [{ validator: validateFQN, trigger: 'blur' }],
+  adapter_class_splash: [{ validator: validateFQN, trigger: 'blur' }],
   network_code: [
     { required: true, message: '请输入平台代码', trigger: 'blur' },
     {
@@ -543,6 +608,7 @@ const handleEdit = (row: any) => {
   isEdit.value = true;
   Object.assign(editForm, {
     id: row.id, network_name: row.network_name, network_code: row.network_code,
+    system_type: row.system_type ?? 3,
     adapter_class_init: row.adapter_class_init || '', adapter_class_banner: row.adapter_class_banner || '',
     adapter_class_interstitial: row.adapter_class_interstitial || '', adapter_class_rewarded: row.adapter_class_rewarded || '',
     adapter_class_native: row.adapter_class_native || '', adapter_class_splash: row.adapter_class_splash || '',
@@ -562,7 +628,8 @@ const handleSubmit = async () => {
   submitting.value = true;
   try {
     const code = editForm.network_code.startsWith('CUSTOM_') ? editForm.network_code : `CUSTOM_${editForm.network_code}`;
-    const payload = { ...editForm, network_code: code, supports_bidding: editForm.supports_bidding ? 1 : 0 };
+    const { id, ...rest } = editForm;
+    const payload = { ...rest, network_code: code, supports_bidding: editForm.supports_bidding ? 1 : 0 };
     if (editForm.id) {
       await request.put(`/api/v1/console/network/custom/${editForm.id}`, payload);
       ElMessage.success('更新成功');
