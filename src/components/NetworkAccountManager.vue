@@ -50,7 +50,14 @@
         <template #default="{ row }">
           <div class="nam-net-cell">
             <span class="nam-net-avatar" :class="`nam-avatar--${networkColorClass(row.network_code)}`">
-              {{ networkInitial(row.network_code) }}
+              <img
+                v-if="row.networkIconResolved"
+                :src="row.networkIconResolved"
+                :alt="row.network_name"
+                class="nam-net-avatar-img"
+                @error="onNetIconError($event, row)"
+              />
+              <span v-else>{{ networkInitial(row.network_code) }}</span>
             </span>
             <span class="nam-net-name">{{ row.network_name || `平台 #${row.network_def_id}` }}</span>
           </div>
@@ -125,7 +132,14 @@
             >
               <span class="nam-option">
                 <span class="nam-net-avatar nam-net-avatar--sm" :class="`nam-avatar--${networkColorClass(n.code)}`">
-                  {{ networkInitial(n.code) }}
+                  <img
+                    v-if="n.iconUrlResolved"
+                    :src="n.iconUrlResolved"
+                    :alt="n.name"
+                    class="nam-net-avatar-img"
+                    @error="onNetOptionIconError($event)"
+                  />
+                  <span v-else>{{ networkInitial(n.code) }}</span>
                 </span>
                 <span class="nam-option-name">{{ n.name }}</span>
                 <el-tag v-if="!n.is_preset" size="small" type="success" effect="plain">自定义</el-tag>
@@ -304,6 +318,7 @@ interface NetworkOption {
   name: string;
   code?: string;
   is_preset?: boolean;
+  iconUrlResolved?: string | null;
 }
 
 interface AccountRow {
@@ -312,6 +327,8 @@ interface AccountRow {
   network_def_id: number;
   network_name?: string;
   network_code?: string;
+  network_icon_url?: string | null;
+  networkIconResolved?: string | null;
   app_id: number | null;
   account_name: string;
   account_id: string | null;
@@ -449,6 +466,19 @@ function networkInitial(code?: string) {
   return (code || '?').slice(0, 1).toUpperCase();
 }
 
+function onNetIconError(ev: Event, row: AccountRow) {
+  // Broken presigned URL — clear so we fall back to first-letter avatar.
+  row.networkIconResolved = null;
+  row.network_icon_url = null;
+  const img = ev.target as HTMLImageElement | null;
+  if (img) img.onerror = null;
+}
+
+function onNetOptionIconError(ev: Event) {
+  const img = ev.target as HTMLImageElement | null;
+  if (img) img.onerror = null;
+}
+
 function networkColorClass(code?: string) {
   if (!code) return 'slate';
   const c = code.toLowerCase();
@@ -509,6 +539,7 @@ async function fetchNetworks() {
       name: n.network_name,
       code: n.network_code,
       is_preset: n.is_preset,
+      iconUrlResolved: n.iconUrlResolved || null,
     }));
   } catch (e) {
     console.error('[nam] fetch networks error', e);

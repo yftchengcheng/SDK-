@@ -1115,22 +1115,38 @@ router.get('/account/list', authMiddleware, async (req: express.Request, res: ex
     const { data, count, error } = await query.order('created_at', { ascending: false }).range((p - 1) * ps, p * ps - 1);
     if (error) throw new Error(`Query failed: ${error.message}`);
 
-    // Enrich with network name + code from ad_network_def
+    // Enrich with network name + code + icon_url from ad_network_def
     const defIds = Array.from(new Set((data || []).map(d => d.network_def_id).filter(Boolean)));
-    const defMap: Record<number, { network_name: string, network_code: string }> = {};
+    const defMap: Record<number, { network_name: string, network_code: string, icon_url: string | null }> = {};
     if (defIds.length) {
-      const { data: defs } = await db.from('ad_network_def').select('id, network_name, network_code').in('id', defIds);
-      (defs || []).forEach((d: { id: number, network_name: string, network_code: string }) => {
-        defMap[d.id] = { network_name: d.network_name, network_code: d.network_code };
+      const { data: defs } = await db.from('ad_network_def').select('id, network_name, network_code, icon_url').in('id', defIds);
+      (defs || []).forEach((d: { id: number, network_name: string, network_code: string, icon_url: string | null }) => {
+        defMap[d.id] = { network_name: d.network_name, network_code: d.network_code, icon_url: d.icon_url || null };
       });
     }
     const enriched = (data || []).map(d => ({
       ...d,
       network_name: defMap[d.network_def_id]?.network_name || null,
       network_code: defMap[d.network_def_id]?.network_code || null,
+      network_icon_url: defMap[d.network_def_id]?.icon_url || null,
+    }));
+    const enrichedWithIcon = await enrichWithIconUrl(enriched as { icon_url?: string | null }[]);
+    // network_icon_url 也走签名解析
+    const networkIconResolved: Record<string, string | null> = {};
+    await Promise.all(
+      (enriched as { network_def_id: number, network_icon_url: string | null }[]).map(async (d) => {
+        if (d.network_icon_url) {
+          const r = await resolveIconUrl(d.network_icon_url);
+          networkIconResolved[`${d.network_def_id}`] = r || null;
+        }
+      })
+    );
+    const finalList = enrichedWithIcon.map((d: { network_def_id?: number, network_icon_url?: string | null } & Record<string, unknown>) => ({
+      ...d,
+      networkIconResolved: d.network_def_id ? networkIconResolved[`${d.network_def_id}`] || null : null,
     }));
 
-    success(res, { list: enriched, total: count, page: p, pageSize: ps });
+    success(res, { list: finalList, total: count, page: p, pageSize: ps });
   } catch (err) {
     console.error('List network accounts error:', err);
     fail(res, 500, '获取账号列表失败');
@@ -1151,15 +1167,19 @@ router.get('/account/detail', authMiddleware, async (req: express.Request, res: 
       .single();
     if (error) throw new Error(`Query failed: ${error.message}`);
 
-    // Enrich with network name + code
+    // Enrich with network name + code + icon_url
     let network_name: string | null = null;
     let network_code: string | null = null;
+    let network_icon_url: string | null = null;
+    let networkIconResolved: string | null = null;
     if (data?.network_def_id) {
-      const { data: def } = await db.from('ad_network_def').select('network_name, network_code').eq('id', data.network_def_id).maybeSingle();
+      const { data: def } = await db.from('ad_network_def').select('network_name, network_code, icon_url').eq('id', data.network_def_id).maybeSingle();
       network_name = def?.network_name || null;
       network_code = def?.network_code || null;
+      network_icon_url = def?.icon_url || null;
+      if (network_icon_url) networkIconResolved = await resolveIconUrl(network_icon_url);
     }
-    success(res, { ...data, network_name, network_code });
+    success(res, { ...data, network_name, network_code, network_icon_url, networkIconResolved });
   } catch (err) {
     console.error('Detail network account error:', err);
     fail(res, 500, '获取账号详情失败');
