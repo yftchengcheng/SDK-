@@ -169,27 +169,10 @@ const BD_SCHEMA: FieldDef[] = [
 
 // ============================================================
 // 自定义网络 CUSTOM
+// 说明：此文件仅被「查看网络」使用，自定义网络的「应用维度参数」
+//        在「应用绑定广告平台」步骤填写，view 页面不展示。
 // ============================================================
-// 账号字段：表单在用户选择自定义网络后由前端动态拉取该网络下的账号列表注入
-// - dynamicOptions 为函数：每次重新进入对话框时执行，获取最新账号
-// - 提交时把 selectedAccountId 单独传后端，后端写入 app_network_binding.account_id
-const CUSTOM_SCHEMA: FieldDef[] = [
-  {
-    type: 'select',
-    key: 'accountId',
-    label: '账号名称',
-    required: true,
-    placeholder: '请选择账号（该自定义网络下已创建的账号）',
-    options: [], // 由 BindNetworkDrawer 在 onNetworkChange 阶段注入
-  },
-  {
-    type: 'key-value',
-    key: 'params',
-    label: '应用维度参数',
-    addText: '增加参数',
-    tooltip: '可填写多个 key=value 形式的参数，例如 app ID=123456。参数将在请求自定义广告平台时附带。',
-  },
-]
+const CUSTOM_SCHEMA: FieldDef[] = []
 
 // ============================================================
 // 兜底 schema

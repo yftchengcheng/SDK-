@@ -161,10 +161,30 @@ const BD_SCHEMA: FieldDef[] = [
 
 // ============================================================
 // 自定义网络 CUSTOM
-// 说明：自定义广告平台的「应用维度参数」应在「应用绑定广告平台」步骤填写，
-//        而非「新建账号」步骤，因此 custom schema 留空。
 // ============================================================
-const CUSTOM_SCHEMA: FieldDef[] = []
+// 「应用绑定广告平台」步骤中，自定义网络需要：
+// 1. 账号名称：从该自定义网络下已创建的账号中选一个
+//    - 表单层只声明字段，options 由 BindNetworkDrawer 在选择网络时动态注入
+// 2. 应用维度参数：多对 key=value（例如 app ID=123456），将在请求自定义广告平台时附带
+// 注：上一版本把此 schema 留空是错误的（之前「应用绑定」直接退化为兜底 schema），
+//     这里恢复为完整定义
+const CUSTOM_SCHEMA: FieldDef[] = [
+  {
+    type: 'select',
+    key: 'accountId',
+    label: '账号名称',
+    required: true,
+    placeholder: '请选择账号（该自定义网络下已创建的账号）',
+    options: [], // 由 BindNetworkDrawer 在选择网络后注入
+  },
+  {
+    type: 'key-value',
+    key: 'params',
+    label: '应用维度参数',
+    addText: '增加参数',
+    tooltip: '可填写多个 key=value 形式的参数，例如 app ID=123456。参数将在请求自定义广告平台时附带。',
+  },
+]
 
 // ============================================================
 // 兜底 schema
