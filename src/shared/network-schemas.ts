@@ -186,6 +186,11 @@ const CUSTOM_SCHEMA: FieldDef[] = [
   },
 ]
 
+// 账号管理弹窗：自定义平台不需要凭证字段（adapter_class 已在网络层配置；账号维度无参数）
+//   → 留空：弹窗不会出现「账号名称(select)」和「应用维度参数」
+//   → 「应用维度参数」是应用绑定概念，不该出现在账号管理里
+const CUSTOM_ACCOUNT_SCHEMA: FieldDef[] = []
+
 // ============================================================
 // 兜底 schema
 // ============================================================
@@ -203,14 +208,26 @@ const SCHEMAS_BY_CODE: Record<string, FieldDef[]> = {
   BD: BD_SCHEMA,
 }
 
-/** 根据 network（id/code/is_preset）取字段定义 */
-export function getSchemaByNetwork(network: { network_code?: string, is_preset?: boolean, network_type?: number }): FieldDef[] {
+/** 根据 network（id/code/is_preset）和 context 决定字段集
+ *  - 'account' : 账号管理弹窗。账号的"凭证字段"由平台自身 schema 决定；自定义平台账号管理不需要
+ *                accountId/params（这些是「应用绑定」概念），也用不到密钥（adapter_class 已在网络层配置）。
+ *                因此账号管理下的自定义平台 schema 为空。
+ *  - 'binding' : 应用绑定广告平台。自定义平台需要 accountId(select) + params(key-value) 用于「关联」+「应用维度参数」。
+ */
+export function getSchemaByNetwork(
+  network: { network_code?: string; is_preset?: boolean; network_type?: number },
+  context: 'account' | 'binding' = 'account',
+): FieldDef[] {
   if (network.network_code && SCHEMAS_BY_CODE[network.network_code]) {
     return SCHEMAS_BY_CODE[network.network_code]
   }
   // 兼容新旧字段：is_preset=false 或 network_type=2 表示自定义平台
   if (network.is_preset === false || network.network_type === 2) {
-    return CUSTOM_SCHEMA
+    if (context === 'binding') {
+      return CUSTOM_SCHEMA
+    }
+    // 账号管理：自定义平台无需凭证字段（adapter_class 已在网络层配置）
+    return CUSTOM_ACCOUNT_SCHEMA
   }
   return DEFAULT_PRESET_SCHEMA
 }

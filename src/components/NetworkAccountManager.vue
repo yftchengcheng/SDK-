@@ -43,7 +43,7 @@
             <span class="nam-name">{{ row.account_name }}</span>
             <el-tag v-if="row.status === 2" size="small" type="info">停用</el-tag>
           </div>
-          <div class="nam-remark">{{ row.remark || '—' }}</div>
+          <div v-if="row.remark" class="nam-remark">{{ row.remark }}</div>
         </template>
       </el-table-column>
       <el-table-column label="广告平台" min-width="140">

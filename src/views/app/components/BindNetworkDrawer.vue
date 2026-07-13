@@ -328,7 +328,7 @@ const schema = computed<FieldDef[]>(() => {
     console.warn('[BindNetwork] schema=[]: target=', target, 'listIds=', networkList.value.map(x => x.id))
     return []
   }
-  const s = getSchemaByNetwork({ network_code: n.network_code, is_preset: n.is_preset })
+  const s = getSchemaByNetwork({ network_code: n.network_code, is_preset: n.is_preset }, 'binding')
   console.log('[BindNetwork] schema for', n.network_name, 'is_preset=', n.is_preset, '→', s.length, 'fields')
   return s
 })
