@@ -109,8 +109,8 @@
                 </el-form-item>
                 <el-form-item label="平台代码" prop="network_code" class="span-2">
                   <template #label><span class="required-mark">*</span><span>平台代码</span></template>
-                  <el-input v-model="editForm.network_code" placeholder="如 CUSTOM_MYAD (大写+下划线)" :disabled="!!editForm.id" />
-                  <div class="form-help">创建后不可修改，全局唯一，建议大写 + 下划线</div>
+                  <el-input v-model="editForm.network_code" placeholder="如 MYAD（不输 CUSTOM_ 前缀则自动补全）" :disabled="!!editForm.id" />
+                  <div class="form-help">大写字母 + 数字 + 下划线，3-32 位；不与系统预置代码冲突；创建后不可修改</div>
                 </el-form-item>
               </div>
             </section>
@@ -499,7 +499,33 @@ const editForm = reactive({ ...defaultForm });
 
 const formRules: FormRules = {
   network_name: [{ required: true, message: '请输入平台名称', trigger: 'blur' }],
-  network_code: [{ required: true, message: '请输入平台代码', trigger: 'blur' }],
+  network_code: [
+    { required: true, message: '请输入平台代码', trigger: 'blur' },
+    {
+      validator: (_rule, value, callback) => {
+        if (!value) { callback(); return; }
+        // 兼容用户带或不带 CUSTOM_ 前缀两种输入
+        // 后端会自动 toUpperCase，前端同步做归一化让用户输入小写也能通过
+        // "CUSTOM_" 是 7 个字符（C-U-S-T-O-M-_），注意 slice 索引
+        const upper = value.toUpperCase();
+        const stripped = upper.startsWith('CUSTOM_') ? upper.slice(7) : upper;
+        if (!/^[A-Z][A-Z0-9_]{2,31}$/.test(stripped)) {
+          callback(new Error('格式错误：以大写字母开头，仅含大写字母/数字/下划线，长度 3-32 位'));
+          return;
+        }
+        // 预置代码冲突（用户必须带 CUSTOM_ 前缀）
+        if (!upper.startsWith('CUSTOM_')) {
+          const PRESET = ['CSJ', 'YLH', 'BD', 'GDT', 'KS', 'XM', 'BID'];
+          if (PRESET.includes(stripped)) {
+            callback(new Error(`"${stripped}" 与系统预置平台代码冲突，请更换或加 CUSTOM_ 前缀`));
+            return;
+          }
+        }
+        callback();
+      },
+      trigger: 'blur',
+    },
+  ],
 };
 
 const fetchList = async () => {
@@ -546,7 +572,11 @@ const handleSubmit = async () => {
     }
     customDrawerVisible.value = false;
     fetchList();
-  } catch { /* ignore */ } finally { submitting.value = false; }
+  } catch (e: any) {
+    // 解析后端错误：优先展示后端返回的 message，避免静默失败
+    const msg = e?.response?.data?.message || e?.message || '操作失败';
+    ElMessage.error(msg);
+  } finally { submitting.value = false; }
 };
 
 const handleDelete = async (row: any) => {

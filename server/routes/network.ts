@@ -55,18 +55,65 @@ router.get('/custom/list', authMiddleware, async (req: express.Request, res: exp
 router.post('/custom/create', authMiddleware, async (req: express.Request, res: express.Response) => {
   try {
     const { developerId } = getDeveloper(req);
-    const { networkName, adapterClassInit, adapterClassBanner, adapterClassInterstitial, adapterClassRewarded, adapterClassNative, adapterClassSplash, supportsBidding } = req.body;
+    // 前端表单 v-model 使用 snake_case（与数据库列名一致），同时兼容 camelCase（API 直接调用）
+    const {
+      network_name: networkNameSnake, networkName: networkNameCamel,
+      network_code: networkCodeSnake, networkCode: networkCodeCamel,
+      adapter_class_init: aciSnake, adapterClassInit: aciCamel,
+      adapter_class_banner: acbSnake, adapterClassBanner: acbCamel,
+      adapter_class_interstitial: aciS2Snake, adapterClassInterstitial: aciS2Camel,
+      adapter_class_rewarded: acrSnake, adapterClassRewarded: acrCamel,
+      adapter_class_native: acnSnake, adapterClassNative: acnCamel,
+      adapter_class_splash: acsSnake, adapterClassSplash: acsCamel,
+      supports_bidding: sbSnake, supportsBidding: sbCamel,
+    } = req.body;
+    const networkName = networkNameSnake ?? networkNameCamel;
+    const networkCode = networkCodeSnake ?? networkCodeCamel;
+    const adapterClassInit = aciSnake ?? aciCamel;
+    const adapterClassBanner = acbSnake ?? acbCamel;
+    const adapterClassInterstitial = aciS2Snake ?? aciS2Camel;
+    const adapterClassRewarded = acrSnake ?? acrCamel;
+    const adapterClassNative = acnSnake ?? acnCamel;
+    const adapterClassSplash = acsSnake ?? acsCamel;
+    const supportsBidding = sbSnake ?? sbCamel;
 
     if (!networkName) {
       fail(res, 400, '网络名称不能为空');
       return;
     }
 
-    // Generate a unique network code
-    const networkCode = `CUSTOM_${Date.now().toString(36).toUpperCase()}`;
+    // ========== 平台代码（networkCode）校验 ==========
+    // 1. 必填
+    if (!networkCode || typeof networkCode !== 'string') {
+      fail(res, 400, '平台代码不能为空');
+      return;
+    }
+    // 2. 格式：必须以大写字母开头，仅含大写字母/数字/下划线，3-32 位
+    const code = networkCode.trim().toUpperCase();
+    if (!/^[A-Z][A-Z0-9_]{2,31}$/.test(code)) {
+      fail(res, 400, '平台代码格式错误：必须以大写字母开头，仅含大写字母、数字、下划线，长度 3-32 位');
+      return;
+    }
+    // 3. 与系统预置平台代码冲突检测
+    const PRESET_NETWORK_CODES = ['CSJ', 'YLH', 'BD', 'GDT', 'KS', 'XM', 'BID'];
+    if (PRESET_NETWORK_CODES.includes(code)) {
+      fail(res, 400, `平台代码 "${code}" 与系统预置广告平台代码冲突，请更换`);
+      return;
+    }
+    // 4. DB 唯一性检测（含其他开发者的 custom 网络）
+    const { data: codeExists, error: codeCheckErr } = await db
+      .from('ad_network_def')
+      .select('id')
+      .eq('network_code', code)
+      .maybeSingle();
+    if (codeCheckErr) throw new Error(`Code check failed: ${codeCheckErr.message}`);
+    if (codeExists) {
+      fail(res, 400, `平台代码 "${code}" 已被占用，请更换`);
+      return;
+    }
 
     const { data, error } = await db.from('ad_network_def').insert({
-      network_code: networkCode,
+      network_code: code,
       network_name: networkName,
       is_preset: false,
       developer_id: developerId,
@@ -92,7 +139,27 @@ router.post('/custom/create', authMiddleware, async (req: express.Request, res: 
 router.post('/custom/update', authMiddleware, async (req: express.Request, res: express.Response) => {
   try {
     const { developerId } = getDeveloper(req);
-    const { id, networkName, adapterClassInit, adapterClassBanner, adapterClassInterstitial, adapterClassRewarded, adapterClassNative, adapterClassSplash, supportsBidding, status } = req.body;
+    // 兼容 snake_case（前端 v-model）+ camelCase（API 直接调用）
+    const {
+      id,
+      network_name: networkNameSnake, networkName: networkNameCamel,
+      adapter_class_init: aciSnake, adapterClassInit: aciCamel,
+      adapter_class_banner: acbSnake, adapterClassBanner: acbCamel,
+      adapter_class_interstitial: acisSnake, adapterClassInterstitial: acisCamel,
+      adapter_class_rewarded: acrSnake, adapterClassRewarded: acrCamel,
+      adapter_class_native: acnSnake, adapterClassNative: acnCamel,
+      adapter_class_splash: acsSnake, adapterClassSplash: acsCamel,
+      supports_bidding: sbSnake, supportsBidding: sbCamel,
+      status,
+    } = req.body;
+    const networkName = networkNameSnake ?? networkNameCamel;
+    const adapterClassInit = aciSnake ?? aciCamel;
+    const adapterClassBanner = acbSnake ?? acbCamel;
+    const adapterClassInterstitial = acisSnake ?? acisCamel;
+    const adapterClassRewarded = acrSnake ?? acrCamel;
+    const adapterClassNative = acnSnake ?? acnCamel;
+    const adapterClassSplash = acsSnake ?? acsCamel;
+    const supportsBidding = sbSnake ?? sbCamel;
 
     if (!id) {
       fail(res, 400, '缺少网络id');
