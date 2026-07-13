@@ -34,6 +34,16 @@
           <div class="page-card-header"><div class="page-card-title">自定义广告平台</div></div>
           <el-table :data="customNetworks" v-loading="loading" stripe style="width: 100%; margin-top: 12px">
             <el-table-column prop="network_code" label="平台代码" width="160" />
+            <el-table-column label="图标" width="64">
+              <template #default="{ row }">
+                <div class="network-icon-cell">
+                  <img v-if="row.icon_url" :src="row.icon_url" :alt="row.network_name" />
+                  <div v-else class="network-icon-cell--empty">
+                    <el-icon :size="16" color="#94A3B8"><Picture /></el-icon>
+                  </div>
+                </div>
+              </template>
+            </el-table-column>
             <el-table-column prop="network_name" label="平台名称" min-width="140" />
             <el-table-column label="系统" width="100">
               <template #default="{ row }">
@@ -118,6 +128,24 @@
                   <template #label><span class="required-mark">*</span><span>平台代码</span></template>
                   <el-input v-model="editForm.network_code" placeholder="如 MYAD（不输 CUSTOM_ 前缀则自动补全）" :disabled="!!editForm.id" />
                   <div class="form-help">大写字母 + 数字 + 下划线，3-32 位；不与系统预置代码冲突；创建后不可修改</div>
+                </el-form-item>
+                <el-form-item label="平台图标" class="span-2">
+                  <div class="network-icon-uploader">
+                    <div class="network-icon-preview" :class="{ 'network-icon-preview--empty': !editForm.icon_url }" @click="openIconFilePicker">
+                      <img v-if="editForm.icon_url" :src="editForm.icon_url" alt="icon" />
+                      <el-icon v-else :size="28" color="#94A3B8"><Picture /></el-icon>
+                      <div v-if="iconUploading" class="network-icon-mask">
+                        <el-icon class="is-loading" :size="20" color="#fff"><Loading /></el-icon>
+                        <span>上传中</span>
+                      </div>
+                    </div>
+                    <div class="network-icon-actions">
+                      <input ref="iconFileInputRef" type="file" accept="image/png" style="display:none" @change="onIconFileChange" />
+                      <el-button :icon="UploadFilled" :loading="iconUploading" @click="openIconFilePicker">选择 PNG</el-button>
+                      <el-button v-if="editForm.icon_url" :icon="Delete" link type="danger" @click="clearIcon">清除</el-button>
+                      <div class="form-help">仅支持 png 格式，文件大小不超过 2MB；用于列表与 SDK 配置展示</div>
+                    </div>
+                  </div>
                 </el-form-item>
                 <el-form-item label="系统类型" class="span-2">
                   <div class="system-type-display">
@@ -589,7 +617,7 @@ import { ref, reactive, onMounted, computed } from 'vue';
 import request from '../../utils/request';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import type { FormInstance, FormRules } from 'element-plus';
-import { Plus, Connection, Search, RefreshLeft, UploadFilled, Filter, Edit, InfoFilled, Box, Document, Cellphone, Setting, Close, Check } from '@element-plus/icons-vue';
+import { Plus, Connection, Search, RefreshLeft, UploadFilled, Filter, Edit, InfoFilled, Box, Document, Cellphone, Setting, Close, Check, Picture, Delete, Loading } from '@element-plus/icons-vue';
 import NetworkAccountManager from '../../components/NetworkAccountManager.vue';
 import ReviewPanel, { type AdapterVersion } from '../../components/ReviewPanel.vue';
 
@@ -611,6 +639,7 @@ const formRef = ref<FormInstance>();
 //   init 必填至少一个（系统类型由这两个 init 字段是否填写自动推导）
 const defaultForm = {
   id: 0, network_name: '', network_code: '',
+  icon_url: '', // 自定义广告平台图标 URL（PNG），由上传接口返回
   // Android
   adapter_class_init_android: '',
   adapter_class_banner_android: '',
@@ -628,6 +657,65 @@ const defaultForm = {
   supports_bidding: false,
 };
 const editForm = reactive({ ...defaultForm });
+
+// ========== 图标上传相关 ==========
+const iconUploading = ref(false);
+const iconFileInputRef = ref<HTMLInputElement | null>(null);
+const ICON_MAX_SIZE = 2 * 1024 * 1024; // 2MB
+
+const openIconFilePicker = () => {
+  iconFileInputRef.value?.click();
+};
+
+const onIconFileChange = async (e: Event) => {
+  const input = e.target as HTMLInputElement;
+  const file = input.files?.[0];
+  // 立即清空 value 以便重复选择同一文件
+  input.value = '';
+  if (!file) return;
+
+  // 客户端预检：MIME + magic bytes
+  if (file.type !== 'image/png') {
+    ElMessage.error('仅支持 png 格式，请上传 png 图片');
+    return;
+  }
+  if (file.size > ICON_MAX_SIZE) {
+    ElMessage.error(`图标大小不能超过 ${ICON_MAX_SIZE / 1024 / 1024}MB`);
+    return;
+  }
+  if (file.size === 0) {
+    ElMessage.error('图标数据为空');
+    return;
+  }
+
+  iconUploading.value = true;
+  try {
+    const dataUrl = await readFileAsDataUrl(file);
+    const { data } = await request.post<{ key: string; iconUrl: string }>('/api/v1/console/network/custom/upload-icon', {
+      dataUrl,
+      networkDefId: editForm.id || undefined,
+    });
+    editForm.icon_url = data.iconUrl;
+    ElMessage.success('图标上传成功');
+  } catch (err: any) {
+    const msg = err?.response?.data?.message || err?.message || '图标上传失败';
+    ElMessage.error(msg);
+  } finally {
+    iconUploading.value = false;
+  }
+};
+
+const clearIcon = () => {
+  editForm.icon_url = '';
+  ElMessage.info('已清除图标，保存后生效');
+};
+
+const readFileAsDataUrl = (file: File): Promise<string> => new Promise((resolve, reject) => {
+  const reader = new FileReader();
+  reader.onload = () => resolve(String(reader.result || ''));
+  reader.onerror = () => reject(new Error('文件读取失败'));
+  reader.readAsDataURL(file);
+});
 
 // 系统类型自动推导：基于 init 字段填写情况
 //   - 两个都填 → 'both'（保存到 DB 的 system_type=3）
@@ -713,6 +801,7 @@ const handleEdit = (row: any) => {
   isEdit.value = true;
   Object.assign(editForm, {
     id: row.id, network_name: row.network_name, network_code: row.network_code,
+    icon_url: row.icon_url || '',
     // Android
     adapter_class_init_android: row.adapter_class_init_android || '',
     adapter_class_banner_android: row.adapter_class_banner_android || '',

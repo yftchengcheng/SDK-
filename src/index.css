@@ -4220,6 +4220,85 @@ html, body, #app {
   line-height: 1.5;
 }
 
+/* 自定义广告平台：图标上传 */
+.network-icon-uploader {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  width: 100%;
+}
+.network-icon-preview {
+  position: relative;
+  width: 80px;
+  height: 80px;
+  flex-shrink: 0;
+  border: 1px dashed var(--color-slate-300, #CBD5E1);
+  border-radius: 8px;
+  background: var(--color-slate-50, #F8FAFC);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  overflow: hidden;
+  transition: border-color 0.2s, background 0.2s;
+}
+.network-icon-preview:hover {
+  border-color: var(--color-primary-500, #2563EB);
+  background: var(--color-primary-50, #EFF6FF);
+}
+.network-icon-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.network-icon-preview--empty {
+  background: var(--color-slate-50, #F8FAFC);
+}
+.network-icon-mask {
+  position: absolute;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.55);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 12px;
+  gap: 4px;
+}
+.network-icon-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: flex-start;
+  flex: 1;
+  min-width: 0;
+}
+.network-icon-actions .form-help {
+  margin-top: 4px;
+}
+
+/* 列表单元格：图标 */
+.network-icon-cell {
+  width: 40px;
+  height: 40px;
+  border-radius: 6px;
+  border: 1px solid var(--color-slate-200, #E2E8F0);
+  background: var(--color-slate-50, #F8FAFC);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+.network-icon-cell img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.network-icon-cell--empty {
+  background: var(--color-slate-100, #F1F5F9);
+}
+
 /* per-system Adapter 列布局（Android / iOS 双列） */
 .adapter-col {
   border: 1px solid var(--color-slate-200, #E2E8F0);

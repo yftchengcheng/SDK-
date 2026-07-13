@@ -36,6 +36,16 @@ export function buildAppIconKey(developerId: string, appKey?: string, ext: strin
 }
 
 /**
+ * 自定义广告平台图标 key
+ * - 在创建广告平台前上传图标时使用 networkDefId 或 UUID 作为占位
+ * - 与 app 图标隔离，路径前缀不同
+ */
+export function buildNetworkIconKey(developerId: string, networkDefId?: number, ext: string = 'png'): string {
+  const suffix = networkDefId != null ? `net_${networkDefId}` : `tmp_${randomUUID()}`;
+  return `networks/icons/${developerId}/${suffix}-${Date.now()}.${ext}`;
+}
+
+/**
  * 解析前端传来的 dataURL/base64 图像，返回 { buffer, mime, ext } 或 null
  */
 export function parseBase64Image(input: string): { buffer: Buffer; mime: string; ext: string } | null {
@@ -47,6 +57,16 @@ export function parseBase64Image(input: string): { buffer: Buffer; mime: string;
   const buffer = Buffer.from(base64, 'base64');
   const ext = mime === 'image/jpeg' || mime === 'image/jpg' ? 'jpg' : 'png';
   return { buffer, mime, ext };
+}
+
+/**
+ * 仅解析 PNG 格式（用于广告平台图标强制要求 png 的场景）
+ */
+export function parseBase64PngImage(input: string): { buffer: Buffer; mime: string; ext: string } | null {
+  const parsed = parseBase64Image(input);
+  if (!parsed) return null;
+  if (parsed.mime !== 'image/png') return null;
+  return parsed;
 }
 
 /** 从 MIME 字符串或 Buffer magic bytes 推断文件扩展名（不含点） */

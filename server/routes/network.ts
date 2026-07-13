@@ -2,6 +2,13 @@ import express, { Router } from 'express';
 import { db } from '../db';
 import { authMiddleware, getDeveloper } from '../middleware/auth';
 import { success, fail } from '../utils/response';
+import {
+  getStorage,
+  buildNetworkIconKey,
+  parseBase64PngImage,
+  detectImageExt,
+  generatePresignedUrlCached,
+} from '../utils/storage';
 
 const router = Router();
 
@@ -81,6 +88,60 @@ function validateAdapterMap(
   return { ok: true };
 }
 
+// 广告平台图标上传限制：2MB
+const NETWORK_ICON_MAX_SIZE = 2 * 1024 * 1024;
+
+// 上传自定义广告平台图标（base64 dataURL，要求 png 格式）
+// 返回 key + 7d 预签名 URL；前端拿到 URL 后回填到表单，提交创建/更新时一起存
+router.post('/custom/upload-icon', authMiddleware, async (req: express.Request, res: express.Response) => {
+  try {
+    const { developerId } = getDeveloper(req);
+    const { dataUrl, networkDefId } = req.body as {
+      dataUrl?: string;
+      networkDefId?: number;
+    };
+
+    if (!dataUrl || typeof dataUrl !== 'string') {
+      fail(res, 400, '缺少图标数据');
+      return;
+    }
+
+    const parsed = parseBase64PngImage(dataUrl);
+    if (!parsed) {
+      fail(res, 400, '仅支持 png 格式，请上传 png 图片');
+      return;
+    }
+    const { mime, buffer } = parsed;
+
+    if (buffer.length === 0) {
+      fail(res, 400, '图标数据为空');
+      return;
+    }
+    if (buffer.length > NETWORK_ICON_MAX_SIZE) {
+      fail(res, 400, `图标大小不能超过 ${NETWORK_ICON_MAX_SIZE / 1024 / 1024}MB`);
+      return;
+    }
+    // 二次校验：magic bytes 必须是 png
+    const ext = detectImageExt(buffer);
+    if (ext !== 'png') {
+      fail(res, 400, '图标格式不合法（仅支持 png）');
+      return;
+    }
+
+    const id = networkDefId != null ? Number(networkDefId) : undefined;
+    const key = buildNetworkIconKey(developerId, id, 'png');
+    const s3 = getStorage();
+    await s3.uploadFile({ fileContent: buffer, fileName: key, contentType: mime });
+
+    const iconUrl = await generatePresignedUrlCached(key, 7 * 24 * 3600);
+
+    success(res, { key, iconUrl, mime: 'image/png', size: buffer.length }, '上传成功');
+  } catch (err) {
+    console.error('Upload network icon error:', err);
+    fail(res, 500, '图标上传失败');
+  }
+});
+
 // List all networks (builtin + custom)
 router.get('/list', authMiddleware, async (req: express.Request, res: express.Response) => {
   try {
@@ -139,6 +200,11 @@ router.post('/custom/create', authMiddleware, async (req: express.Request, res: 
     // system_type 仅用于展示的向后兼容字段：现在由"已填的 init 字段"自动推导
     // 若调用方显式传了 systemType 且和推导结果一致，则按调用方传的；否则以推导为准
     const systemTypeExplicit = (body.system_type ?? body.systemType) as number | undefined;
+    // icon URL：可选；若调用方传了空字符串视为清除
+    // 注意：必须用 in 检查，不能用 ??（因为 null ?? undefined === undefined）
+    const hasIconUrlSnakeC = Object.prototype.hasOwnProperty.call(body, 'icon_url');
+    const hasIconUrlCamelC = Object.prototype.hasOwnProperty.call(body, 'iconUrl');
+    const iconUrlInput = (hasIconUrlSnakeC ? body.icon_url : hasIconUrlCamelC ? body.iconUrl : undefined) as string | null | undefined;
 
     if (!networkName) {
       fail(res, 400, '网络名称不能为空');
@@ -209,7 +275,7 @@ router.post('/custom/create', authMiddleware, async (req: express.Request, res: 
       }
     }
 
-    // ========== 写入 DB：12 个 per-system 字段 ==========
+    // ========== 写入 DB：12 个 per-system 字段 + icon_url ==========
     const insertRow: Record<string, unknown> = {
       network_code: code,
       network_name: networkName,
@@ -221,6 +287,12 @@ router.post('/custom/create', authMiddleware, async (req: express.Request, res: 
     for (const t of ADAPTER_TYPES) {
       insertRow[col(t, 'android')] = (androidMap[t] as string | null) ?? null;
       insertRow[col(t, 'ios')] = (iosMap[t] as string | null) ?? null;
+    }
+    // icon_url 可选：undefined → 写入 null（DB 默认 null）；空字符串 → 视为不传
+    if (iconUrlInput && typeof iconUrlInput === 'string' && iconUrlInput.trim()) {
+      insertRow.icon_url = iconUrlInput.trim();
+    } else {
+      insertRow.icon_url = null;
     }
 
     const { data, error } = await db.from('ad_network_def').insert(insertRow).select().single();
@@ -244,6 +316,11 @@ router.post('/custom/update', authMiddleware, async (req: express.Request, res: 
     const supportsBidding = (body.supports_bidding ?? body.supportsBidding) as boolean | undefined;
     const status = body.status as number | undefined;
     const systemTypeExplicit = (body.system_type ?? body.systemType) as number | undefined;
+    // icon_url：undefined = 不修改；null/空字符串 = 清除
+    // 注意：必须用 in 检查，不能用 ??（因为 null ?? undefined === undefined）
+    const hasIconUrlSnake = Object.prototype.hasOwnProperty.call(body, 'icon_url');
+    const hasIconUrlCamel = Object.prototype.hasOwnProperty.call(body, 'iconUrl');
+    const iconUrlInput = (hasIconUrlSnake ? body.icon_url : hasIconUrlCamel ? body.iconUrl : undefined) as string | null | undefined;
 
     if (!id) {
       fail(res, 400, '缺少网络id');
@@ -308,6 +385,10 @@ router.post('/custom/update', authMiddleware, async (req: express.Request, res: 
 
     if (supportsBidding !== undefined) updateData.supports_bidding = supportsBidding ? 1 : 0;
     if (status !== undefined) updateData.status = status;
+    // icon_url：调用方传了字段（含空字符串）才覆盖
+    if (iconUrlInput !== undefined) {
+      updateData.icon_url = iconUrlInput && iconUrlInput.trim() ? iconUrlInput.trim() : null;
+    }
 
     const { error } = await db.from('ad_network_def').update(updateData).eq('id', id);
     if (error) throw new Error(`Update failed: ${error.message}`);
@@ -330,6 +411,10 @@ router.put('/custom/:id', authMiddleware, async (req: express.Request, res: expr
     const supportsBidding = (body.supports_bidding ?? body.supportsBidding) as boolean | undefined;
     const systemTypeExplicit = (body.system_type ?? body.systemType) as number | undefined;
     const status = body.status as number | undefined;
+    // icon_url：undefined = 不修改；null/空字符串 = 清除
+    const _hasIconUrlSnake = Object.prototype.hasOwnProperty.call(body || {}, 'icon_url');
+    const _hasIconUrlCamel = Object.prototype.hasOwnProperty.call(body || {}, 'iconUrl');
+    const iconUrlInput = (_hasIconUrlSnake ? body.icon_url : _hasIconUrlCamel ? body.iconUrl : undefined) as string | null | undefined;
     if (!id) return fail(res, 400, '缺少网络id');
 
     const { data: existing, error: checkError } = await db.from('ad_network_def').select('developer_id').eq('id', Number(id)).single();
@@ -355,6 +440,10 @@ router.put('/custom/:id', authMiddleware, async (req: express.Request, res: expr
     }
     if (supportsBidding !== undefined) updateData.supports_bidding = supportsBidding ? 1 : 0;
     if (status !== undefined) updateData.status = Number(status);
+    // icon_url：调用方传了字段（含空字符串）才覆盖
+    if (iconUrlInput !== undefined) {
+      updateData.icon_url = iconUrlInput && iconUrlInput.trim() ? iconUrlInput.trim() : null;
+    }
 
     // 推导 system_type：基于更新后的 init 字段
     const { data: current, error: curErr } = await db.from('ad_network_def')
@@ -1020,3 +1109,4 @@ router.delete('/account/:id', authMiddleware, async (req: express.Request, res: 
 });
 
 export default router;
+// test
