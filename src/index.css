@@ -6711,6 +6711,42 @@ html, body, #app {
   margin-top: 2px;
 }
 
+/* 应用绑定 - 自定义广告平台 账号 + K-V 参数 */
+.nbd-kv {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+.nbd-kv-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.nbd-kv-input-key,
+.nbd-kv-input-val {
+  flex: 1;
+}
+.nbd-kv-eq {
+  font-size: 14px;
+  font-weight: 600;
+  color: #94A3B8;
+  flex-shrink: 0;
+}
+.nbd-kv-del {
+  flex-shrink: 0;
+}
+.nbd-kv-add {
+  align-self: flex-start;
+  margin-top: 2px;
+}
+.nbd-account-empty {
+  padding: 8px 4px;
+  color: #94A3B8;
+  font-size: 12px;
+  text-align: center;
+}
+
 /* 空状态 */
 .bnd-empty {
   text-align: center;

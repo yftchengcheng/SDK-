@@ -803,7 +803,7 @@ router.post('/adapter/review/:id', authMiddleware, async (req: express.Request, 
 router.post('/app/bind', authMiddleware, async (req: express.Request, res: express.Response) => {
   try {
     const { developerId } = getDeveloper(req);
-    const { appKey, networkDefId, adapterVersionId, networkAppId, extraParams } = req.body;
+    const { appKey, networkDefId, adapterVersionId, networkAppId, extraParams, accountId, appDimParams } = req.body;
     if (!appKey || !networkDefId) {
       fail(res, 400, '缺少必填参数');
       return;
@@ -818,12 +818,48 @@ router.post('/app/bind', authMiddleware, async (req: express.Request, res: expre
       return;
     }
 
+    // 验证 accountId 归属（如果传入）
+    let finalAccountId: number | null = null;
+    if (accountId !== undefined && accountId !== null && accountId !== '') {
+      const numericAccountId = Number(accountId);
+      if (Number.isFinite(numericAccountId) && numericAccountId > 0) {
+        const { data: accountRow } = await db
+          .from('ad_network_account')
+          .select('id, developer_id, network_def_id')
+          .eq('id', numericAccountId)
+          .maybeSingle();
+        if (!accountRow || accountRow.developer_id !== developerId) {
+          fail(res, 403, '账号不存在或无权使用');
+          return;
+        }
+        if (Number(accountRow.network_def_id) !== Number(networkDefId)) {
+          fail(res, 400, '账号不属于当前广告平台');
+          return;
+        }
+        finalAccountId = numericAccountId;
+      }
+    }
+
+    // 构造 extra_params：自定义平台时，把 appDimParams 合并进 extra_params
+    let finalExtraParams: Record<string, unknown> | null = null;
+    if (extraParams) {
+      if (typeof extraParams === 'string') {
+        try { finalExtraParams = JSON.parse(extraParams); } catch { finalExtraParams = { raw: extraParams }; }
+      } else if (typeof extraParams === 'object') {
+        finalExtraParams = extraParams as Record<string, unknown>;
+      }
+    }
+    if (appDimParams && typeof appDimParams === 'object' && !Array.isArray(appDimParams)) {
+      finalExtraParams = { ...(finalExtraParams || {}), app_dim_params: appDimParams };
+    }
+
     const { data, error } = await db.from('app_network_binding').insert({
       app_key: appKey,
       network_def_id: Number(networkDefId),
       adapter_version_id: adapterVersionId ? Number(adapterVersionId) : 0,
       network_app_id: finalNetworkAppId,
-      extra_params: extraParams || null,
+      extra_params: finalExtraParams,
+      account_id: finalAccountId,
     }).select().single();
 
     if (error) {
@@ -872,17 +908,19 @@ router.post('/app/unbind', authMiddleware, async (req: express.Request, res: exp
 // List app network bindings
 router.get('/app/list', authMiddleware, async (req: express.Request, res: express.Response) => {
   try {
-    const { appKey } = req.query as Record<string, string>;
-    if (!appKey) {
-      fail(res, 400, '缺少appKey');
+    const { appKey, networkDefId } = req.query as Record<string, string>;
+    if (!appKey && !networkDefId) {
+      fail(res, 400, '缺少appKey或networkDefId');
       return;
     }
 
-    // 1) 查 binding 列表
-    const { data: bindings, error: bindErr } = await db
+    // 1) 查 binding 列表（按 appKey 或 networkDefId 过滤）
+    let bindingQuery = db
       .from('app_network_binding')
-      .select('id, app_key, network_def_id, adapter_version_id, network_app_id, extra_params, status, created_at')
-      .eq('app_key', appKey);
+      .select('id, app_key, network_def_id, adapter_version_id, network_app_id, extra_params, status, created_at, account_id');
+    if (appKey) bindingQuery = bindingQuery.eq('app_key', appKey);
+    if (networkDefId) bindingQuery = bindingQuery.eq('network_def_id', Number(networkDefId));
+    const { data: bindings, error: bindErr } = await bindingQuery;
     if (bindErr) throw new Error(`Query failed: ${bindErr.message}`);
     if (!bindings || bindings.length === 0) {
       success(res, { list: [] });

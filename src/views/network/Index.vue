@@ -566,7 +566,77 @@
                     <el-option v-for="app in appList" :key="app.app_key" :label="`${app.app_name} (${app.app_key})`" :value="app.app_key" />
                   </el-select>
                 </el-form-item>
-                <el-form-item label="平台 AppId" class="span-2" required>
+
+                <!-- 自定义广告平台：账号名称 + 应用维度参数 -->
+                <template v-if="isCustomBindingNetwork">
+                  <el-form-item label="账号名称" class="span-2" required>
+                    <template #label><span class="required-mark">*</span><span>账号名称</span></template>
+                    <el-select
+                      v-model="newBindingDialog.form.account_id"
+                      placeholder="选择该自定义平台下的账号"
+                      style="width: 100%"
+                      filterable
+                      :loading="newBindingDialog.accountsLoading"
+                      @focus="newBindingDialog.accounts.length === 0 && fetchNetworkAccounts()"
+                    >
+                      <el-option
+                        v-for="a in newBindingDialog.accounts"
+                        :key="a.id"
+                        :label="a.account_name"
+                        :value="a.id"
+                      />
+                      <template #empty>
+                        <div class="nbd-account-empty">该自定义平台下还没有账号，请先到「广告平台账号」创建</div>
+                      </template>
+                    </el-select>
+                  </el-form-item>
+
+                  <el-form-item label="应用维度参数" class="span-2" required>
+                    <template #label><span class="required-mark">*</span><span>应用维度参数</span></template>
+                    <div class="nbd-kv">
+                      <div
+                        v-for="(pair, idx) in newBindingDialog.form.app_dim_params"
+                        :key="idx"
+                        class="nbd-kv-row"
+                      >
+                        <el-input
+                          v-model="pair.key"
+                          placeholder="参数 key（如 app ID）"
+                          class="nbd-kv-input-key"
+                          clearable
+                        />
+                        <span class="nbd-kv-eq">=</span>
+                        <el-input
+                          v-model="pair.value"
+                          placeholder="参数 value（如 123456）"
+                          class="nbd-kv-input-val"
+                          clearable
+                        />
+                        <el-button
+                          link
+                          type="danger"
+                          :icon="Delete"
+                          class="nbd-kv-del"
+                          :disabled="newBindingDialog.form.app_dim_params.length === 1"
+                          @click="removeKVParam(idx)"
+                        />
+                      </div>
+                      <el-button
+                        link
+                        type="primary"
+                        :icon="Plus"
+                        class="nbd-kv-add"
+                        @click="addKVParam"
+                      >
+                        增加参数
+                      </el-button>
+                    </div>
+                    <div class="form-help">key=value 形式（如 app ID=123456），可添加多对，自定义平台会按 key 拼装请求参数</div>
+                  </el-form-item>
+                </template>
+
+                <!-- 预设广告平台：保留平台 AppId -->
+                <el-form-item v-else label="平台 AppId" class="span-2" required>
                   <template #label><span class="required-mark">*</span><span>平台 AppId</span></template>
                   <el-input v-model="newBindingDialog.form.network_app_id" placeholder="该平台为此应用分配的 AppId" />
                 </el-form-item>
@@ -979,7 +1049,24 @@ const bindingDialog = reactive({
 
 const newBindingDialog = reactive({
   show: false,
-  form: { app_key: '', network_app_id: '', adapter_version_id: null as number | null, extra_params: '' },
+  form: {
+    app_key: '',
+    network_app_id: '',
+    adapter_version_id: null as number | null,
+    extra_params: '',
+    // 自定义广告平台专用字段
+    account_id: null as number | null,
+    app_dim_params: [] as Array<{ key: string, value: string }>,
+  },
+  // 当前网络下的账号列表（仅自定义平台有）
+  accounts: [] as Array<{ id: number, account_name: string, account_id?: string | null }>,
+  accountsLoading: false,
+});
+
+/** 当前绑定对话框中的网络是否为自定义平台 */
+const isCustomBindingNetwork = computed(() => {
+  const net = allNetworks.value.find(n => n.id === bindingDialog.networkId);
+  return net ? net.is_preset === false : false;
 });
 
 const goToAdSource = (row: any) => {
@@ -1012,10 +1099,59 @@ const fetchBindings = async () => {
   } catch { /* ignore */ } finally { bindingDialog.loading = false; }
 };
 
+const fetchNetworkAccounts = async () => {
+  newBindingDialog.accounts = [];
+  newBindingDialog.form.account_id = null;
+  if (!bindingDialog.networkId) return;
+  newBindingDialog.accountsLoading = true;
+  try {
+    const res: any = await request.get('/api/v1/console/network/account/list', {
+      params: { network_def_id: bindingDialog.networkId, pageSize: 1000, status: 1 },
+    });
+    const items = res.data?.list || res.data || [];
+    newBindingDialog.accounts = items.map((it: any) => ({
+      id: it.id,
+      account_name: it.account_name,
+      account_id: it.account_id || null,
+    }));
+    // 默认选第一个账号
+    if (newBindingDialog.accounts.length) {
+      newBindingDialog.form.account_id = newBindingDialog.accounts[0].id;
+    }
+  } catch (e) {
+    console.error('[binding] fetch accounts error', e);
+  } finally {
+    newBindingDialog.accountsLoading = false;
+  }
+};
+
+const addKVParam = () => {
+  newBindingDialog.form.app_dim_params.push({ key: '', value: '' });
+};
+
+const removeKVParam = (idx: number) => {
+  newBindingDialog.form.app_dim_params.splice(idx, 1);
+};
+
 const openBinding = async () => {
   if (!appList.value.length) await fetchAppList();
-  Object.assign(newBindingDialog.form, { app_key: '', network_app_id: '', adapter_version_id: null, extra_params: '' });
+  // 重置表单（含自定义平台字段）
+  Object.assign(newBindingDialog.form, {
+    app_key: '',
+    network_app_id: '',
+    adapter_version_id: null,
+    extra_params: '',
+    account_id: null,
+    app_dim_params: [],
+  });
+  newBindingDialog.accounts = [];
   newBindingDialog.show = true;
+  // 自定义平台：拉取该网络下账号列表，默认填第一个
+  if (isCustomBindingNetwork.value) {
+    await fetchNetworkAccounts();
+    // 默认给一行空 K-V 引导用户填写
+    newBindingDialog.form.app_dim_params = [{ key: '', value: '' }];
+  }
 };
 
 const submitBinding = async () => {
@@ -1024,14 +1160,42 @@ const submitBinding = async () => {
     ElMessage.warning('请选择应用并填写平台AppId');
     return;
   }
+  // 自定义平台：账号 + 应用维度参数 必填
+  if (isCustomBindingNetwork.value) {
+    if (!f.account_id) {
+      ElMessage.warning('请选择广告平台账号');
+      return;
+    }
+    const validPairs = f.app_dim_params.filter(p => p.key.trim() && p.value.trim());
+    if (validPairs.length === 0) {
+      ElMessage.warning('请至少填写一组应用维度参数');
+      return;
+    }
+    // 校验 key 唯一
+    const keys = validPairs.map(p => p.key.trim());
+    if (new Set(keys).size !== keys.length) {
+      ElMessage.warning('应用维度参数的 key 不能重复');
+      return;
+    }
+  }
   try {
-    await request.post('/api/v1/console/network/app/bind', {
+    const payload: Record<string, any> = {
       appKey: f.app_key,
       networkDefId: bindingDialog.networkId,
       adapterVersionId: f.adapter_version_id,
       networkAppId: f.network_app_id,
       extraParams: f.extra_params || null,
-    });
+    };
+    if (isCustomBindingNetwork.value) {
+      payload.accountId = f.account_id;
+      // 把 K-V 列表打包为对象存到 extra_params（或单独字段，后端兼容）
+      const kvObj: Record<string, string> = {};
+      for (const p of f.app_dim_params) {
+        if (p.key.trim() && p.value.trim()) kvObj[p.key.trim()] = p.value.trim();
+      }
+      payload.appDimParams = kvObj;
+    }
+    await request.post('/api/v1/console/network/app/bind', payload);
     ElMessage.success('关联成功');
     newBindingDialog.show = false;
     await fetchBindings();
