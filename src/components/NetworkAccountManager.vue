@@ -514,6 +514,8 @@ async function fetchList() {
       network_def_id: it.network_def_id,
       network_name: it.network_name,
       network_code: it.network_code,
+      network_icon_url: it.network_icon_url ?? null,
+      networkIconResolved: it.networkIconResolved ?? null,
       app_id: it.app_id ?? null,
       account_name: it.account_name,
       account_id: it.account_id,
