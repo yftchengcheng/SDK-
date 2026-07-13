@@ -218,7 +218,7 @@
                     :src="n.iconUrlResolved"
                     :alt="n.network_name || n.network_code"
                     class="network-item-icon-img"
-                    @error="onIconError($event)"
+                    @error="onNetworkIconError($event)"
                   />
                   <span v-else>{{ networkAvatarText(n) }}</span>
                 </div>
@@ -555,7 +555,7 @@ function networkAvatarClass(n: any): string {
   return 'nac-slate';
 }
 // icon 加载失败 → 回退到字母 avatar
-function onIconError(ev: Event) {
+function onNetworkIconError(ev: Event) {
   const img = ev.target as HTMLImageElement;
   img.style.display = 'none';
   const parent = img.parentElement;
