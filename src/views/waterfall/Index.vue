@@ -587,7 +587,7 @@ const fetchConfigList = async () => {
 };
 
 // 加载当前 developer 下的所有 traffic_group（供下拉新建配置用）
-const fetchTrafficGroups = async (placementId?: string) => {
+const fetchTrafficGroups = async (placementId?: number | string) => {
   try {
     const res: any = await request.get('/api/v1/console/traffic-group/list', { params: { pageSize: 200, placementId } });
     const raw = res.data?.list || res.data?.items || res.data || [];
@@ -642,7 +642,7 @@ const onRefreshAll = async () => {
       fetchAdSources(selectedPlacement.value),
       fetchConfig(selectedTrafficGroupId.value),
       fetchConfigList(),
-      fetchTrafficGroups(currentPlacement.value?.placement_id),
+      fetchTrafficGroups(selectedPlacement.value ?? undefined),
     ]);
   } else {
     adSourceList.value = [];
@@ -765,7 +765,7 @@ const onPlacementChange = async () => {
       fetchConfig(0),
       fetchAdSources(selectedPlacement.value),
       fetchConfigList(),
-      fetchTrafficGroups(currentPlacement.value?.placement_id),
+      fetchTrafficGroups(selectedPlacement.value ?? undefined),
     ]);
   } else {
     adSourceList.value = [];

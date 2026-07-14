@@ -171,12 +171,13 @@ router.get('/list', authMiddleware, async (req: express.Request, res: express.Re
       .order('id', { ascending: false });
     if (cErr) throw cErr;
 
-    // 3. 查该 placement 下的所有 traffic_group（traffic_group 表只关联 placement，没有 developer_id 字段）
+    // 3. 查该 placement 下的所有 traffic_group（兼容 placement_id 列存 bigint 或 string pl_xxx）
+    const tgPid = Number(placementId);
+    const tgPlacementIdStr = String(placement.placement_id || placementId);
     const { data: groups } = await db.from('traffic_group')
       .select('id, group_name, status, is_default, conditions')
-      .eq('placement_id', placementIdStr)
+      .or(`placement_id.eq.${tgPid},placement_id.eq.${tgPlacementIdStr}`)
       .order('id', { ascending: false });
-    console.log('[waterfall/list] placementIdStr=' + placementIdStr + ' groups count=' + (groups || []).length);
 
     const groupMap = new Map((groups || []).map((g) => [String(g.id), g]));
     // 找到该 placement 所在的 app（用于展示「应用名」）：通过 app_key 关联
