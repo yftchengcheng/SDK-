@@ -124,10 +124,113 @@
               </div>
             </div>
             <div class="app-detail-header-actions">
+              <el-select
+                :model-value="selectedTrafficGroupId"
+                @update:model-value="onTrafficGroupChange"
+                placeholder="默认分组"
+                size="default"
+                class="wf-tg-selector"
+                clearable
+              >
+                <template #prefix>
+                  <el-icon class="wf-tg-prefix"><UserFilled /></el-icon>
+                </template>
+                <el-option label="默认分组（不区分流量）" :value="0">
+                  <span style="display:flex;align-items:center;gap:6px;">
+                    <el-icon><Folder /></el-icon>
+                    <span>默认分组（不区分流量）</span>
+                  </span>
+                </el-option>
+                <el-option
+                  v-for="g in trafficGroupOptions"
+                  :key="g.id"
+                  :label="g.group_name"
+                  :value="g.id"
+                >
+                  <span style="display:flex;align-items:center;gap:6px;">
+                    <el-icon><UserFilled /></el-icon>
+                    <span>{{ g.group_name }}</span>
+                    <el-tag v-if="g.status === 0" size="small" type="info">已停用</el-tag>
+                  </span>
+                </el-option>
+              </el-select>
               <el-button :icon="Refresh" @click="onRefreshAll">刷新</el-button>
               <el-button type="primary" :loading="saving" @click="saveConfig">保存配置</el-button>
             </div>
           </div>
+
+          <!-- 流量分组配置列表 -->
+          <section class="detail-card wf-config-list-card">
+            <div class="detail-card-header">
+              <h2 class="detail-card-title">
+                <el-icon class="wf-layer-icon wf-layer-1"><Operation /></el-icon>
+                <span>流量分组配置列表</span>
+                <span class="detail-card-sub">
+                  <span class="wf-layer-count">{{ configList.length }}</span> 个分组配置
+                </span>
+              </h2>
+              <div class="detail-card-actions">
+                <span class="wf-layer-tip">点击行切换编辑；当前编辑：
+                  <el-tag v-if="selectedTrafficGroupId === 0" size="small" effect="plain">默认分组</el-tag>
+                  <el-tag v-else size="small" type="primary" effect="plain">
+                    {{ trafficGroupOptions.find(g => g.id === selectedTrafficGroupId)?.group_name || '#' + selectedTrafficGroupId }}
+                  </el-tag>
+                </span>
+              </div>
+            </div>
+            <div class="detail-card-body">
+              <el-table
+                :data="configList"
+                v-loading="configListLoading"
+                empty-text="该广告位还没有任何流量分组配置，点击右上「保存配置」即可创建"
+                :row-class-name="(args: any) => Number(args.row.traffic_group_id) === selectedTrafficGroupId ? 'wf-row-active' : ''"
+                @row-click="(row: any) => onTrafficGroupChange(Number(row.traffic_group_id))"
+              >
+                <el-table-column label="流量分组" min-width="180">
+                  <template #default="{ row }">
+                    <div class="wf-config-group">
+                      <el-icon v-if="row.traffic_group_id === 0" class="wf-config-group-icon wf-config-group-default"><Folder /></el-icon>
+                      <el-icon v-else class="wf-config-group-icon"><UserFilled /></el-icon>
+                      <span class="wf-config-group-name">{{ row.traffic_group_name }}</span>
+                      <el-tag v-if="row.traffic_group_id === selectedTrafficGroupId" size="small" type="primary" effect="light">编辑中</el-tag>
+                    </div>
+                  </template>
+                </el-table-column>
+                <el-table-column label="版本" width="100" align="center">
+                  <template #default="{ row }">
+                    <el-tag size="small" effect="plain" type="info">v{{ row.version }}</el-tag>
+                  </template>
+                </el-table-column>
+                <el-table-column label="广告源数" width="120" align="center">
+                  <template #default="{ row }">
+                    <span class="wf-config-count">{{ row.ad_source_count }}</span>
+                  </template>
+                </el-table-column>
+                <el-table-column label="状态" width="100" align="center">
+                  <template #default="{ row }">
+                    <el-tag :type="row.status === 1 ? 'success' : 'info'" size="small" effect="light">
+                      {{ row.status === 1 ? '启用' : '停用' }}
+                    </el-tag>
+                  </template>
+                </el-table-column>
+                <el-table-column label="更新时间" min-width="180">
+                  <template #default="{ row }">
+                    <span class="wf-config-time">{{ formatTime(row.updated_at || row.created_at) }}</span>
+                  </template>
+                </el-table-column>
+                <el-table-column label="操作" width="100" align="center" fixed="right">
+                  <template #default="{ row }">
+                    <el-button
+                      link
+                      type="primary"
+                      size="small"
+                      @click.stop="onTrafficGroupChange(Number(row.traffic_group_id))"
+                    >加载</el-button>
+                  </template>
+                </el-table-column>
+              </el-table>
+            </div>
+          </section>
 
           <!-- 三层配置卡 -->
           <section v-for="layer in layers" :key="layer.type" class="detail-card">
@@ -229,7 +332,14 @@ import { ref, reactive, computed, onMounted, nextTick, onBeforeUnmount } from 'v
 import request from '../../utils/request';
 import { ElMessage } from 'element-plus';
 import Sortable from 'sortablejs';
-import { Operation, Refresh, Plus, Aim, Key, CopyDocument, Top, PriceTag, Bottom, Search } from '@element-plus/icons-vue';
+import dayjs from 'dayjs';
+import { Operation, Refresh, Plus, Aim, Key, CopyDocument, Top, PriceTag, Bottom, Search, Folder, UserFilled } from '@element-plus/icons-vue';
+
+const formatTime = (t: string | number | Date | null | undefined) => {
+  if (!t) return '-';
+  const d = dayjs(t);
+  return d.isValid() ? d.format('YYYY-MM-DD HH:mm') : '-';
+};
 
 const selectedPlacement = ref<number | null>(null);
 const placementList = ref<any[]>([]);
@@ -243,6 +353,12 @@ const newSource = reactive({ ad_source_id: null as number | null });
 const searchKeyword = ref('');
 const formatFilter = ref<number | ''>('');
 const loading = ref(false);
+
+// 当前 placement 的所有 traffic_group 配置列表
+const configList = ref<any[]>([]);
+const configListLoading = ref(false);
+const selectedTrafficGroupId = ref<number>(0);
+const trafficGroupOptions = ref<Array<{ id: number; group_name: string; status: number }>>([]);
 
 const currentLayerLabel = computed(() => {
   const l = layers.find(x => x.type === currentLayerType.value);
@@ -349,10 +465,12 @@ const fetchAdSources = async (placementId?: string | number | null) => {
 // 当前 placement 的可选广告源数量（只统计该 placement 下的）
 const availableSourceCount = computed(() => adSourceList.value.length);
 
-const fetchConfig = async () => {
+const fetchConfig = async (groupId: number = 0) => {
   if (!selectedPlacement.value) return;
   try {
-    const res: any = await request.get('/api/v1/console/waterfall/get', { params: { placementId: selectedPlacement.value } });
+    const res: any = await request.get('/api/v1/console/waterfall/get', {
+      params: { placementId: selectedPlacement.value, trafficGroupId: groupId || 0 },
+    });
     const config = res.data?.config;
     if (config?.layers) {
       layers[0].sources = config.layers.filter((l: any) => l.layer_type === 1);
@@ -362,6 +480,36 @@ const fetchConfig = async () => {
       layers.forEach(l => l.sources = []);
     }
   } catch { layers.forEach(l => l.sources = []); }
+};
+
+// 列出当前 placement 的所有 traffic_group 配置
+const fetchConfigList = async () => {
+  if (!selectedPlacement.value) { configList.value = []; return; }
+  configListLoading.value = true;
+  try {
+    const res: any = await request.get('/api/v1/console/waterfall/list', {
+      params: { placementId: selectedPlacement.value },
+    });
+    configList.value = res.data?.items || [];
+  } catch { configList.value = []; } finally { configListLoading.value = false; }
+};
+
+// 加载当前 developer 下的所有 traffic_group（供下拉新建配置用）
+const fetchTrafficGroups = async () => {
+  try {
+    const res: any = await request.get('/api/v1/console/traffic-group/list', { params: { pageSize: 200 } });
+    const raw = res.data?.list || res.data?.items || res.data || [];
+    trafficGroupOptions.value = (raw || []).map((g: any) => ({
+      id: Number(g.id),
+      group_name: g.group_name,
+      status: g.status ?? 1,
+    }));
+  } catch { trafficGroupOptions.value = []; }
+};
+
+const onTrafficGroupChange = async (groupId: number) => {
+  selectedTrafficGroupId.value = groupId;
+  await fetchConfig(groupId);
 };
 
 const addSource = async (type: number) => {
@@ -400,7 +548,9 @@ const onRefreshAll = async () => {
   if (selectedPlacement.value) {
     await Promise.all([
       fetchAdSources(selectedPlacement.value),
-      fetchConfig(),
+      fetchConfig(selectedTrafficGroupId.value),
+      fetchConfigList(),
+      fetchTrafficGroups(),
     ]);
   } else {
     adSourceList.value = [];
@@ -409,6 +559,7 @@ const onRefreshAll = async () => {
 };
 
 const saveConfig = async () => {
+  if (!selectedPlacement.value) { ElMessage.warning('请先选择广告位'); return; }
   saving.value = true;
   try {
     // 重新按当前数组顺序分配 priority，保证落库与 UI 同步
@@ -420,10 +571,11 @@ const saveConfig = async () => {
     const allSources = layers.flatMap(l => l.sources.map(s => ({ ...s, layer_type: l.type })));
     await request.post('/api/v1/console/waterfall/update', {
       placementId: selectedPlacement.value,
+      trafficGroupId: selectedTrafficGroupId.value || 0,
       layers: allSources,
     });
-    ElMessage.success('保存成功');
-    fetchConfig();
+    ElMessage.success(selectedTrafficGroupId.value === 0 ? '默认分组配置已保存' : `流量分组 #${selectedTrafficGroupId.value} 配置已保存`);
+    await Promise.all([fetchConfig(selectedTrafficGroupId.value), fetchConfigList()]);
   } catch { /* ignore */ } finally { saving.value = false; }
 };
 
@@ -473,18 +625,27 @@ const selectPlacement = (id: number) => {
 };
 const onPlacementChange = async () => {
   if (selectedPlacement.value) {
+    selectedTrafficGroupId.value = 0;
     await Promise.all([
-      fetchConfig(),
+      fetchConfig(0),
       fetchAdSources(selectedPlacement.value),
+      fetchConfigList(),
+      fetchTrafficGroups(),
     ]);
   } else {
     adSourceList.value = [];
     for (const l of layers) l.sources = [];
+    configList.value = [];
+    trafficGroupOptions.value = [];
+    selectedTrafficGroupId.value = 0;
   }
 };
 const clearPlacement = () => {
   selectedPlacement.value = null;
   for (const l of layers) l.sources = [];
+  configList.value = [];
+  trafficGroupOptions.value = [];
+  selectedTrafficGroupId.value = 0;
   destroySortables();
 };
 const destroySortables = () => {

@@ -138,3 +138,73 @@ router.get('/history', authMiddleware, async (req: express.Request, res: express
 });
 
 export default router;
+
+// 列出某个 placement 的所有 traffic_group 配置（每个 traffic_group 一行）
+router.get('/list', authMiddleware, async (req: express.Request, res: express.Response) => {
+  try {
+    const { placementId } = req.query as Record<string, string>;
+    if (!placementId) { fail(res, 400, '缺少placementId'); return; }
+
+    // 1. 查 placement
+    const { data: placement, error: pErr } = await db.from('placement')
+      .select('*').eq('id', Number(placementId)).maybeSingle();
+    if (pErr) throw pErr;
+    if (!placement) { fail(res, 404, '广告位不存在'); return; }
+
+
+    // 2. 查该 placement 的所有 config（兼容 placement_id 列存 bigint 或 string pl_xxx）
+    const pid = Number(placementId);
+    const placementIdStr = String(placement.placement_id || placementId);
+    const { data: configs, error: cErr } = await db.from('waterfall_config')
+      .select('*')
+      .or(`placement_id.eq.${pid},placement_id.eq.${placementIdStr}`)
+      .order('id', { ascending: false });
+    if (cErr) throw cErr;
+
+    // 3. 查该 placement 下的所有 traffic_group（traffic_group 表只关联 placement，没有 developer_id 字段）
+    const { data: groups } = await db.from('traffic_group')
+      .select('id, group_name, status')
+      .eq('placement_id', placementIdStr)
+      .order('id', { ascending: false });
+    console.log('[waterfall/list] placementIdStr=' + placementIdStr + ' groups count=' + (groups || []).length);
+
+    const groupMap = new Map((groups || []).map((g) => [String(g.id), g]));
+
+    // 4. 聚合每个 config 的 ad_source 数量
+    const configIds = (configs || []).map((c) => c.id);
+    const sourceCountMap = new Map<number, number>();
+    if (configIds.length > 0) {
+      const { data: layerRows } = await db.from('waterfall_layer')
+        .select('config_id, ad_source_id')
+        .in('config_id', configIds);
+      (layerRows || []).forEach((r) => {
+        const cid = Number(r.config_id);
+        sourceCountMap.set(cid, (sourceCountMap.get(cid) || 0) + 1);
+      });
+    }
+
+    // 5. 拼接：包括「默认分组（traffic_group_id=0）」和「已有 traffic_group」分组
+    const rows = (configs || []).map((c) => {
+      const gid = Number(c.traffic_group_id || 0);
+      const g = gid === 0 ? null : groupMap.get(String(gid)) || groupMap.get(String(gid) as string);
+      return {
+        config_id: Number(c.id),
+        placement_id: String(c.placement_id),
+        traffic_group_id: gid,
+        traffic_group_name: g?.group_name || '默认分组',
+        traffic_group_status: g?.status ?? null,
+        version: c.version || 1,
+        status: c.status ?? 1,
+        ad_source_count: sourceCountMap.get(Number(c.id)) || 0,
+        created_at: c.created_at,
+        updated_at: c.updated_at,
+      };
+    });
+
+    success(res, { placement: { id: Number(placement.id), name: placement.name, format: placement.format }, items: rows });
+  } catch (e) {
+    const err = e as Error;
+    console.error('[waterfall/list]', err);
+    fail(res, 500, `查询瀑布流配置列表失败: ${err.message || String(err)}`);
+  }
+});

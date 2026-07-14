@@ -7780,3 +7780,47 @@ html, body, #app {
   margin-right: 4px;
 }
 .wf-layer-na { color: var(--color-slate-300, #CBD5E1); font-size: 14px; }
+
+/* ============ Waterfall 配置列表 + TG 选择器 ============ */
+.wf-tg-selector { width: 200px; margin-right: 4px; }
+.wf-tg-prefix { color: var(--color-primary-500, #3B82F6); margin-right: 4px; }
+
+.wf-config-list-card .detail-card-body { padding: 0 16px 16px; }
+.wf-config-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 500;
+  color: var(--color-slate-700, #334155);
+}
+.wf-config-group-icon {
+  color: var(--color-primary-500, #3B82F6);
+  font-size: 16px;
+}
+.wf-config-group-icon.wf-config-group-default { color: var(--color-slate-500, #64748B); }
+.wf-config-group-name { white-space: nowrap; }
+.wf-config-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  height: 22px;
+  padding: 0 8px;
+  border-radius: 11px;
+  background: var(--color-primary-50, #EFF6FF);
+  color: var(--color-primary-700, #1D4ED8);
+  font-size: 12px;
+  font-weight: 600;
+}
+.wf-config-time {
+  font-size: 12px;
+  color: var(--color-slate-500, #64748B);
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+}
+.wf-row-active {
+  background: linear-gradient(90deg, rgba(59, 130, 246, 0.04), transparent 80%) !important;
+}
+.wf-row-active td:first-child {
+  box-shadow: inset 3px 0 0 var(--color-primary-500, #3B82F6);
+}
+.el-table__row { cursor: pointer; }
