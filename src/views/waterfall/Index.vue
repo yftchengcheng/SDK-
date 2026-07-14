@@ -194,6 +194,13 @@
                         </div>
                         <div class="wf-config-group-line2">
                           <span class="wf-config-name">{{ row.config_name || `配置v${row.version}` }}</span>
+                          <el-tag
+                            v-if="isEditingConfigRow(row)"
+                            size="small"
+                            type="warning"
+                            effect="dark"
+                            class="wf-editing-tag"
+                          >编辑中</el-tag>
                           <el-tooltip v-if="row.description" :content="row.description" placement="top">
                             <el-icon class="wf-config-desc-icon"><QuestionFilled /></el-icon>
                           </el-tooltip>
@@ -235,6 +242,19 @@
                 <el-table-column label="更新时间" min-width="180">
                   <template #default="{ row }">
                     <span class="wf-config-time">{{ formatTime(row.updated_at || row.created_at) }}</span>
+                  </template>
+                </el-table-column>
+                <el-table-column label="操作" width="100" align="center" fixed="right">
+                  <template #default="{ row }">
+                    <el-button
+                      type="primary"
+                      size="small"
+                      link
+                      :disabled="isEditingConfigRow(row)"
+                      @click.stop="onLoadConfigClick(row)"
+                    >
+                      {{ isEditingConfigRow(row) ? '已加载' : '加载' }}
+                    </el-button>
                   </template>
                 </el-table-column>
               </el-table>
@@ -588,6 +608,27 @@ const fetchTrafficGroups = async (placementId?: number | string) => {
 const onTrafficGroupChange = async (groupId: number) => {
   selectedTrafficGroupId.value = groupId;
   await fetchConfig(groupId);
+};
+
+/** 判断某行是否是当前正在编辑的 config（行高亮 + 编辑中 tag + 加载按钮 disabled 的依据） */
+const isEditingConfigRow = (row: any) => {
+  if (!row) return false;
+  // 默认分组（is_default_config）始终被选中 → 用 traffic_group_id 比对
+  if (row.is_default_config) {
+    return Number(selectedTrafficGroupId.value) === 0;
+  }
+  return Number(row.traffic_group_id) === Number(selectedTrafficGroupId.value)
+    && Number(row.traffic_group_id) !== 0;
+};
+
+/** 「加载」按钮：显式把这一行（某条 config 历史版本）载入右侧编辑面板 */
+const onLoadConfigClick = async (row: any) => {
+  if (isEditingConfigRow(row)) return;
+  // 行是「某个 traffic_group 的某条历史 version」
+  // 先把 selectedTrafficGroupId 切到该行所属的 group，然后 fetchConfig(groupId)
+  // fetchConfig 内部按 (traffic_group_id, 最新 version) 取，行为与 row-click 一致
+  await onTrafficGroupChange(Number(row.traffic_group_id));
+  ElMessage.success(`已加载「${row.config_name || '配置v' + row.version}」到编辑面板`);
 };
 
 const addSource = async (type: number) => {

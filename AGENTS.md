@@ -205,6 +205,13 @@
   - 新 `update` 端点（refactor 后）：双写 — `waterfall_config.layers` + `waterfall_layer` 关联表
   - `get` 端点返回 `{ config: { layers: JSONB }, layers: 关联表 rows }` 双份
   - **`fetchConfig` 前端策略**：优先用 `config.layers`（JSONB），为空时回退 `waterfall_layer` 行（避免误把 `[]` 当作"无配置"）。已修复。
+- **当前编辑行视觉**：`isEditingConfigRow(row)` 通过 `row.traffic_group_id` 与 `selectedTrafficGroupId` 比对判断是否为「编辑中」。该行显示「编辑中」蓝色脉冲 tag + 「已加载」按钮（disabled），其他行显示「加载」按钮可点。
+
+### 「加载」按钮 vs 「点行」切换
+- 两者效果一致：把该行（某个 traffic_group 的某条历史 version）载入右侧编辑面板
+- 区别：点行 = 整行点击区，点「加载」= 显式操作（按钮）
+- 默认分组（`is_default_config=true`）始终被选中，编辑中判断走 `traffic_group_id=0` 分支
+- 顶栏「流量分组」下拉 = 按 group 粒度切换（最新 version 自动载入）
 - **get/list 端点的 placement_id 查询**：`waterfall_config.placement_id` 实际存为 number-as-string（如 `"58"`），但 placement 表的 `placement_id` 列存为 `"pl_xxx"` 形式。list 端用 `.in('placement_id', [pidStr, placementIdStr])` 兼容两种入参（前端用 number `selectedPlacement.value`，后端也接受 string `"pl_xxx"`）。**新环境部署必须保证 `waterfall_config.placement_id` 列与创建 config 时传入的 placementId 形式一致**（推荐 number）。
 
 ## 实施差距分析（vs PLAN.md）

@@ -7986,3 +7986,15 @@ html, body, #app {
 .wf-row-just-saved td:first-child {
   box-shadow: inset 3px 0 0 #F59E0B;
 }
+
+/* 「编辑中」tag：与刚保存的金色区分，用蓝色脉冲 */
+.wf-editing-tag {
+  margin-left: 8px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  animation: wf-editing-pulse 1.6s ease-in-out infinite;
+}
+@keyframes wf-editing-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%      { opacity: 0.78; transform: scale(0.97); }
+}
