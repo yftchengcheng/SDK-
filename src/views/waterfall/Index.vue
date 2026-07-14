@@ -170,12 +170,7 @@
                 </span>
               </h2>
               <div class="detail-card-actions">
-                <span class="wf-layer-tip">点击行切换编辑；当前编辑：
-                  <el-tag v-if="selectedTrafficGroupId === 0" size="small" effect="plain">默认分组</el-tag>
-                  <el-tag v-else size="small" type="primary" effect="plain">
-                    {{ trafficGroupOptions.find(g => g.id === selectedTrafficGroupId)?.group_name || '#' + selectedTrafficGroupId }}
-                  </el-tag>
-                </span>
+                <span class="wf-layer-tip">点击行切换编辑</span>
               </div>
             </div>
             <div class="detail-card-body">
@@ -195,8 +190,6 @@
                         <div class="wf-config-group-line1">
                           <span class="wf-config-group-name">{{ row.traffic_group_name }}</span>
                           <el-tag v-if="row.is_default_config" size="small" type="info" effect="plain" class="wf-default-tag">默认分组配置</el-tag>
-                          <el-tag v-if="row.traffic_group_id === selectedTrafficGroupId" size="small" type="primary" effect="light">编辑中</el-tag>
-                          <el-tag v-if="Number(row.config_id) === justSavedConfigId" size="small" type="warning" effect="dark" class="wf-saved-tag">✓ 刚保存</el-tag>
                         </div>
                         <div class="wf-config-group-line2">
                           <span class="wf-config-name">{{ row.config_name || `配置v${row.version}` }}</span>
@@ -241,16 +234,6 @@
                 <el-table-column label="更新时间" min-width="180">
                   <template #default="{ row }">
                     <span class="wf-config-time">{{ formatTime(row.updated_at || row.created_at) }}</span>
-                  </template>
-                </el-table-column>
-                <el-table-column label="操作" width="100" align="center" fixed="right">
-                  <template #default="{ row }">
-                    <el-button
-                      link
-                      type="primary"
-                      size="small"
-                      @click.stop="onTrafficGroupChange(Number(row.traffic_group_id))"
-                    >加载</el-button>
                   </template>
                 </el-table-column>
               </el-table>
