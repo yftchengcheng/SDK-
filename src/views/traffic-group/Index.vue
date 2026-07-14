@@ -19,11 +19,6 @@
             <el-option v-for="p in placementList" :key="p.placement_id" :label="`${p.name} (${p.placement_id})`" :value="p.placement_id" />
           </el-select>
         </el-form-item>
-        <el-form-item label="瀑布流">
-          <el-select v-model="filter.waterfallId" placeholder="全部瀑布流" clearable @change="onSearch">
-            <el-option v-for="w in waterfallList" :key="w.waterfall_id" :label="`${w.name} (${w.waterfall_id})`" :value="w.waterfall_id" />
-          </el-select>
-        </el-form-item>
         <el-form-item label="状态">
           <el-select v-model="filter.status" placeholder="全部" clearable @change="onSearch">
             <el-option label="启用" :value="1" />
@@ -55,12 +50,6 @@
           </template>
         </el-table-column>
         <el-table-column prop="placement_id" label="广告位" min-width="180" />
-        <el-table-column prop="waterfall_id" label="绑定瀑布流" min-width="200">
-          <template #default="{ row }">
-            <span v-if="row.waterfall_id" class="status-tag status-tag--pending">{{ waterfallMap.get(row.waterfall_id) || row.waterfall_id }}</span>
-            <span v-else class="text-muted">--</span>
-          </template>
-        </el-table-column>
         <el-table-column prop="priority" label="优先级" width="80" />
         <el-table-column prop="conditions" label="规则" min-width="240">
           <template #default="{ row }">{{ formatConditions(row.conditions) }}</template>
@@ -142,11 +131,6 @@
                   <template #label><span class="required-mark">*</span><span>分组名称</span></template>
                   <el-input v-model="editForm.group_name" placeholder="请输入分组名称" />
                 </el-form-item>
-                <el-form-item label="绑定瀑布流" prop="waterfall_id" class="span-2">
-                  <el-select v-model="editForm.waterfall_id" placeholder="选择要绑定的瀑布流" clearable filterable style="width: 100%">
-                    <el-option v-for="w in waterfallList" :key="w.waterfall_id" :label="`${w.name} (${w.waterfall_id})`" :value="w.waterfall_id" />
-                  </el-select>
-                </el-form-item>
                 <el-form-item label="优先级" prop="priority" class="span-2">
                   <el-input-number v-model="editForm.priority" :min="0" :max="999" style="width: 100%" />
                   <div class="form-help">数字越大优先级越高，匹配时优先命中</div>
@@ -226,9 +210,9 @@ const operators = ['IN', 'NOT_IN', 'EQ', 'GTE', 'LTE'];
 const loading = ref(false);
 const tableData = ref<any[]>([]);
 const placementList = ref<any[]>([]);
-const filter = reactive({ placementId: '', waterfallId: '', status: '', keyword: '' });
+const filter = reactive({ placementId: '', status: '', keyword: '' });
 const onSearch = () => { page.value = 1; fetchList(); };
-const onReset = () => { filter.placementId = ''; filter.waterfallId = ''; filter.status = ''; filter.keyword = ''; page.value = 1; fetchList(); };
+const onReset = () => { filter.placementId = ''; filter.status = ''; filter.keyword = ''; page.value = 1; fetchList(); };
 
 const drawerVisible = ref(false);
 const drawerSize = '720px';
@@ -257,7 +241,6 @@ const fetchList = async () => {
   try {
     const params: any = {};
     if (filter.placementId) params.placementId = filter.placementId;
-    if (filter.waterfallId) params.waterfallId = filter.waterfallId;
     if (filter.status !== '') params.status = filter.status;
     if (filter.keyword.trim()) params.keyword = filter.keyword.trim();
     const res: any = await request.get('/api/v1/console/traffic-group/list', { params });
