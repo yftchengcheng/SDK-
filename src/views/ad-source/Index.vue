@@ -189,8 +189,9 @@
             </p>
           </div>
           <div class="page-form-header-actions">
-            <el-button :icon="RefreshLeft" @click="onFormReset">重置</el-button>
-            <el-button :icon="Close" circle plain @click="closeDrawer" />
+            <el-button :icon="Close" plain @click="closeDrawer" aria-label="关闭">
+              关闭
+            </el-button>
           </div>
         </header>
 
@@ -286,65 +287,84 @@
               </div>
             </section>
 
-            <section class="page-form-section">
+            <!-- 广告源维度参数：KV 行内紧凑 + 添加按钮内联 -->
+            <section class="page-form-section page-form-section-card">
               <header class="page-form-section-header">
-                <span class="page-form-section-title">广告源维度参数</span>
-                <span class="page-form-section-desc">key=value 模式的自定义参数，可与广告平台维度参数互补</span>
+                <h2 class="page-form-section-title">
+                  <el-icon :size="16"><Setting /></el-icon>
+                  <span>广告源维度参数</span>
+                </h2>
+                <p class="page-form-section-desc">key=value 模式的自定义参数，可与广告平台维度参数互补</p>
               </header>
               <div class="page-form-section-body">
-                <el-form-item label="维度参数">
+                <div class="adsrc-kv-list" :class="{ 'is-empty': storeDimParams.length === 0 }">
                   <div v-if="storeDimParams.length === 0" class="adsrc-kv-empty">
-                    暂无参数，点击下方按钮添加
+                    <el-icon :size="20" color="#94A3B8"><DocumentAdd /></el-icon>
+                    <span>暂无参数，点击右侧按钮添加</span>
                   </div>
-                  <div v-else class="adsrc-kv-list">
-                    <div v-for="(p, idx) in storeDimParams" :key="idx" class="adsrc-kv-row">
+                  <template v-else>
+                    <div class="adsrc-kv-head">
+                      <span class="adsrc-kv-head-key">Key</span>
+                      <span class="adsrc-kv-head-val">Value</span>
+                      <span class="adsrc-kv-head-act"></span>
+                    </div>
+                    <div
+                      v-for="(p, idx) in storeDimParams"
+                      :key="idx"
+                      class="adsrc-kv-row"
+                    >
                       <el-input
                         v-model="p.key"
-                        placeholder="参数 key（如 slot_id）"
+                        placeholder="如 slot_id"
                         size="default"
                         class="adsrc-kv-key"
                       />
-                      <span class="adsrc-kv-equals">=</span>
                       <el-input
                         v-model="p.value"
-                        placeholder="参数 value"
+                        placeholder="参数值"
                         size="default"
                         class="adsrc-kv-value"
                       />
-                      <el-button
-                        type="danger"
-                        :icon="Delete"
-                        circle
-                        plain
-                        size="small"
-                        @click="removeStoreDimParam(idx)"
-                        aria-label="删除"
-                      />
+                      <el-tooltip content="删除该参数" placement="top">
+                        <button
+                          type="button"
+                          class="adsrc-kv-del"
+                          aria-label="删除参数"
+                          @click="removeStoreDimParam(idx)"
+                        >
+                          <el-icon :size="14"><Delete /></el-icon>
+                        </button>
+                      </el-tooltip>
                     </div>
-                  </div>
+                  </template>
                   <el-button
                     type="primary"
                     plain
                     :icon="Plus"
-                    size="small"
+                    size="default"
                     class="adsrc-kv-add"
                     @click="addStoreDimParam"
                   >
                     添加参数
                   </el-button>
-                </el-form-item>
+                </div>
               </div>
             </section>
 
-            <section class="page-form-section">
+            <!-- 流量分组配置：select 顶部 + 每个分组一张卡片 -->
+            <section class="page-form-section page-form-section-card">
               <header class="page-form-section-header">
-                <span class="page-form-section-title">流量分组配置</span>
-                <span class="page-form-section-desc">为该广告源绑定一个或多个流量分组，每个分组可独立配置状态/价格/限频</span>
+                <h2 class="page-form-section-title">
+                  <el-icon :size="16"><UserFilled /></el-icon>
+                  <span>流量分组配置</span>
+                </h2>
+                <p class="page-form-section-desc">为该广告源绑定一个或多个流量分组，每个分组可独立配置状态/价格/限频</p>
               </header>
               <div class="page-form-section-body">
-                <el-form-item label="流量分组">
+                <div class="adsrc-tg-picker">
+                  <span class="adsrc-tg-picker-label">流量分组</span>
                   <el-select
-                    :model-value="trafficGroupBindings.map(b => b.trafficGroupId)"
+                    v-model="selectedTrafficGroupIds"
                     multiple
                     filterable
                     collapse-tags
@@ -352,8 +372,8 @@
                     :max-collapse-tags="3"
                     :loading="trafficGroupsLoading"
                     :no-data-text="selectedPlacementId ? '该广告位下暂无流量分组' : '请先选择广告位'"
-                    placeholder="请选择流量分组"
-                    style="width: 100%"
+                    placeholder="请选择流量分组（可多选）"
+                    class="adsrc-tg-picker-select"
                     @change="onTrafficGroupChange"
                     @visible-change="onTrafficGroupDropdownToggle"
                   >
@@ -364,78 +384,88 @@
                       :value="g.id"
                     />
                   </el-select>
-                </el-form-item>
+                </div>
 
-                <template v-for="bind in trafficGroupBindings" :key="bind.trafficGroupId">
-                  <el-form-item :label="bind.groupName" class="adsrc-tg-item">
-                    <div class="adsrc-tg-config">
-                      <div class="adsrc-tg-row">
-                        <span class="adsrc-tg-label">状态</span>
-                        <el-switch
-                          v-model="bind.status"
-                          :active-value="1"
-                          :inactive-value="0"
-                          inline-prompt
-                          active-text="开启"
-                          inactive-text="关闭"
-                        />
-                        <el-button
-                          link
-                          type="danger"
-                          size="small"
-                          style="margin-left: auto"
-                          @click="removeBinding(bind.trafficGroupId)"
-                        >移除</el-button>
-                      </div>
-                      <div class="adsrc-tg-row">
-                        <span class="adsrc-tg-label">价格</span>
-                        <el-input-number
-                          v-model="bind.price"
-                          :min="0"
-                          :precision="4"
-                          :step="0.01"
-                          placeholder="¥"
-                          size="default"
-                          controls-position="right"
-                        />
-                        <span class="adsrc-tg-unit">¥</span>
-                      </div>
-                      <div class="adsrc-tg-row">
-                        <span class="adsrc-tg-label">展示数上限（每小时）</span>
-                        <el-input-number
-                          v-model="bind.hourLimit"
-                          :min="0"
-                          :step="100"
-                          placeholder="0 表示不限"
-                          size="default"
-                          controls-position="right"
-                        />
-                      </div>
-                      <div class="adsrc-tg-row">
-                        <span class="adsrc-tg-label">展示数上限（每天）</span>
-                        <el-input-number
-                          v-model="bind.dayLimit"
-                          :min="0"
-                          :step="1000"
-                          placeholder="0 表示不限"
-                          size="default"
-                          controls-position="right"
-                        />
-                      </div>
-                      <div class="adsrc-tg-row">
-                        <span class="adsrc-tg-label">展示间隔（秒）</span>
-                        <el-input-number
-                          v-model="bind.intervalSec"
-                          :min="0"
-                          :step="1"
-                          placeholder="0 表示不限制"
-                          size="default"
-                          controls-position="right"
-                        />
-                      </div>
+                <div
+                  v-for="bind in trafficGroupBindings"
+                  :key="bind.trafficGroupId"
+                  class="adsrc-tg-card"
+                >
+                  <div class="adsrc-tg-card-head">
+                    <div class="adsrc-tg-card-name">
+                      <el-icon :size="14" color="#2563EB"><UserFilled /></el-icon>
+                      <span>{{ bind.groupName || ('分组 #' + bind.trafficGroupId) }}</span>
                     </div>
-                  </el-form-item>
-                </template>
+                    <div class="adsrc-tg-card-head-right">
+                      <el-switch
+                        v-model="bind.status"
+                        :active-value="1"
+                        :inactive-value="0"
+                        inline-prompt
+                        active-text="开启"
+                        inactive-text="关闭"
+                        size="default"
+                      />
+                      <el-button
+                        link
+                        type="danger"
+                        size="small"
+                        @click="removeBinding(bind.trafficGroupId)"
+                      >移除</el-button>
+                    </div>
+                  </div>
+                  <div class="adsrc-tg-card-grid">
+                    <div class="adsrc-tg-cell">
+                      <label class="adsrc-tg-cell-label">价格（¥）</label>
+                      <el-input-number
+                        v-model="bind.price"
+                        :min="0"
+                        :precision="4"
+                        :step="0.01"
+                        placeholder="0.0000"
+                        size="default"
+                        controls-position="right"
+                        class="adsrc-tg-cell-input"
+                      />
+                    </div>
+                    <div class="adsrc-tg-cell">
+                      <label class="adsrc-tg-cell-label">小时上限（次/小时）</label>
+                      <el-input-number
+                        v-model="bind.hourLimit"
+                        :min="0"
+                        :step="100"
+                        placeholder="0 表示不限"
+                        size="default"
+                        controls-position="right"
+                        class="adsrc-tg-cell-input"
+                      />
+                    </div>
+                    <div class="adsrc-tg-cell">
+                      <label class="adsrc-tg-cell-label">日上限（次/天）</label>
+                      <el-input-number
+                        v-model="bind.dayLimit"
+                        :min="0"
+                        :step="1000"
+                        placeholder="0 表示不限"
+                        size="default"
+                        controls-position="right"
+                        class="adsrc-tg-cell-input"
+                      />
+                    </div>
+                    <div class="adsrc-tg-cell">
+                      <label class="adsrc-tg-cell-label">展示间隔（秒）</label>
+                      <el-input-number
+                        v-model="bind.intervalSec"
+                        :min="0"
+                        :step="1"
+                        placeholder="0 表示不限制"
+                        size="default"
+                        controls-position="right"
+                        class="adsrc-tg-cell-input"
+                      />
+                    </div>
+                  </div>
+                </div>
               </div>
             </section>
           </el-form>
@@ -445,6 +475,14 @@
           <div class="page-form-footer-left">
             <el-icon><InfoFilled /></el-icon>
             <span>带 * 为必填项</span>
+            <el-button
+              link
+              type="primary"
+              :icon="RefreshLeft"
+              size="small"
+              style="margin-left: 8px"
+              @click="onFormReset"
+            >重置表单</el-button>
           </div>
           <div class="page-form-footer-right">
             <el-button :icon="Close" @click="closeDrawer">取消</el-button>
@@ -466,7 +504,7 @@ import { ElMessage, ElMessageBox } from 'element-plus';
 import type { FormInstance, FormRules } from 'element-plus';
 import {
   Plus, Connection, Search, InfoFilled, Edit, RefreshLeft, Close, Check,
-  Delete, Filter, Cellphone, ArrowDown,
+  Delete, Filter, Cellphone, ArrowDown, Setting, UserFilled, DocumentAdd,
 } from '@element-plus/icons-vue';
 
 const route = useRoute();
@@ -568,6 +606,7 @@ const editForm = reactive({ ...defaultForm });
 // 广告源维度参数（key=value 模式）
 const storeDimParams = ref<Array<{ key: string; value: string }>>([]);
 // 流量分组多选 + 每分组独立配置
+const selectedTrafficGroupIds = ref<number[]>([]);
 const trafficGroupBindings = ref<Array<{
   trafficGroupId: number;
   groupName: string;
@@ -610,7 +649,13 @@ const onTrafficGroupChange = (vals: number[]) => {
 
 const removeBinding = (id: number) => {
   trafficGroupBindings.value = trafficGroupBindings.value.filter(b => b.trafficGroupId !== id);
+  selectedTrafficGroupIds.value = trafficGroupBindings.value.map(b => b.trafficGroupId);
 };
+
+// 双向同步：bindings 变了，picker 选中态也跟随
+watch(trafficGroupBindings, (bindings) => {
+  selectedTrafficGroupIds.value = bindings.map(b => b.trafficGroupId);
+}, { deep: true });
 
 const formRules: FormRules = {
   source_name: [{ required: true, message: '请输入广告源名称', trigger: 'blur' }],

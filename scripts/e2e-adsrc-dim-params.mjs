@@ -240,9 +240,10 @@ const main = async () => {
       const sec = Array.from(document.querySelectorAll('.page-form-section')).find((s) => /广告源维度参数/.test(s.textContent || ''));
       const tgSec = Array.from(document.querySelectorAll('.page-form-section')).find((s) => /流量分组配置/.test(s.textContent || ''));
       const kvRows = sec ? sec.querySelectorAll('.adsrc-kv-row').length : 0;
-      const tgItems = tgSec ? tgSec.querySelectorAll('.adsrc-tg-item').length : 0;
+      const tgItems = tgSec ? tgSec.querySelectorAll('.adsrc-tg-card').length : 0;
+      const tgPicked = tgSec ? (tgSec.querySelector('.adsrc-tg-picker-select .el-select__placeholder')?.textContent || '') : '';
       const kvContent = sec ? Array.from(sec.querySelectorAll('.adsrc-kv-row')).map(r => Array.from(r.querySelectorAll('input')).map(i => i.value)) : [];
-      return { kvRows, tgItems, kvContent };
+      return { kvRows, tgItems, tgPicked, kvContent };
     });
     log('edit restore:', edit);
   }
