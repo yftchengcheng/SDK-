@@ -218,6 +218,7 @@ router.post('/create-custom', authMiddleware, async (req: express.Request, res: 
 
     const insertData: Record<string, unknown> = {
       developer_id: developerId,
+      network_def_id: Number(networkDefId),
       network_code: networkCode,
       network_name: network.network_name,
       source_name: sourceName,
