@@ -498,7 +498,14 @@
 
         <div class="page-form-body">
           <el-table :data="bindingDialog.bindings" v-loading="bindingDialog.loading" stripe>
-            <el-table-column prop="app_key" label="应用" min-width="160" />
+            <el-table-column prop="app_name" label="应用" min-width="200">
+              <template #default="{ row }">
+                <div class="binding-app-cell">
+                  <span class="binding-app-name">{{ row.app_name || '—' }}</span>
+                  <span class="binding-app-token" :title="row.app_key">{{ row.app_key }}</span>
+                </div>
+              </template>
+            </el-table-column>
             <el-table-column prop="network_app_id" label="平台 AppId" min-width="160" />
             <el-table-column prop="adapter_version_id" label="Adapter 版本" width="140">
               <template #default="{ row }">

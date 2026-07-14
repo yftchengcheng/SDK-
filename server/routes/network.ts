@@ -973,6 +973,22 @@ router.get('/app/list', authMiddleware, async (req: express.Request, res: expres
       defMap = Object.fromEntries(((defs || []) as NetworkDef[]).map(d => [d.id, d]));
     }
 
+    // 1.5) 一次性查出所有相关 app（appKey → appName）
+    interface AppItem {
+      app_key: string;
+      app_name: string;
+    }
+    const appKeys = Array.from(new Set(bindList.map((b) => b.app_key).filter(Boolean)));
+    let appMap: Record<string, AppItem> = {};
+    if (appKeys.length > 0) {
+      const { data: apps, error: appErr } = await db
+        .from('app')
+        .select('app_key, app_name')
+        .in('app_key', appKeys);
+      if (appErr) throw new Error(`Query apps failed: ${appErr.message}`);
+      appMap = Object.fromEntries(((apps || []) as AppItem[]).map((a) => [a.app_key, a]));
+    }
+
     // 2.5) 一次性查出所有相关 ad_network_account（避免 N+1）
     interface AccountItem {
       id: number
@@ -994,6 +1010,7 @@ router.get('/app/list', authMiddleware, async (req: express.Request, res: expres
     const merged = bindList.map(b => {
       const def = defMap[b.network_def_id] || ({} as Partial<NetworkDef>);
       const acct = b.account_id ? acctMap[b.account_id] : null;
+      const appName = appMap[b.app_key]?.app_name || '';
       return {
         ...b,
         network_name: def.network_name || '',
@@ -1001,6 +1018,7 @@ router.get('/app/list', authMiddleware, async (req: express.Request, res: expres
         is_preset: def.is_preset ?? false,
         account_name: acct?.account_name || '',
         icon_url: def.icon_url || null,
+        app_name: appName,
       };
     });
     const list = await enrichWithIconUrl(merged);

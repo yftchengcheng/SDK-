@@ -3730,6 +3730,33 @@ html, body, #app {
   font-size: 12px;
 }
 
+/* 应用关联列表 - 应用名 + APP token 上下结构 */
+.binding-app-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  line-height: 1.35;
+  padding: 2px 0;
+}
+.binding-app-name {
+  color: var(--color-slate-900);
+  font-size: 14px;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 240px;
+}
+.binding-app-token {
+  color: var(--color-slate-500);
+  font-size: 12px;
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 240px;
+}
+
 /* 兜底高度：让 ECharts 在 chart-card 内有渲染空间（不影响原视觉布局） */
 .chart-canvas {
   width: 100%;
