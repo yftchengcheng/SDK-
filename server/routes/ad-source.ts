@@ -7,46 +7,72 @@ const router = Router();
 
 // ============ helpers ============
 // 把 ad_source 行 enrich 上 trafficGroupBindings + storeDimParams
-async function enrichAdSource(row: any) {
+type AdSourceRow = Record<string, unknown> & { id: number; store_dim_params?: unknown };
+type BindingRow = {
+  id: number;
+  ad_source_id: number;
+  traffic_group_id: number;
+  status: number | null;
+  price: number | null;
+  hour_limit: number | null;
+  day_limit: number | null;
+  interval_sec: number | null;
+  traffic_group?: { id: number; group_name: string } | { id: number; group_name: string }[] | null;
+};
+type BindingInput = {
+  traffic_group_id: number;
+  status?: number;
+  price?: number | string | null;
+  hour_limit?: number | string | null;
+  day_limit?: number | string | null;
+  interval_sec?: number | string | null;
+};
+
+async function enrichAdSource(row: AdSourceRow | null) {
   if (!row) return row;
   // store_dim_params
-  const sdp = (row as any).store_dim_params ?? null;
-  // traffic_group_bindings
+  const sdp = row.store_dim_params ?? null;
+  // traffic_group_bindings（JOIN traffic_group 取 group_name）
   const { data: bindings, error: be } = await db
     .from('ad_source_traffic_group')
-    .select('*')
+    .select('*, traffic_group:traffic_group_id ( id, group_name )')
     .eq('ad_source_id', row.id);
   if (be) {
     // 静默失败：保留主行
     return { ...row, store_dim_params: sdp, traffic_group_bindings: [] };
   }
-  return { ...row, store_dim_params: sdp, traffic_group_bindings: bindings || [] };
+  const list = ((bindings || []) as BindingRow[]).map((b) => {
+    const tg = Array.isArray(b.traffic_group) ? b.traffic_group[0] : b.traffic_group;
+    return { ...b, group_name: tg?.group_name || '' };
+  });
+  return { ...row, store_dim_params: sdp, traffic_group_bindings: list };
 }
 
-async function enrichListWithBindings(items: any[]) {
+async function enrichListWithBindings(items: AdSourceRow[]) {
   if (!items || items.length === 0) return [];
-  const ids = items.map((r: any) => r.id);
+  const ids = items.map((r) => r.id);
   const { data: rows, error } = await db
     .from('ad_source_traffic_group')
-    .select('*')
+    .select('*, traffic_group:traffic_group_id ( id, group_name )')
     .in('ad_source_id', ids);
   if (error) {
-    return items.map((r: any) => ({ ...r, traffic_group_bindings: [] }));
+    return items.map((r) => ({ ...r, traffic_group_bindings: [] }));
   }
-  const bySource = new Map<number, any[]>();
-  for (const b of rows || []) {
+  const bySource = new Map<number, Array<BindingRow & { group_name: string }>>();
+  for (const b of (rows || []) as BindingRow[]) {
     const list = bySource.get(b.ad_source_id) || [];
-    list.push(b);
+    const tg = Array.isArray(b.traffic_group) ? b.traffic_group[0] : b.traffic_group;
+    list.push({ ...b, group_name: tg?.group_name || '' });
     bySource.set(b.ad_source_id, list);
   }
-  return items.map((r: any) => ({
+  return items.map((r) => ({
     ...r,
     traffic_group_bindings: bySource.get(r.id) || [],
   }));
 }
 
 // 全删后插
-async function replaceTrafficGroupBindings(sourceId: number, bindings: any[]) {
+async function replaceTrafficGroupBindings(sourceId: number, bindings: BindingInput[]) {
   // 1) 删
   const { error: de } = await db
     .from('ad_source_traffic_group')
@@ -56,8 +82,8 @@ async function replaceTrafficGroupBindings(sourceId: number, bindings: any[]) {
   // 2) 插
   if (!bindings || bindings.length === 0) return;
   const rows = bindings
-    .filter((b: any) => b && b.traffic_group_id)
-    .map((b: any) => ({
+    .filter((b) => b && b.traffic_group_id)
+    .map((b) => ({
       ad_source_id: sourceId,
       traffic_group_id: Number(b.traffic_group_id),
       status: Number(b.status ?? 1),

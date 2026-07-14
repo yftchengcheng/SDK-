@@ -344,7 +344,7 @@
               <div class="page-form-section-body">
                 <el-form-item label="流量分组">
                   <el-select
-                    v-model="trafficGroupBindings"
+                    :model-value="trafficGroupBindings.map(b => b.trafficGroupId)"
                     multiple
                     filterable
                     collapse-tags
@@ -354,6 +354,7 @@
                     :no-data-text="selectedPlacementId ? '该广告位下暂无流量分组' : '请先选择广告位'"
                     placeholder="请选择流量分组"
                     style="width: 100%"
+                    @change="onTrafficGroupChange"
                     @visible-change="onTrafficGroupDropdownToggle"
                   >
                     <el-option
@@ -365,24 +366,31 @@
                   </el-select>
                 </el-form-item>
 
-                <template v-for="(bind, idx) in trafficGroupBindings" :key="bind">
-                  <el-form-item v-if="getBindingForGroup(bind) !== undefined" :label="getBindingForGroup(bind)!.group_name" class="adsrc-tg-item">
+                <template v-for="bind in trafficGroupBindings" :key="bind.trafficGroupId">
+                  <el-form-item :label="bind.groupName" class="adsrc-tg-item">
                     <div class="adsrc-tg-config">
                       <div class="adsrc-tg-row">
                         <span class="adsrc-tg-label">状态</span>
                         <el-switch
-                          v-model="getBindingForGroup(bind)!.status"
+                          v-model="bind.status"
                           :active-value="1"
                           :inactive-value="0"
                           inline-prompt
                           active-text="开启"
                           inactive-text="关闭"
                         />
+                        <el-button
+                          link
+                          type="danger"
+                          size="small"
+                          style="margin-left: auto"
+                          @click="removeBinding(bind.trafficGroupId)"
+                        >移除</el-button>
                       </div>
                       <div class="adsrc-tg-row">
                         <span class="adsrc-tg-label">价格</span>
                         <el-input-number
-                          v-model="getBindingForGroup(bind)!.price"
+                          v-model="bind.price"
                           :min="0"
                           :precision="4"
                           :step="0.01"
@@ -395,7 +403,7 @@
                       <div class="adsrc-tg-row">
                         <span class="adsrc-tg-label">展示数上限（每小时）</span>
                         <el-input-number
-                          v-model="getBindingForGroup(bind)!.hour_limit"
+                          v-model="bind.hourLimit"
                           :min="0"
                           :step="100"
                           placeholder="0 表示不限"
@@ -406,7 +414,7 @@
                       <div class="adsrc-tg-row">
                         <span class="adsrc-tg-label">展示数上限（每天）</span>
                         <el-input-number
-                          v-model="getBindingForGroup(bind)!.day_limit"
+                          v-model="bind.dayLimit"
                           :min="0"
                           :step="1000"
                           placeholder="0 表示不限"
@@ -417,7 +425,7 @@
                       <div class="adsrc-tg-row">
                         <span class="adsrc-tg-label">展示间隔（秒）</span>
                         <el-input-number
-                          v-model="getBindingForGroup(bind)!.interval_sec"
+                          v-model="bind.intervalSec"
                           :min="0"
                           :step="1"
                           placeholder="0 表示不限制"
@@ -521,6 +529,10 @@ const onCustomNetworkDropdownToggle = (open: boolean) => {
   if (open) fetchCustomNetworks();
 };
 
+const onTrafficGroupDropdownToggle = (open: boolean) => {
+  if (open && selectedPlacementId.value) fetchTrafficGroups(selectedPlacementId.value, true);
+};
+
 const onNetworkSelect = (id: number) => {
   const found = customNetworks.value.find((n: any) => n.id === id);
   if (found) {
@@ -552,6 +564,53 @@ const defaultForm = {
   extraText: '',
 };
 const editForm = reactive({ ...defaultForm });
+
+// 广告源维度参数（key=value 模式）
+const storeDimParams = ref<Array<{ key: string; value: string }>>([]);
+// 流量分组多选 + 每分组独立配置
+const trafficGroupBindings = ref<Array<{
+  trafficGroupId: number;
+  groupName: string;
+  status: number;
+  price: number | null;
+  hourLimit: number | null;
+  dayLimit: number | null;
+  intervalSec: number | null;
+}>>([]);
+
+const addStoreDimParam = () => {
+  storeDimParams.value.push({ key: '', value: '' });
+};
+const removeStoreDimParam = (idx: number) => {
+  storeDimParams.value.splice(idx, 1);
+};
+
+const onTrafficGroupChange = (vals: number[]) => {
+  // 选中的 trafficGroupId 列表，diff 现有的 binding，新加的补默认，移除的删
+  const existing = new Map(trafficGroupBindings.value.map(b => [b.trafficGroupId, b]));
+  const next: typeof trafficGroupBindings.value = [];
+  for (const id of vals) {
+    if (existing.has(id)) {
+      next.push(existing.get(id)!);
+    } else {
+      const g = trafficGroups.value.find(x => x.id === id);
+      next.push({
+        trafficGroupId: id,
+        groupName: g?.group_name || g?.name || `分组${id}`,
+        status: 1,
+        price: null,
+        hourLimit: null,
+        dayLimit: null,
+        intervalSec: null,
+      });
+    }
+  }
+  trafficGroupBindings.value = next;
+};
+
+const removeBinding = (id: number) => {
+  trafficGroupBindings.value = trafficGroupBindings.value.filter(b => b.trafficGroupId !== id);
+};
 
 const formRules: FormRules = {
   source_name: [{ required: true, message: '请输入广告源名称', trigger: 'blur' }],
@@ -672,6 +731,8 @@ const onAppSelect = (app: any) => {
 const onPlacementChange = () => {
   page.value = 1;
   fetchList();
+  // 触发流量分组加载
+  if (selectedPlacementId.value) fetchTrafficGroups(selectedPlacementId.value, true);
 };
 
 const clearNetworkFilter = () => {
@@ -712,6 +773,8 @@ const openCreate = () => {
   }
   isEdit.value = false;
   Object.assign(editForm, defaultForm);
+  storeDimParams.value = [];
+  trafficGroupBindings.value = [];
   // 自定义广告平台入口：从 route.query 锁定 platform（不可改）
   if (entryMode.value === 'custom' && selectedNetworkId.value) {
     editForm.networkDefId = selectedNetworkId.value;
@@ -721,6 +784,8 @@ const openCreate = () => {
     // 标准入口：打开下拉时按需加载
     fetchCustomNetworks();
   }
+  // 预加载流量分组（如果有选中的广告位）
+  if (selectedPlacementId.value) fetchTrafficGroups(selectedPlacementId.value, true);
   drawerVisible.value = true;
 };
 
@@ -746,6 +811,27 @@ const handleEdit = async (row: any) => {
       selectedPlacementId.value = null;
     }
   }
+  // 加载流量分组
+  if (selectedPlacementId.value) await fetchTrafficGroups(selectedPlacementId.value, true);
+  // 回填 storeDimParams / trafficGroupBindings
+  const rawDims = row.store_dim_params;
+  if (Array.isArray(rawDims)) {
+    storeDimParams.value = rawDims.map((d: any) => ({ key: String(d.key || ''), value: String(d.value ?? '') }));
+  } else if (rawDims && typeof rawDims === 'object') {
+    storeDimParams.value = Object.entries(rawDims).map(([key, value]) => ({ key, value: String(value ?? '') }));
+  } else {
+    storeDimParams.value = [];
+  }
+  const rawBindings = row.traffic_group_bindings || [];
+  trafficGroupBindings.value = rawBindings.map((b: any) => ({
+    trafficGroupId: b.traffic_group_id,
+    groupName: b.group_name || '',
+    status: b.status ?? 1,
+    price: b.price ?? null,
+    hourLimit: b.hour_limit ?? null,
+    dayLimit: b.day_limit ?? null,
+    intervalSec: b.interval_sec ?? null,
+  }));
   Object.assign(editForm, {
     id: row.id,
     source_name: row.source_name,
@@ -777,6 +863,24 @@ const handleSubmit = async () => {
       appId: selectedAppId.value,
       placementId: selectedPlacementId.value,
     };
+    // 维度参数：过滤空 key 后打平为对象
+    const validDims = storeDimParams.value.filter(d => d.key && d.key.trim());
+    if (validDims.length) {
+      payload.storeDimParams = validDims.map(d => ({ key: d.key.trim(), value: d.value }));
+    }
+    // 流量分组绑定（后端 replaceTrafficGroupBindings 读 b.traffic_group_id）
+    // 流量分组绑定（后端 replaceTrafficGroupBindings 读 b.traffic_group_id）
+    if (trafficGroupBindings.value.length) {
+      payload.trafficGroupBindings = trafficGroupBindings.value.map(b => ({
+        traffic_group_id: b.trafficGroupId,
+        status: b.status,
+        price: b.price,
+        hour_limit: b.hourLimit,
+        day_limit: b.dayLimit,
+        interval_sec: b.intervalSec,
+      }));
+    }
+    console.log('[handleSubmit] payload=' + JSON.stringify(payload));
     const networkDefId = Number(editForm.networkDefId) || 0;
     if (networkDefId > 0) {
       // 自定义广告平台入口：调用 create-custom
