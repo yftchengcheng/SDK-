@@ -16,6 +16,11 @@ const dragging = ref(false)
 const dragOffset = reactive({ x: 0, y: 0 })
 const pulse = ref(false) // 首次 / 隐藏后重新出现时的高亮脉动
 
+// 同步从 localStorage 恢复位置 / 状态，避免 onMounted 之前 reactive 初值 (0,0) 渲染一帧
+// 注意：loadState 必须在上面 4 个 reactive 声明之后调用（TDZ），但它引用的 defaultPos/clampPos
+// 是 function declaration，已 hoist 到 script 顶部，可正常调用
+loadState()
+
 // 会话状态
 interface HalSession {
   session_id: string
@@ -65,21 +70,22 @@ const canEscalate = computed(() => {
 const unresolvedCount = computed(() => currentSession.value?.unresolved_count ?? 0)
 
 // ============ 工具 ============
-const defaultPos = () => {
+// 这些函数采用 function declaration 以便在 setup 顶同步调用（hoist 优先于 const）
+function defaultPos() {
   if (typeof window === 'undefined') return { x: 24, y: 24 }
   const w = window.innerWidth
   const h = window.innerHeight
   return { x: Math.max(16, w - 76), y: Math.max(16, h - 76) }
 }
 
-const defaultHiddenPos = () => {
+function defaultHiddenPos() {
   if (typeof window === 'undefined') return { x: 0, y: 0 }
   const w = window.innerWidth
   const h = window.innerHeight
   return { x: Math.max(4, w - 32), y: Math.max(4, Math.floor(h / 2) - 40) }
 }
 
-const clampPos = (x: number, y: number, isHidden: boolean) => {
+function clampPos(x: number, y: number, isHidden: boolean) {
   if (typeof window === 'undefined') return { x, y }
   const w = window.innerWidth
   const h = window.innerHeight
@@ -91,7 +97,7 @@ const clampPos = (x: number, y: number, isHidden: boolean) => {
   }
 }
 
-const loadState = () => {
+function loadState() {
   if (typeof window === 'undefined') return
   try {
     const s = localStorage.getItem(STORAGE_KEY)
@@ -397,15 +403,16 @@ const toggleClose = () => {
 
 const widgetStyle = computed(() => {
   if (view.value === 'hidden') {
-    // 收进侧边栏：使用 pos 让用户可自由拖动，初始收起到右侧边缘
+    // 收进侧边栏：保留 CSS 默认的 right:0; top:50%; transform:translateY(-50%)，
+    // 不再用 pos 强行定位为绝对像素（之前会覆盖 CSS 的贴边/居中效果导致错位）。
+    // 用户拖拽时改由拖拽逻辑处理（见 onDragMove），但 hidden 态不参与拖拽的 left/top 覆盖。
     return {
-      right: 'auto',
-      bottom: 'auto',
-      transform: 'none',
-      left: `${pos.x}px`,
-      top: `${pos.y}px`,
+      right: '0',
+      top: '50%',
+      transform: 'translateY(-50%)',
     }
   }
+  // collapsed / open 态：浮标由 pos 决定位置
   return {
     right: 'auto',
     left: `${pos.x}px`,
@@ -431,7 +438,6 @@ const panelStyle = computed(() => {
 
 // ============ 生命周期 ============
 onMounted(() => {
-  loadState()
   fetchConfig()
   window.addEventListener('resize', onWindowResize)
   // 进入页面后先脉动两轮提示位置；用户拖拽 / 点击后会停止
