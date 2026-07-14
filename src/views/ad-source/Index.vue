@@ -285,6 +285,151 @@
                 </el-form-item>
               </div>
             </section>
+
+            <section class="page-form-section">
+              <header class="page-form-section-header">
+                <span class="page-form-section-title">广告源维度参数</span>
+                <span class="page-form-section-desc">key=value 模式的自定义参数，可与广告平台维度参数互补</span>
+              </header>
+              <div class="page-form-section-body">
+                <el-form-item label="维度参数">
+                  <div v-if="storeDimParams.length === 0" class="adsrc-kv-empty">
+                    暂无参数，点击下方按钮添加
+                  </div>
+                  <div v-else class="adsrc-kv-list">
+                    <div v-for="(p, idx) in storeDimParams" :key="idx" class="adsrc-kv-row">
+                      <el-input
+                        v-model="p.key"
+                        placeholder="参数 key（如 slot_id）"
+                        size="default"
+                        class="adsrc-kv-key"
+                      />
+                      <span class="adsrc-kv-equals">=</span>
+                      <el-input
+                        v-model="p.value"
+                        placeholder="参数 value"
+                        size="default"
+                        class="adsrc-kv-value"
+                      />
+                      <el-button
+                        type="danger"
+                        :icon="Delete"
+                        circle
+                        plain
+                        size="small"
+                        @click="removeStoreDimParam(idx)"
+                        aria-label="删除"
+                      />
+                    </div>
+                  </div>
+                  <el-button
+                    type="primary"
+                    plain
+                    :icon="Plus"
+                    size="small"
+                    class="adsrc-kv-add"
+                    @click="addStoreDimParam"
+                  >
+                    添加参数
+                  </el-button>
+                </el-form-item>
+              </div>
+            </section>
+
+            <section class="page-form-section">
+              <header class="page-form-section-header">
+                <span class="page-form-section-title">流量分组配置</span>
+                <span class="page-form-section-desc">为该广告源绑定一个或多个流量分组，每个分组可独立配置状态/价格/限频</span>
+              </header>
+              <div class="page-form-section-body">
+                <el-form-item label="流量分组">
+                  <el-select
+                    v-model="trafficGroupBindings"
+                    multiple
+                    filterable
+                    collapse-tags
+                    collapse-tags-tooltip
+                    :max-collapse-tags="3"
+                    :loading="trafficGroupsLoading"
+                    :no-data-text="selectedPlacementId ? '该广告位下暂无流量分组' : '请先选择广告位'"
+                    placeholder="请选择流量分组"
+                    style="width: 100%"
+                    @visible-change="onTrafficGroupDropdownToggle"
+                  >
+                    <el-option
+                      v-for="g in trafficGroups"
+                      :key="g.id"
+                      :label="g.group_name"
+                      :value="g.id"
+                    />
+                  </el-select>
+                </el-form-item>
+
+                <template v-for="(bind, idx) in trafficGroupBindings" :key="bind">
+                  <el-form-item v-if="getBindingForGroup(bind) !== undefined" :label="getBindingForGroup(bind)!.group_name" class="adsrc-tg-item">
+                    <div class="adsrc-tg-config">
+                      <div class="adsrc-tg-row">
+                        <span class="adsrc-tg-label">状态</span>
+                        <el-switch
+                          v-model="getBindingForGroup(bind)!.status"
+                          :active-value="1"
+                          :inactive-value="0"
+                          inline-prompt
+                          active-text="开启"
+                          inactive-text="关闭"
+                        />
+                      </div>
+                      <div class="adsrc-tg-row">
+                        <span class="adsrc-tg-label">价格</span>
+                        <el-input-number
+                          v-model="getBindingForGroup(bind)!.price"
+                          :min="0"
+                          :precision="4"
+                          :step="0.01"
+                          placeholder="¥"
+                          size="default"
+                          controls-position="right"
+                        />
+                        <span class="adsrc-tg-unit">¥</span>
+                      </div>
+                      <div class="adsrc-tg-row">
+                        <span class="adsrc-tg-label">展示数上限（每小时）</span>
+                        <el-input-number
+                          v-model="getBindingForGroup(bind)!.hour_limit"
+                          :min="0"
+                          :step="100"
+                          placeholder="0 表示不限"
+                          size="default"
+                          controls-position="right"
+                        />
+                      </div>
+                      <div class="adsrc-tg-row">
+                        <span class="adsrc-tg-label">展示数上限（每天）</span>
+                        <el-input-number
+                          v-model="getBindingForGroup(bind)!.day_limit"
+                          :min="0"
+                          :step="1000"
+                          placeholder="0 表示不限"
+                          size="default"
+                          controls-position="right"
+                        />
+                      </div>
+                      <div class="adsrc-tg-row">
+                        <span class="adsrc-tg-label">展示间隔（秒）</span>
+                        <el-input-number
+                          v-model="getBindingForGroup(bind)!.interval_sec"
+                          :min="0"
+                          :step="1"
+                          placeholder="0 表示不限制"
+                          size="default"
+                          controls-position="right"
+                        />
+                      </div>
+                    </div>
+                  </el-form-item>
+                </template>
+              </div>
+            </section>
           </el-form>
         </div>
 
@@ -313,7 +458,7 @@ import { ElMessage, ElMessageBox } from 'element-plus';
 import type { FormInstance, FormRules } from 'element-plus';
 import {
   Plus, Connection, Search, InfoFilled, Edit, RefreshLeft, Close, Check,
-  Filter, Cellphone, ArrowDown,
+  Delete, Filter, Cellphone, ArrowDown,
 } from '@element-plus/icons-vue';
 
 const route = useRoute();
@@ -349,6 +494,27 @@ const fetchCustomNetworks = async () => {
     customNetworksLoaded.value = true;
   } catch { customNetworks.value = []; }
   finally { customNetworksLoading.value = false; }
+};
+
+const trafficGroups = ref<any[]>([]);
+const trafficGroupsLoading = ref(false);
+const trafficGroupsLoaded = ref(false);
+
+const fetchTrafficGroups = async (placementId: number | null, force = false) => {
+  if (!placementId) { trafficGroups.value = []; return; }
+  if (trafficGroupsLoaded.value && !force) return;
+  trafficGroupsLoading.value = true;
+  try {
+    const res: any = await request.get('/api/v1/console/traffic-group/list', { params: { placementId, page: 1, pageSize: 200 } });
+    trafficGroups.value = res.data?.list || [];
+    trafficGroupsLoaded.value = true;
+  } catch { trafficGroups.value = []; }
+  finally { trafficGroupsLoading.value = false; }
+};
+const resetTrafficGroupsCache = () => {
+  trafficGroups.value = [];
+  trafficGroupsLoaded.value = false;
+  trafficGroupsLoading.value = false;
 };
 
 const onCustomNetworkDropdownToggle = (open: boolean) => {

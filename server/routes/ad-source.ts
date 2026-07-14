@@ -5,7 +5,73 @@ import { success, fail } from '../utils/response';
 
 const router = Router();
 
-// List ad sources
+// ============ helpers ============
+// 把 ad_source 行 enrich 上 trafficGroupBindings + storeDimParams
+async function enrichAdSource(row: any) {
+  if (!row) return row;
+  // store_dim_params
+  const sdp = (row as any).store_dim_params ?? null;
+  // traffic_group_bindings
+  const { data: bindings, error: be } = await db
+    .from('ad_source_traffic_group')
+    .select('*')
+    .eq('ad_source_id', row.id);
+  if (be) {
+    // 静默失败：保留主行
+    return { ...row, store_dim_params: sdp, traffic_group_bindings: [] };
+  }
+  return { ...row, store_dim_params: sdp, traffic_group_bindings: bindings || [] };
+}
+
+async function enrichListWithBindings(items: any[]) {
+  if (!items || items.length === 0) return [];
+  const ids = items.map((r: any) => r.id);
+  const { data: rows, error } = await db
+    .from('ad_source_traffic_group')
+    .select('*')
+    .in('ad_source_id', ids);
+  if (error) {
+    return items.map((r: any) => ({ ...r, traffic_group_bindings: [] }));
+  }
+  const bySource = new Map<number, any[]>();
+  for (const b of rows || []) {
+    const list = bySource.get(b.ad_source_id) || [];
+    list.push(b);
+    bySource.set(b.ad_source_id, list);
+  }
+  return items.map((r: any) => ({
+    ...r,
+    traffic_group_bindings: bySource.get(r.id) || [],
+  }));
+}
+
+// 全删后插
+async function replaceTrafficGroupBindings(sourceId: number, bindings: any[]) {
+  // 1) 删
+  const { error: de } = await db
+    .from('ad_source_traffic_group')
+    .delete()
+    .eq('ad_source_id', sourceId);
+  if (de) throw new Error(`Delete bindings failed: ${de.message}`);
+  // 2) 插
+  if (!bindings || bindings.length === 0) return;
+  const rows = bindings
+    .filter((b: any) => b && b.traffic_group_id)
+    .map((b: any) => ({
+      ad_source_id: sourceId,
+      traffic_group_id: Number(b.traffic_group_id),
+      status: Number(b.status ?? 1),
+      price: b.price === null || b.price === undefined || b.price === '' ? null : Number(b.price),
+      hour_limit: b.hour_limit === null || b.hour_limit === undefined || b.hour_limit === '' ? null : Number(b.hour_limit),
+      day_limit: b.day_limit === null || b.day_limit === undefined || b.day_limit === '' ? null : Number(b.day_limit),
+      interval_sec: b.interval_sec === null || b.interval_sec === undefined || b.interval_sec === '' ? null : Number(b.interval_sec),
+    }));
+  if (rows.length === 0) return;
+  const { error: ie } = await db.from('ad_source_traffic_group').insert(rows);
+  if (ie) throw new Error(`Insert bindings failed: ${ie.message}`);
+}
+
+// ============ List ad sources ============
 router.get('/list', authMiddleware, async (req: express.Request, res: express.Response) => {
   try {
     const { developerId } = getDeveloper(req);
@@ -35,7 +101,8 @@ router.get('/list', authMiddleware, async (req: express.Request, res: express.Re
     const { data, count, error } = await query.order('created_at', { ascending: false }).range((p - 1) * ps, p * ps - 1);
     if (error) throw new Error(`Query failed: ${error.message}`);
 
-    success(res, { list: data, total: count, page: p, pageSize: ps });
+    const enriched = await enrichListWithBindings(data || []);
+    success(res, { list: enriched, total: count, page: p, pageSize: ps });
   } catch (err) {
     console.error('List ad sources error:', err);
     fail(res, 500, '获取广告源列表失败');
@@ -46,7 +113,7 @@ router.get('/list', authMiddleware, async (req: express.Request, res: express.Re
 router.post('/create', authMiddleware, async (req: express.Request, res: express.Response) => {
   try {
     const { developerId } = getDeveloper(req);
-    const { networkCode, networkName, sourceName, thirdAppId, thirdPlacementId, extra, appId, placementId } = req.body;
+    const { networkCode, networkName, sourceName, thirdAppId, thirdPlacementId, extra, appId, placementId, storeDimParams, trafficGroupBindings } = req.body;
 
     if (!networkCode || !sourceName || !thirdAppId || !thirdPlacementId) {
       fail(res, 400, '缺少必填字段');
@@ -64,11 +131,18 @@ router.post('/create', authMiddleware, async (req: express.Request, res: express
     };
     if (appId !== undefined && appId !== null && appId !== '') insertData.app_id = Number(appId);
     if (placementId !== undefined && placementId !== null && placementId !== '') insertData.placement_id = Number(placementId);
+    if (storeDimParams !== undefined) insertData.store_dim_params = storeDimParams || null;
 
     const { data, error } = await db.from('ad_source').insert(insertData).select().single();
     if (error) throw new Error(`Insert failed: ${error.message}`);
 
-    success(res, data, '创建成功');
+    // 同步流量分组绑定
+    if (Array.isArray(trafficGroupBindings) && trafficGroupBindings.length > 0) {
+      await replaceTrafficGroupBindings(data.id, trafficGroupBindings);
+    }
+
+    const enriched = await enrichAdSource(data);
+    success(res, enriched, '创建成功');
   } catch (err) {
     console.error('Create ad source error:', err);
     fail(res, 500, '创建广告源失败');
@@ -160,7 +234,17 @@ router.put('/:id', authMiddleware, async (req: express.Request, res: express.Res
     const { error } = await db.from('ad_source').update(updateData).eq('id', Number(id)).eq('developer_id', developerId);
     if (error) throw new Error(`Update failed: ${error.message}`);
 
-    success(res, null, '更新成功');
+    // 同步流量分组绑定（如果传了）
+    if (body.trafficGroupBindings !== undefined) {
+      const bindings = Array.isArray(body.trafficGroupBindings) ? body.trafficGroupBindings : [];
+      await replaceTrafficGroupBindings(Number(id), bindings);
+    }
+
+    // 回查带 bindings 的全量数据
+    const { data: row } = await db.from('ad_source').select('*').eq('id', Number(id)).eq('developer_id', developerId).single();
+    const enriched = row ? await enrichAdSource(row) : null;
+
+    success(res, enriched, '更新成功');
   } catch (err) {
     console.error('Update ad source (RESTful) error:', err);
     fail(res, 500, '更新广告源失败');
@@ -201,7 +285,7 @@ router.get('/networks', authMiddleware, async (_req: express.Request, res: expre
 router.post('/create-custom', authMiddleware, async (req: express.Request, res: express.Response) => {
   try {
     const { developerId } = getDeveloper(req);
-    const { networkDefId, sourceName, thirdAppId, thirdPlacementId, appId, placementId, extra } = req.body as Record<string, unknown>;
+    const { networkDefId, sourceName, thirdAppId, thirdPlacementId, appId, placementId, extra, storeDimParams, trafficGroupBindings } = req.body as Record<string, unknown>;
 
     if (!networkDefId) return fail(res, 400, '自定义网络 ID 不能为空');
     if (!sourceName) return fail(res, 400, '广告源名称不能为空');
@@ -229,11 +313,17 @@ router.post('/create-custom', authMiddleware, async (req: express.Request, res: 
       extra: extra || null,
       is_custom: true,
     };
+    if (storeDimParams !== undefined) insertData.store_dim_params = storeDimParams || null;
 
     const { data, error } = await db.from('ad_source').insert(insertData).select().single();
     if (error) throw new Error(`Insert failed: ${error.message}`);
 
-    success(res, data);
+    if (Array.isArray(trafficGroupBindings) && trafficGroupBindings.length > 0) {
+      await replaceTrafficGroupBindings(data.id, trafficGroupBindings);
+    }
+
+    const enriched = await enrichAdSource(data);
+    success(res, enriched);
   } catch (err) {
     console.error('Create custom ad source error:', err);
     fail(res, 500, '创建自定义广告源失败');
