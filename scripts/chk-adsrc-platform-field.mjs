@@ -244,7 +244,7 @@ const log = (...a) => console.log('[chk-adsrc]', ...a);
     // 汇总
     log('--- 汇总 ---');
     const A_pass = stdFormInfo.drawerOpen && stdFormInfo.hasPlatformLabel && stdFormInfo.platformItemType === 'select'
-      && stdFormInfo.selectPlaceholder === '请选择自定义广告平台' && stdFormInfo.selectSelectedLabel !== '0';
+      && stdFormInfo.selectPlaceholder === '请选择广告平台' && stdFormInfo.selectSelectedLabel !== '0';
     const B_pass = customFormInfo.drawerOpen
       && customFormInfo.hasPlatformLabel
       && customFormInfo.platformItemType === 'input'

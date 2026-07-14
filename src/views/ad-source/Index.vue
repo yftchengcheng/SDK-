@@ -229,7 +229,7 @@
                   <el-select
                     v-else
                     v-model="editForm.networkDefId"
-                    placeholder="请选择自定义广告平台"
+                    placeholder="请选择广告平台"
                     filterable
                     :loading="customNetworksLoading"
                     @visible-change="onCustomNetworkDropdownToggle"
@@ -246,7 +246,7 @@
                     </el-option>
                     <template #empty>
                       <div style="text-align: center; color: #94A3B8; padding: 12px 0;">
-                        暂无可用的自定义广告平台
+                        暂无可用广告平台
                       </div>
                     </template>
                   </el-select>
