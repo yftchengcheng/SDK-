@@ -211,6 +211,46 @@
                   <template #label><span class="required-mark">*</span><span>广告源名称</span></template>
                   <el-input v-model="editForm.source_name" placeholder="如：穿山甲-激励视频-主" />
                 </el-form-item>
+                <el-form-item label="广告平台" prop="networkDefId" class="span-2">
+                  <template #label>
+                    <span v-if="entryMode === 'standard'" class="required-mark">*</span>
+                    <span>广告平台</span>
+                  </template>
+                  <el-input
+                    v-if="entryMode === 'custom'"
+                    :value="platformName || '自定义广告平台'"
+                    disabled
+                    placeholder="从「广告平台 → 操作项 → 广告源」进入时自动锁定"
+                  >
+                    <template #prefix>
+                      <el-icon style="color: var(--color-primary-500, #2563EB)"><Connection /></el-icon>
+                    </template>
+                  </el-input>
+                  <el-select
+                    v-else
+                    v-model="editForm.networkDefId"
+                    placeholder="请选择自定义广告平台"
+                    filterable
+                    :loading="customNetworksLoading"
+                    @visible-change="onCustomNetworkDropdownToggle"
+                    @change="onNetworkSelect"
+                  >
+                    <el-option
+                      v-for="n in customNetworks"
+                      :key="n.id"
+                      :label="n.network_name"
+                      :value="n.id"
+                    >
+                      <span style="float: left">{{ n.network_name }}</span>
+                      <span style="float: right; color: #94A3B8; font-size: 12px;">{{ n.network_code }}</span>
+                    </el-option>
+                    <template #empty>
+                      <div style="text-align: center; color: #94A3B8; padding: 12px 0;">
+                        暂无可用的自定义广告平台
+                      </div>
+                    </template>
+                  </el-select>
+                </el-form-item>
                 <el-form-item label="所属应用" class="span-2">
                   <el-input :value="selectedAppName" disabled />
                 </el-form-item>
@@ -294,6 +334,34 @@ const selectedRowIds = ref<number[]>([]);
 const appList = ref<any[]>([]);
 const appsLoading = ref(false);
 const selectedAppId = ref<number | null>(null);
+
+// 自定义广告平台列表（用于「添加广告源」drawer 的下拉选择）
+const customNetworks = ref<any[]>([]);
+const customNetworksLoading = ref(false);
+const customNetworksLoaded = ref(false);
+
+const fetchCustomNetworks = async () => {
+  if (customNetworksLoaded.value) return;
+  customNetworksLoading.value = true;
+  try {
+    const res: any = await request.get('/api/v1/console/network/custom/list', { params: { page: 1, pageSize: 200 } });
+    customNetworks.value = res.data?.list || [];
+    customNetworksLoaded.value = true;
+  } catch { customNetworks.value = []; }
+  finally { customNetworksLoading.value = false; }
+};
+
+const onCustomNetworkDropdownToggle = (open: boolean) => {
+  if (open) fetchCustomNetworks();
+};
+
+const onNetworkSelect = (id: number) => {
+  const found = customNetworks.value.find((n: any) => n.id === id);
+  if (found) {
+    editForm.networkCode = found.network_code;
+    editForm.networkName = found.network_name;
+  }
+};
 const appSearch = ref('');
 
 const placements = ref<any[]>([]);
@@ -310,6 +378,9 @@ const formRef = ref<FormInstance>();
 const defaultForm = {
   id: 0 as number,
   source_name: '',
+  networkDefId: 0 as number,
+  networkCode: '',
+  networkName: '',
   third_app_id: '',
   third_placement_id: '',
   extraText: '',
@@ -318,6 +389,18 @@ const editForm = reactive({ ...defaultForm });
 
 const formRules: FormRules = {
   source_name: [{ required: true, message: '请输入广告源名称', trigger: 'blur' }],
+  networkDefId: [
+    {
+      validator: (_rule, value, callback) => {
+        if (entryMode.value === 'standard' && (!value || value <= 0)) {
+          callback(new Error('请选择广告平台'));
+        } else {
+          callback();
+        }
+      },
+      trigger: 'change',
+    },
+  ],
   third_app_id: [{ required: true, message: '请输入三方App ID', trigger: 'blur' }],
   third_placement_id: [{ required: true, message: '请输入三方代码位ID', trigger: 'blur' }],
 };
@@ -463,6 +546,15 @@ const openCreate = () => {
   }
   isEdit.value = false;
   Object.assign(editForm, defaultForm);
+  // 自定义广告平台入口：从 route.query 锁定 platform（不可改）
+  if (entryMode.value === 'custom' && selectedNetworkId.value) {
+    editForm.networkDefId = selectedNetworkId.value;
+    editForm.networkCode = `custom_${selectedNetworkId.value}`;
+    editForm.networkName = platformName.value || '自定义广告平台';
+  } else {
+    // 标准入口：打开下拉时按需加载
+    fetchCustomNetworks();
+  }
   drawerVisible.value = true;
 };
 
@@ -474,6 +566,9 @@ const handleEdit = (row: any) => {
   Object.assign(editForm, {
     id: row.id,
     source_name: row.source_name,
+    networkDefId: row.network_def_id ?? 0,
+    networkCode: row.network_code ?? '',
+    networkName: row.network_name ?? '',
     third_app_id: row.third_app_id,
     third_placement_id: row.third_placement_id,
     extraText: row.extra ? (typeof row.extra === 'string' ? row.extra : JSON.stringify(row.extra)) : '',
@@ -499,22 +594,26 @@ const handleSubmit = async () => {
       appId: selectedAppId.value,
       placementId: selectedPlacementId.value,
     };
-    if (selectedNetworkId.value) {
+    const networkDefId = Number(editForm.networkDefId) || 0;
+    if (networkDefId > 0) {
       // 自定义广告平台入口：调用 create-custom
-      payload.networkDefId = selectedNetworkId.value;
+      payload.networkDefId = networkDefId;
       if (isEdit.value) {
-        await request.put(`/api/v1/console/ad-source/${editForm.id}`, { ...payload, network_code: `custom_${selectedNetworkId.value}` });
+        await request.put(`/api/v1/console/ad-source/${editForm.id}`, { ...payload, network_code: editForm.networkCode || `custom_${networkDefId}`, network_name: editForm.networkName || '自定义广告平台' });
       } else {
-        await request.post('/api/v1/console/ad-source/create-custom', payload);
+        await request.post('/api/v1/console/ad-source/create-custom', { ...payload, network_name: editForm.networkName || '自定义广告平台' });
       }
     } else {
-      // 标准入口：使用 network_code（这里简化让后端按 ad_source.create 走）
+      // 标准入口：使用 form 中选择的 network_code
       if (isEdit.value) {
-        await request.put(`/api/v1/console/ad-source/${editForm.id}`, payload);
+        await request.put(`/api/v1/console/ad-source/${editForm.id}`, { ...payload, network_code: editForm.networkCode, network_name: editForm.networkName });
       } else {
-        // 标准入口需要 network_code：这里取第一个 network 作为兜底
-        const networkCode = 'STD_DEFAULT';
-        await request.post('/api/v1/console/ad-source/create', { ...payload, network_code: networkCode, network_name: '标准广告平台' });
+        if (!editForm.networkCode) {
+          ElMessage.error('请先选择广告平台');
+          submitting.value = false;
+          return;
+        }
+        await request.post('/api/v1/console/ad-source/create', { ...payload, network_code: editForm.networkCode, network_name: editForm.networkName || '标准广告平台' });
       }
     }
     ElMessage.success(isEdit.value ? '更新成功' : '创建成功');
