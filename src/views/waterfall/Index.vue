@@ -65,9 +65,9 @@
             >
               <el-option
                 v-for="p in g.items"
-                :key="p.placement_id"
+                :key="p.id"
                 :label="`${p.name} · ${formatLabel(p.format)}`"
-                :value="p.placement_id"
+                :value="p.id"
               >
                 <div class="wf-opt-row">
                   <span class="wf-opt-name">{{ p.name }}</span>
@@ -180,19 +180,27 @@
         <div class="dialog-section-title">
           <el-icon><Plus /></el-icon>
           <span>选择广告源</span>
-          <span class="dialog-section-tag">{{ adSourceList.length }} 个可选</span>
+          <span class="dialog-section-tag">{{ adSourceList.length }} 个可选 · 当前广告位</span>
         </div>
         <div class="dialog-form-row dialog-form-row--full">
           <el-form-item label="广告源" required>
-            <el-select v-model="newSource.ad_source_id" placeholder="请选择广告源" filterable style="width: 100%">
+            <el-select
+              v-model="newSource.ad_source_id"
+              :placeholder="adSourceList.length > 0 ? '请选择广告源' : '当前广告位下暂无可用广告源'"
+              :disabled="adSourceList.length === 0"
+              filterable
+              style="width: 100%"
+            >
               <el-option
                 v-for="s in adSourceList"
                 :key="s.id"
-                :label="`${s.source_name} (${s.network_name})`"
+                :label="`${s.source_name} · ${s.network_name || s.network_code || '自定义'}`"
                 :value="s.id"
               />
             </el-select>
-            <div class="dialog-form-help">将按当前层类型添加，Bidding 层为并行，Standard/Fallback 层为顺序</div>
+            <div class="dialog-form-help">
+              列表已按当前广告位（<b>{{ currentPlacement?.name }}</b>）过滤，仅展示归属该广告位的广告源
+            </div>
           </el-form-item>
         </div>
       </div>
@@ -240,7 +248,7 @@ const appMap = computed(() => {
 });
 
 // 当前选中的广告位对象
-const currentPlacement = computed(() => placementList.value.find((p) => p.placement_id === selectedPlacement.value) || null);
+const currentPlacement = computed(() => placementList.value.find((p) => Number(p.id) === Number(selectedPlacement.value)) || null);
 
 // 分组：按 app_key 分桶（视觉分组用 el-option label = appName 配合 items.length）
 const groupedPlacements = computed(() => {
@@ -274,9 +282,17 @@ const fetchApps = async () => {
   try { const res: any = await request.get('/api/v1/console/app/list', { params: { pageSize: 200 } }); appList.value = res.data?.list || []; } catch { /* ignore */ }
 };
 
-const fetchAdSources = async () => {
-  try { const res: any = await request.get('/api/v1/console/ad-source/list', { params: { pageSize: 200 } }); adSourceList.value = res.data?.list || []; } catch { /* ignore */ }
+const fetchAdSources = async (placementId?: string | number | null) => {
+  try {
+    const params: Record<string, unknown> = { pageSize: 200 };
+    if (placementId) params.placementId = placementId;
+    const res: any = await request.get('/api/v1/console/ad-source/list', { params });
+    adSourceList.value = res.data?.list || [];
+  } catch { adSourceList.value = []; }
 };
+
+// 当前 placement 的可选广告源数量（只统计该 placement 下的）
+const availableSourceCount = computed(() => adSourceList.value.length);
 
 const fetchConfig = async () => {
   if (!selectedPlacement.value) return;
@@ -293,9 +309,15 @@ const fetchConfig = async () => {
   } catch { layers.forEach(l => l.sources = []); }
 };
 
-const addSource = (type: number) => {
+const addSource = async (type: number) => {
   currentLayerType.value = type;
   newSource.ad_source_id = null;
+  // 兜底：若 adSourceList 尚未按当前 placement 过滤，强制重拉一次
+  if (selectedPlacement.value) {
+    const needsReload = adSourceList.value.length === 0
+      || adSourceList.value.some((s: any) => Number(s.placement_id) !== Number(selectedPlacement.value));
+    if (needsReload) await fetchAdSources(selectedPlacement.value);
+  }
   showAddDialog.value = true;
 };
 
@@ -319,8 +341,15 @@ const confirmAddSource = () => {
 };
 
 const onRefreshAll = async () => {
-  await Promise.all([fetchPlacements(), fetchAdSources()]);
-  if (selectedPlacement.value) await loadLayers(selectedPlacement.value);
+  await fetchPlacements();
+  if (selectedPlacement.value) {
+    await Promise.all([
+      fetchAdSources(selectedPlacement.value),
+      fetchConfig(),
+    ]);
+  } else {
+    adSourceList.value = [];
+  }
   ElMessage.success('已刷新');
 };
 
@@ -376,7 +405,7 @@ onBeforeUnmount(() => {
   sortableInstances.length = 0;
 });
 
-onMounted(() => { fetchPlacements(); fetchAdSources(); });
+onMounted(() => { fetchPlacements(); });
 
 // === UI 辅助：把 placement 渲染成带 App/Format/Name/ID 的清晰标签 ===
 const onSelectVisible = (visible: boolean) => {
@@ -385,8 +414,15 @@ const onSelectVisible = (visible: boolean) => {
     fetchApps();
   }
 };
-const onPlacementChange = () => {
-  if (selectedPlacement.value) fetchConfig();
+const onPlacementChange = async () => {
+  if (selectedPlacement.value) {
+    await Promise.all([
+      fetchConfig(),
+      fetchAdSources(selectedPlacement.value),
+    ]);
+  } else {
+    adSourceList.value = [];
+  }
 };
 const clearPlacement = () => {
   selectedPlacement.value = '';
