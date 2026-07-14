@@ -15,6 +15,13 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   const H = { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` };
 
   // 1. 创建 app + placement
+  // 1.5 清理该 dev 之前的 app（仅匹配本测试创建的 packageName 前缀，避免误删）
+  // 注意：placement/list 不带 developer 过滤，service_role 看到所有，所以**不清理 placement**避免误伤他人数据
+  const oldList = await (await fetch(`http://localhost:${PORT}/api/v1/console/app/list?pageSize=200`, { headers: H })).json();
+  const oldApps = (oldList.data?.list || oldList.data?.items || []).filter(a => a.package_name?.startsWith('com.wfcfg.'));
+  for (const a of oldApps) {
+    await fetch(`http://localhost:${PORT}/api/v1/console/app/delete`, { method: 'POST', headers: H, body: JSON.stringify({ id: a.id }) });
+  }
   const app = await (await fetch(`http://localhost:${PORT}/api/v1/console/app/create`, {
     method: 'POST', headers: H, body: JSON.stringify({ appName: '手游C', packageName: `com.wfcfg.${stamp}`, platform: 1 })
   })).json();
@@ -28,7 +35,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
   // 2. 创建流量分组 (含一条默认分组 + 一条国内 + 一条海外)
   const tg1 = await (await fetch(`http://localhost:${PORT}/api/v1/console/traffic-group/create`, {
-    method: 'POST', headers: H, body: JSON.stringify({ placementId: p1.data.placement_id, groupName: '国内-安卓', conditions: [{ field: 'country', op: 'eq', value: 'CN' }, { field: 'os', op: 'eq', value: 'android' }] })
+    method: 'POST', headers: H, body: JSON.stringify({ placementId: p1.data.id, groupName: '国内-安卓', conditions: [{ field: 'country', op: 'eq', value: 'CN' }, { field: 'os', op: 'eq', value: 'android' }] })
   })).json();
   console.log('tg1', tg1.code, tg1.data?.id);
 
@@ -86,9 +93,9 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   await sleep(2500);
   await page.screenshot({ path: '/tmp/wf-cfg/save-list.png', fullPage: true });
 
-  // 抓列表行
+  // 抓列表行（限定配置列表表，避免匹配到右侧 layer 内嵌的 ad-source 表）
   const rows = await page.evaluate(() => {
-    return Array.from(document.querySelectorAll('.el-table__body tr')).map(tr => {
+    return Array.from(document.querySelectorAll('.wf-config-table .el-table__body tr.el-table__row')).map(tr => {
       const cells = Array.from(tr.querySelectorAll('td')).map(td => td.innerText.trim().replace(/\s+/g, ' '));
       const isDefault = !!tr.querySelector('.wf-config-group--default');
       return { cells, isDefault, html: tr.outerHTML.slice(0, 300) };
@@ -157,7 +164,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
   // 列表应该多一行（v3）
   const rows2 = await page.evaluate(() => {
-    return Array.from(document.querySelectorAll('.el-table__body tr')).map(tr => tr.innerText.trim().replace(/\s+/g, ' '));
+    return Array.from(document.querySelectorAll('.wf-config-table .el-table__body tr.el-table__row')).map(tr => tr.innerText.trim().replace(/\s+/g, ' '));
   });
   console.log('=== 保存后列表 ===');
   rows2.forEach((r, i) => console.log(`  [${i}] ${r.slice(0, 200)}`));
@@ -169,7 +176,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   await sleep(3500);
   await page.screenshot({ path: '/tmp/wf-cfg/traffic-group.png' });
   const tgRows = await page.evaluate(() => {
-    return Array.from(document.querySelectorAll('.el-table__body tr')).map(tr => {
+    return Array.from(document.querySelectorAll('.el-table .el-table__body tr.el-table__row')).map(tr => {
       const cells = Array.from(tr.querySelectorAll('td')).map(td => td.innerText.trim().replace(/\s+/g, ' '));
       const hasDefault = !!tr.querySelector('.cell-default-icon');
       const hasDeleteBtn = !!Array.from(tr.querySelectorAll('button')).find(b => b.innerText === '删除');

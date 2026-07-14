@@ -163,20 +163,22 @@ router.get('/list', authMiddleware, async (req: express.Request, res: express.Re
 
 
     // 2. 查该 placement 的所有 config（兼容 placement_id 列存 bigint 或 string pl_xxx）
-    const pid = Number(placementId);
+    // 注意：placement_id 是 varchar(32)。DB 里可能存 "58" (number-as-string) 或 "pl_xxx" 两种形式
+    // 用 in() 数组避免 PostgREST 把 eq.58 当整数解析（varchar 列需要 string 形式）
+    const pidStr = String(placementId);
     const placementIdStr = String(placement.placement_id || placementId);
     const { data: configs, error: cErr } = await db.from('waterfall_config')
       .select('*')
-      .or(`placement_id.eq.${pid},placement_id.eq.${placementIdStr}`)
+      .in('placement_id', [pidStr, placementIdStr])
       .order('id', { ascending: false });
     if (cErr) throw cErr;
 
     // 3. 查该 placement 下的所有 traffic_group（兼容 placement_id 列存 bigint 或 string pl_xxx）
-    const tgPid = Number(placementId);
+    const tgPid = String(placementId);
     const tgPlacementIdStr = String(placement.placement_id || placementId);
     const { data: groups } = await db.from('traffic_group')
       .select('id, group_name, status, is_default, conditions')
-      .or(`placement_id.eq.${tgPid},placement_id.eq.${tgPlacementIdStr}`)
+      .in('placement_id', [tgPid, tgPlacementIdStr])
       .order('id', { ascending: false });
 
     const groupMap = new Map((groups || []).map((g) => [String(g.id), g]));
@@ -214,16 +216,33 @@ router.get('/list', authMiddleware, async (req: express.Request, res: express.Re
       } catch { return '自定义规则'; }
     };
 
-    // 4. 聚合每个 config 的 ad_source 数量
+    // 4. 聚合每个 config 的 ad_source 数量（双路统计：waterfall_layer 表 + layers JSONB 兜底）
     const configIds = (configs || []).map((c) => c.id);
     const sourceCountMap = new Map<number, number>();
     if (configIds.length > 0) {
+      // 4a. 优先从 waterfall_layer 表统计
       const { data: layerRows } = await db.from('waterfall_layer')
         .select('config_id, ad_source_id')
         .in('config_id', configIds);
       (layerRows || []).forEach((r) => {
         const cid = Number(r.config_id);
         sourceCountMap.set(cid, (sourceCountMap.get(cid) || 0) + 1);
+      });
+      // 4b. JSONB 兜底：表为空时，从 config.layers 数组统计
+      (configs || []).forEach((c) => {
+        const cid = Number(c.id);
+        if (!sourceCountMap.has(cid) || sourceCountMap.get(cid) === 0) {
+          const ls = (c as { layers?: unknown }).layers;
+          if (Array.isArray(ls)) {
+            const valid = ls.filter((l) => {
+              if (!l || typeof l !== 'object') return false;
+              const o = l as { ad_source_id?: number; adSourceId?: number };
+              const aid = o.ad_source_id ?? o.adSourceId;
+              return aid && aid > 0;
+            });
+            if (valid.length > 0) sourceCountMap.set(cid, valid.length);
+          }
+        }
       });
     }
 

@@ -196,6 +196,16 @@
   - **⚠️ 待补表**：`ad_network_account`（广告平台账号管理，6 步对接流程步骤二需要）
 - 通过 Supabase 控制台手动建表（**无 migration 文件**，新环境需同步建表）
 - RLS **当前未启用**（用 service_role key 绕过），存在越权风险，未来需补
+- `waterfall_config.layers` JSONB 列（**必填**）：保存每条配置的 3 个瀑布层（Bidding/瀑布/兜底）。**该列在最早建表时缺失，导致历史 update 静默丢弃 layers 字段。已通过 `exec_sql` ALTER TABLE ADD COLUMN 修复**。新环境必须同步建表时带上此列：
+  ```sql
+  ALTER TABLE waterfall_config ADD COLUMN IF NOT EXISTS layers JSONB DEFAULT '[]'::jsonb;
+  ```
+- **`waterfall_layer` 与 `waterfall_config.layers` 双写策略**：
+  - 旧 `update` 端点：只写 `waterfall_config.layers`（JSONB），不写 `waterfall_layer` 表
+  - 新 `update` 端点（refactor 后）：双写 — `waterfall_config.layers` + `waterfall_layer` 关联表
+  - `get` 端点返回 `{ config: { layers: JSONB }, layers: 关联表 rows }` 双份
+  - **`fetchConfig` 前端策略**：优先用 `config.layers`（JSONB），为空时回退 `waterfall_layer` 行（避免误把 `[]` 当作"无配置"）。已修复。
+- **get/list 端点的 placement_id 查询**：`waterfall_config.placement_id` 实际存为 number-as-string（如 `"58"`），但 placement 表的 `placement_id` 列存为 `"pl_xxx"` 形式。list 端用 `.in('placement_id', [pidStr, placementIdStr])` 兼容两种入参（前端用 number `selectedPlacement.value`，后端也接受 string `"pl_xxx"`）。**新环境部署必须保证 `waterfall_config.placement_id` 列与创建 config 时传入的 placementId 形式一致**（推荐 number）。
 
 ## 实施差距分析（vs PLAN.md）
 

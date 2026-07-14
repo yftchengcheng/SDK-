@@ -175,6 +175,7 @@
             </div>
             <div class="detail-card-body">
               <el-table
+                class="wf-config-table"
                 :data="configList"
                 v-loading="configListLoading"
                 empty-text="该广告位还没有任何流量分组配置，点击右上「保存配置」即可创建"
@@ -547,10 +548,12 @@ const fetchConfig = async (groupId: number = 0) => {
       params: { placementId: selectedPlacement.value, trafficGroupId: groupId || 0 },
     });
     const config = res.data?.config;
-    if (config?.layers) {
-      layers[0].sources = config.layers.filter((l: any) => l.layer_type === 1);
-      layers[1].sources = config.layers.filter((l: any) => l.layer_type === 2);
-      layers[2].sources = config.layers.filter((l: any) => l.layer_type === 3);
+    // 优先用 config.layers（JSONB，可能为 []）；如果空数组但 waterfall_layer 有数据，再用 waterfall_layer 合并
+    const fromConfig = Array.isArray(config?.layers) ? config.layers : [];
+    const fromTable = Array.isArray(res.data?.layers) ? res.data.layers : [];
+    const flatLayers: any[] = fromConfig.length > 0 ? fromConfig : fromTable;
+    if (flatLayers.length) {
+      layers.forEach((ly, i) => { ly.sources = flatLayers.filter((l: any) => Number(l.layer_type) === ly.type); });
     } else {
       layers.forEach(l => l.sources = []);
     }
