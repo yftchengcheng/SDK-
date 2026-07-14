@@ -278,10 +278,10 @@
                   <el-input
                     v-model="editForm.extraText"
                     type="textarea"
-                    :rows="3"
-                    placeholder='JSON 格式，如 {"slot_id":"xxx"}'
+                    :rows="5"
+                    placeholder='支持各广告平台特有的高级参数，JSON 格式，例如：&#10;{&#10;  "slot_id": "your_slot_id",&#10;  "timeout": 5000,&#10;  "test_mode": false&#10;}'
                   />
-                  <div class="form-help">支持各广告平台特有的高级参数</div>
+                  <div class="form-help">各广告平台特有的高级参数，如穿山甲的 slot_id、优量汇的透传参数等，留空使用默认</div>
                 </el-form-item>
               </div>
             </section>
@@ -570,6 +570,16 @@ const handleEdit = async (row: any) => {
   const found = customNetworks.value.find((n: any) => n.id === netId);
   const networkCode = found?.network_code ?? row.network_code ?? '';
   const networkName = found?.network_name ?? row.network_name ?? '';
+  // 同步顶部 selectedAppId / selectedPlacementId，让「所属应用」「所属广告位」disabled input 在编辑时正确回显
+  if (row.app_id) {
+    selectedAppId.value = row.app_id;
+    if (row.placement_id) {
+      await fetchPlacements(row.app_id);
+      selectedPlacementId.value = row.placement_id;
+    } else {
+      selectedPlacementId.value = null;
+    }
+  }
   Object.assign(editForm, {
     id: row.id,
     source_name: row.source_name,
