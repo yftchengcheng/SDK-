@@ -561,14 +561,21 @@ const openCreate = () => {
 const closeDrawer = () => { drawerVisible.value = false; };
 const onFormReset = () => { Object.assign(editForm, defaultForm); };
 
-const handleEdit = (row: any) => {
+const handleEdit = async (row: any) => {
   isEdit.value = true;
+  // 先确保 customNetworks 列表已加载，否则 el-select 找不到 option 会把 v-model "329" 原样渲染
+  await fetchCustomNetworks();
+  // 如果 row.network_def_id 不在列表里（极端情况：刚新建的还没同步到列表），用 row 自身字段兜底
+  const netId = row.network_def_id ?? null;
+  const found = customNetworks.value.find((n: any) => n.id === netId);
+  const networkCode = found?.network_code ?? row.network_code ?? '';
+  const networkName = found?.network_name ?? row.network_name ?? '';
   Object.assign(editForm, {
     id: row.id,
     source_name: row.source_name,
-    networkDefId: row.network_def_id ?? null,
-    networkCode: row.network_code ?? '',
-    networkName: row.network_name ?? '',
+    networkDefId: netId,
+    networkCode,
+    networkName,
     third_app_id: row.third_app_id,
     third_placement_id: row.third_placement_id,
     extraText: row.extra ? (typeof row.extra === 'string' ? row.extra : JSON.stringify(row.extra)) : '',
