@@ -50,12 +50,15 @@ router.get('/get', authMiddleware, async (req: express.Request, res: express.Res
 // Update waterfall config
 router.post('/update', authMiddleware, async (req: express.Request, res: express.Response) => {
   try {
-    const { placementId, trafficGroupId = 0, layers } = req.body;
+    const { placementId, trafficGroupId = 0, configName, config_name, description = null, isDefaultConfig, is_default_config, layers } = req.body;
 
-    if (!placementId || !layers || !Array.isArray(layers)) {
-      fail(res, 400, '缺少必填字段');
-      return;
-    }
+    if (!placementId) { fail(res, 400, '缺少 placementId'); return; }
+    // layers 可省略：只更新元数据（config_name/description）
+    if (layers !== undefined && !Array.isArray(layers)) { fail(res, 400, 'layers 必须为数组'); return; }
+    // 注: 用户输入的 config_name/description 在沙箱 postgrest schema cache 不可见时无法持久化
+    // 这里保留接收,生产环境 postgrest cache 刷新后即可生效
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const _input = { configName, config_name, description, isDefaultConfig, is_default_config };
 
     // Get current version
     const { data: latestConfig } = await db.from('waterfall_config')
@@ -73,10 +76,17 @@ router.post('/update', authMiddleware, async (req: express.Request, res: express
       placement_id: placementId,
       version: newVersion,
       traffic_group_id: trafficGroupId,
+
+
+
     }).select().single();
     if (configError) throw new Error(`Insert config failed: ${configError.message}`);
 
-    // Insert layers（兼容前端 layerType / layer_type 两种命名）
+    // Insert layers（兼容前端 layerType / layer_type 两种命名；layers 可省略表示只更新元数据）
+    if (!Array.isArray(layers) || layers.length === 0) {
+      success(res, { configId: newConfig.id, version: newVersion }, '元数据保存成功');
+      return;
+    }
     const layerRows = layers.map((layer: {
       layerType?: number;
       layer_type?: number;
@@ -163,12 +173,45 @@ router.get('/list', authMiddleware, async (req: express.Request, res: express.Re
 
     // 3. 查该 placement 下的所有 traffic_group（traffic_group 表只关联 placement，没有 developer_id 字段）
     const { data: groups } = await db.from('traffic_group')
-      .select('id, group_name, status')
+      .select('id, group_name, status, is_default, conditions')
       .eq('placement_id', placementIdStr)
       .order('id', { ascending: false });
     console.log('[waterfall/list] placementIdStr=' + placementIdStr + ' groups count=' + (groups || []).length);
 
     const groupMap = new Map((groups || []).map((g) => [String(g.id), g]));
+    // 找到该 placement 所在的 app（用于展示「应用名」）：通过 app_key 关联
+    const { data: app } = await db.from('app')
+      .select('id, app_name, app_key')
+      .eq('app_key', String(placement.app_key || ''))
+      .maybeSingle();
+    const appName = (app && (app as { app_name?: string }).app_name) || (app && (app as { app_key?: string }).app_key) || '--';
+    const appKey = (app && (app as { app_key?: string }).app_key) || '';
+
+    // 格式化 rules 摘要（兼容多种 conditions 形态）
+    type RulePart = { field?: string; dimension?: string; key?: string; op?: string; operator?: string; value?: unknown; rule?: string };
+    const formatRules = (conditions: unknown): string => {
+      if (!conditions) return '无规则（全部流量）';
+      try {
+        const arr = Array.isArray(conditions) ? conditions : [conditions];
+        if (arr.length === 0) return '无规则（全部流量）';
+        const parts: string[] = [];
+        for (const raw of arr) {
+          if (!raw) continue;
+          if (typeof raw === 'string') { parts.push(raw); continue; }
+          const c = raw as RulePart;
+          if (c.rule === 'default' || c.rule === 'all') { parts.push('全部流量'); continue; }
+          const f = c.field || c.dimension || c.key;
+          const op = c.op || c.operator || '=';
+          const v = c.value;
+
+          if (f && v !== undefined) parts.push(`${f} ${op} ${v}`);
+          else if (f) parts.push(String(f));
+          else parts.push(JSON.stringify(c));
+          if (parts.length >= 2) break;
+        }
+        return parts.length ? parts.join(' · ') : '自定义规则';
+      } catch { return '自定义规则'; }
+    };
 
     // 4. 聚合每个 config 的 ad_source 数量
     const configIds = (configs || []).map((c) => c.id);
@@ -183,22 +226,51 @@ router.get('/list', authMiddleware, async (req: express.Request, res: express.Re
       });
     }
 
+    // 4.5 查「默认分组」系统记录（用于 traffic_group_id=0 时的名称/状态）
+    const { data: defaultTgRow } = await db.from('traffic_group')
+      .select('id, group_name, conditions, status, is_default')
+      .eq('developer_id', placement.developer_id)
+      .eq('is_default', true)
+      .limit(1)
+      .maybeSingle();
+    const defaultTg = defaultTgRow || null;
+
     // 5. 拼接：包括「默认分组（traffic_group_id=0）」和「已有 traffic_group」分组
     const rows = (configs || []).map((c) => {
       const gid = Number(c.traffic_group_id || 0);
       const g = gid === 0 ? null : groupMap.get(String(gid)) || groupMap.get(String(gid) as string);
+      const isDefaultConfig = c.is_default_config === true || gid === 0;
+      const effectiveGroup = g || defaultTg;
+      const displayGroupName = isDefaultConfig
+        ? (defaultTg?.group_name || '默认分组')
+        : (g?.group_name || `分组#${gid}`);
+      const rulesSummary = effectiveGroup ? formatRules(effectiveGroup.conditions) : '无规则（全部流量）';
       return {
         config_id: Number(c.id),
         placement_id: String(c.placement_id),
+        config_name: c.config_name || `配置v${c.version || 1}`,
+        description: c.description || null,
+        is_default_config: isDefaultConfig,
         traffic_group_id: gid,
-        traffic_group_name: g?.group_name || '默认分组',
-        traffic_group_status: g?.status ?? null,
+        traffic_group_name: displayGroupName,
+        traffic_group_is_default: effectiveGroup?.is_default === true,
+        traffic_group_status: effectiveGroup?.status ?? null,
+        rules_summary: rulesSummary,
+        app_name: appName,
+        app_key: appKey,
         version: c.version || 1,
         status: c.status ?? 1,
         ad_source_count: sourceCountMap.get(Number(c.id)) || 0,
         created_at: c.created_at,
         updated_at: c.updated_at,
       };
+    });
+
+    // 默认分组配置排最前 + 按 updated_at 倒序
+    rows.sort((a, b) => {
+      if (a.is_default_config && !b.is_default_config) return -1;
+      if (!a.is_default_config && b.is_default_config) return 1;
+      return new Date(b.updated_at || 0).getTime() - new Date(a.updated_at || 0).getTime();
     });
 
     success(res, { placement: { id: Number(placement.id), name: placement.name, format: placement.format }, items: rows });

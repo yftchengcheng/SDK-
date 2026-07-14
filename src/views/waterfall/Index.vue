@@ -155,7 +155,7 @@
                 </el-option>
               </el-select>
               <el-button :icon="Refresh" @click="onRefreshAll">刷新</el-button>
-              <el-button type="primary" :loading="saving" @click="saveConfig">保存配置</el-button>
+              <el-button type="primary" :icon="Document" :loading="saving" @click="openSaveDialog">保存当前分组配置</el-button>
             </div>
           </div>
 
@@ -186,13 +186,37 @@
                 :row-class-name="(args: any) => Number(args.row.traffic_group_id) === selectedTrafficGroupId ? 'wf-row-active' : ''"
                 @row-click="(row: any) => onTrafficGroupChange(Number(row.traffic_group_id))"
               >
-                <el-table-column label="流量分组" min-width="180">
+                <el-table-column label="流量分组" min-width="240">
                   <template #default="{ row }">
-                    <div class="wf-config-group">
-                      <el-icon v-if="row.traffic_group_id === 0" class="wf-config-group-icon wf-config-group-default"><Folder /></el-icon>
+                    <div class="wf-config-group" :class="{ 'wf-config-group--default': row.is_default_config }">
+                      <el-icon v-if="row.is_default_config" class="wf-config-group-icon wf-config-group-default"><Lock /></el-icon>
                       <el-icon v-else class="wf-config-group-icon"><UserFilled /></el-icon>
-                      <span class="wf-config-group-name">{{ row.traffic_group_name }}</span>
-                      <el-tag v-if="row.traffic_group_id === selectedTrafficGroupId" size="small" type="primary" effect="light">编辑中</el-tag>
+                      <div class="wf-config-group-text">
+                        <div class="wf-config-group-line1">
+                          <span class="wf-config-group-name">{{ row.traffic_group_name }}</span>
+                          <el-tag v-if="row.is_default_config" size="small" type="info" effect="plain" class="wf-default-tag">默认分组配置</el-tag>
+                          <el-tag v-if="row.traffic_group_id === selectedTrafficGroupId" size="small" type="primary" effect="light">编辑中</el-tag>
+                        </div>
+                        <div class="wf-config-group-line2">
+                          <span class="wf-config-name">{{ row.config_name || `配置v${row.version}` }}</span>
+                          <el-tooltip v-if="row.description" :content="row.description" placement="top">
+                            <el-icon class="wf-config-desc-icon"><QuestionFilled /></el-icon>
+                          </el-tooltip>
+                        </div>
+                      </div>
+                    </div>
+                  </template>
+                </el-table-column>
+                <el-table-column label="应用 / 规则" min-width="200">
+                  <template #default="{ row }">
+                    <div class="wf-config-rules">
+                      <div class="wf-config-app">
+                        <el-icon class="wf-config-app-icon"><Folder /></el-icon>
+                        <span>{{ row.app_name || '--' }}</span>
+                      </div>
+                      <div class="wf-config-rules-text" :title="row.rules_summary">
+                        {{ row.rules_summary }}
+                      </div>
                     </div>
                   </template>
                 </el-table-column>
@@ -324,6 +348,63 @@
         <el-button type="primary" :loading="adding" @click="confirmAddSource">添加到当前层</el-button>
       </template>
     </el-dialog>
+
+    <!-- ============ 保存配置弹窗（彻底方案 C：要求填写 configName / description） ============ -->
+    <el-dialog
+      v-model="saveDialogVisible"
+      title="保存流量分组配置"
+      width="520px"
+      :close-on-click-modal="false"
+      class="wf-save-dialog"
+    >
+      <div class="wf-save-summary">
+        <div class="wf-save-summary-item">
+          <span class="wf-save-summary-label">所属广告位</span>
+          <span class="wf-save-summary-value">{{ currentPlacement?.name || '--' }} <small style="color:#94a3b8">#{{ selectedPlacement }}</small></span>
+        </div>
+        <div class="wf-save-summary-item">
+          <span class="wf-save-summary-label">所属流量分组</span>
+          <span class="wf-save-summary-value">
+            <el-tag v-if="selectedTrafficGroupId === 0" size="small" type="info" effect="plain"><el-icon><Lock /></el-icon> 默认分组</el-tag>
+            <el-tag v-else size="small" type="primary" effect="plain">
+              {{ trafficGroupOptions.find(g => g.id === selectedTrafficGroupId)?.group_name || '#' + selectedTrafficGroupId }}
+            </el-tag>
+          </span>
+        </div>
+        <div class="wf-save-summary-item">
+          <span class="wf-save-summary-label">本次将创建</span>
+          <span class="wf-save-summary-value">
+            <el-tag size="small" effect="plain" type="warning">v{{ (configList[0]?.version || 0) + 1 }}</el-tag>
+            <small style="color:#94a3b8;margin-left:6px">共 {{ totalSourceCount }} 个广告源</small>
+          </span>
+        </div>
+      </div>
+      <el-form :model="saveDialogForm" label-position="top" class="wf-save-form">
+        <el-form-item label="配置名称" required>
+          <el-input
+            v-model="saveDialogForm.configName"
+            placeholder="如：Banner-国内-主推配置"
+            maxlength="100"
+            show-word-limit
+            clearable
+          />
+        </el-form-item>
+        <el-form-item label="配置备注（可选）">
+          <el-input
+            v-model="saveDialogForm.description"
+            type="textarea"
+            :rows="3"
+            placeholder="说明这个配置的使用场景、变更原因等，方便以后回溯"
+            maxlength="500"
+            show-word-limit
+          />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="saveDialogVisible = false">取消</el-button>
+        <el-button type="primary" :icon="Document" :loading="saveDialogSaving" @click="doSaveConfig">保存为 v{{ (configList[0]?.version || 0) + 1 }}</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -333,7 +414,7 @@ import request from '../../utils/request';
 import { ElMessage } from 'element-plus';
 import Sortable from 'sortablejs';
 import dayjs from 'dayjs';
-import { Operation, Refresh, Plus, Aim, Key, CopyDocument, Top, PriceTag, Bottom, Search, Folder, UserFilled } from '@element-plus/icons-vue';
+import { Operation, Refresh, Plus, Aim, Key, CopyDocument, Top, PriceTag, Bottom, Search, Folder, UserFilled, Lock, Document, CircleClose, QuestionFilled } from '@element-plus/icons-vue';
 
 const formatTime = (t: string | number | Date | null | undefined) => {
   if (!t) return '-';
@@ -358,7 +439,15 @@ const loading = ref(false);
 const configList = ref<any[]>([]);
 const configListLoading = ref(false);
 const selectedTrafficGroupId = ref<number>(0);
-const trafficGroupOptions = ref<Array<{ id: number; group_name: string; status: number }>>([]);
+const trafficGroupOptions = ref<Array<{ id: number; group_name: string; status: number; is_default?: boolean }>>([]);
+
+// 保存配置弹窗
+const saveDialogVisible = ref(false);
+const saveDialogForm = reactive({
+  configName: '',
+  description: '',
+});
+const saveDialogSaving = ref(false);
 
 const currentLayerLabel = computed(() => {
   const l = layers.find(x => x.type === currentLayerType.value);
@@ -558,25 +647,44 @@ const onRefreshAll = async () => {
   ElMessage.success('已刷新');
 };
 
-const saveConfig = async () => {
+const openSaveDialog = () => {
   if (!selectedPlacement.value) { ElMessage.warning('请先选择广告位'); return; }
-  saving.value = true;
+  const tg = trafficGroupOptions.value.find(g => g.id === selectedTrafficGroupId.value);
+  const isDefault = !tg || tg.is_default === true || selectedTrafficGroupId.value === 0;
+  // 默认填充：默认分组 → 「默认配置-广告位名-时间」，指定分组 → 「{分组名}配置-广告位名-时间」
+  const pName = currentPlacement.value?.name || '';
+  const timePart = new Date().toISOString().slice(0, 10);
+  saveDialogForm.configName = (isDefault ? '默认配置' : `${tg!.group_name}配置`) + `-${pName}-${timePart}`;
+  saveDialogForm.description = '';
+  saveDialogVisible.value = true;
+};
+
+const doSaveConfig = async () => {
+  if (!saveDialogForm.configName.trim()) {
+    ElMessage.warning('请填写配置名称');
+    return;
+  }
+  saveDialogSaving.value = true;
   try {
-    // 重新按当前数组顺序分配 priority，保证落库与 UI 同步
     layers.forEach((l) => {
-      l.sources.forEach((s, idx) => {
-        s.priority = idx;
-      });
+      l.sources.forEach((s, idx) => { s.priority = idx; });
     });
     const allSources = layers.flatMap(l => l.sources.map(s => ({ ...s, layer_type: l.type })));
-    await request.post('/api/v1/console/waterfall/update', {
+    const tgId = selectedTrafficGroupId.value || 0;
+    const resp: any = await request.post('/api/v1/console/waterfall/update', {
       placementId: selectedPlacement.value,
-      trafficGroupId: selectedTrafficGroupId.value || 0,
+      trafficGroupId: tgId,
+      configName: saveDialogForm.configName.trim(),
+      description: saveDialogForm.description.trim() || null,
+      isDefaultConfig: tgId === 0,
       layers: allSources,
     });
-    ElMessage.success(selectedTrafficGroupId.value === 0 ? '默认分组配置已保存' : `流量分组 #${selectedTrafficGroupId.value} 配置已保存`);
-    await Promise.all([fetchConfig(selectedTrafficGroupId.value), fetchConfigList()]);
-  } catch { /* ignore */ } finally { saving.value = false; }
+    ElMessage.success(`「${saveDialogForm.configName}」保存成功（v${resp.data?.version || 1}）`);
+    saveDialogVisible.value = false;
+    await Promise.all([fetchConfig(tgId), fetchConfigList()]);
+  } catch { /* ignore */ } finally {
+    saveDialogSaving.value = false;
+  }
 };
 
 // 拖拽绑定：每次 sources 变化时重新挂载 Sortable

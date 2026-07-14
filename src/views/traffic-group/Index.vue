@@ -41,7 +41,19 @@
     </div>
     <div class="page-card">
       <div class="page-table-wrap"><el-table :data="tableData" v-loading="loading" stripe style="width: 100%">
-        <el-table-column prop="group_name" label="分组名称" min-width="140" />
+        <el-table-column prop="group_name" label="分组名称" min-width="160">
+          <template #default="{ row }">
+            <div class="cell-stack">
+              <div class="cell-stack-line1">
+                <el-icon v-if="row.is_default" class="cell-default-icon"><Lock /></el-icon>
+                <span :class="['cell-group-name', { 'cell-group-name--default': row.is_default }]">{{ row.group_name }}</span>
+                <el-tag v-if="row.is_default" size="small" effect="plain" type="info">默认分组</el-tag>
+                <el-tag v-else-if="row.is_system" size="small" effect="plain" type="info">系统</el-tag>
+              </div>
+              <div v-if="row.is_default" class="cell-stack-line2">不可删除 / 不可编辑，系统预置分组</div>
+            </div>
+          </template>
+        </el-table-column>
         <el-table-column prop="placement_id" label="广告位" min-width="180" />
         <el-table-column prop="waterfall_id" label="绑定瀑布流" min-width="200">
           <template #default="{ row }">
@@ -60,7 +72,11 @@
         </el-table-column>
         <el-table-column label="操作" width="160" fixed="right">
           <template #default="{ row }">
-            <div class="cell-actions"><el-button link type="primary" @click="handleEdit(row)">编辑</el-button><el-button link type="danger" @click="handleDelete(row)">删除</el-button></div>
+            <div class="cell-actions">
+              <el-button v-if="!row.is_default && !row.is_locked" link type="primary" @click="handleEdit(row)">编辑</el-button>
+              <el-button v-if="!row.is_default && !row.is_locked" link type="danger" @click="handleDelete(row)">删除</el-button>
+              <span v-if="row.is_default || row.is_locked" class="text-muted">系统保护</span>
+            </div>
           </template>
         </el-table-column>
       </el-table></div>
@@ -192,7 +208,7 @@ import { ref, reactive, onMounted } from 'vue';
 import request from '../../utils/request';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import type { FormInstance, FormRules } from 'element-plus';
-import { Plus, Search, RefreshLeft, Delete, Filter, Edit, InfoFilled, Close, Check } from '@element-plus/icons-vue';
+import { Plus, Search, RefreshLeft, Delete, Filter, Edit, InfoFilled, Close, Check, Lock } from '@element-plus/icons-vue';
 
 const dimensions = [
   { value: 'country', label: '国家/地区' },
@@ -245,7 +261,14 @@ const fetchList = async () => {
     if (filter.status !== '') params.status = filter.status;
     if (filter.keyword.trim()) params.keyword = filter.keyword.trim();
     const res: any = await request.get('/api/v1/console/traffic-group/list', { params });
-    tableData.value = res.data?.list || [];
+    const list = res.data?.list || [];
+    // 默认分组（is_default=true）始终排在最前
+    list.sort((a: any, b: any) => {
+      if (a.is_default === true && b.is_default !== true) return -1;
+      if (b.is_default === true && a.is_default !== true) return 1;
+      return (b.id || 0) - (a.id || 0);
+    });
+    tableData.value = list;
   } catch { /* ignore */ } finally { loading.value = false; }
 };
 
