@@ -76,19 +76,23 @@ router.post('/update', authMiddleware, async (req: express.Request, res: express
     }).select().single();
     if (configError) throw new Error(`Insert config failed: ${configError.message}`);
 
-    // Insert layers
+    // Insert layers（兼容前端 layerType / layer_type 两种命名）
     const layerRows = layers.map((layer: {
-      layerType: number;
+      layerType?: number;
+      layer_type?: number;
       adSourceId: number;
+      ad_source_id?: number;
       sortPrice?: number;
+      sort_price?: number;
       timeoutMs?: number;
+      timeout_ms?: number;
       priority?: number;
     }, index: number) => ({
       config_id: newConfig.id,
-      layer_type: layer.layerType,
-      ad_source_id: layer.adSourceId,
-      sort_price: layer.sortPrice || 0,
-      timeout_ms: layer.timeoutMs || 3000,
+      layer_type: layer.layerType ?? layer.layer_type ?? 0,
+      ad_source_id: layer.adSourceId ?? layer.ad_source_id ?? 0,
+      sort_price: layer.sortPrice ?? layer.sort_price ?? 0,
+      timeout_ms: layer.timeoutMs ?? layer.timeout_ms ?? 3000,
       priority: layer.priority ?? index,
       status: 1,
     }));
