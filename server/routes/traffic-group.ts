@@ -8,19 +8,25 @@ const router = Router();
 // List traffic groups
 router.get('/list', authMiddleware, async (req: express.Request, res: express.Response) => {
   try {
-    const { placementId, page = 1, pageSize = 20 } = req.query as Record<string, string>;
+    const { placementId, developerId, page = 1, pageSize = 20 } = req.query as Record<string, string>;
 
-    if (!placementId) {
-      fail(res, 400, '缺少placementId');
-      return;
+    // placementId 选填：传了就按 placement 过滤；不传则返回该 developer 下全部流量分组
+    const filters: Record<string, unknown> = {};
+    if (placementId) {
+      filters.placement_id = placementId;
+    }
+    if (developerId) {
+      filters.developer_id = developerId;
     }
 
-    const p = Number(page);
-    const ps = Number(pageSize);
+    const p = Number(page) || 1;
+    const ps = Number(pageSize) || 20;
 
-    const { data, count, error } = await db.from('traffic_group')
-      .select('*', { count: 'exact' })
-      .eq('placement_id', placementId)
+    let query = db.from('traffic_group').select('*', { count: 'exact' });
+    Object.entries(filters).forEach(([k, v]) => {
+      query = query.eq(k, v);
+    });
+    const { data, count, error } = await query
       .order('priority', { ascending: true })
       .range((p - 1) * ps, p * ps - 1);
     if (error) throw new Error(`Query failed: ${error.message}`);
