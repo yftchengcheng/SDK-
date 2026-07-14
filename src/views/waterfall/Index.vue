@@ -158,7 +158,7 @@
                     <el-tag size="small" effect="plain" type="info">{{ row.network_code || '—' }}</el-tag>
                   </template>
                 </el-table-column>
-                <el-table-column prop="sort_price" label="排序价格(元)" width="150">
+                <el-table-column prop="sort_price" label="出价(元)" width="150">
                   <template #default="{ row }">
                     <el-input-number v-if="layer.type === 2" v-model="row.sort_price" :min="0" :precision="2" :controls="false" size="small" style="width: 110px" />
                     <span v-else class="wf-layer-na">—</span>
@@ -252,7 +252,7 @@ const currentLayerLabel = computed(() => {
 // 三层
 const layers = reactive([
   { type: 1, shortLabel: 'BIDDING', label: 'Bidding层（并行竞价，相同价位同时请求）', sources: [] as any[] },
-  { type: 2, shortLabel: 'STANDARD', label: 'Standard层（标准价格，按 sort_price 倒序请求）', sources: [] as any[] },
+  { type: 2, shortLabel: 'STANDARD', label: 'Standard层（标准价格，按出价倒序请求）', sources: [] as any[] },
   { type: 3, shortLabel: 'FALLBACK', label: 'Fallback层（兜底，全部失败时按顺序请求）', sources: [] as any[] },
 ]);
 
