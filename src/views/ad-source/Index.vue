@@ -378,7 +378,7 @@ const formRef = ref<FormInstance>();
 const defaultForm = {
   id: 0 as number,
   source_name: '',
-  networkDefId: 0 as number,
+  networkDefId: null as number | null,
   networkCode: '',
   networkName: '',
   third_app_id: '',
@@ -392,7 +392,7 @@ const formRules: FormRules = {
   networkDefId: [
     {
       validator: (_rule, value, callback) => {
-        if (entryMode.value === 'standard' && (!value || value <= 0)) {
+        if (entryMode.value === 'standard' && (!value || Number(value) <= 0)) {
           callback(new Error('请选择广告平台'));
         } else {
           callback();
@@ -566,7 +566,7 @@ const handleEdit = (row: any) => {
   Object.assign(editForm, {
     id: row.id,
     source_name: row.source_name,
-    networkDefId: row.network_def_id ?? 0,
+    networkDefId: row.network_def_id ?? null,
     networkCode: row.network_code ?? '',
     networkName: row.network_name ?? '',
     third_app_id: row.third_app_id,

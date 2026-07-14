@@ -162,6 +162,13 @@ const log = (...a) => console.log('[chk-adsrc]', ...a);
           inputEl = formItem.querySelector('input');
         }
       }
+      let selectPlaceholder = null, selectSelectedLabel = null;
+      if (selectEl) {
+        const placeholderEl = selectEl.querySelector('.el-select__placeholder');
+        const selectedEl = selectEl.querySelector('.el-select__selected-item, .el-input__inner');
+        selectPlaceholder = placeholderEl ? placeholderEl.textContent : null;
+        selectSelectedLabel = selectedEl ? selectedEl.textContent : null;
+      }
       return {
         drawerOpen: !!drawer,
         bodyForms: bodyForms.length,
@@ -173,6 +180,8 @@ const log = (...a) => console.log('[chk-adsrc]', ...a);
         platformItemType: selectEl ? 'select' : (inputEl ? 'input' : 'none'),
         platformInputDisabled: inputEl ? inputEl.disabled : null,
         platformInputValue: inputEl ? inputEl.value : null,
+        selectPlaceholder,
+        selectSelectedLabel,
       };
     });
     log('A: standard form info', stdFormInfo);
@@ -234,7 +243,8 @@ const log = (...a) => console.log('[chk-adsrc]', ...a);
 
     // 汇总
     log('--- 汇总 ---');
-    const A_pass = stdFormInfo.drawerOpen && stdFormInfo.hasPlatformLabel && stdFormInfo.platformItemType === 'select';
+    const A_pass = stdFormInfo.drawerOpen && stdFormInfo.hasPlatformLabel && stdFormInfo.platformItemType === 'select'
+      && stdFormInfo.selectPlaceholder === '请选择自定义广告平台' && stdFormInfo.selectSelectedLabel !== '0';
     const B_pass = customFormInfo.drawerOpen
       && customFormInfo.hasPlatformLabel
       && customFormInfo.platformItemType === 'input'
