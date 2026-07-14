@@ -69,7 +69,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   const browser = await puppeteer.launch({ executablePath: '/root/.cache/ms-playwright/chromium-1161/chrome-linux/chrome', headless: 'new', args: ['--no-sandbox'] });
   const page = await browser.newPage();
   await page.setViewport({ width: 1440, height: 900 });
-  page.on('console', m => { if (m.type() === 'error') console.log('CON-ERR', m.text().slice(0, 200)); });
+  page.on('console', m => { if (m.type() === 'error') console.log('CON-ERR', m.text()); });
   page.on('pageerror', e => console.log('PAGEERR', e.message));
   await page.goto(`http://localhost:${PORT}/login`, { waitUntil: 'networkidle0' });
   await page.setCookie({ name: 'auth_token', value: token, url: `http://localhost:${PORT}`, sameSite: 'Strict' });

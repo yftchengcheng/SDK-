@@ -183,7 +183,7 @@
                 :data="configList"
                 v-loading="configListLoading"
                 empty-text="该广告位还没有任何流量分组配置，点击右上「保存配置」即可创建"
-                :row-class-name="(args: any) => Number(args.row.traffic_group_id) === selectedTrafficGroupId ? 'wf-row-active' : ''"
+                :row-class-name="configRowClassName"
                 @row-click="(row: any) => onTrafficGroupChange(Number(row.traffic_group_id))"
               >
                 <el-table-column label="流量分组" min-width="240">
@@ -196,6 +196,7 @@
                           <span class="wf-config-group-name">{{ row.traffic_group_name }}</span>
                           <el-tag v-if="row.is_default_config" size="small" type="info" effect="plain" class="wf-default-tag">默认分组配置</el-tag>
                           <el-tag v-if="row.traffic_group_id === selectedTrafficGroupId" size="small" type="primary" effect="light">编辑中</el-tag>
+                          <el-tag v-if="Number(row.config_id) === justSavedConfigId" size="small" type="warning" effect="dark" class="wf-saved-tag">✓ 刚保存</el-tag>
                         </div>
                         <div class="wf-config-group-line2">
                           <span class="wf-config-name">{{ row.config_name || `配置v${row.version}` }}</span>
@@ -440,6 +441,8 @@ const configList = ref<any[]>([]);
 const configListLoading = ref(false);
 const selectedTrafficGroupId = ref<number>(0);
 const trafficGroupOptions = ref<Array<{ id: number; group_name: string; status: number; is_default?: boolean }>>([]);
+// 临时高亮：刚保存成功的 config 行 id（金色脉冲动画 2.5s 后消失）—— 存 config_id 而非 traffic_group_id，避免默认配置组（tgId=0）多行同色
+const justSavedConfigId = ref<number | null>(null);
 
 // 保存配置弹窗
 const saveDialogVisible = ref(false);
@@ -659,6 +662,15 @@ const openSaveDialog = () => {
   saveDialogVisible.value = true;
 };
 
+// el-table row className：刚保存的行优先（金色脉冲），其次当前编辑的行（蓝边）
+const configRowClassName = ({ row }: { row: any }) => {
+  const cid = Number(row?.config_id ?? -1);
+  const gid = Number(row?.traffic_group_id ?? -1);
+  if (cid === justSavedConfigId.value) return 'wf-row-just-saved';
+  if (gid === selectedTrafficGroupId.value) return 'wf-row-active';
+  return '';
+};
+
 const doSaveConfig = async () => {
   if (!saveDialogForm.configName.trim()) {
     ElMessage.warning('请填写配置名称');
@@ -681,7 +693,22 @@ const doSaveConfig = async () => {
     });
     ElMessage.success(`「${saveDialogForm.configName}」保存成功（v${resp.data?.version || 1}）`);
     saveDialogVisible.value = false;
+    // 重新拉取后，selectedTrafficGroupId 保持 = tgId（用户编辑的就是这个分组）
+    const savedConfigId = Number(resp.data?.configId || 0);
     await Promise.all([fetchConfig(tgId), fetchConfigList()]);
+    // 临时高亮刚保存的行 + 滚动到视野（用 config_id 精确定位，避免默认分组多行同色）
+    if (savedConfigId > 0) {
+      justSavedConfigId.value = savedConfigId;
+      await nextTick();
+      const idx = configList.value.findIndex(c => Number(c.config_id) === savedConfigId);
+      if (idx >= 0) {
+        const rowEl = document.querySelectorAll('.wf-config-table .el-table__body tr')[idx] as HTMLElement | undefined;
+        rowEl?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+      setTimeout(() => {
+        if (justSavedConfigId.value === savedConfigId) justSavedConfigId.value = null;
+      }, 2500);
+    }
   } catch { /* ignore */ } finally {
     saveDialogSaving.value = false;
   }

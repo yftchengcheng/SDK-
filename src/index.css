@@ -7973,3 +7973,23 @@ html, body, #app {
   box-shadow: inset 3px 0 0 var(--color-primary-500, #3B82F6);
 }
 .el-table__row { cursor: pointer; }
+
+/* 刚保存成功的行：金色脉冲 2 次（共 2.5s 后清掉 class） */
+.wf-row-just-saved {
+  animation: wf-row-pulse 1.25s ease-in-out 2;
+}
+@keyframes wf-row-pulse {
+  0%, 100% { background-color: transparent; }
+  20% { background-color: rgba(245, 158, 11, 0.22); }
+  60% { background-color: rgba(245, 158, 11, 0.10); }
+}
+.wf-row-just-saved td:first-child {
+  box-shadow: inset 3px 0 0 #F59E0B;
+}
+.wf-saved-tag {
+  animation: wf-saved-breath 1.2s ease-in-out 2 !important;
+}
+@keyframes wf-saved-breath {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.12); box-shadow: 0 0 0 4px rgba(245, 158, 11, 0.25); }
+}
