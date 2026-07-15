@@ -79,7 +79,7 @@ function getDefaultValue(ui: string): any {
     case 'weekday-pick':
       return [];
     case 'hour-range':
-      return [0, 23];
+      return [[0, 23]];
     case 'ecpm-range':
       return [0, 0];
     case 'region-china':
@@ -174,20 +174,36 @@ function setEcpmMax(rule: Rule, v: number) {
   rule.value = [cur[0] ?? 0, v];
 }
 
-// 小时范围
-function getHourMin(rule: Rule): number {
-  return Array.isArray(rule.value) ? rule.value[0] : 0;
+// 小时范围（支持多时段）
+function getHourRanges(rule: Rule): number[][] {
+  const v = rule.value;
+  if (Array.isArray(v) && v.length > 0 && Array.isArray(v[0])) {
+    return v as number[][];
+  }
+  // 兼容旧格式 [min, max] → [[min, max]]
+  if (Array.isArray(v) && v.length === 2 && v.every((n) => typeof n === 'number')) {
+    return [[v[0] as number, v[1] as number]];
+  }
+  return [[0, 23]];
 }
-function getHourMax(rule: Rule): number {
-  return Array.isArray(rule.value) ? rule.value[1] : 23;
+function setHourRangeMin(rule: Rule, idx: number, v: number) {
+  const ranges = getHourRanges(rule).map((r) => [...r]);
+  ranges[idx] = [v, ranges[idx]?.[1] ?? 23];
+  rule.value = ranges;
 }
-function setHourMin(rule: Rule, v: number) {
-  const cur = Array.isArray(rule.value) ? rule.value : [0, 23];
-  rule.value = [v, cur[1] ?? 23];
+function setHourRangeMax(rule: Rule, idx: number, v: number) {
+  const ranges = getHourRanges(rule).map((r) => [...r]);
+  ranges[idx] = [ranges[idx]?.[0] ?? 0, v];
+  rule.value = ranges;
 }
-function setHourMax(rule: Rule, v: number) {
-  const cur = Array.isArray(rule.value) ? rule.value : [0, 23];
-  rule.value = [cur[0] ?? 0, v];
+function addHourRange(rule: Rule) {
+  const ranges = getHourRanges(rule);
+  rule.value = [...ranges, [0, 23]];
+}
+function removeHourRange(rule: Rule, idx: number) {
+  const ranges = getHourRanges(rule);
+  if (ranges.length <= 1) return; // 至少保留一个
+  rule.value = ranges.filter((_, i) => i !== idx);
 }
 
 // 日期范围
@@ -381,18 +397,42 @@ watch(
           </template>
 
           <template v-else-if="rule.dimension === 'hour'">
-            <el-input-number
-              :model-value="getHourMin(rule)"
-              :min="0" :max="23"
-              @change="(v: number) => setHourMin(rule, v || 0)"
-            />
-            <span class="rule-editor-sep">至</span>
-            <el-input-number
-              :model-value="getHourMax(rule)"
-              :min="0" :max="23"
-              @change="(v: number) => setHourMax(rule, v || 0)"
-            />
-            <span class="rule-editor-hint">点</span>
+            <div
+              v-for="(range, idx) in getHourRanges(rule)"
+              :key="idx"
+              class="rule-editor-hour-row"
+            >
+              <el-input-number
+                :model-value="range[0]"
+                :min="0" :max="23"
+                @change="(v: number) => setHourRangeMin(rule, idx, v || 0)"
+              />
+              <span class="rule-editor-sep">至</span>
+              <el-input-number
+                :model-value="range[1]"
+                :min="0" :max="23"
+                @change="(v: number) => setHourRangeMax(rule, idx, v || 0)"
+              />
+              <span class="rule-editor-hint">点</span>
+              <el-button
+                v-if="getHourRanges(rule).length > 1"
+                :icon="Delete"
+                circle
+                plain
+                size="small"
+                class="rule-editor-hour-remove"
+                @click="removeHourRange(rule, idx)"
+              />
+            </div>
+            <el-button
+              :icon="Plus"
+              size="small"
+              plain
+              class="rule-editor-hour-add"
+              @click="addHourRange(rule)"
+            >
+              添加时段
+            </el-button>
           </template>
 
           <template v-else-if="rule.dimension === 'install_time'">

@@ -8059,3 +8059,16 @@ html, body, #app {
 .rule-editor-pick-btn {
   margin: 0;
 }
+.rule-editor-hour-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.rule-editor-hour-remove {
+  margin-left: 4px;
+}
+.rule-editor-hour-add {
+  margin-left: 0;
+  align-self: center;
+}

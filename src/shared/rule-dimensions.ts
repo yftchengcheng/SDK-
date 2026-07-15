@@ -227,7 +227,7 @@ export interface Rule {
   dimension: RuleDimension;
   operator: string;
   // 通用 value 字段
-  value: string | string[] | number | number[] | Record<string, unknown> | null;
+  value: string | string[] | number | number[] | number[][] | Record<string, unknown> | null;
   // 地区专用
   regionScope?: 'china' | 'global';
   regionTier?: 'TOP' | 'T1' | 'T2' | 'T3' | 'CONTINENT';
