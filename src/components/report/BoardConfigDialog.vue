@@ -1,17 +1,22 @@
 <!--
-  BoardConfigDialog - 看版配置弹窗
-  创建/编辑看版的名称、描述、布局类型、默认筛选器
+  BoardConfigDialog - 新建/编辑看版（仅综合报表）
+  仅含：看版名称 + 描述 + 默认时间
+  维度/指标/筛选/视图均在报表界面选择
 -->
 <template>
   <el-dialog
     :model-value="visible"
     :title="form.id ? '编辑看版' : '新建看版'"
-    width="640px"
+    width="520px"
     :close-on-click-modal="false"
     @update:model-value="(v: boolean) => emit('update:visible', v)"
     @open="onOpen"
     @close="onClose"
   >
+    <div class="board-config-hint">
+      <el-icon><InfoFilled /></el-icon>
+      <span>新建看版仅对综合报表生效。维度、指标、筛选器、视图等均在报表界面配置。</span>
+    </div>
     <el-form ref="formRef" :model="form" :rules="rules" label-width="100px" label-position="right">
       <el-form-item label="看版名称" prop="name">
         <el-input v-model="form.name" maxlength="50" placeholder="例：综合日报 - 收入维度" />
@@ -19,39 +24,16 @@
       <el-form-item label="描述">
         <el-input v-model="form.description" type="textarea" :rows="2" maxlength="200" placeholder="可选，描述此看版的用途" />
       </el-form-item>
-      <el-form-item label="报表类型" prop="report_type">
-        <el-radio-group v-model="form.report_type" :disabled="!!form.id">
-          <el-radio value="overview">综合报表</el-radio>
-          <el-radio value="funnel">漏斗分析</el-radio>
-          <el-radio value="behavior">用户行为</el-radio>
-        </el-radio-group>
-      </el-form-item>
-      <el-form-item v-if="form.report_type === 'overview'" label="默认视图">
-        <el-radio-group v-model="form.config.layout.view">
-          <el-radio value="table">表格</el-radio>
-          <el-radio value="card">卡片</el-radio>
-          <el-radio value="trend">趋势图</el-radio>
-          <el-radio value="bar">柱状图</el-radio>
-        </el-radio-group>
-      </el-form-item>
       <el-form-item label="默认时间">
         <el-select v-model="form.config.filters.dateRange" style="width: 200px">
           <el-option label="今天" value="today" />
           <el-option label="昨天" value="yesterday" />
           <el-option label="近 7 天" value="7d" />
+          <el-option label="近 14 天" value="14d" />
           <el-option label="近 30 天" value="30d" />
           <el-option label="本月" value="month" />
           <el-option label="上月" value="lastMonth" />
         </el-select>
-      </el-form-item>
-      <el-form-item v-if="form.report_type === 'overview'" label="默认维度">
-        <el-checkbox-group v-model="form.config.dimensions">
-          <el-checkbox value="date">日期</el-checkbox>
-          <el-checkbox value="app">应用</el-checkbox>
-          <el-checkbox value="placement">广告位</el-checkbox>
-          <el-checkbox value="ad_source">广告源</el-checkbox>
-          <el-checkbox value="country">国家</el-checkbox>
-        </el-checkbox-group>
       </el-form-item>
     </el-form>
     <template #footer>
@@ -63,6 +45,7 @@
 
 <script setup lang="ts">
 import { ref, watch } from 'vue';
+import { InfoFilled } from '@element-plus/icons-vue';
 import request from '@/utils/request';
 import { ElMessage } from 'element-plus';
 
@@ -70,7 +53,7 @@ interface BoardForm {
   id?: number;
   name: string;
   description: string;
-  report_type: 'overview' | 'funnel' | 'behavior';
+  report_type: 'overview';
   config: {
     dimensions: string[];
     metrics: string[];
@@ -101,7 +84,6 @@ const form = ref<BoardForm>(defaultForm());
 
 const rules = {
   name: [{ required: true, message: '请输入看版名称', trigger: 'blur' }],
-  report_type: [{ required: true, message: '请选择报表类型', trigger: 'change' }],
 };
 
 const onOpen = () => {

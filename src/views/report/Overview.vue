@@ -108,17 +108,30 @@
               <div class="config-section-label">
                 <el-icon><Grid /></el-icon>
                 <span>维度</span>
+                <span class="config-section-count">{{ effectiveDimensions.length }}</span>
               </div>
               <div class="config-section-tags">
                 <el-tag
-                  v-for="dim in currentBoard.config?.dimensions || []"
+                  v-for="dim in effectiveDimensions"
                   :key="dim"
                   size="small"
                   effect="plain"
                   type="info"
+                  class="config-section-tag"
                 >
                   {{ DIM_LABELS[dim] || dim }}
                 </el-tag>
+                <el-button
+                  v-if="effectiveDimensions.length === 0"
+                  :icon="Plus"
+                  size="small"
+                  text
+                  type="primary"
+                  @click="openDimensionPicker"
+                >选择维度</el-button>
+              </div>
+              <div class="config-section-actions">
+                <el-button :icon="Edit" size="small" text type="primary" @click="openDimensionPicker">编辑维度</el-button>
               </div>
             </div>
             <div class="config-divider"></div>
@@ -129,8 +142,7 @@
                 <span class="config-section-count">{{ effectiveMetrics.length }}</span>
               </div>
               <div class="config-section-actions">
-                <el-button :icon="Setting" size="small" @click="metricPickerRef?.open()">设置指标</el-button>
-                <MetricPicker ref="metricPickerRef" v-model="pickedMetrics" />
+                <el-button :icon="Setting" size="small" @click="openMetricPicker">设置指标</el-button>
               </div>
             </div>
           </div>
@@ -201,6 +213,19 @@
       :board="(editingBoard as any)"
       @saved="onSaved"
     />
+
+    <!-- 维度 / 指标 弹窗（始终挂载，由 ref 触发） -->
+    <DimensionPicker
+      v-if="currentBoard"
+      ref="dimPickerRef"
+      v-model="pickedDimensions"
+      @change="onDimensionsApply"
+    />
+    <MetricPicker
+      v-if="currentBoard"
+      ref="metricPickerRef"
+      v-model="pickedMetrics"
+    />
   </div>
 </template>
 
@@ -212,6 +237,7 @@ import {
   DataAnalysis, Files, DataLine, Grid, Histogram, Postcard, Setting, TrendCharts,
 } from '@element-plus/icons-vue';
 import request from '@/utils/request';
+import DimensionPicker from '@/components/report/DimensionPicker.vue';
 import MetricPicker from '@/components/report/MetricPicker.vue';
 import ReportTableView from '@/components/report/ReportTableView.vue';
 import ReportCardView from '@/components/report/ReportCardView.vue';
@@ -243,11 +269,25 @@ interface ReportBoard {
 
 const DIM_LABELS: Record<string, string> = {
   date: '按日',
+  hour: '按小时',
+  week: '按周',
+  month: '按月',
   app: '按应用',
   placement: '按广告位',
   ad_source: '按广告源',
   format: '按广告类型',
-  country: '按国家',
+  platform: '按广告平台',
+  bid_type: '按竞价类型',
+  channel: '按渠道',
+  sdk_version: '按 SDK 版本',
+  country: '按地区',
+  os: '按系统',
+  region: '按国家',
+  traffic_group: '按流量分组',
+  scene: '按场景',
+  scene_name: '按场景名称',
+  ab_test: '按 A-B',
+  idfa: '按 IDFA',
 };
 
 const boards = ref<ReportBoard[]>([]);
@@ -261,7 +301,9 @@ const editingBoard = ref<ReportBoard | null>(null);
 
 const filter = ref<Filter>({ dateRange: '7d', appIds: [], placementIds: [], adSourceIds: [], formats: [], country: [], osList: [], platform: '' });
 const pickedMetrics = ref<string[]>([]);
+const pickedDimensions = ref<string[]>([]);
 const metricPickerRef = ref<{ open: () => void } | null>(null);
+const dimPickerRef = ref<{ open: (codes: string[]) => void } | null>(null);
 const tableData = ref<Array<Record<string, string | number>>>([]);
 
 const currentBoard = computed<ReportBoard | null>(() => boards.value.find((b) => b.id === selectedBoardId.value) || null);
@@ -278,6 +320,13 @@ const effectiveMetrics = computed<string[]>(() => {
   return [...cfgMetrics, ...picked];
 });
 
+const effectiveDimensions = computed<string[]>(() => {
+  if (!currentBoard.value) return pickedDimensions.value;
+  const cfgDims = currentBoard.value.config?.dimensions || ['date'];
+  const picked = pickedDimensions.value.filter((d) => !cfgDims.includes(d));
+  return [...cfgDims, ...picked];
+});
+
 const effectiveBoard = computed<ReportBoard>(() => {
   if (!currentBoard.value) {
     return {
@@ -291,9 +340,34 @@ const effectiveBoard = computed<ReportBoard>(() => {
     config: {
       ...currentBoard.value.config,
       metrics: effectiveMetrics.value,
+      dimensions: effectiveDimensions.value,
     },
   };
 });
+
+const openMetricPicker = () => {
+  metricPickerRef.value?.open();
+};
+const onMetricsApply = (codes: string[]) => {
+  pickedMetrics.value = [...codes];
+  loadData();
+};
+const openDimensionPicker = () => {
+  const seed = pickedDimensions.value.length > 0
+    ? pickedDimensions.value
+    : (currentBoard.value?.config?.dimensions || ['date']);
+  dimPickerRef.value?.open(seed);
+};
+const onDimensionsApply = (codes: string[]) => {
+  pickedDimensions.value = [...codes];
+  loadData();
+};
+const onBoardChange = (board: ReportBoard) => {
+  pickedMetrics.value = [];
+  pickedDimensions.value = [];
+  selectedBoardId.value = board.id;
+  loadData();
+};
 
 const loadBoards = async () => {
   loading.value = true;
@@ -317,6 +391,7 @@ const selectBoard = (board: ReportBoard) => {
   viewMode.value = board.config?.layout?.view || 'table';
   filter.value = { dateRange: '7d', appIds: [], placementIds: [], adSourceIds: [], formats: [], country: [], osList: [], platform: '' };
   pickedMetrics.value = [];
+  pickedDimensions.value = [];
   loadData();
 };
 
@@ -346,7 +421,7 @@ const loadData = async () => {
   try {
     const res: any = await request.post('/api/v1/console/report/aggregate', {
       board_id: currentBoard.value.id,
-      dimensions: currentBoard.value.config?.dimensions || ['date'],
+      dimensions: effectiveDimensions.value,
       metrics: effectiveMetrics.value,
       filters: filter.value,
       report_type: 'overview',
@@ -459,7 +534,7 @@ const doExport = async (format: 'csv' | 'excel' | 'pdf') => {
   try {
     const res: any = await request.post(`/api/v1/console/report/export/${format}`, {
       board_id: currentBoard.value.id,
-      dimensions: currentBoard.value.config?.dimensions || ['date'],
+      dimensions: effectiveDimensions.value,
       metrics: effectiveMetrics.value,
       filters: filter.value,
     });
