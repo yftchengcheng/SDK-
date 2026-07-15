@@ -41,15 +41,11 @@ router.get('/list', authMiddleware, async (req: express.Request, res: express.Re
       .range((p - 1) * ps, p * ps - 1);
     if (error) throw new Error(`Query failed: ${error.message}`);
 
-    // 应用层注入「默认分组」到列表头部（仅当按 placement 过滤时）
-    let list: unknown[] = data || [];
-    if (placementId && !developerId) {
-      const hasDefault = (data || []).some((g: { id: number; is_default?: boolean }) => g.id === 0 || g.is_default === true);
-      if (!hasDefault) {
-        list = [DEFAULT_GROUP_VIRTUAL, ...list];
-      }
-    }
-    success(res, { list, total: count, page: p, pageSize: ps });
+    const list: unknown[] = data || [];
+    // 流量分组已去 placement 化：始终注入默认分组到列表头部
+    const hasDefault = (data || []).some((g: { id: number; is_default?: boolean }) => g.id === 0 || g.is_default === true);
+    const finalList = hasDefault ? list : [DEFAULT_GROUP_VIRTUAL, ...list];
+    success(res, { list: finalList, total: count, page: p, pageSize: ps });
   } catch (err) {
     console.error('List traffic groups error:', err);
     fail(res, 500, '获取流量分组列表失败');
@@ -59,18 +55,24 @@ router.get('/list', authMiddleware, async (req: express.Request, res: express.Re
 // Create traffic group
 router.post('/create', authMiddleware, async (req: express.Request, res: express.Response) => {
   try {
-    const { placementId, groupName, conditions, priority, waterfallConfigId } = req.body;
-    if (!placementId || !groupName || !conditions) {
+    const body = req.body || {};
+    const { placementId } = body;
+    const groupName = body.groupName || body.group_name;
+    const conditions = body.conditions;
+    const priority = body.priority;
+    const waterfallConfigId = body.waterfallConfigId || body.waterfall_config_id;
+    if (!groupName || !conditions) {
       fail(res, 400, '缺少必填字段');
       return;
     }
-    const { data, error } = await db.from('traffic_group').insert({
-      placement_id: placementId,
+    const insertBody: Record<string, unknown> = {
       group_name: groupName,
       conditions: typeof conditions === 'string' ? conditions : JSON.stringify(conditions),
       priority: priority || 0,
       waterfall_config_id: waterfallConfigId || 0,
-    }).select().single();
+    };
+    if (placementId) insertBody.placement_id = placementId;
+    const { data, error } = await db.from('traffic_group').insert(insertBody).select().single();
     if (error) throw new Error(`Insert failed: ${error.message}`);
     success(res, data, '创建成功');
   } catch (err) {
@@ -82,7 +84,13 @@ router.post('/create', authMiddleware, async (req: express.Request, res: express
 // Update traffic group
 router.put('/update', authMiddleware, async (req: express.Request, res: express.Response) => {
   try {
-    const { id, groupName, conditions, priority, waterfallConfigId, status } = req.body;
+    const body = req.body || {};
+    const id = body.id;
+    const groupName = body.groupName || body.group_name;
+    const conditions = body.conditions;
+    const priority = body.priority;
+    const waterfallConfigId = body.waterfallConfigId || body.waterfall_config_id;
+    const status = body.status;
     if (!id) { fail(res, 400, '缺少id'); return; }
     // 不允许更新「默认分组」(id=0)
     if (Number(id) === 0) { fail(res, 400, '默认分组不可编辑'); return; }
@@ -120,3 +128,4 @@ router.delete('/delete/:id', authMiddleware, async (req: express.Request, res: e
 });
 
 export default router;
+// touch

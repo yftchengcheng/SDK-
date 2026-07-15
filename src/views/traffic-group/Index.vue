@@ -14,11 +14,6 @@
     </div>
     <div class="page-filter">
       <el-form :inline="true" :model="filter" class="page-filter-form" @submit.prevent>
-        <el-form-item label="广告位">
-          <el-select v-model="filter.placementId" placeholder="全部广告位" clearable @change="onSearch">
-            <el-option v-for="p in placementList" :key="p.placement_id" :label="`${p.name} (${p.placement_id})`" :value="p.placement_id" />
-          </el-select>
-        </el-form-item>
         <el-form-item label="状态">
           <el-select v-model="filter.status" placeholder="全部" clearable @change="onSearch">
             <el-option label="启用" :value="1" />
@@ -49,7 +44,6 @@
             </div>
           </template>
         </el-table-column>
-        <el-table-column prop="placement_id" label="广告位" min-width="180" />
         <el-table-column prop="priority" label="优先级" width="80" />
         <el-table-column prop="conditions" label="规则" min-width="240">
           <template #default="{ row }">{{ formatConditions(row.conditions) }}</template>
@@ -93,7 +87,7 @@
               <el-tag v-if="isEdit" type="warning" effect="light" size="small">编辑模式</el-tag>
             </h1>
             <p class="page-form-header-subtitle">
-              {{ isEdit ? '修改流量分组规则，保存后立即生效' : '为广告位配置流量分组与匹配规则' }}
+              {{ isEdit ? '修改流量分组规则，保存后立即生效' : '创建面向广告源/瀑布流复用的流量分组规则' }}
             </p>
           </div>
           <div class="page-form-header-actions">
@@ -121,13 +115,7 @@
               <p class="page-form-section-desc">分组所属广告位、名称与优先级</p>
 
               <div class="page-form-grid">
-                <el-form-item label="广告位" prop="placement_id">
-                  <template #label><span class="required-mark">*</span><span>广告位</span></template>
-                  <el-select v-model="editForm.placement_id" placeholder="请选择广告位" style="width: 100%">
-                    <el-option v-for="p in placementList" :key="p.placement_id" :label="p.name" :value="p.placement_id" />
-                  </el-select>
-                </el-form-item>
-                <el-form-item label="分组名称" prop="group_name">
+                <el-form-item label="分组名称" prop="group_name" class="span-2">
                   <template #label><span class="required-mark">*</span><span>分组名称</span></template>
                   <el-input v-model="editForm.group_name" placeholder="请输入分组名称" />
                 </el-form-item>
@@ -189,18 +177,17 @@ const tableData = ref<any[]>([]);
 const placementList = ref<any[]>([]);
 const filter = reactive({ placementId: '', status: '', keyword: '' });
 const onSearch = () => { page.value = 1; fetchList(); };
-const onReset = () => { filter.placementId = ''; filter.status = ''; filter.keyword = ''; page.value = 1; fetchList(); };
+const onReset = () => { filter.status = ''; filter.keyword = ''; page.value = 1; fetchList(); };
 
 const drawerVisible = ref(false);
 const drawerSize = '720px';
 const isEdit = ref(false);
 const submitting = ref(false);
 const formRef = ref<FormInstance>();
-const defaultForm = { id: 0, placement_id: '', group_name: '', priority: 0, conditions: [] as { dimension: string; operator: string; value: string }[] };
+const defaultForm = { id: 0, group_name: '', priority: 0, conditions: [] as { dimension: string; operator: string; value: string }[] };
 const editForm = reactive({ ...defaultForm });
 
 const formRules: FormRules = {
-  placement_id: [{ required: true, message: '请选择广告位', trigger: 'change' }],
   group_name: [{ required: true, message: '请输入分组名称', trigger: 'blur' }],
 };
 
@@ -226,7 +213,6 @@ const fetchList = async () => {
   loading.value = true;
   try {
     const params: any = {};
-    if (filter.placementId) params.placementId = filter.placementId;
     if (filter.status !== '') params.status = filter.status;
     if (filter.keyword.trim()) params.keyword = filter.keyword.trim();
     const res: any = await request.get('/api/v1/console/traffic-group/list', { params });
@@ -255,7 +241,7 @@ const parseConditions = (raw: any): Rule[] => {
 const handleEdit = (row: any) => {
   isEdit.value = true;
   Object.assign(editForm, {
-    id: row.id, placement_id: row.placement_id, group_name: row.group_name,
+    id: row.id, group_name: row.group_name,
     priority: row.priority, conditions: parseConditions(row.conditions),
   });
   drawerVisible.value = true;
@@ -287,12 +273,7 @@ const handleDelete = async (row: any) => {
 };
 
 onMounted(async () => {
-  // 加载广告位列表后，默认选中第一个，让流量分组有归属上下文
-  await fetchPlacements();
-  const firstId = placementList.value[0]?.placement_id;
-  if (firstId) {
-    filter.placementId = firstId;
-  }
+  // 流量分组已去 placement 化：直接加载全部分组
   await fetchList();
 });
 </script>
