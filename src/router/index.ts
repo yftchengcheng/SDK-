@@ -12,12 +12,16 @@ import PlacementManage from '../views/placement/Index.vue';
 import AdSourceManage from '../views/ad-source/Index.vue';
 import WaterfallConfig from '../views/waterfall/Index.vue';
 import TrafficGroup from '../views/traffic-group/Index.vue';
-import Report from '../views/report/Index.vue';
+import ReportLayout from '../layout/ReportLayout.vue';
+import ReportOverview from '../views/report/Overview.vue';
+import ReportFunnel from '../views/report/Funnel.vue';
+import ReportBehavior from '../views/report/Behavior.vue';
 import Reconciliation from '../views/reconciliation/Index.vue';
 import NetworkManage from '../views/network/Index.vue';
 import MessageCenter from '../views/message/Index.vue';
 import Profile from '../views/profile/Index.vue';
 import AdminDevelopers from '../views/admin/Developers.vue';
+import AdminReportMetric from '../views/admin/ReportMetric.vue';
 import { useUserStore } from '../stores/user';
 
 const routes: RouteRecordRaw[] = [
@@ -96,11 +100,32 @@ const routes: RouteRecordRaw[] = [
         path: 'waterfall',
         redirect: '/aggregation/waterfall',
       },
+      // 数据报表（嵌套路由 + 父级 layout）
       {
         path: 'report',
-        name: 'Report',
-        component: Report,
-        meta: { title: '数据报表', icon: 'TrendCharts' },
+        component: ReportLayout,
+        redirect: '/report/overview',
+        meta: { title: '数据报表', icon: 'TrendCharts', isReportGroup: true },
+        children: [
+          {
+            path: 'overview',
+            name: 'ReportOverview',
+            component: ReportOverview,
+            meta: { title: '综合报表', icon: 'DataAnalysis' },
+          },
+          {
+            path: 'funnel',
+            name: 'ReportFunnel',
+            component: ReportFunnel,
+            meta: { title: '漏斗分析', icon: 'Filter' },
+          },
+          {
+            path: 'behavior',
+            name: 'ReportBehavior',
+            component: ReportBehavior,
+            meta: { title: '用户行为', icon: 'User' },
+          },
+        ],
       },
       {
         path: 'reconciliation',
@@ -131,6 +156,12 @@ const routes: RouteRecordRaw[] = [
         name: 'AdminDevelopers',
         component: AdminDevelopers,
         meta: { title: '开发者管理', icon: 'OfficeBuilding', requiresAdmin: true },
+      },
+      {
+        path: 'admin/report-metric',
+        name: 'AdminReportMetric',
+        component: AdminReportMetric,
+        meta: { title: '指标字典', icon: 'DataLine', requiresAdmin: true },
       },
     ],
   },

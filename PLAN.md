@@ -728,7 +728,9 @@
 | 日期 | 阶段 | 偏差描述 | 调整方案 | 影响范围 |
 |------|------|---------|---------|---------|
 | — | — | — | — | — |
+| 2026-07-15 | 数据报表 V1 P0+P1 | 建表 report_metric_definition / report_board / report_funnel_metric_definition 3 张表 + seed 34 个综合指标 + 20 个漏斗指标；指标字典 CRUD 5 个 API（list / categories / create / update / delete）+ Admin UI 页面 `/admin/report-metric` + 侧边栏菜单接入（admin only）；E2E 测试通过（puppeteer 验证登录/列表/筛选/新建/删除）|
 
+| 2026-07-16 | 数据报表 V1 P2-P6 | ReportLayout 嵌套路由（/report/overview, /report/funnel, /report/behavior）；看版 CRUD 5 API + BoardConfigDialog；聚合 API `/report/aggregate` 完整实现（date/app/placement/format 维度 + node-cache 5min 缓存 + 漏斗/行为分支）；前端综合报表 4 种视图（表格/卡片/趋势/柱状）+ MetricPicker 弹窗 + ReportFilter 筛选器 + View Switcher；导出 CSV/Excel/PDF 三种格式；E2E 测试通过 |
 ---
 
 ## 十一、迭代日志
@@ -740,3 +742,102 @@
 | 2026-07-07 | 初始创建，完整计划写入 |
 | 2026-07-07 | 优化：根据详细对接流程描述，新增ad_network_account表（14张表）、新增3个账号管理API（35个接口）、新增网络账号管理页面（14个页面）、新增KVEditor+AccountManager组件、细化6步对接流程含完整参数传递机制、更新阶段4为6步对应开发步骤 |
 | 2026-07-08 | 补全 12 项差距功能：①瀑布流拖拽排序（SortableJS）②自定义广告源创建入口 ③流量分组瀑布流绑定 ④Dashboard SDK/API 切换器 ⑤Profile 通知设置 ⑥报表 Excel 导出 ⑦对账 Excel 导出 ⑧Adapter MD5 + 进度条 ⑨HttpOnly Cookie 鉴权 + cookie-parser 中间件 ⑩Supabase RLS 14 张表策略 + `set_app_developer_id` RPC（migration 0005 蓝图） ⑪ReviewPanel 独立组件抽离 ⑫启动列名统一 TOKEN 化 |
+
+---
+
+## 十二、数据报表模块 V1（综合报表 / 漏斗分析 / 用户行为）
+
+### 12.1 模块范围
+
+| 子模块 | 路径 | 状态 |
+|--------|------|------|
+| 综合报表 | `/report/overview` | V1 |
+| 漏斗分析 | `/report/funnel` | V1 |
+| 用户行为 | `/report/behavior` | V1（3 个子报表 Tab）|
+
+**未纳入 V1**：小时报表 / 留存价值报表 / 交叉推广报表 / 离线报表中心 / 监控预警
+
+### 12.2 新增表（3 张）
+
+| 表名 | 用途 | 字段数 |
+|------|------|--------|
+| `report_metric_definition` | 指标字典（综合报表） | 16 |
+| `report_board` | 看版配置持久化 | 11 |
+| `report_funnel_metric_definition` | 漏斗专属指标字典 | 13 |
+
+`report_daily` **V1 不动**，缺失字段通过 mock 兜底（V2 评估 ALTER）
+
+### 12.3 新增 API（18 个）
+
+| 模块 | 端点 | 方法 |
+|------|------|------|
+| 指标字典 | `/report/metric/list` `/report/metric/categories` `/report/metric/create` `/report/metric/update/:id` `/report/metric/delete/:id` | GET/POST/PATCH/DELETE |
+| 看版 | `/report/board/list` `/report/board/create` `/report/board/update/:id` `/report/board/delete/:id` `/report/board/set-default/:id` `/report/board/reorder` | GET/POST/PATCH/DELETE |
+| 维度字典 | `/report/dimensions/options` | GET |
+| 综合聚合 | `/report/aggregate` | POST |
+| 漏斗 | `/report/funnel/metric/list` `/report/funnel/aggregate` `/report/funnel/trend` `/report/funnel/custom-rate` | GET/POST |
+| 行为 | `/report/behavior/show-frequency` `/report/behavior/user-value` `/report/behavior/usage-duration` `/report/behavior/metric/list` | GET/POST |
+| 导出 | `/report/export/csv` `/report/export/excel` `/report/export/pdf` | POST |
+
+### 12.4 新增页面（3 个）+ 组件（~14 个）
+
+```
+src/views/report/
+├── Overview.vue             (综合报表)
+├── Funnel.vue               (漏斗分析)
+├── Behavior.vue             (用户行为 - 3 Tab)
+└── components/              (14 个)
+    ├── ReportFilterBar.vue
+    ├── ReportDimensionPicker.vue
+    ├── ReportMetricPicker.vue
+    ├── ReportViewSwitcher.vue
+    ├── ReportBoardList.vue
+    ├── ReportExportDialog.vue
+    ├── ReportTableView.vue
+    ├── ReportCardView.vue
+    ├── ReportTrendView.vue
+    ├── ReportBarView.vue
+    ├── FunnelChart.vue
+    ├── FunnelRateSidebar.vue
+    ├── FunnelTable.vue
+    ├── FunnelTrendChart.vue
+    ├── BehaviorTypeTabs.vue
+    ├── BehaviorMetricDropdown.vue
+    ├── BehaviorChart.vue
+    ├── BehaviorTable.vue
+    └── BehaviorDualMetricCompare.vue
+```
+
+### 12.5 实施阶段（10.5d）
+
+| Phase | 内容 | 估时 | 状态 |
+|-------|------|------|------|
+| P0 | 建表 + seed 3 个字典 | 1d | ✅ 完成 |
+| P1 | 指标字典 CRUD + Admin UI | 1.5d | ✅ 完成 |
+| P2 | 看版 CRUD + 报告布局骨架（嵌套路由） | 2d | ✅ 完成 |
+| P3 | 聚合 API `/report/aggregate`（缓存+对比+级联）| 1.5d | ✅ 完成 |
+| P4 | 综合报表前端（指标弹窗+维度选择）| 1d | ✅ 完成 |
+| P5 | 4 种视图（表格/卡片/趋势/柱状）| 2d | ✅ 完成 |
+| P6 | 导出 CSV/Excel/PDF | 1.5d | ✅ 完成 |
+| P7 | 漏斗分析（11 步漏斗 + 5 个转化率 + 自定义公式）| 1d | ⏳ |
+| P8 | 用户行为（3 个子报表 + 双指标对比）| 1d | ⏳ |
+
+### 12.6 关键决策
+
+- **指标字典后端动态可配**：Admin 可增/改/删非系统指标
+- **看版私有**：按 `developer_id` 隔离
+- **实时性**：今天 = 5min 实时（raw event + node-cache），其他 = T+1
+- **实际 vs 预估**：字段分离（`revenue` + `estimated_revenue`），指标字典标注 `value_type`
+- **筛选器级联**：App → Placement / Platform → Ad Source
+- **公式白名单**：漏斗自定义转化率仅支持 `event_a / event_b` 和 `event_a - event_b`
+- **PDF 渲染**：server-side puppeteer（沙箱已有 chromium）
+- **数据 mock**：V1 漏斗 + 用户行为用 mock 数据演示
+
+### 12.7 与现有 report 路由的关系
+
+| 现状 | 改造 |
+|------|------|
+| `/report` 现有路由 | 改 `/report/overview` |
+| `views/report/Index.vue` 现有单页 | 拆为 `Overview.vue` + `Funnel.vue` + `Behavior.vue` |
+| 6 个老 report API | 保留兼容，新逻辑走 `/report/aggregate` |
+| 侧边栏单条「数据报表」 | 改 sub-menu（参考刚做的「聚合管理」）|

@@ -114,7 +114,7 @@ import {
   DataAnalysis, Cellphone, PictureFilled, Connection, SetUp, Filter,
   TrendCharts, DocumentChecked, Share, Bell, User, ArrowDown, ArrowRight,
   ChatLineSquare, SwitchButton, Refresh, Close, Operation,
-  DArrowLeft, DArrowRight, OfficeBuilding,
+  DArrowLeft, DArrowRight, OfficeBuilding, DataLine,
 } from '@element-plus/icons-vue';
 import HalWidget from '@/components/HalWidget.vue';
 
@@ -139,7 +139,16 @@ const baseMenuItems: MenuItem[] = [
       { path: '/aggregation/waterfall', label: '瀑布流配置', icon: SetUp },
     ],
   },
-  { path: '/report', label: '数据报表', icon: TrendCharts },
+  {
+    path: '/report',
+    label: '数据报表',
+    icon: TrendCharts,
+    children: [
+      { path: '/report/overview', label: '综合报表', icon: DataAnalysis },
+      { path: '/report/funnel', label: '漏斗分析', icon: Filter },
+      { path: '/report/behavior', label: '用户行为', icon: User },
+    ],
+  },
   { path: '/reconciliation', label: '对账管理', icon: DocumentChecked },
   { path: '/network', label: '广告平台', icon: Share },
   { path: '/message', label: '消息中心', icon: Bell },
@@ -155,6 +164,7 @@ const menuItems = computed<MenuItem[]>(() => {
     return [
       ...baseMenuItems,
       { path: '/admin/developers', label: '开发者管理', icon: OfficeBuilding },
+      { path: '/admin/report-metric', label: '指标字典', icon: DataLine },
     ];
   }
   return baseMenuItems;
@@ -179,12 +189,15 @@ const avatarLetter = computed(() => {
   return email.charAt(0).toUpperCase();
 });
 
-// 路由变化时自动展开父级菜单（聚合管理）
+// 路由变化时自动展开父级菜单（聚合管理 / 数据报表）
 watch(
   () => route.path,
   (newPath) => {
     if (newPath.startsWith('/aggregation')) {
       expandedGroups.value['聚合管理'] = true;
+    }
+    if (newPath.startsWith('/report')) {
+      expandedGroups.value['数据报表'] = true;
     }
   },
   { immediate: true },

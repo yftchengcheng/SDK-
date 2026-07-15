@@ -934,3 +934,89 @@ Could not find the 'frequency_config' column of 'app' in the schema cache
   - 中段：`.page-section__head` / `.page-section__title` / `.page-section__filters` / `.filter-label` / `.filter-select` / `.filter-date` / `.chart-wrapper` / `.chart-canvas` / `.page-section__foot` / `.page-section__period` / `.page-section__note`
   - 下段：`.page-rank-card__head` / `.page-rank-card__title` / `.rank-card__metric` / `.page-rank-card__body` / `.rank-row` / `.rank-row__rank` / `.rank-row__name` / `.rank-row__bar-track` / `.rank-row__bar-fill` / `.rank-row__value`
 
+
+## 数据报表（3 个子模块）
+
+### 综合报表（Overview）
+
+#### 整体布局
+```
+[260px 看版列表]  [主内容区]
+                  ┌─ 顶部筛选条 ────────────┐
+                  │ 日期 + 8 个筛选下拉      │
+                  └─────────────────────────┘
+                  ┌─ 数据预览区 ─────────────┐
+                  │ 维度行 + 指标行 + 4视图切换│
+                  └─────────────────────────┘
+                  ┌─ 图表/表格 ──────────────┐
+                  └─────────────────────────┘
+```
+
+#### 关键组件
+- `ReportBoardList`（左栏 260px，可折叠）
+  - 搜索框 + 创建看版按钮 + 看版列表（vuedraggable 拖拽排序）
+  - 隐藏的看版（折叠区）
+- `ReportMetricPicker`（指标设置弹窗 — 截图核心）
+  - 顶部全选 + 分类（8 个）+ 实际/预估分组
+  - 中部：checkbox 列表（含 ? tooltip）
+  - 右侧：已选 10 列 + 清空
+- `ReportDimensionPicker`（维度选择）
+  - 15 个维度 chip 形式
+  - 最多选 5 个（V1 硬编码）
+- `ReportViewSwitcher`（4 种视图切换）
+  - 表格 / 卡片 / 趋势 / 柱状
+  - 选中态用 primary 蓝
+
+#### 颜色系统
+- 主色：`#1E3A8A`（primary）
+- 选中态：`#2563EB`（active）
+- 对比期数据：`#F59E0B`（橙）
+- 数据缺失 Banner：`#FEF3C7` 背景 + `#92400E` 文字
+
+### 漏斗分析（Funnel）
+
+#### 整体布局
+```
+[顶部筛选条]
+[黄条提示：数据缺失]
+[左侧转化率栏] [中央漏斗图]      [右侧详细表格]
+  5 个转化率     11 步梯形          阶段/流程/次数/...
+               颜色按阶段
+[分天/趋势 Tab]                    [自定义指标/导出]
+```
+
+#### 关键组件
+- `FunnelChart`（ECharts funnel）
+  - `sort: 'none'` 保持步骤顺序
+  - 颜色按阶段：request=#3B82F6 / cache=#F59E0B / show=#60A5FA / click=#3B82F6
+  - 11 步固定 + 显隐可配
+- `FunnelRateSidebar`（左侧 5 个转化率）
+  - 蓝色填充 = 关键节点
+  - 橙色填充 = 阶段间转化
+  - 最多 5 个 + 弹窗管理
+- `FunnelTable`（右侧表格）
+  - 阶段 / 流程 / 次数 / 设备数 / 人均次数
+  - 人均次数计算方式 [设备数] / [DAU] 切换
+
+### 用户行为（Behavior）
+
+#### 整体布局
+```
+[类型 Tab: 展示频次 / 用户价值 / 使用时长]
+[筛选器条]
+[数据预览区]
+  [指标下拉]      [图表: 柱状/折线]
+[详细数据表格 + 分页]      [导出]
+```
+
+#### 关键组件
+- `BehaviorTypeTabs`（3 选 1）
+- `BehaviorMetricDropdown`（指标下拉 — 截图核心）
+- `BehaviorChart`（按子报表切换 ECharts 类型）
+- `BehaviorDualMetricCompare`（使用时长专用）
+  - 2 个下拉 + 复选框
+  - 双 Y 轴：橙色 #F59E0B / 黄色 #EAB308
+
+#### 桶策略（V1 硬编码）
+- 27 个 bucket：[0-1] [1-2] ... [19-20] [20-25] [25-30] [30-35] [35-40] [40-45] [45-50]
+- 帕累托图：V2 实现，V1 统一柱状
