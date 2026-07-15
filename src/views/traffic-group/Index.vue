@@ -151,19 +151,7 @@
               <div class="page-form-grid">
                 <el-form-item label="匹配规则" class="span-2">
                   <template #label><span>匹配规则</span></template>
-                  <div class="tg-condition-list">
-                    <div v-for="(cond, idx) in editForm.conditions" :key="idx" class="tg-condition-row">
-                      <el-select v-model="cond.dimension" placeholder="维度" style="width: 140px">
-                        <el-option v-for="d in dimensions" :key="d.value" :label="d.label" :value="d.value" />
-                      </el-select>
-                      <el-select v-model="cond.operator" placeholder="操作" style="width: 120px">
-                        <el-option v-for="o in operators" :key="o" :label="o" :value="o" />
-                      </el-select>
-                      <el-input v-model="cond.value" placeholder="值(多个逗号分隔)" style="flex: 1" />
-                      <el-button link type="danger" :icon="Delete" @click="editForm.conditions.splice(idx, 1)" />
-                    </div>
-                    <el-button type="primary" link :icon="Plus" @click="editForm.conditions.push({ dimension: '', operator: 'IN', value: '' })">添加规则</el-button>
-                  </div>
+                  <RuleEditor v-model="editForm.conditions" />
                 </el-form-item>
               </div>
             </section>
@@ -193,19 +181,8 @@ import request from '../../utils/request';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import type { FormInstance, FormRules } from 'element-plus';
 import { Plus, Search, RefreshLeft, Delete, Filter, Edit, InfoFilled, Close, Check, Lock } from '@element-plus/icons-vue';
-
-const dimensions = [
-  { value: 'country', label: '国家/地区' },
-  { value: 'region', label: '省份/城市' },
-  { value: 'network_type', label: '网络类型' },
-  { value: 'app_version', label: 'APP版本' },
-  { value: 'sdk_version', label: 'SDK版本' },
-  { value: 'os_version', label: '系统版本' },
-  { value: 'device_type', label: '设备类型' },
-  { value: 'brand', label: '设备品牌' },
-  { value: 'channel', label: '渠道' },
-];
-const operators = ['IN', 'NOT_IN', 'EQ', 'GTE', 'LTE'];
+import RuleEditor from '../../components/RuleEditor.vue';
+import { DIMENSION_LABEL } from '../../shared/rule-dimensions';
 
 const loading = ref(false);
 const tableData = ref<any[]>([]);
@@ -227,9 +204,18 @@ const formRules: FormRules = {
   group_name: [{ required: true, message: '请输入分组名称', trigger: 'blur' }],
 };
 
-const formatConditions = (conditions: any[]) => {
-  if (!conditions || !conditions.length) return '--';
-  return conditions.map((c: any) => `${c.dimension} ${c.operator} ${c.value}`).join(' AND ');
+const formatConditions = (conditions: any[]): string => {
+  if (!Array.isArray(conditions) || conditions.length === 0) return '--';
+  return conditions.map((c: any) => {
+    const dim = DIMENSION_LABEL[c.dimension as keyof typeof DIMENSION_LABEL] || c.dimension;
+    let val = c.value;
+    if (Array.isArray(c.value)) {
+      val = c.value.join('/');
+    } else if (typeof c.value === 'object' && c.value) {
+      val = JSON.stringify(c.value);
+    }
+    return `${dim} ${c.operator || ''} ${val}`;
+  }).join(' AND ');
 };
 
 const fetchPlacements = async () => {
@@ -257,11 +243,20 @@ const fetchList = async () => {
 
 const openCreate = () => { isEdit.value = false; Object.assign(editForm, { ...defaultForm, conditions: [] }); drawerVisible.value = true; };
 
+const parseConditions = (raw: any): Rule[] => {
+  if (!raw) return [];
+  if (Array.isArray(raw)) return raw;
+  if (typeof raw === 'string') {
+    try { const arr = JSON.parse(raw); return Array.isArray(arr) ? arr : []; } catch { return []; }
+  }
+  return [];
+};
+
 const handleEdit = (row: any) => {
   isEdit.value = true;
   Object.assign(editForm, {
     id: row.id, placement_id: row.placement_id, group_name: row.group_name,
-    priority: row.priority, conditions: row.conditions?.length ? row.conditions : [],
+    priority: row.priority, conditions: parseConditions(row.conditions),
   });
   drawerVisible.value = true;
 };
