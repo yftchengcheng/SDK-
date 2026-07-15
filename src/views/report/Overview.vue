@@ -1,85 +1,200 @@
 <template>
-  <div class="report-overview">
-    <!-- 顶部工具栏 -->
-    <div class="overview-toolbar">
-      <div class="overview-toolbar-left">
-        <el-select
-          v-model="selectedBoardId"
-          placeholder="选择看版"
-          style="width: 240px"
-          @change="onBoardChange"
-        >
-          <el-option v-for="b in boards" :key="b.id" :label="b.name" :value="b.id" />
-        </el-select>
-        <el-button :icon="Plus" @click="openCreateDialog">新建看版</el-button>
-        <el-button :icon="CopyDocument" :disabled="!selectedBoardId" @click="duplicateCurrent">复制</el-button>
-        <el-button :icon="Edit" :disabled="!selectedBoardId" @click="openEditConfigDialog">编辑配置</el-button>
-        <el-button v-if="selectedBoardId" :icon="Delete" type="danger" plain @click="deleteCurrent">删除</el-button>
+  <div class="page-shell">
+    <!-- ============ 页面头部 ============ -->
+    <div class="page-header">
+      <div class="page-header-left">
+        <div class="page-header-icon"><el-icon><DataAnalysis /></el-icon></div>
+        <div class="page-header-titles">
+          <h1 class="page-header-title">综合报表</h1>
+          <p class="page-header-subtitle">多维度交叉分析收入、曝光、点击等核心指标，支持表格/卡片/趋势/柱状 4 种视图</p>
+        </div>
       </div>
-      <div class="overview-toolbar-right">
-        <MetricPicker v-model="pickedMetrics" />
-        <el-radio-group v-model="viewMode" size="small">
-          <el-radio-button value="table">表格</el-radio-button>
-          <el-radio-button value="card">卡片</el-radio-button>
-          <el-radio-button value="trend">趋势</el-radio-button>
-          <el-radio-button value="bar">柱状</el-radio-button>
-        </el-radio-group>
-        <el-button-group>
-          <el-button :icon="Download" @click="exportCsv">CSV</el-button>
-          <el-button :icon="Download" @click="exportExcel">Excel</el-button>
-          <el-button :icon="Document" @click="exportPdf">PDF</el-button>
-        </el-button-group>
-      </div>
-    </div>
-
-    <!-- 筛选器 -->
-    <ReportFilter v-model="filter" @change="loadData" />
-
-    <!-- 当前看版信息 -->
-    <div v-if="currentBoard" class="overview-board-info">
-      <div class="overview-board-name">{{ currentBoard.name }}</div>
-      <div v-if="currentBoard.description" class="overview-board-desc">{{ currentBoard.description }}</div>
-      <div class="overview-board-meta">
-        <span v-for="dim in currentBoard.config?.dimensions || []" :key="dim" class="meta-tag">
-          {{ DIM_LABELS[dim] || dim }}
-        </span>
-        <span class="meta-divider">·</span>
-        <span>{{ effectiveMetrics.length }} 个指标</span>
-        <span class="meta-divider">·</span>
-        <span>数据范围：{{ DATE_RANGE_LABELS[filter.dateRange] }}</span>
-      </div>
-    </div>
-
-    <!-- 4 种视图 -->
-    <ReportTableView
-      v-if="viewMode === 'table' && currentBoard"
-      :board="effectiveBoard"
-      :data="tableData"
-      :loading="dataLoading"
-    />
-    <ReportCardView
-      v-else-if="viewMode === 'card' && currentBoard"
-      :board="effectiveBoard"
-      :data="tableData"
-    />
-    <ReportTrendView
-      v-else-if="viewMode === 'trend' && currentBoard"
-      :board="effectiveBoard"
-      :data="tableData"
-    />
-    <ReportBarView
-      v-else-if="viewMode === 'bar' && currentBoard"
-      :board="effectiveBoard"
-      :data="tableData"
-    />
-
-    <!-- 空状态 -->
-    <div v-if="!loading && boards.length === 0" class="overview-empty">
-      <el-empty description="还没有看版，点击「新建看版」开始">
+      <div class="page-header-actions">
+        <el-button :icon="Refresh" @click="loadBoards">刷新</el-button>
         <el-button type="primary" :icon="Plus" @click="openCreateDialog">新建看版</el-button>
-      </el-empty>
+      </div>
     </div>
 
+    <!-- ============ Master-Detail 主体 ============ -->
+    <div class="report-master-detail">
+      <!-- ============ 左侧：看版列表面板 ============ -->
+      <aside class="report-master-panel">
+        <div class="report-master-header">
+          <div class="report-master-header-top">
+            <h2 class="report-master-title">
+              <el-icon><Files /></el-icon>
+              <span>我的看版</span>
+              <el-tag size="small" effect="plain" round class="report-master-count">{{ filteredBoards.length }}</el-tag>
+            </h2>
+          </div>
+          <el-input
+            v-model="searchKeyword"
+            placeholder="搜索看版名称"
+            :prefix-icon="Search"
+            clearable
+            size="default"
+          />
+        </div>
+        <div class="report-master-list" v-loading="loading">
+          <div
+            v-for="board in filteredBoards"
+            :key="board.id"
+            :class="['report-master-item', { active: board.id === selectedBoardId }]"
+            @click="selectBoard(board)"
+          >
+            <div class="report-master-item-icon">
+              <el-icon><DataLine /></el-icon>
+            </div>
+            <div class="report-master-item-body">
+              <div class="report-master-item-name">
+                <span class="report-master-item-name-text">{{ board.name }}</span>
+                <el-tag v-if="board.is_default" size="small" type="primary" effect="plain" class="report-master-item-tag">默认</el-tag>
+              </div>
+              <div class="report-master-item-desc">
+                {{ DIM_LABELS[(board.config?.dimensions || [])[0] || 'date'] }} · {{ (board.config?.metrics || []).length }} 个指标
+              </div>
+            </div>
+            <div class="report-master-item-actions" @click.stop>
+              <el-dropdown trigger="click" @command="(cmd: string) => onItemCommand(cmd, board)">
+                <el-button text :icon="MoreFilled" size="small" class="report-master-item-more" />
+                <template #dropdown>
+                  <el-dropdown-menu>
+                    <el-dropdown-item command="edit" :icon="Edit">编辑配置</el-dropdown-item>
+                    <el-dropdown-item command="duplicate" :icon="CopyDocument">复制</el-dropdown-item>
+                    <el-dropdown-item v-if="!board.is_default" command="delete" :icon="Delete" divided>删除</el-dropdown-item>
+                  </el-dropdown-menu>
+                </template>
+              </el-dropdown>
+            </div>
+          </div>
+          <el-empty
+            v-if="!loading && filteredBoards.length === 0"
+            :description="searchKeyword ? '没有匹配看版' : '还没有看版'"
+            :image-size="60"
+            class="report-master-empty"
+          >
+            <el-button v-if="!searchKeyword" type="primary" :icon="Plus" size="small" @click="openCreateDialog">新建看版</el-button>
+          </el-empty>
+        </div>
+      </aside>
+
+      <!-- ============ 右侧：看版详情区 ============ -->
+      <main class="report-detail-panel">
+        <template v-if="currentBoard">
+          <!-- 顶部看版信息 -->
+          <div class="report-detail-header">
+            <div class="report-detail-header-left">
+              <div class="report-detail-icon">
+                <el-icon :size="24"><DataLine /></el-icon>
+              </div>
+              <div class="report-detail-titles">
+                <div class="report-detail-title-row">
+                  <h2 class="report-detail-title">{{ currentBoard.name }}</h2>
+                  <el-tag v-if="currentBoard.is_default" size="small" type="primary" effect="plain">默认</el-tag>
+                </div>
+                <p class="report-detail-desc">{{ currentBoard.description || '暂无描述' }}</p>
+              </div>
+            </div>
+            <div class="report-detail-header-right">
+              <el-button :icon="CopyDocument" plain @click="duplicateCurrent">复制看版</el-button>
+              <el-button :icon="Edit" plain @click="openEditConfigDialog">编辑配置</el-button>
+              <el-button v-if="!currentBoard.is_default" :icon="Delete" type="danger" plain @click="deleteCurrent">删除</el-button>
+            </div>
+          </div>
+
+          <!-- 看版配置摘要 -->
+          <div class="report-detail-config">
+            <div class="config-section">
+              <div class="config-section-label">
+                <el-icon><Grid /></el-icon>
+                <span>维度</span>
+              </div>
+              <div class="config-section-tags">
+                <el-tag
+                  v-for="dim in currentBoard.config?.dimensions || []"
+                  :key="dim"
+                  size="small"
+                  effect="plain"
+                  type="info"
+                >
+                  {{ DIM_LABELS[dim] || dim }}
+                </el-tag>
+              </div>
+            </div>
+            <div class="config-divider"></div>
+            <div class="config-section config-section--metrics">
+              <div class="config-section-label">
+                <el-icon><Histogram /></el-icon>
+                <span>已选指标</span>
+                <span class="config-section-count">{{ effectiveMetrics.length }}</span>
+              </div>
+              <div class="config-section-actions">
+                <MetricPicker v-model="pickedMetrics" :existing="(currentBoard.config?.metrics || [])" />
+              </div>
+            </div>
+          </div>
+
+          <!-- 筛选器 + 视图切换 + 导出 -->
+          <div class="report-detail-toolbar">
+            <div class="report-detail-toolbar-left">
+              <ReportFilter v-model="filter" @change="loadData" />
+            </div>
+            <div class="report-detail-toolbar-right">
+              <el-radio-group v-model="viewMode" size="default">
+                <el-radio-button value="table"><el-icon><Grid /></el-icon> 表格</el-radio-button>
+                <el-radio-button value="card"><el-icon><Postcard /></el-icon> 卡片</el-radio-button>
+                <el-radio-button value="trend"><el-icon><TrendCharts /></el-icon> 趋势</el-radio-button>
+                <el-radio-button value="bar"><el-icon><DataLine /></el-icon> 柱状</el-radio-button>
+              </el-radio-group>
+              <el-button-group class="report-detail-export">
+                <el-tooltip content="导出 CSV" placement="top">
+                  <el-button :icon="Download" @click="exportCsv">CSV</el-button>
+                </el-tooltip>
+                <el-tooltip content="导出 Excel" placement="top">
+                  <el-button :icon="Download" @click="exportExcel">Excel</el-button>
+                </el-tooltip>
+                <el-tooltip content="导出 PDF" placement="top">
+                  <el-button :icon="Document" @click="exportPdf">PDF</el-button>
+                </el-tooltip>
+              </el-button-group>
+            </div>
+          </div>
+
+          <!-- 4 种视图 -->
+          <div class="report-detail-content" v-loading="dataLoading">
+            <ReportTableView
+              v-if="viewMode === 'table'"
+              :board="effectiveBoard"
+              :data="tableData"
+            />
+            <ReportCardView
+              v-else-if="viewMode === 'card'"
+              :board="effectiveBoard"
+              :data="tableData"
+            />
+            <ReportTrendView
+              v-else-if="viewMode === 'trend'"
+              :board="effectiveBoard"
+              :data="tableData"
+            />
+            <ReportBarView
+              v-else
+              :board="effectiveBoard"
+              :data="tableData"
+            />
+          </div>
+        </template>
+
+        <!-- 无选中看版时显示引导 -->
+        <div v-else class="report-detail-empty">
+          <el-empty :image-size="100" description="从左侧选择一个看版开始查看数据">
+            <el-button type="primary" :icon="Plus" @click="openCreateDialog">新建看版</el-button>
+          </el-empty>
+        </div>
+      </main>
+    </div>
+
+    <!-- 配置弹窗 -->
     <BoardConfigDialog
       v-model:visible="dialogVisible"
       :board="(editingBoard as any)"
@@ -92,7 +207,8 @@
 import { ref, computed, onMounted, watch } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import {
-  Plus, CopyDocument, Edit, Download, Document, Delete,
+  Plus, CopyDocument, Edit, Download, Document, Delete, Refresh, Search, MoreFilled,
+  DataAnalysis, Files, DataLine, Grid, Histogram, Postcard, TrendCharts,
 } from '@element-plus/icons-vue';
 import request from '@/utils/request';
 import MetricPicker from '@/components/report/MetricPicker.vue';
@@ -129,33 +245,30 @@ const DIM_LABELS: Record<string, string> = {
   app: '按应用',
   placement: '按广告位',
   ad_source: '按广告源',
+  format: '按广告类型',
   country: '按国家',
-};
-
-const DATE_RANGE_LABELS: Record<string, string> = {
-  today: '今天',
-  yesterday: '昨天',
-  '7d': '近 7 天',
-  '30d': '近 30 天',
-  month: '本月',
-  lastMonth: '上月',
 };
 
 const boards = ref<ReportBoard[]>([]);
 const selectedBoardId = ref<number | null>(null);
+const searchKeyword = ref('');
 const viewMode = ref<'table' | 'card' | 'trend' | 'bar'>('table');
 const loading = ref(false);
 const dataLoading = ref(false);
 const dialogVisible = ref(false);
 const editingBoard = ref<ReportBoard | null>(null);
 
-const filter = ref<Filter>({ dateRange: '7d', appIds: [], placementIds: [], adSourceIds: [] });
+const filter = ref<Filter>({ dateRange: '7d', appIds: [], placementIds: [], adSourceIds: [], formats: [], country: [] });
 const pickedMetrics = ref<string[]>([]);
 const tableData = ref<Array<Record<string, string | number>>>([]);
 
 const currentBoard = computed<ReportBoard | null>(() => boards.value.find((b) => b.id === selectedBoardId.value) || null);
+const filteredBoards = computed<ReportBoard[]>(() => {
+  const kw = searchKeyword.value.trim().toLowerCase();
+  if (!kw) return boards.value;
+  return boards.value.filter((b) => b.name.toLowerCase().includes(kw));
+});
 
-// 当用户用 MetricPicker 临时加指标时，effectiveBoard 会包含这些指标
 const effectiveMetrics = computed<string[]>(() => {
   if (!currentBoard.value) return pickedMetrics.value;
   const cfgMetrics = currentBoard.value.config?.metrics || [];
@@ -187,17 +300,34 @@ const loadBoards = async () => {
     if (res.code === 0) {
       boards.value = res.data || [];
       if (boards.value.length > 0 && !selectedBoardId.value) {
-        selectedBoardId.value = boards.value[0].id;
-        viewMode.value = boards.value[0].config?.layout?.view || 'table';
-        filter.value = { dateRange: '7d', appIds: [], placementIds: [], adSourceIds: [] };
-        pickedMetrics.value = [];
-        loadData();
+        selectBoard(boards.value[0]);
       }
     }
   } catch (e: any) {
-    ElMessage.error(e?.message || '加载失败');
+    ElMessage.error(e?.message || '加载看版失败');
   } finally {
     loading.value = false;
+  }
+};
+
+const selectBoard = (board: ReportBoard) => {
+  selectedBoardId.value = board.id;
+  viewMode.value = board.config?.layout?.view || 'table';
+  filter.value = { dateRange: '7d', appIds: [], placementIds: [], adSourceIds: [], formats: [], country: [] };
+  pickedMetrics.value = [];
+  loadData();
+};
+
+const onItemCommand = (cmd: string, board: ReportBoard) => {
+  if (cmd === 'edit') {
+    selectedBoardId.value = board.id;
+    openEditConfigDialog();
+  } else if (cmd === 'duplicate') {
+    selectedBoardId.value = board.id;
+    duplicateCurrent();
+  } else if (cmd === 'delete') {
+    selectedBoardId.value = board.id;
+    deleteCurrent();
   }
 };
 
@@ -206,7 +336,6 @@ const loadData = async () => {
     tableData.value = [];
     return;
   }
-  // 没有指标时直接清空（不请求 API）
   if (effectiveMetrics.value.length === 0) {
     tableData.value = [];
     return;
@@ -234,36 +363,18 @@ const loadData = async () => {
 };
 
 const generateMockData = (): Array<Record<string, string | number>> => {
-  // P3 占位 mock：API 失败时显示
   const days = 7;
   const result: Array<Record<string, string | number>> = [];
-  const today = new Date();
-  for (let i = days - 1; i >= 0; i--) {
-    const d = new Date(today);
-    d.setDate(d.getDate() - i);
-    const dateStr = d.toISOString().slice(0, 10);
-    const row: Record<string, string | number> = { date: dateStr };
-    effectiveMetrics.value.forEach((m) => {
-      if (m.includes('revenue') || m === 'ecpm') {
-        row[m] = Math.round(1000 + Math.random() * 2000);
-      } else if (m.includes('rate')) {
-        row[m] = Math.round(60 + Math.random() * 35);
-      } else {
-        row[m] = Math.round(5000 + Math.random() * 10000);
-      }
-    });
+  for (let i = 0; i < days; i++) {
+    const d = new Date();
+    d.setDate(d.getDate() - (days - 1 - i));
+    const row: Record<string, string | number> = { date: d.toISOString().slice(0, 10) };
+    for (const m of effectiveMetrics.value) {
+      row[m] = Math.round(Math.random() * 10000 * 100) / 100;
+    }
     result.push(row);
   }
   return result;
-};
-
-const onBoardChange = () => {
-  if (currentBoard.value) {
-    viewMode.value = currentBoard.value.config?.layout?.view || 'table';
-    filter.value = { dateRange: '7d', appIds: [], placementIds: [], adSourceIds: [] };
-    pickedMetrics.value = [];
-    loadData();
-  }
 };
 
 const openCreateDialog = () => {
@@ -272,17 +383,33 @@ const openCreateDialog = () => {
 };
 
 const openEditConfigDialog = () => {
-  if (!currentBoard.value) return;
-  editingBoard.value = JSON.parse(JSON.stringify(currentBoard.value));
+  if (!currentBoard.value) {
+    ElMessage.warning('请先选择一个看版');
+    return;
+  }
+  editingBoard.value = currentBoard.value;
   dialogVisible.value = true;
 };
 
 const duplicateCurrent = async () => {
-  if (!currentBoard.value) return;
+  if (!currentBoard.value) {
+    ElMessage.warning('请先选择一个看版');
+    return;
+  }
   try {
-    await request.post(`/api/v1/console/report/board/duplicate/${currentBoard.value.id}`);
-    ElMessage.success('已复制');
-    loadBoards();
+    const res: any = await request.post('/api/v1/console/report/board/create', {
+      ...currentBoard.value,
+      id: undefined,
+      name: currentBoard.value.name + ' 副本',
+      is_default: false,
+    });
+    if (res.code === 0) {
+      ElMessage.success('已复制');
+      loadBoards();
+      if (res.data?.id) selectedBoardId.value = res.data.id;
+    } else {
+      ElMessage.error(res.message || '复制失败');
+    }
   } catch (e: any) {
     ElMessage.error(e?.message || '复制失败');
   }
@@ -291,78 +418,78 @@ const duplicateCurrent = async () => {
 const deleteCurrent = async () => {
   if (!currentBoard.value) return;
   try {
-    await ElMessageBox.confirm(`确认删除看版「${currentBoard.value.name}」？`, '提示', { type: 'warning' });
-    await request.delete(`/api/v1/console/report/board/delete/${currentBoard.value.id}`);
-    ElMessage.success('已删除');
-    selectedBoardId.value = null;
-    loadBoards();
+    await ElMessageBox.confirm(`确定删除看版「${currentBoard.value.name}」？此操作不可恢复。`, '删除确认', {
+      confirmButtonText: '删除',
+      cancelButtonText: '取消',
+      type: 'warning',
+    });
+    const res: any = await request.delete(`/api/v1/console/report/board/delete/${currentBoard.value.id}`);
+    if (res.code === 0) {
+      ElMessage.success('已删除');
+      selectedBoardId.value = null;
+      loadBoards();
+    } else {
+      ElMessage.error(res.message || '删除失败');
+    }
   } catch (e: any) {
     if (e !== 'cancel') ElMessage.error(e?.message || '删除失败');
   }
 };
 
 const onSaved = () => {
+  dialogVisible.value = false;
   loadBoards();
 };
 
-// CSV / Excel / PDF 导出
-const exportCsv = () => {
-  if (!tableData.value.length) {
-    ElMessage.warning('暂无数据');
-    return;
-  }
-  const cols = effectiveMetrics.value;
-  const dim = currentBoard.value?.config?.dimensions?.[0] || 'date';
-  const head = [dim, ...cols].join(',');
-  const rows = tableData.value.map((row) => [row[dim], ...cols.map((c) => row[c])].join(','));
-  const csv = '\uFEFF' + [head, ...rows].join('\n');
-  const blob = new Blob([csv], { type: 'text/csv' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `${currentBoard.value?.name || '报表'}_${filter.value.dateRange}.csv`;
-  a.click();
-  URL.revokeObjectURL(url);
-};
+const exportCsv = () => doExport('csv');
+const exportExcel = () => doExport('excel');
+const exportPdf = () => doExport('pdf');
 
-const exportExcel = async () => {
-  if (!tableData.value.length) {
-    ElMessage.warning('暂无数据');
+const doExport = async (format: 'csv' | 'excel' | 'pdf') => {
+  if (!currentBoard.value) {
+    ElMessage.warning('请先选择一个看版');
     return;
   }
-  // 用 CSV 简化版（不引外部库）
-  exportCsv();
-  ElMessage.info('Excel 格式暂以 CSV 输出（XLSX 库未集成）');
-};
-
-const exportPdf = async () => {
-  if (!tableData.value.length) {
-    ElMessage.warning('暂无数据');
+  if (effectiveMetrics.value.length === 0) {
+    ElMessage.warning('请至少选择一个指标');
     return;
   }
-  // 调用后端 PDF 渲染接口
   try {
-    const res: any = await request.post('/api/v1/console/report/export/pdf', {
-      board_id: currentBoard.value?.id,
+    const res: any = await request.post(`/api/v1/console/report/export/${format}`, {
+      board_id: currentBoard.value.id,
+      dimensions: currentBoard.value.config?.dimensions || ['date'],
+      metrics: effectiveMetrics.value,
       filters: filter.value,
     });
-    if (res.code === 0 && res.data?.url) {
-      window.open(res.data.url, '_blank');
+    if (res.code === 0) {
+      const url = res.data?.url;
+      if (url) {
+        // 通过 fetch + blob 下载（避免跨域 download 属性失效）
+        const r = await fetch(url, { credentials: 'include', headers: { Authorization: `Bearer ${localStorage.getItem('token') || ''}` } });
+        const blob = await r.blob();
+        const blobUrl = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = blobUrl;
+        a.download = `report_${Date.now()}.${format === 'excel' ? 'csv' : format}`;
+        a.click();
+        window.URL.revokeObjectURL(blobUrl);
+        ElMessage.success('导出已开始');
+      } else {
+        ElMessage.success('已提交导出');
+      }
     } else {
-      ElMessage.error(res.message || 'PDF 生成失败');
+      ElMessage.error(res.message || '导出失败');
     }
   } catch (e: any) {
-    ElMessage.error(e?.message || 'PDF 生成失败');
+    ElMessage.error(e?.message || '导出失败');
   }
 };
 
-watch(viewMode, (v) => {
+watch(viewMode, () => {
   if (currentBoard.value) {
-    currentBoard.value.config.layout.view = v;
+    // 切换视图时不需要重新加载数据
   }
 });
 
-onMounted(() => {
-  loadBoards();
-});
+onMounted(loadBoards);
 </script>

@@ -12,7 +12,7 @@ const puppeteer = require('puppeteer');
   page.on('console', (msg) => { if (msg.type() === 'error') errors.push(msg.text()); });
   page.on('pageerror', (err) => errors.push(err.message));
 
-  await page.goto('http://localhost:5000/login', { waitUntil: 'networkidle0' });
+  await page.goto('http://localhost:5000/login', { waitUntil: 'load' });
   const loginRes = await page.evaluate(async () => {
     const r = await fetch('/api/v1/auth/login', {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
@@ -28,45 +28,49 @@ const puppeteer = require('puppeteer');
   }, loginRes);
   console.log('1. ✓ login OK');
 
-  await page.goto('http://localhost:5000/report/overview', { waitUntil: 'networkidle0' });
+  await page.goto('http://localhost:5000/report/overview', { waitUntil: 'load' });
   await new Promise(r => setTimeout(r, 1500));
   const title = await page.title();
   console.log(`2. ✓ page title: ${title}`);
 
-  // Open create dialog
+  // Verify master panel + detail panel
+  const hasMaster = !!(await page.$('.report-master-panel'));
+  const hasDetail = !!(await page.$('.report-detail-panel'));
+  console.log(`3. ✓ master-detail layout: master=${hasMaster}, detail=${hasDetail}`);
+
+  // Click "新建看版" in master panel header
   await page.evaluate(() => {
-    const btn = Array.from(document.querySelectorAll('button')).find(b => b.textContent.trim().includes('新建看版'));
-    if (btn) btn.click();
+    const btns = Array.from(document.querySelectorAll('.report-master-header button, .report-master-header .el-button'));
+    const b = btns.find(x => x.textContent.trim().includes('新建看版'));
+    if (b) b.click();
   });
   await new Promise(r => setTimeout(r, 800));
   const dialogVisible = !!(await page.$('.el-overlay-dialog'));
-  console.log(`3. ✓ create dialog: ${dialogVisible}`);
+  console.log(`4. ✓ create dialog: ${dialogVisible}`);
   if (!dialogVisible) throw new Error('dialog should open');
 
   // Fill name + save
-  await page.type('.el-dialog .el-input__inner', 'E2E测试看版');
+  await page.evaluate(() => { const input = document.querySelector('.el-dialog .el-input__inner'); if (input) { input.focus(); document.execCommand('insertText', false, 'E2E测试看版'); input.dispatchEvent(new Event('input', { bubbles: true })); } });
   await new Promise(r => setTimeout(r, 300));
   await page.evaluate(() => {
     const btn = Array.from(document.querySelectorAll('.el-dialog button')).find(b => b.textContent.trim().includes('保存'));
     if (btn) btn.click();
   });
   await new Promise(r => setTimeout(r, 2000));
-  console.log('4. ✓ submitted');
+  console.log('5. ✓ board created');
 
-  // Click board selector
-  await page.click('.overview-toolbar-left .el-select__wrapper');
-  await new Promise(r => setTimeout(r, 500));
-  const inList = await page.evaluate(() => {
-    const opts = Array.from(document.querySelectorAll('.el-select-dropdown__item'));
-    return opts.some(o => o.textContent.trim().includes('E2E测试看版'));
+  // Verify the new board appears in master list
+  const boardInList = await page.evaluate(() => {
+    const items = Array.from(document.querySelectorAll('.report-master-item-name-text'));
+    return items.some(i => i.textContent.trim() === 'E2E测试看版');
   });
-  console.log(`5. ✓ board in dropdown: ${inList}`);
+  console.log(`6. ✓ new board in master list: ${boardInList}`);
 
-  // Select the new board
+  // Click the new board to select
   await page.evaluate(() => {
-    const opts = Array.from(document.querySelectorAll('.el-select-dropdown__item'));
-    const opt = opts.find(o => o.textContent.trim().includes('E2E测试看版'));
-    if (opt) opt.click();
+    const items = Array.from(document.querySelectorAll('.report-master-item'));
+    const target = items.find(i => i.textContent.includes('E2E测试看版'));
+    if (target) target.click();
   });
   await new Promise(r => setTimeout(r, 1500));
 
@@ -78,8 +82,8 @@ const puppeteer = require('puppeteer');
       if (b) b.click();
     }, mode);
     await new Promise(r => setTimeout(r, 1200));
-    const hasContent = await page.evaluate(() => !!document.querySelector('.page-card, .el-table, .kpi-card, [class*="chart"]'));
-    console.log(`6.${mode} ✓ view ${mode}: hasContent=${hasContent}`);
+    const hasContent = await page.evaluate(() => !!document.querySelector('.report-detail-content .el-table, .kpi-card, [class*="chart"]'));
+    console.log(`7.${mode} ✓ view ${mode}: hasContent=${hasContent}`);
   }
 
   // Cleanup
@@ -97,10 +101,10 @@ const puppeteer = require('puppeteer');
     }
     return null;
   });
-  console.log(`7. ✓ cleanup: deleted ${deleted}`);
+  console.log(`8. ✓ cleanup: deleted ${deleted}`);
 
   await page.screenshot({ path: '/tmp/screenshot-report-overview.png', fullPage: true });
-  console.log('8. ✓ screenshot');
+  console.log('9. ✓ screenshot');
 
   if (errors.length > 0) {
     console.error('\n=== Console errors ===');

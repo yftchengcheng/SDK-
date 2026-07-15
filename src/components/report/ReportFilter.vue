@@ -48,6 +48,8 @@ export interface ReportFilter {
   appIds: string[];
   placementIds: string[];
   adSourceIds: string[];
+  formats: ('banner' | 'interstitial' | 'native' | 'rewarded' | 'splash')[];
+  country?: string[];
 }
 
 const props = defineProps<{ modelValue: ReportFilter }>();
@@ -91,7 +93,7 @@ const emitChange = () => {
 };
 
 const reset = () => {
-  local.value = { dateRange: '7d', appIds: [], placementIds: [], adSourceIds: [] };
+  local.value = { dateRange: '7d', appIds: [], placementIds: [], adSourceIds: [], formats: [] };
   emitChange();
 };
 
