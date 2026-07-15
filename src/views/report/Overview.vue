@@ -129,7 +129,8 @@
                 <span class="config-section-count">{{ effectiveMetrics.length }}</span>
               </div>
               <div class="config-section-actions">
-                <MetricPicker v-model="pickedMetrics" :existing="(currentBoard.config?.metrics || [])" />
+                <el-button :icon="Setting" size="small" @click="metricPickerRef?.open()">设置指标</el-button>
+                <MetricPicker ref="metricPickerRef" v-model="pickedMetrics" />
               </div>
             </div>
           </div>
@@ -208,7 +209,7 @@ import { ref, computed, onMounted, watch } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import {
   Plus, CopyDocument, Edit, Download, Document, Delete, Refresh, Search, MoreFilled,
-  DataAnalysis, Files, DataLine, Grid, Histogram, Postcard, TrendCharts,
+  DataAnalysis, Files, DataLine, Grid, Histogram, Postcard, Setting, TrendCharts,
 } from '@element-plus/icons-vue';
 import request from '@/utils/request';
 import MetricPicker from '@/components/report/MetricPicker.vue';
@@ -260,6 +261,7 @@ const editingBoard = ref<ReportBoard | null>(null);
 
 const filter = ref<Filter>({ dateRange: '7d', appIds: [], placementIds: [], adSourceIds: [], formats: [], country: [], osList: [], platform: '' });
 const pickedMetrics = ref<string[]>([]);
+const metricPickerRef = ref<{ open: () => void } | null>(null);
 const tableData = ref<Array<Record<string, string | number>>>([]);
 
 const currentBoard = computed<ReportBoard | null>(() => boards.value.find((b) => b.id === selectedBoardId.value) || null);

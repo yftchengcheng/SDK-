@@ -244,8 +244,8 @@ const loadDefinition = async () => {
     const res: any = await request.get('/api/v1/console/report/funnel/definition');
     if (res.code === 0) {
       funnelDefinition.value = res.data.steps || [];
-      // 默认选中前 5 步
-      selectedSteps.value = funnelDefinition.value.slice(0, 5).map((s: FunnelStep) => s.code);
+      // 默认选中全部 12 步（按截图）
+      selectedSteps.value = funnelDefinition.value.map((s: FunnelStep) => s.code);
     }
   } catch (e: any) {
     ElMessage.error('加载漏斗定义失败：' + (e?.message || ''));
