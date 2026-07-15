@@ -6,6 +6,14 @@ export interface ChinaRegion {
   cities?: ChinaRegion[]; // 子级（仅省/直辖市有）
 }
 
+// 适配 el-cascader 的扁平结构：value/label/children
+export interface ChinaCascaderOption {
+  value: string;
+  label: string;
+  children?: ChinaCascaderOption[];
+}
+
+
 export const CHINA_REGIONS: ChinaRegion[] = [
   { code: '110000', name: '北京', cities: [
     { code: '110100', name: '北京市' }
@@ -261,3 +269,14 @@ export const CHINA_REGIONS: ChinaRegion[] = [
     { code: '820100', name: '澳门特别行政区' }
   ]}
 ];
+
+// 适配 el-cascader 的扁平结构（value/label/children）
+export const CHINA_CASCADER_OPTIONS: ChinaCascaderOption[] = (() => {
+  const map = (rs: ChinaRegion[]): ChinaCascaderOption[] =>
+    rs.map((r) => ({
+      value: r.code,
+      label: r.name,
+      children: r.cities ? map(r.cities) : undefined
+    }));
+  return map(CHINA_REGIONS);
+})();

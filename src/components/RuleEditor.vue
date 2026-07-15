@@ -14,7 +14,7 @@ import {
   type Rule,
   type RuleDimension
 } from '@/shared/rule-dimensions';
-import { CHINA_REGIONS } from '@/shared/china-regions';
+import { CHINA_CASCADER_OPTIONS } from '@/shared/china-regions';
 import { GLOBAL_TIERS, GLOBAL_CONTINENTS } from '@/shared/global-regions';
 import { DEVICE_BRANDS, DEVICE_MODELS } from '@/shared/device-data';
 
@@ -301,8 +301,8 @@ watch(
           <template v-if="rule.dimension === 'region' && rule.regionScope === 'china'">
             <el-cascader
               v-model="(rule.value as string[][])"
-              :options="CHINA_REGIONS"
-              :props="{ multiple: true, checkStrictly: false }"
+              :options="CHINA_CASCADER_OPTIONS"
+              :props="{ multiple: true, checkStrictly: false, value: 'value', label: 'label', children: 'children' }"
               placeholder="选择省/市（可多选）"
               style="min-width: 280px; flex: 1"
               collapse-tags
