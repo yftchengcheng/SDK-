@@ -273,6 +273,13 @@ B2B 企业级广告数据管理控制台。沉稳、专业、精准。蓝+灰+�
 - **高度**：~75px（icon 行高）
 - **样式**：白底 / 1px slate-200 边 / radius 8px / shadow-sm
 - **内边距**：16-20px 上下、24px 左右
+- **禁忌**：page-header 内**禁止**放视图切换器（表格/卡片/趋势/柱状等 el-radio-group），太花哨；如需切换视图，在内容区自行设计 tab/segmented control。
+
+### 顶部面包屑（page-header 替代方案）
+
+- **统一规范**：所有页面顶部用 `.page-header`（左 icon+title+subtitle / 右 actions），不另行定义 breadcrumb 组件
+- **历史决策**：曾尝试在子模块加 el-breadcrumb 组件，与 page-header 重复且割裂，**已废弃**
+- **子模块标识**：靠左侧 sidebar 菜单高亮 + page-header 的 page-header-title（用户已在侧边栏看到模块名，无需重复面包屑）
 
 ### 整体结构
 

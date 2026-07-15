@@ -6,7 +6,7 @@
         <div class="page-header-icon"><el-icon><DataAnalysis /></el-icon></div>
         <div class="page-header-titles">
           <h1 class="page-header-title">综合报表</h1>
-          <p class="page-header-subtitle">多维度交叉分析收入、曝光、点击等核心指标，支持表格/卡片/趋势/柱状 4 种视图</p>
+          <p class="page-header-subtitle">多维度交叉分析收入、曝光、点击等核心指标</p>
         </div>
       </div>
       <div class="page-header-actions">
@@ -147,18 +147,12 @@
             </div>
           </div>
 
-          <!-- 筛选器 + 视图切换 + 导出 -->
+          <!-- 筛选器 + 导出 -->
           <div class="report-detail-toolbar">
             <div class="report-detail-toolbar-left">
               <ReportFilter v-model="filter" @change="loadData" />
             </div>
             <div class="report-detail-toolbar-right">
-              <el-radio-group v-model="viewMode" size="default">
-                <el-radio-button value="table"><el-icon><Grid /></el-icon> 表格</el-radio-button>
-                <el-radio-button value="card"><el-icon><Postcard /></el-icon> 卡片</el-radio-button>
-                <el-radio-button value="trend"><el-icon><TrendCharts /></el-icon> 趋势</el-radio-button>
-                <el-radio-button value="bar"><el-icon><DataLine /></el-icon> 柱状</el-radio-button>
-              </el-radio-group>
               <el-button-group class="report-detail-export">
                 <el-tooltip content="导出 CSV" placement="top">
                   <el-button :icon="Download" @click="exportCsv">CSV</el-button>
@@ -173,25 +167,9 @@
             </div>
           </div>
 
-          <!-- 4 种视图 -->
+          <!-- 表格视图 -->
           <div class="report-detail-content" v-loading="dataLoading">
             <ReportTableView
-              v-if="viewMode === 'table'"
-              :board="effectiveBoard"
-              :data="tableData"
-            />
-            <ReportCardView
-              v-else-if="viewMode === 'card'"
-              :board="effectiveBoard"
-              :data="tableData"
-            />
-            <ReportTrendView
-              v-else-if="viewMode === 'trend'"
-              :board="effectiveBoard"
-              :data="tableData"
-            />
-            <ReportBarView
-              v-else
               :board="effectiveBoard"
               :data="tableData"
             />
@@ -230,19 +208,16 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import {
   Plus, CopyDocument, Edit, Download, Document, Delete, Refresh, Search, MoreFilled,
-  DataAnalysis, Files, DataLine, Grid, Histogram, Postcard, Setting, TrendCharts,
+  DataAnalysis, Files, DataLine, Histogram, Setting,
 } from '@element-plus/icons-vue';
 import request from '@/utils/request';
 import DimensionPicker from '@/components/report/DimensionPicker.vue';
 import MetricPicker from '@/components/report/MetricPicker.vue';
 import ReportTableView from '@/components/report/ReportTableView.vue';
-import ReportCardView from '@/components/report/ReportCardView.vue';
-import ReportTrendView from '@/components/report/ReportTrendView.vue';
-import ReportBarView from '@/components/report/ReportBarView.vue';
 import BoardConfigDialog from '@/components/report/BoardConfigDialog.vue';
 import ReportFilter, { type ReportFilter as Filter } from '@/components/report/ReportFilter.vue';
 
@@ -250,7 +225,7 @@ interface BoardConfig {
   dimensions: string[];
   metrics: string[];
   filters: { dateRange?: string };
-  layout: { view: 'table' | 'card' | 'trend' | 'bar' };
+  layout: { view: 'table' };
 }
 
 interface ReportBoard {
@@ -293,7 +268,6 @@ const DIM_LABELS: Record<string, string> = {
 const boards = ref<ReportBoard[]>([]);
 const selectedBoardId = ref<number | null>(null);
 const searchKeyword = ref('');
-const viewMode = ref<'table' | 'card' | 'trend' | 'bar'>('table');
 const loading = ref(false);
 const dataLoading = ref(false);
 const dialogVisible = ref(false);
@@ -388,7 +362,6 @@ const loadBoards = async () => {
 
 const selectBoard = (board: ReportBoard) => {
   selectedBoardId.value = board.id;
-  viewMode.value = board.config?.layout?.view || 'table';
   filter.value = { dateRange: '7d', appIds: [], placementIds: [], adSourceIds: [], formats: [], country: [], osList: [], platform: '' };
   pickedMetrics.value = [];
   pickedDimensions.value = [];
@@ -561,12 +534,6 @@ const doExport = async (format: 'csv' | 'excel' | 'pdf') => {
     ElMessage.error(e?.message || '导出失败');
   }
 };
-
-watch(viewMode, () => {
-  if (currentBoard.value) {
-    // 切换视图时不需要重新加载数据
-  }
-});
 
 onMounted(loadBoards);
 </script>

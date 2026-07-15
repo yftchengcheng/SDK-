@@ -11,7 +11,7 @@
         <div class="page-header-icon"><el-icon><DataLine /></el-icon></div>
         <div class="page-header-titles">
           <h1 class="page-header-title">漏斗分析</h1>
-          <p class="page-header-subtitle">11 步用户行为漏斗，5 个核心转化率，支持自定义公式（白名单：除/减）</p>
+          <p class="page-header-subtitle">12 步用户行为漏斗，10 个核心转化率，支持自定义公式（白名单：除/减）</p>
         </div>
       </div>
       <div class="page-header-actions">
