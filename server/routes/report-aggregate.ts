@@ -39,31 +39,40 @@ const SUPPORTED_DIMENSIONS = [
 ] as const;
 
 /**
- * 漏斗 11 步定义（漏斗分析专用）
+ * 漏斗 12 步定义（漏斗分析专用）
+ * 与 report_funnel_metric_definition 表保持一致
  */
 export const FUNNEL_STEPS = [
-  { code: 'step_1_impression',    name: '曝光',     order: 1 },
-  { code: 'step_2_visible',       name: '可见',     order: 2 },
-  { code: 'step_3_clickable',     name: '可点击',   order: 3 },
-  { code: 'step_4_click',         name: '点击',     order: 4 },
-  { code: 'step_5_landing',       name: '落地页',   order: 5 },
-  { code: 'step_6_register',      name: '注册',     order: 6 },
-  { code: 'step_7_activate',      name: '激活',     order: 7 },
-  { code: 'step_8_tutorial',      name: '教程',     order: 8 },
-  { code: 'step_9_keyaction',     name: '关键行为', order: 9 },
-  { code: 'step_10_pay',          name: '付费',     order: 10 },
-  { code: 'step_11_retention',    name: '留存',     order: 11 },
+  { code: 'step_app_launch',   name: '应用启动',     order: 1 },
+  { code: 'step_get_config',   name: '获取配置',     order: 2 },
+  { code: 'step_ad_cache',     name: '广告缓存',     order: 3 },
+  { code: 'step_ad_request',   name: '流量请求',     order: 4 },
+  { code: 'step_ad_fill',      name: '流量填充',     order: 5 },
+  { code: 'step_scene_arrive', name: '到达广告场景', order: 6 },
+  { code: 'step_ready_query',  name: '咨询isReady',  order: 7 },
+  { code: 'step_try_show',     name: '抽发展示',     order: 8 },
+  { code: 'step_show_ok',      name: '般发展示成功', order: 9 },
+  { code: 'step_show',         name: '展示',         order: 10 },
+  { code: 'step_show_api',     name: '展示API',      order: 11 },
+  { code: 'step_click',        name: '点击',         order: 12 },
 ] as const;
 
 /**
- * 漏斗 5 个转化率（曝光→点击 / 点击→激活 / 激活→付费 / 曝光→付费 / 整体）
+ * 漏斗 7 个转化率
+ * 流量填充率 / 广告场景到达率 / isReady成功率 / 广告触发率
+ * / 般发展示成功率 / 展示成功率 / 展示Gap / 点击率 / 整体转化率
  */
 export const FUNNEL_RATES = [
-  { code: 'rate_imp_click',    name: '曝光→点击',  from: 'step_1_impression', to: 'step_4_click' },
-  { code: 'rate_click_active', name: '点击→激活',  from: 'step_4_click',      to: 'step_7_activate' },
-  { code: 'rate_active_pay',   name: '激活→付费',  from: 'step_7_activate',   to: 'step_10_pay' },
-  { code: 'rate_imp_pay',      name: '曝光→付费',  from: 'step_1_impression', to: 'step_10_pay' },
-  { code: 'rate_overall',      name: '整体转化',   from: 'step_1_impression', to: 'step_11_retention' },
+  { code: 'ratio_cache_hit',    name: '广告缓存率',     from: 'step_app_launch',   to: 'step_get_config' },
+  { code: 'ratio_cache_request',name: '广告请求率',     from: 'step_get_config',   to: 'step_ad_cache' },
+  { code: 'ratio_request_fill', name: '流量填充率',     from: 'step_ad_cache',     to: 'step_ad_request' },
+  { code: 'ratio_scene_arrive', name: '广告场景到达率', from: 'step_ad_request',   to: 'step_scene_arrive' },
+  { code: 'ratio_ready_query',  name: 'isReady成功率',  from: 'step_scene_arrive', to: 'step_ready_query' },
+  { code: 'ratio_trigger',      name: '广告触发率',     from: 'step_ready_query',  to: 'step_try_show' },
+  { code: 'ratio_show_success', name: '般发展示成功率', from: 'step_try_show',     to: 'step_show_ok' },
+  { code: 'ratio_real_show',    name: '展示成功率',     from: 'step_show_ok',      to: 'step_show' },
+  { code: 'ratio_click',        name: '点击率',         from: 'step_show',         to: 'step_click' },
+  { code: 'ratio_overall',      name: '整体转化率',     from: 'step_app_launch',   to: 'step_click' },
 ] as const;
 
 /**
