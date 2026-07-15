@@ -5,6 +5,7 @@ import type { RouteRecordRaw } from 'vue-router';
 import Login from '../views/auth/Login.vue';
 import Register from '../views/auth/Register.vue';
 import MainLayout from '../layout/MainLayout.vue';
+import AggregationLayout from '../layout/AggregationLayout.vue';
 import Dashboard from '../views/dashboard/Index.vue';
 import AppManage from '../views/app/Index.vue';
 import PlacementManage from '../views/placement/Index.vue';
@@ -55,23 +56,45 @@ const routes: RouteRecordRaw[] = [
         component: PlacementManage,
         meta: { title: '广告位管理', icon: 'PictureFilled' },
       },
+      // 聚合管理（嵌套路由 + 父级 layout）
+      {
+        path: 'aggregation',
+        component: AggregationLayout,
+        redirect: '/aggregation/waterfall',
+        meta: { title: '聚合管理', icon: 'SetUp', isAggregationGroup: true },
+        children: [
+          {
+            path: 'traffic-group',
+            name: 'TrafficGroup',
+            component: TrafficGroup,
+            meta: { title: '流量分组', icon: 'Filter' },
+          },
+          {
+            path: 'ad-source',
+            name: 'AdSourceManage',
+            component: AdSourceManage,
+            meta: { title: '广告源管理', icon: 'Connection' },
+          },
+          {
+            path: 'waterfall',
+            name: 'WaterfallConfig',
+            component: WaterfallConfig,
+            meta: { title: '瀑布流配置', icon: 'SetUp' },
+          },
+        ],
+      },
+      // 兼容旧 URL（重定向到聚合管理新地址）
+      {
+        path: 'traffic-group',
+        redirect: '/aggregation/traffic-group',
+      },
       {
         path: 'ad-source',
-        name: 'AdSourceManage',
-        component: AdSourceManage,
-        meta: { title: '广告源管理', icon: 'Connection' },
+        redirect: '/aggregation/ad-source',
       },
       {
         path: 'waterfall',
-        name: 'WaterfallConfig',
-        component: WaterfallConfig,
-        meta: { title: '瀑布流配置', icon: 'SetUp' },
-      },
-      {
-        path: 'traffic-group',
-        name: 'TrafficGroup',
-        component: TrafficGroup,
-        meta: { title: '流量分组', icon: 'Filter' },
+        redirect: '/aggregation/waterfall',
       },
       {
         path: 'report',

@@ -65,6 +65,15 @@ B2B 企业级广告数据管理控制台。沉稳、专业、精准。蓝+灰+�
 
 ## 字体排版
 
+## 聚合管理（AggregationLayout）
+
+- 顶部：面包屑（聚合管理 / 子模块）+ 副标题
+- Tab Bar：Element Plus `el-tabs`（高 44px / active bar 2px / 颜色 #2563EB）
+- 子页面走嵌套路由（深链接 + 浏览器后退友好）
+- 子页面用 keep-alive 缓存状态
+- 三个子页面去除自身的 page-header（避免与父级重复）
+- 侧边栏父菜单：聚合管理（图标 Operation），子菜单三项（流量分组 / 广告源管理 / 瀑布流配置）
+
 ### 字体族
 
 ``'Inter'', -apple-system, BlinkMacSystemFont, ''Segoe UI'', Roboto, sans-serif``

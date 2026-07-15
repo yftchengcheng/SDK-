@@ -10,18 +10,52 @@
         </transition>
       </div>
       <nav class="sidebar-nav">
-        <div
-          v-for="item in menuItems"
-          :key="item.path"
-          class="nav-item"
-          :class="{ active: currentRoute === item.path }"
-          @click="router.push(item.path)"
-        >
-          <el-icon :size="14"><component :is="item.icon" /></el-icon>
-          <transition name="fade-text">
-            <span v-if="!isCollapsed" class="nav-label">{{ item.label }}</span>
-          </transition>
-        </div>
+        <template v-for="item in menuItems" :key="item.path || item.label">
+          <!-- 父级菜单（聚合管理）：点击展开/折叠；当前路由在子路径下时默认展开 -->
+          <div
+            v-if="item.children && item.children.length > 0"
+            class="nav-group"
+            :class="{ 'nav-group--active': isGroupActive(item.children) }"
+          >
+            <div class="nav-item nav-item--group" @click="toggleGroup(item.label)">
+              <el-icon :size="14"><component :is="item.icon" /></el-icon>
+              <transition name="fade-text">
+                <span v-if="!isCollapsed" class="nav-label">{{ item.label }}</span>
+              </transition>
+              <transition name="fade-text">
+                <el-icon v-if="!isCollapsed" :size="10" class="nav-group-arrow">
+                  <component :is="expandedGroups[item.label] ? 'ArrowDown' : 'ArrowRight'" />
+                </el-icon>
+              </transition>
+            </div>
+            <transition name="slide-down">
+              <div v-if="!isCollapsed && expandedGroups[item.label]" class="nav-sublist">
+                <div
+                  v-for="sub in item.children"
+                  :key="sub.path"
+                  class="nav-item nav-item--sub"
+                  :class="{ active: currentRoute === sub.path }"
+                  @click="router.push(sub.path)"
+                >
+                  <el-icon :size="12"><component :is="sub.icon" /></el-icon>
+                  <span class="nav-label">{{ sub.label }}</span>
+                </div>
+              </div>
+            </transition>
+          </div>
+          <!-- 普通菜单项 -->
+          <div
+            v-else
+            class="nav-item"
+            :class="{ active: currentRoute === item.path }"
+            @click="router.push(item.path)"
+          >
+            <el-icon :size="14"><component :is="item.icon" /></el-icon>
+            <transition name="fade-text">
+              <span v-if="!isCollapsed" class="nav-label">{{ item.label }}</span>
+            </transition>
+          </div>
+        </template>
       </nav>
       <div class="sidebar-footer">
         <div class="nav-item collapse-btn" @click="isCollapsed = !isCollapsed">
@@ -72,13 +106,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, type Component } from 'vue';
+import { ref, computed, watch, onMounted, type Component } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useUserStore } from '@/stores/user';
 import request from '@/utils/request';
 import {
   DataAnalysis, Cellphone, PictureFilled, Connection, SetUp, Filter,
-  TrendCharts, DocumentChecked, Share, Bell, User, ArrowDown,
+  TrendCharts, DocumentChecked, Share, Bell, User, ArrowDown, ArrowRight,
   ChatLineSquare, SwitchButton, Refresh, Close, Operation,
   DArrowLeft, DArrowRight, OfficeBuilding,
 } from '@element-plus/icons-vue';
@@ -88,15 +122,23 @@ interface MenuItem {
   path: string;
   label: string;
   icon: Component;
+  children?: MenuItem[];
 }
 
 const baseMenuItems: MenuItem[] = [
   { path: '/dashboard', label: '数据看板', icon: DataAnalysis },
   { path: '/app', label: '应用管理', icon: Cellphone },
   { path: '/placement', label: '广告位管理', icon: PictureFilled },
-  { path: '/ad-source', label: '广告源管理', icon: Connection },
-  { path: '/waterfall', label: '瀑布流配置', icon: SetUp },
-  { path: '/traffic-group', label: '流量分组', icon: Filter },
+  {
+    path: '/aggregation',
+    label: '聚合管理',
+    icon: Operation,
+    children: [
+      { path: '/aggregation/traffic-group', label: '流量分组', icon: Filter },
+      { path: '/aggregation/ad-source', label: '广告源管理', icon: Connection },
+      { path: '/aggregation/waterfall', label: '瀑布流配置', icon: SetUp },
+    ],
+  },
   { path: '/report', label: '数据报表', icon: TrendCharts },
   { path: '/reconciliation', label: '对账管理', icon: DocumentChecked },
   { path: '/network', label: '广告平台', icon: Share },
@@ -120,12 +162,33 @@ const menuItems = computed<MenuItem[]>(() => {
 const isCollapsed = ref(false);
 const unreadCount = ref(0);
 
+// 父级菜单展开状态（聚合管理）
+const expandedGroups = ref<Record<string, boolean>>({});
+const toggleGroup = (label: string) => {
+  expandedGroups.value[label] = !expandedGroups.value[label];
+};
+// 判断父级菜单是否在当前路由下激活
+const isGroupActive = (children: MenuItem[]): boolean => {
+  return children.some((c) => c.path === route.path);
+};
+
 const currentRoute = computed(() => route.path);
 const currentTitle = computed(() => (route.meta.title as string) || '');
 const avatarLetter = computed(() => {
   const email = userStore.userInfo?.email || 'U';
   return email.charAt(0).toUpperCase();
 });
+
+// 路由变化时自动展开父级菜单（聚合管理）
+watch(
+  () => route.path,
+  (newPath) => {
+    if (newPath.startsWith('/aggregation')) {
+      expandedGroups.value['聚合管理'] = true;
+    }
+  },
+  { immediate: true },
+);
 
 const handleCommand = (command: string) => {
   if (command === 'logout') {

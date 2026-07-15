@@ -1,17 +1,5 @@
 <template>
   <div class="page-shell">
-    <div class="page-header">
-      <div class="page-header-left">
-        <div class="page-header-icon"><el-icon><Filter /></el-icon></div>
-        <div class="page-header-titles">
-          <h1 class="page-header-title">流量分组</h1>
-          <p class="page-header-subtitle">按规则将流量分配到不同瀑布流配置</p>
-        </div>
-      </div>
-      <div class="page-header-actions">
-        <el-button type="primary" :icon="Plus" @click="openCreate">创建分组</el-button>
-      </div>
-    </div>
     <div class="page-filter">
       <el-form :inline="true" :model="filter" class="page-filter-form" @submit.prevent>
         <el-form-item label="状态">
@@ -27,6 +15,7 @@
       <div class="page-filter-actions">
         <el-button @click="onReset">重置</el-button>
         <el-button type="primary" :icon="Search" @click="onSearch">查询</el-button>
+        <el-button type="primary" :icon="Plus" @click="openCreate">创建分组</el-button>
       </div>
     </div>
     <div class="page-card">

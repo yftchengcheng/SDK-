@@ -8072,3 +8072,168 @@ html, body, #app {
   margin-left: 0;
   align-self: center;
 }
+
+/* ==========================================================================
+   Aggregation Layout（聚合管理父级 layout）
+   - 面包屑 + Tab 切换 + keep-alive Outlet
+   ========================================================================== */
+.aggregation-layout {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  min-height: 100%;
+}
+.aggregation-breadcrumb {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 20px;
+  background: var(--color-slate-0, #ffffff);
+  border: 1px solid var(--color-slate-200, #e2e8f0);
+  border-radius: var(--radius-lg, 8px);
+  box-shadow: var(--shadow-sm);
+}
+.aggregation-breadcrumb :deep(.el-breadcrumb__item) {
+  font-size: var(--text-md, 14px);
+}
+.aggregation-breadcrumb :deep(.el-breadcrumb__inner) {
+  color: var(--color-slate-600, #475569);
+  font-weight: 500;
+}
+.aggregation-breadcrumb :deep(.el-breadcrumb__item:last-child .el-breadcrumb__inner) {
+  color: var(--color-slate-900, #0f172a);
+  font-weight: 600;
+}
+.aggregation-breadcrumb-sub {
+  font-size: var(--text-sm, 12px);
+  color: var(--color-slate-400, #94a3b8);
+}
+.aggregation-tabs {
+  background: var(--color-slate-0, #ffffff);
+  border: 1px solid var(--color-slate-200, #e2e8f0);
+  border-radius: var(--radius-lg, 8px);
+  box-shadow: var(--shadow-sm);
+  padding: 4px 20px 0;
+}
+.aggregation-el-tabs {
+  --el-tabs-header-height: 44px;
+}
+.aggregation-el-tabs :deep(.el-tabs__nav-wrap)::after {
+  background-color: var(--color-slate-100, #f1f5f9);
+}
+.aggregation-el-tabs :deep(.el-tabs__item) {
+  height: 44px;
+  line-height: 44px;
+  font-size: var(--text-md, 14px);
+  font-weight: 500;
+  color: var(--color-slate-600, #475569);
+  padding: 0 16px;
+  transition: color 0.15s ease;
+}
+.aggregation-el-tabs :deep(.el-tabs__item:hover) {
+  color: var(--color-primary-600, #2563eb);
+}
+.aggregation-el-tabs :deep(.el-tabs__item.is-active) {
+  color: var(--color-primary-600, #2563eb);
+  font-weight: 600;
+}
+.aggregation-el-tabs :deep(.el-tabs__active-bar) {
+  background-color: var(--color-primary-600, #2563eb);
+  height: 2px;
+}
+.aggregation-el-tabs :deep(.el-tabs__content) {
+  display: none;
+}
+.aggregation-tab-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.aggregation-tab-label .el-icon {
+  font-size: 16px;
+}
+.aggregation-content {
+  flex: 1;
+  min-height: 0;
+}
+.aggregation-content > * {
+  min-height: 0;
+}
+
+/* ==========================================================================
+   Sidebar Submenu（聚合管理子菜单）
+   ========================================================================== */
+.nav-group {
+  display: flex;
+  flex-direction: column;
+}
+.nav-item--group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  user-select: none;
+  position: relative;
+}
+.nav-group-arrow {
+  margin-left: auto;
+  color: var(--color-slate-400, #94a3b8);
+  transition: color 0.15s ease;
+}
+.nav-item--group:hover .nav-group-arrow {
+  color: var(--color-primary-300, #93c5fd);
+}
+.nav-group--active > .nav-item--group {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.08);
+}
+.nav-group--active > .nav-item--group .nav-group-arrow {
+  color: #ffffff;
+}
+.nav-sublist {
+  display: flex;
+  flex-direction: column;
+  background: rgba(0, 0, 0, 0.15);
+  border-left: 2px solid rgba(255, 255, 255, 0.06);
+  margin: 0 12px;
+  border-radius: 0 0 var(--radius-sm, 4px) var(--radius-sm, 4px);
+  overflow: hidden;
+}
+.nav-item--sub {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-left: 24px !important;
+  font-size: var(--text-sm, 12px);
+  color: var(--color-slate-300, #cbd5e1);
+  height: 32px;
+  cursor: pointer;
+  transition: color 0.15s ease, background 0.15s ease;
+}
+.nav-item--sub:hover {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.06);
+}
+.nav-item--sub.active {
+  color: #ffffff;
+  background: var(--color-primary-600, #2563eb);
+  font-weight: 600;
+}
+.nav-item--sub.active .el-icon {
+  color: #ffffff;
+}
+.slide-down-enter-active,
+.slide-down-leave-active {
+  transition: max-height 0.2s ease, opacity 0.2s ease;
+  overflow: hidden;
+}
+.slide-down-enter-from,
+.slide-down-leave-to {
+  max-height: 0;
+  opacity: 0;
+}
+.slide-down-enter-to,
+.slide-down-leave-from {
+  max-height: 200px;
+  opacity: 1;
+}

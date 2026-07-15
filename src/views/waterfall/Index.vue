@@ -1,19 +1,5 @@
 <template>
   <div class="page-shell">
-    <!-- ============ 页面头部（与其他页面框架一致） ============ -->
-    <div class="page-header">
-      <div class="page-header-left">
-        <div class="page-header-icon"><el-icon><Operation /></el-icon></div>
-        <div class="page-header-titles">
-          <h1 class="page-header-title">瀑布流配置</h1>
-          <p class="page-header-subtitle">为每个广告位分层设置广告源优先级（头部竞价 / 标准价格 / 兜底层），系统按顺序逐层请求填充</p>
-        </div>
-      </div>
-      <div class="page-header-actions">
-        <el-button :icon="Refresh" @click="onRefreshAll">刷新</el-button>
-      </div>
-    </div>
-
     <!-- ============ Master-Detail 主体 ============ -->
     <div class="app-master-detail">
       <!-- ============ 左侧：广告位列表面板 ============ -->
