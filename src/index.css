@@ -9847,6 +9847,51 @@ html, body, #app {
 }
 
 /* ============================================================================
+   SaveAsBoardDialog - 「保存为看版」条件摘要
+   ============================================================================ */
+.save-as-board-summary {
+  background: #F8FAFC;
+  border: 1px solid #E2E8F0;
+  border-radius: 6px;
+  padding: 12px 14px;
+  margin-bottom: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.save-as-board-summary .summary-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 12px;
+  line-height: 1.6;
+}
+.save-as-board-summary .summary-label {
+  flex-shrink: 0;
+  width: 50px;
+  color: #64748B;
+  font-weight: 500;
+  padding-top: 2px;
+}
+.save-as-board-summary .summary-value {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-items: center;
+  color: #334155;
+}
+.save-as-board-summary .summary-value--text {
+  color: #475569;
+}
+.save-as-board-summary .summary-tag {
+  margin: 0;
+}
+.save-as-board-summary .summary-empty {
+  color: #94A3B8;
+  font-style: italic;
+}
+
+/* ============================================================================
    DimensionPicker 弹窗
    ============================================================================ */
 .dimension-picker {

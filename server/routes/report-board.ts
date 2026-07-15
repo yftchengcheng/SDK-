@@ -15,7 +15,7 @@ router.use(authMiddleware);
 
 /**
  * GET /list
- * 列出当前用户的所有看版
+ * 列出当前用户的所有看版；如果用户没有任何看版，自动种入默认看版
  * Query: ?report_type=overview|funnel|behavior
  */
 router.get('/list', async (req, res) => {
@@ -36,7 +36,49 @@ router.get('/list', async (req, res) => {
       console.error('[report/board/list]', error);
       return fail(res, 500, (error as Error).message);
     }
-    return success(res, data ?? []);
+
+    let list = data ?? [];
+
+    // 自动种入默认看版（确保每个用户/每种报表类型至少有 1 个默认看版，且不可被删）
+    const typeSet = report_type
+      ? [report_type as string]
+      : ['overview', 'funnel', 'behavior'];
+    for (const t of typeSet) {
+      const hasDefault = list.some((b) => b.report_type === t && b.is_default);
+      if (!hasDefault) {
+        const seed = {
+          developer_id: developerId,
+          name: '默认看版',
+          report_type: t,
+          is_default: true,
+          is_hidden: false,
+          config: t === 'overview'
+            ? {
+                dimensions: ['date'],
+                metrics: ['impressions', 'clicks', 'revenue_actual'],
+                filters: { dateRange: '7d' },
+                layout: { view: 'table' },
+              }
+            : { dimensions: [], metrics: [], filters: { dateRange: '7d' }, layout: { view: 'table' } },
+          sort_order: 0,
+        };
+        const { data: inserted, error: seedErr } = await db
+          .from('report_board')
+          .insert(seed)
+          .select('*')
+          .single();
+        if (!seedErr && inserted) {
+          list = [...list, inserted];
+        } else if (seedErr) {
+          console.error('[report/board/list] seed default board failed', seedErr);
+        }
+      }
+    }
+
+    // 重新按 sort_order 排序
+    list.sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0) || a.id - b.id);
+
+    return success(res, list);
   } catch (e) {
     return fail(res, 500, (e as Error).message);
   }

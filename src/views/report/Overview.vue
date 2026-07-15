@@ -6,12 +6,11 @@
         <div class="page-header-icon"><el-icon><DataAnalysis /></el-icon></div>
         <div class="page-header-titles">
           <h1 class="page-header-title">综合报表</h1>
-          <p class="page-header-subtitle">多维度交叉分析收入、曝光、点击等核心指标</p>
+          <p class="page-header-subtitle">在默认看版上调整筛选/维度/指标，再「保存为看版」即可生成自己的看版</p>
         </div>
       </div>
       <div class="page-header-actions">
         <el-button :icon="Refresh" @click="loadBoards">刷新</el-button>
-        <el-button type="primary" :icon="Plus" @click="openCreateDialog">新建看版</el-button>
       </div>
     </div>
 
@@ -69,12 +68,10 @@
           </div>
           <el-empty
             v-if="!loading && filteredBoards.length === 0"
-            :description="searchKeyword ? '没有匹配看版' : '还没有看版'"
+            :description="searchKeyword ? '没有匹配看版' : '还没有看版（系统会预置一个默认看版）'"
             :image-size="60"
             class="report-master-empty"
-          >
-            <el-button v-if="!searchKeyword" type="primary" :icon="Plus" size="small" @click="openCreateDialog">新建看版</el-button>
-          </el-empty>
+          />
         </div>
       </aside>
 
@@ -96,6 +93,7 @@
               </div>
             </div>
             <div class="report-detail-header-right">
+              <el-button type="primary" :icon="FolderAdd" @click="openSaveAsDialog">保存为看版</el-button>
               <el-button :icon="CopyDocument" plain @click="duplicateCurrent">复制看版</el-button>
               <el-button :icon="Edit" plain @click="openEditConfigDialog">编辑配置</el-button>
               <el-button v-if="!currentBoard.is_default" :icon="Delete" type="danger" plain @click="deleteCurrent">删除</el-button>
@@ -178,9 +176,7 @@
 
         <!-- 无选中看版时显示引导 -->
         <div v-else class="report-detail-empty">
-          <el-empty :image-size="100" description="从左侧选择一个看版开始查看数据">
-            <el-button type="primary" :icon="Plus" @click="openCreateDialog">新建看版</el-button>
-          </el-empty>
+          <el-empty :image-size="100" description="从左侧选择一个看版开始查看数据" />
         </div>
       </main>
     </div>
@@ -190,6 +186,17 @@
       v-model:visible="dialogVisible"
       :board="(editingBoard as any)"
       @saved="onSaved"
+    />
+
+    <!-- 「保存为看版」弹窗（默认看版不可删除/被覆盖，只能另存为新看版） -->
+    <SaveAsBoardDialog
+      v-if="currentBoard"
+      v-model:visible="saveAsDialogVisible"
+      :config="saveAsConfig"
+      :report-type="'overview'"
+      :dim-labels="DIM_LABELS"
+      :metric-labels="METRIC_LABELS"
+      @saved="onSavedAs"
     />
 
     <!-- 维度 / 指标 弹窗（始终挂载，由 ref 触发） -->
@@ -212,13 +219,14 @@ import { ref, computed, onMounted } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import {
   Plus, CopyDocument, Edit, Download, Document, Delete, Refresh, Search, MoreFilled,
-  DataAnalysis, Files, DataLine, Histogram, Setting,
+  DataAnalysis, Files, DataLine, Histogram, Setting, FolderAdd,
 } from '@element-plus/icons-vue';
 import request from '@/utils/request';
 import DimensionPicker from '@/components/report/DimensionPicker.vue';
 import MetricPicker from '@/components/report/MetricPicker.vue';
 import ReportTableView from '@/components/report/ReportTableView.vue';
 import BoardConfigDialog from '@/components/report/BoardConfigDialog.vue';
+import SaveAsBoardDialog from '@/components/report/SaveAsBoardDialog.vue';
 import ReportFilter, { type ReportFilter as Filter } from '@/components/report/ReportFilter.vue';
 
 interface BoardConfig {
@@ -269,6 +277,41 @@ const boards = ref<ReportBoard[]>([]);
 const selectedBoardId = ref<number | null>(null);
 const searchKeyword = ref('');
 const loading = ref(false);
+const saveAsDialogVisible = ref(false);
+const saveAsConfig = ref<{
+  dimensions: string[];
+  metrics: string[];
+  filters: Record<string, unknown>;
+  layout: { view: string };
+}>({ dimensions: [], metrics: [], filters: {}, layout: { view: 'table' } });
+
+const METRIC_LABELS: Record<string, string> = {
+  impressions: '展示数',
+  clicks: '点击数',
+  revenue_actual: '预估收益',
+  ctr: '点击率',
+  ecpm: 'eCPM',
+  fill_rate: '填充率',
+  show_rate: '展示率',
+  click_rate: '点击率',
+  impression_rate: '展示率',
+  impression_ratio: '展示占比',
+  start_dau: '启动 DAU',
+  estimated_revenue_ratio: '预估收益占比',
+  estimated_arpdeu: '预估 ARPDEU',
+  dau: 'DAU',
+  requests: '广告请求',
+  fills: '广告填充',
+  shows: '广告展示',
+  scene_arrives: '广告场景到达',
+  ready_queries: 'isReady 查询',
+  try_shows: '广告触发',
+  show_oks: '般发展示成功',
+  show_apis: '展示 API',
+  unique_users: '独立用户',
+  session_count: '会话次数',
+  duration_total: '总时长',
+};
 const dataLoading = ref(false);
 const dialogVisible = ref(false);
 const editingBoard = ref<ReportBoard | null>(null);
@@ -427,11 +470,6 @@ const generateMockData = (): Array<Record<string, string | number>> => {
   return result;
 };
 
-const openCreateDialog = () => {
-  editingBoard.value = null;
-  dialogVisible.value = true;
-};
-
 const openEditConfigDialog = () => {
   if (!currentBoard.value) {
     ElMessage.warning('请先选择一个看版');
@@ -439,6 +477,25 @@ const openEditConfigDialog = () => {
   }
   editingBoard.value = currentBoard.value;
   dialogVisible.value = true;
+};
+
+const openSaveAsDialog = () => {
+  if (!currentBoard.value) {
+    ElMessage.warning('请先选择一个看版');
+    return;
+  }
+  // 把当前 effective 配置（picked > board.config）打包给 dialog
+  saveAsConfig.value = {
+    dimensions: [...effectiveDimensions.value],
+    metrics: [...effectiveMetrics.value],
+    filters: { ...(filter.value || {}), dateRange: filter.value?.dateRange || '7d' },
+    layout: { view: 'table' },
+  };
+  saveAsDialogVisible.value = true;
+};
+
+const onSavedAs = async () => {
+  await loadBoards();
 };
 
 const duplicateCurrent = async () => {
