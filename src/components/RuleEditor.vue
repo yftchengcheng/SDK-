@@ -212,7 +212,10 @@ function getDateRange(rule: Rule): [string, string] {
   return ['', ''];
 }
 function setDateRange(rule: Rule, v: [string, string] | null) {
-  rule.value = v || ['', ''];
+  const newVal = v || ['', ''];
+  if (rule.value && Array.isArray(rule.value) && rule.value[0] === newVal[0] && rule.value[1] === newVal[1]) return;
+  // 深拷贝每条规则，触发整体 rules 更新（让父组件响应式拿到变化）
+  rules.value = rules.value.map((r) => (r.id === rule.id ? { ...r, value: newVal } : r));
 }
 
 // 地区（全球）子对象
@@ -386,7 +389,7 @@ watch(
               end-placeholder="结束时间"
               value-format="YYYY-MM-DD HH:mm:ss"
               style="min-width: 360px; flex: 1"
-              @change="(v: [string, string] | null) => setDateRange(rule, v)"
+              @update:model-value="(v) => setDateRange(rule, v as [string, string] | null)"
             />
           </template>
 
