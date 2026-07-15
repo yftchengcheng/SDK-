@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, reactive } from 'vue'
+import { computed, onMounted, ref, reactive, watch } from 'vue'
 import { ElMessage, ElMessageBox, type UploadFile } from 'element-plus'
 import { Download, Search, Refresh, UploadFilled, View, Document, InfoFilled } from '@element-plus/icons-vue'
 import http from '@/utils/request'
+import TablePagination from '@/components/TablePagination.vue'
 
 interface ReconciliationRecord {
   id: string
@@ -24,6 +25,9 @@ interface ReconciliationRecord {
 
 const loading = ref(false)
 const list = ref<ReconciliationRecord[]>([])
+const total = ref(0)
+const page = ref(1)
+const pageSize = ref(20)
 const detailVisible = ref(false)
 const detailRecord = ref<ReconciliationRecord | null>(null)
 
@@ -62,19 +66,28 @@ const totalDiffAmount = computed(() =>
 async function fetchList() {
   loading.value = true
   try {
-    const params: Record<string, string> = {}
+    const params: Record<string, string> = { page: String(page.value), pageSize: String(pageSize.value) }
     if (query.appKey) params.appKey = query.appKey
     if (query.status) params.status = query.status
     if (query.statDate[0]) params.start = query.statDate[0]
     if (query.statDate[1]) params.end = query.statDate[1]
     const res: any = await http.get('/api/v1/console/reconciliation/list', { params })
     list.value = res.data?.list || []
+    total.value = res.data?.total ?? list.value.length
   } catch (err) {
     list.value = []
+    total.value = 0
   } finally {
     loading.value = false
   }
 }
+
+function onQueryChange() {
+  page.value = 1
+  fetchList()
+}
+
+watch(() => query.statDate, () => { page.value = 1; fetchList() }, { deep: true })
 
 async function handleExport() {
   try {
@@ -326,6 +339,13 @@ onMounted(() => {
           <el-empty description="暂无对账数据，请先点击「导入对账」上传第三方对账文件" />
         </template>
       </el-table>
+
+      <TablePagination
+        v-model:page="page"
+        v-model:page-size="pageSize"
+        :total="total"
+        @change="fetchList"
+      />
     </div>
 
     <!-- 详情弹窗 -->

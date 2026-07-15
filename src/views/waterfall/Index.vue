@@ -258,6 +258,13 @@
                   </template>
                 </el-table-column>
               </el-table>
+              <TablePagination
+                v-model:page="configPage"
+                v-model:page-size="configPageSize"
+                :total="configTotal"
+                @current-change="onConfigPageChange"
+                @size-change="onConfigSizeChange"
+              />
             </div>
           </section>
 
@@ -420,6 +427,7 @@ import { ElMessage } from 'element-plus';
 import Sortable from 'sortablejs';
 import dayjs from 'dayjs';
 import { Operation, Refresh, Plus, Aim, Key, CopyDocument, Top, PriceTag, Bottom, Search, Folder, UserFilled, Lock, Document, CircleClose, QuestionFilled } from '@element-plus/icons-vue';
+import TablePagination from '../../components/TablePagination.vue';
 
 const formatTime = (t: string | number | Date | null | undefined) => {
   if (!t) return '-';
@@ -443,6 +451,9 @@ const loading = ref(false);
 // 当前 placement 的所有 traffic_group 配置列表
 const configList = ref<any[]>([]);
 const configListLoading = ref(false);
+const configPage = ref(1);
+const configPageSize = ref(20);
+const configTotal = ref(0);
 const selectedTrafficGroupId = ref<number>(0);
 const trafficGroupOptions = ref<Array<{ id: number; group_name: string; status: number; is_default?: boolean }>>([]);
 // 临时高亮：刚保存成功的 config 行 id（金色脉冲动画 2.5s 后消失）—— 存 config_id 而非 traffic_group_id，避免默认配置组（tgId=0）多行同色
@@ -586,11 +597,15 @@ const fetchConfigList = async () => {
   configListLoading.value = true;
   try {
     const res: any = await request.get('/api/v1/console/waterfall/list', {
-      params: { placementId: selectedPlacement.value },
+      params: { placementId: selectedPlacement.value, page: configPage.value, pageSize: configPageSize.value },
     });
     configList.value = res.data?.items || [];
-  } catch { configList.value = []; } finally { configListLoading.value = false; }
+    configTotal.value = res.data?.total || 0;
+  } catch { configList.value = []; configTotal.value = 0; } finally { configListLoading.value = false; }
 };
+
+const onConfigPageChange = (p: number) => { configPage.value = p; fetchConfigList(); };
+const onConfigSizeChange = (s: number) => { configPageSize.value = s; configPage.value = 1; fetchConfigList(); };
 
 // 加载当前 developer 下的所有 traffic_group（流量分组已去 placement 化，作为全局规则集复用）
 const fetchTrafficGroups = async () => {

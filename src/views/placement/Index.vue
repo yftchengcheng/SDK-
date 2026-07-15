@@ -85,9 +85,11 @@
           </el-table-column>
         </el-table>
       </div>
-      <div class="page-pagination">
-        <el-pagination v-model:current-page="page" v-model:page-size="pageSize" :total="total" :page-sizes="[10,20,50,100]" layout="total, sizes, prev, pager, next" @current-change="fetchList" @size-change="fetchList" />
-      </div>
+      <TablePagination
+      v-model:current-page="page"
+      v-model:page-size="pageSize"
+      :total="total"
+      @change="fetchList" />
     </div>
     <!-- Drawer: Create / Edit Placement（侧边抽屉，保留列表上下文） -->
     <el-drawer
@@ -290,6 +292,7 @@
 
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue';
+import TablePagination from '@/components/TablePagination.vue';
 import request from '../../utils/request';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import type { FormInstance, FormRules } from 'element-plus';

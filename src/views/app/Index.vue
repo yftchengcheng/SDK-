@@ -342,17 +342,12 @@
                 </el-table-column>
               </el-table>
             </div>
-            <div class="page-pagination">
-              <el-pagination
-                v-model:current-page="placementPage"
-                v-model:page-size="placementPageSize"
-                :total="placementTotal"
-                :page-sizes="[10, 20, 50]"
-                layout="total, sizes, prev, pager, next"
-                @current-change="fetchPlacements"
-                @size-change="fetchPlacements"
-              />
-            </div>
+            <TablePagination
+        v-model:current-page="placementPage"
+        v-model:page-size="placementPageSize"
+        :total="placementTotal"
+        @change="fetchPlacements"
+      />
           </div>
         </section>
       </template>

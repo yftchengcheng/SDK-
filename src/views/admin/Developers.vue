@@ -108,19 +108,13 @@
           </template>
         </el-table>
       </div>
-      <div class="page-pagination">
-        <el-pagination
-          v-model:current-page="query.page"
-          v-model:page-size="query.pageSize"
+      <TablePagination
+          v-model:current-page="pageProxy"
+          v-model:page-size="sizeProxy"
           :page-sizes="[10, 20, 50]"
           :total="total"
-          layout="total, sizes, prev, pager, next, jumper"
-          small
-          background
-          @size-change="loadList"
-          @current-change="loadList"
+          @change="loadList"
         />
-      </div>
     </div>
 
     <!-- 修改角色 -->
@@ -187,6 +181,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import TablePagination from '@/components/TablePagination.vue'
 import {
   Search, Refresh, RefreshLeft, Edit, User, UserFilled,
   WarningFilled, Switch, CircleCheck, CircleClose,
@@ -214,6 +209,14 @@ const submitting = ref(false)
 const tableData = ref<Developer[]>([])
 const total = ref(0)
 const query = reactive({ q: '', role: '' as '' | 'admin' | 'developer', status: '' as '' | 1 | 2, page: 1, pageSize: 20 })
+const pageProxy = computed({
+  get: () => query.page,
+  set: (v) => { query.page = v }
+})
+const sizeProxy = computed({
+  get: () => query.pageSize,
+  set: (v) => { query.pageSize = v }
+})
 
 const roleDialogVisible = ref(false)
 const currentRow = ref<Developer | null>(null)

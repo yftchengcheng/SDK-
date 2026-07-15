@@ -152,25 +152,39 @@ export default router;
 // 列出某个 placement 的所有 traffic_group 配置（每个 traffic_group 一行）
 router.get('/list', authMiddleware, async (req: express.Request, res: express.Response) => {
   try {
-    const { placementId } = req.query as Record<string, string>;
+    const { placementId, page, pageSize } = req.query as Record<string, string>;
     if (!placementId) { fail(res, 400, '缺少placementId'); return; }
 
-    // 1. 查 placement
+    // 1. 查 placement：placementId 可能是 string (pl_xxx) 或 number
     const { data: placement, error: pErr } = await db.from('placement')
-      .select('*').eq('id', Number(placementId)).maybeSingle();
+      .select('*')
+      .or(`placement_id.eq.${placementId},id.eq.${Number(placementId) || -1}`)
+      .maybeSingle();
     if (pErr) throw pErr;
     if (!placement) { fail(res, 404, '广告位不存在'); return; }
+    const realPlacementId = placement.id;  // waterfall_config.placement_id 存的是 placement.id (integer)
 
 
     // 2. 查该 placement 的所有 config（兼容 placement_id 列存 bigint 或 string pl_xxx）
     // 注意：placement_id 是 varchar(32)。DB 里可能存 "58" (number-as-string) 或 "pl_xxx" 两种形式
     // 用 in() 数组避免 PostgREST 把 eq.58 当整数解析（varchar 列需要 string 形式）
-    const pidStr = String(placementId);
-    const placementIdStr = String(placement.placement_id || placementId);
+    const pidStr = String(realPlacementId);
+    const placementIdStr = String(placement.placement_id || realPlacementId);
+    // 查询总数（用于分页）
+    const { count: totalCount, error: cntErr } = await db.from('waterfall_config')
+      .select('id', { count: 'exact', head: true })
+      .in('placement_id', [pidStr, placementIdStr]);
+    if (cntErr) throw cntErr;
+    const total = totalCount || 0;
+    // 是否分页：前端传 page/pageSize 才走分页
+    const wantPaging = page !== undefined || pageSize !== undefined;
+    const p = wantPaging ? Math.max(1, Number(page) || 1) : 1;
+    const ps = wantPaging ? Math.min(100, Math.max(1, Number(pageSize) || 20)) : 1000;
     const { data: configs, error: cErr } = await db.from('waterfall_config')
       .select('*')
       .in('placement_id', [pidStr, placementIdStr])
-      .order('id', { ascending: false });
+      .order('id', { ascending: false })
+      .range((p - 1) * ps, p * ps - 1);
     if (cErr) throw cErr;
 
     // 3. 查该 placement 下的所有 traffic_group（兼容 placement_id 列存 bigint 或 string pl_xxx）
@@ -293,7 +307,13 @@ router.get('/list', authMiddleware, async (req: express.Request, res: express.Re
       return new Date(b.updated_at || 0).getTime() - new Date(a.updated_at || 0).getTime();
     });
 
-    success(res, { placement: { id: Number(placement.id), name: placement.name, format: placement.format }, items: rows });
+    success(res, {
+      placement: { id: Number(placement.id), name: placement.name, format: placement.format },
+      items: rows,
+      total,
+      page: wantPaging ? p : 1,
+      pageSize: wantPaging ? ps : total,
+    });
   } catch (e) {
     const err = e as Error;
     console.error('[waterfall/list]', err);

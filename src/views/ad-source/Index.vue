@@ -151,17 +151,12 @@
             </template>
           </el-table-column>
         </el-table>
-        <div class="adsource-main-pagination">
-          <el-pagination
-            v-model:current-page="page"
-            v-model:page-size="pageSize"
-            :total="total"
-            :page-sizes="[10, 20, 50, 100]"
-            layout="total, sizes, prev, pager, next"
-            @current-change="fetchList"
-            @size-change="fetchList"
-          />
-        </div>
+        <TablePagination
+          v-model:current-page="page"
+          v-model:page-size="pageSize"
+          :total="total"
+          @change="fetchList"
+        />
       </div>
     </main>
 
@@ -498,6 +493,7 @@
 
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, watch } from 'vue';
+import TablePagination from '@/components/TablePagination.vue';
 import { useRoute, useRouter } from 'vue-router';
 import request from '../../utils/request';
 import { ElMessage, ElMessageBox } from 'element-plus';

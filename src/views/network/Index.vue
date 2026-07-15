@@ -629,6 +629,7 @@ import type { FormInstance, FormRules } from 'element-plus';
 import { Plus, Connection, Search, RefreshLeft, UploadFilled, Filter, Edit, InfoFilled, Box, Document, Cellphone, Setting, Close, Check, Picture, Delete, Loading } from '@element-plus/icons-vue';
 import NetworkAccountManager from '../../components/NetworkAccountManager.vue';
 import ReviewPanel, { type AdapterVersion } from '../../components/ReviewPanel.vue';
+import TablePagination from '../../components/TablePagination.vue';
 
 const activeTab = ref<'accounts' | 'custom'>('accounts');
 const router = useRouter();
@@ -636,6 +637,12 @@ const router = useRouter();
 const loading = ref(false);
 const allNetworks = ref<any[]>([]);
 const appList = ref<any[]>([]);
+const customPage = ref(1);
+const customPageSize = ref(20);
+const customTotal = ref(0);
+const bindingPage = ref(1);
+const bindingPageSize = ref(20);
+const bindingTotal = ref(0);
 
 const customNetworks = computed(() => allNetworks.value.filter(n => !n.is_preset));
 
@@ -802,7 +809,19 @@ const formRules: FormRules = {
 
 const fetchList = async () => {
   loading.value = true;
-  try { const res: any = await request.get('/api/v1/console/network/list'); allNetworks.value = res.data?.list || []; } catch { /* ignore */ } finally { loading.value = false; }
+  try { const res: any = await request.get(`/api/v1/console/network/list?page=${customPage.value}&pageSize=${customPageSize.value}`); allNetworks.value = res.data?.list || []; customTotal.value = res.data?.total || 0; } catch { /* ignore */ } finally { loading.value = false; }
+};
+
+const fetchListWithPage = async () => {
+  await fetchList();
+};
+
+const onCustomPageChange = () => {
+  fetchList();
+};
+const onCustomSizeChange = () => {
+  customPage.value = 1;
+  fetchList();
 };
 
 const fetchAppList = async () => {
@@ -1019,9 +1038,22 @@ const openAppBinding = async (row: any) => {
 
 const fetchBindings = async () => {
   bindingDialog.loading = true;
+  bindingPage.value = 1;
+  bindingPageSize.value = 20;
   try {
-    const res: any = await request.get(`/api/v1/console/network/app/list?networkDefId=${bindingDialog.networkId}`);
+    const res: any = await request.get(`/api/v1/console/network/app/list?networkDefId=${bindingDialog.networkId}&page=${bindingPage.value}&pageSize=${bindingPageSize.value}`);
     bindingDialog.bindings = res.data?.list || [];
+    bindingTotal.value = res.data?.total || 0;
+  } catch { /* ignore */ } finally { bindingDialog.loading = false; }
+};
+
+const fetchBindingsWithPage = async () => {
+  if (!bindingDialog.networkId) return;
+  bindingDialog.loading = true;
+  try {
+    const res: any = await request.get(`/api/v1/console/network/app/list?networkDefId=${bindingDialog.networkId}&page=${bindingPage.value}&pageSize=${bindingPageSize.value}`);
+    bindingDialog.bindings = res.data?.list || [];
+    bindingTotal.value = res.data?.total || 0;
   } catch { /* ignore */ } finally { bindingDialog.loading = false; }
 };
 
@@ -1077,6 +1109,7 @@ const findAdapterVersion = (id: number) => {
 };
 
 onMounted(() => {
+  customPage.value = 1;
   fetchList();
   fetchAppList();
 });

@@ -63,6 +63,14 @@
           </template>
         </el-table-column>
       </el-table></div>
+      <TablePagination
+        :page="page"
+        :page-size="pageSize"
+        :total="total"
+        :page-sizes="[10, 20, 50, 100]"
+        @update:page="onPageChange"
+        @update:page-size="onSizeChange"
+      />
     </div>
     <!-- Drawer: Create / Edit Traffic Group（侧边抽屉，保留列表上下文） -->
     <el-drawer
@@ -170,14 +178,20 @@ import { ElMessage, ElMessageBox } from 'element-plus';
 import type { FormInstance, FormRules } from 'element-plus';
 import { Plus, Search, RefreshLeft, Delete, Filter, Edit, InfoFilled, Close, Check, Lock } from '@element-plus/icons-vue';
 import RuleEditor from '../../components/RuleEditor.vue';
+import TablePagination from '../../components/TablePagination.vue';
 import { DIMENSION_LABEL } from '../../shared/rule-dimensions';
 
 const loading = ref(false);
 const tableData = ref<any[]>([]);
 const placementList = ref<any[]>([]);
 const filter = reactive({ placementId: '', status: '', keyword: '' });
+const page = ref(1);
+const pageSize = ref(20);
+const total = ref(0);
 const onSearch = () => { page.value = 1; fetchList(); };
 const onReset = () => { filter.status = ''; filter.keyword = ''; page.value = 1; fetchList(); };
+const onPageChange = (p: number) => { page.value = p; fetchList(); };
+const onSizeChange = (s: number) => { pageSize.value = s; page.value = 1; fetchList(); };
 
 const drawerVisible = ref(false);
 const drawerSize = '720px';
@@ -212,11 +226,11 @@ const fetchPlacements = async () => {
 const fetchList = async () => {
   loading.value = true;
   try {
-    const params: any = {};
+    const params: any = { page: page.value, pageSize: pageSize.value };
     if (filter.status !== '') params.status = filter.status;
     if (filter.keyword.trim()) params.keyword = filter.keyword.trim();
     const res: any = await request.get('/api/v1/console/traffic-group/list', { params });
-    const list = res.data?.list || [];
+    let list = res.data?.list || [];
     // 默认分组（is_default=true）始终排在最前
     list.sort((a: any, b: any) => {
       if (a.is_default === true && b.is_default !== true) return -1;
@@ -224,6 +238,7 @@ const fetchList = async () => {
       return (b.id || 0) - (a.id || 0);
     });
     tableData.value = list;
+    total.value = res.data?.total || 0;
   } catch { /* ignore */ } finally { loading.value = false; }
 };
 

@@ -69,9 +69,11 @@
           </template>
         </el-table-column>
       </el-table>
-      </div><div class="page-pagination">
-        <el-pagination v-model:current-page="page" v-model:page-size="pageSize" :total="total" :page-sizes="[10,20,50]" layout="total, sizes, prev, pager, next" @change="fetchList" />
-      </div>
+      </div><TablePagination
+      v-model:current-page="page"
+      v-model:page-size="pageSize"
+      :total="total"
+      @change="fetchList" />
     </div>
     <!-- Detail Dialog -->
     <el-dialog v-model="showDetail" :title="currentMsg.title" width="560px">
@@ -85,6 +87,7 @@
 
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue';
+import TablePagination from '@/components/TablePagination.vue';
 import request from '../../utils/request';
 import dayjs from 'dayjs';
 import { Bell, Search } from '@element-plus/icons-vue';
