@@ -484,35 +484,3 @@ onMounted(() => {
   loadList();
 });
 </script>
-
-<style scoped>
-/* 局部样式 */
-.cell-code,
-.cell-formula {
-  font-family: 'SF Mono', Monaco, Consolas, monospace;
-  font-size: 12px;
-  background: #F1F5F9;
-  padding: 2px 6px;
-  border-radius: 4px;
-  color: #1E3A8A;
-}
-.cell-formula {
-  display: inline-block;
-  max-width: 200px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  vertical-align: middle;
-}
-.cell-secondary {
-  color: #475569;
-  font-weight: 500;
-}
-.cell-empty {
-  color: #94A3B8;
-  font-size: 12px;
-}
-.table-empty {
-  padding: 40px 0;
-}
-</style>

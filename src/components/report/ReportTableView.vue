@@ -91,13 +91,3 @@ const formatCell = (val: string | number | undefined, format?: string): string =
   return Number(val).toLocaleString('zh-CN');
 };
 </script>
-
-<style scoped>
-.cell-num {
-  font-feature-settings: 'tnum';
-}
-.cell-num--right {
-  text-align: right;
-  font-weight: 500;
-}
-</style>

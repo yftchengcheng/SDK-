@@ -105,13 +105,3 @@ watch(() => props.modelValue, (v) => {
   local.value = { ...v, appIds: [...(v.appIds || [])], placementIds: [...(v.placementIds || [])], adSourceIds: [...(v.adSourceIds || [])] };
 }, { deep: true });
 </script>
-
-<style scoped>
-.report-filter {
-  background: #FFFFFF;
-  padding: 16px 20px;
-  border-radius: 8px;
-  border: 1px solid #E2E8F0;
-  margin-bottom: 16px;
-}
-</style>

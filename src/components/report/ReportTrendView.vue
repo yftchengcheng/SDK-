@@ -88,10 +88,3 @@ const handleResize = () => chart?.resize();
 
 watch(() => [props.data, props.board], () => renderChart(), { deep: true });
 </script>
-
-<style scoped>
-.trend-chart {
-  width: 100%;
-  height: 360px;
-}
-</style>

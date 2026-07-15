@@ -8237,3 +8237,316 @@ html, body, #app {
   max-height: 200px;
   opacity: 1;
 }
+
+/* ==========================================================================
+   数据报表模块（Data Reports）- 3 个子页面 + 8 个组件
+   ========================================================================== */
+
+/* ---- 综合报表 Overview ---- */
+.report-overview {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.overview-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #FFFFFF;
+  padding: 12px 20px;
+  border-radius: 8px;
+  border: 1px solid #E2E8F0;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.overview-toolbar-left,
+.overview-toolbar-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.overview-board-info {
+  background: #FFFFFF;
+  border-radius: 8px;
+  border: 1px solid #E2E8F0;
+  padding: 16px 20px;
+}
+.overview-board-name {
+  font-size: 16px;
+  font-weight: 600;
+  color: #1E293B;
+  margin-bottom: 4px;
+}
+.overview-board-desc {
+  font-size: 12px;
+  color: #64748B;
+  margin-bottom: 8px;
+}
+.overview-board-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: #64748B;
+  flex-wrap: wrap;
+}
+.meta-tag {
+  padding: 2px 8px;
+  background: #EFF6FF;
+  color: #1E3A8A;
+  border-radius: 4px;
+  font-size: 11px;
+}
+.meta-divider {
+  color: #CBD5E1;
+}
+.overview-empty {
+  background: #FFFFFF;
+  border-radius: 8px;
+  border: 1px solid #E2E8F0;
+  padding: 60px 20px;
+  text-align: center;
+}
+
+/* ---- 漏斗分析 Funnel ---- */
+.report-funnel {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.funnel-intro,
+.funnel-config,
+.funnel-results {
+  border-radius: 8px;
+}
+.intro-row {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+}
+.intro-text h3 {
+  margin: 0 0 4px 0;
+  font-size: 16px;
+  color: #1E3A8A;
+}
+.intro-text p {
+  margin: 0;
+  color: #64748B;
+  font-size: 13px;
+}
+.funnel-results .card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+/* ---- 用户行为 Behavior ---- */
+.report-behavior {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.behavior-intro {
+  border-radius: 8px;
+}
+.behavior-tabs {
+  display: flex;
+  justify-content: center;
+  padding: 8px;
+  background: #FFFFFF;
+  border-radius: 8px;
+  border: 1px solid #E2E8F0;
+}
+.behavior-results .card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+/* ---- 共享 card-header（Funnel/Behavior/Overview 通用）---- */
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+/* ---- 指标选择器 MetricPicker（弹窗内）---- */
+.metric-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.metric-picker-search {
+  flex: 0 0 auto;
+}
+.metric-picker-categories {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.metric-picker-cat {
+  padding: 4px 10px;
+  border-radius: 4px;
+  background: #F1F5F9;
+  font-size: 12px;
+  color: #475569;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.metric-picker-cat:hover {
+  background: #E2E8F0;
+}
+.metric-picker-cat--active {
+  background: #1E3A8A;
+  color: #FFFFFF;
+}
+.metric-picker-list {
+  max-height: 320px;
+  overflow-y: auto;
+  border: 1px solid #E2E8F0;
+  border-radius: 6px;
+  padding: 8px;
+}
+.metric-picker-item {
+  display: flex !important;
+  width: 100%;
+  margin-right: 0 !important;
+  margin-bottom: 6px;
+  padding: 6px;
+  border-radius: 4px;
+  transition: background 0.15s;
+}
+.metric-picker-item:hover {
+  background: #F8FAFC;
+}
+.metric-picker-item-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+.metric-picker-item-name {
+  font-size: 13px;
+  color: #1E293B;
+  font-weight: 500;
+}
+.metric-picker-item-code {
+  font-size: 11px;
+  color: #94A3B8;
+  font-family: monospace;
+}
+.metric-picker-item-meta {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  margin-top: 2px;
+}
+.metric-picker-item-format {
+  font-size: 11px;
+  color: #64748B;
+}
+.metric-picker-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+/* ---- 视图组件：表格/卡片/趋势/柱状 ---- */
+.cell-num {
+  font-feature-settings: 'tnum';
+}
+.cell-num--right {
+  text-align: right;
+  font-weight: 500;
+}
+.card-view {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 16px;
+}
+.kpi-card {
+  background: #FFFFFF;
+  border: 1px solid #E2E8F0;
+  border-radius: 8px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.kpi-card-label {
+  font-size: 13px;
+  color: #64748B;
+}
+.kpi-card-value {
+  font-size: 28px;
+  font-weight: 700;
+  color: #1E3A8A;
+  font-feature-settings: 'tnum';
+}
+.kpi-card-trend {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+}
+.kpi-card-trend--up {
+  color: #10B981;
+}
+.kpi-card-trend--down {
+  color: #EF4444;
+}
+.kpi-card-trend--flat {
+  color: #94A3B8;
+}
+.kpi-card-trend-period {
+  color: #94A3B8;
+  margin-left: 4px;
+}
+.trend-chart {
+  width: 100%;
+  height: 360px;
+}
+.bar-chart {
+  width: 100%;
+  height: 360px;
+}
+
+/* ---- ReportFilter 筛选器 ---- */
+.report-filter {
+  background: #FFFFFF;
+  padding: 16px 20px;
+  border-radius: 8px;
+  border: 1px solid #E2E8F0;
+  margin-bottom: 16px;
+}
+
+/* ---- Admin 报表指标字典页（ReportMetric.vue）---- */
+.cell-code,
+.cell-formula {
+  font-family: 'SF Mono', Monaco, Consolas, monospace;
+  font-size: 12px;
+  background: #F1F5F9;
+  padding: 2px 6px;
+  border-radius: 4px;
+  color: #1E3A8A;
+}
+.cell-formula {
+  display: inline-block;
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+.cell-secondary {
+  color: #475569;
+  font-weight: 500;
+}
+.cell-empty {
+  color: #94A3B8;
+  font-size: 12px;
+}
+.table-empty {
+  padding: 40px 0;
+}

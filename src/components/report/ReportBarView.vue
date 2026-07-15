@@ -86,10 +86,3 @@ const handleResize = () => chart?.resize();
 
 watch(() => [props.data, props.board], () => renderChart(), { deep: true });
 </script>
-
-<style scoped>
-.bar-chart {
-  width: 100%;
-  height: 360px;
-}
-</style>

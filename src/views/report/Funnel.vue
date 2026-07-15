@@ -72,36 +72,3 @@ const funnelSteps = ref([
   { order: 11, code: 'first_purchase', name: '首次付费', type: 'system' },
 ]);
 </script>
-
-<style scoped>
-.report-funnel {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-.funnel-intro,
-.funnel-config,
-.funnel-results {
-  border-radius: 8px;
-}
-.intro-row {
-  display: flex;
-  gap: 16px;
-  align-items: center;
-}
-.intro-text h3 {
-  margin: 0 0 4px 0;
-  font-size: 16px;
-  color: #1E3A8A;
-}
-.intro-text p {
-  margin: 0;
-  color: #64748B;
-  font-size: 13px;
-}
-.card-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-</style>
