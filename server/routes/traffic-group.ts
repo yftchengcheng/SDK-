@@ -35,9 +35,9 @@ router.get('/list', authMiddleware, async (req: express.Request, res: express.Re
 
     let query = db.from('traffic_group').select('*', { count: 'exact' });
     Object.entries(filters).forEach(([k, v]) => { query = query.eq(k, v); });
+    // 按 id DESC 排序（最新创建的在前），让用户进列表就能看到刚创建的分组
     const { data, count, error } = await query
-      .order('priority', { ascending: true })
-      .order('id', { ascending: true })
+      .order('id', { ascending: false })
       .range((p - 1) * ps, p * ps - 1);
     if (error) throw new Error(`Query failed: ${error.message}`);
 
