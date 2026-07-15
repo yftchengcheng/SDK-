@@ -1,558 +1,347 @@
+<!--
+  Funnel.vue - 漏斗分析
+  左：漏斗指标列表（11 步）
+  中：漏斗图（11 步骤可视化 + 转化率）
+  右：5 个转化率侧栏 + 自定义公式
+-->
 <template>
-  <div class="page-shell">
-    <!-- ============ 页面头部 ============ -->
+  <div class="page-shell funnel-page">
     <div class="page-header">
       <div class="page-header-left">
-        <div class="page-header-icon"><el-icon><Filter /></el-icon></div>
+        <div class="page-header-icon"><el-icon><DataLine /></el-icon></div>
         <div class="page-header-titles">
           <h1 class="page-header-title">漏斗分析</h1>
-          <p class="page-header-subtitle">自定义事件漏斗，追踪关键路径的转化率与流失率</p>
+          <p class="page-header-subtitle">11 步用户行为漏斗，5 个核心转化率，支持自定义公式（白名单：除/减）</p>
         </div>
       </div>
       <div class="page-header-actions">
-        <el-button :icon="Refresh" @click="loadMetrics">刷新</el-button>
-        <el-button type="primary" :icon="Plus" @click="openCreateDialog">新建漏斗</el-button>
+        <el-button :icon="Refresh" @click="loadFunnel">刷新</el-button>
+        <el-button :icon="Download" @click="exportFunnel">导出</el-button>
       </div>
     </div>
 
-    <!-- ============ Master-Detail 主体 ============ -->
-    <div class="report-master-detail">
-      <!-- ============ 左侧：漏斗列表面板 ============ -->
-      <aside class="report-master-panel">
-        <div class="report-master-header">
-          <div class="report-master-header-top">
-            <h2 class="report-master-title">
-              <el-icon><Filter /></el-icon>
-              <span>我的漏斗</span>
-              <el-tag size="small" effect="plain" round class="report-master-count">{{ filteredFunnels.length }}</el-tag>
-            </h2>
-          </div>
-          <el-input
-            v-model="searchKeyword"
-            placeholder="搜索漏斗名称"
-            :prefix-icon="Search"
-            clearable
-            size="default"
-          />
+    <div class="funnel-master-detail">
+      <!-- 左侧：漏斗步骤列表 -->
+      <aside class="funnel-master-panel">
+        <div class="funnel-master-header">
+          <h2 class="funnel-master-title">
+            <el-icon><Aim /></el-icon>
+            <span>漏斗步骤</span>
+            <el-tag size="small" type="primary" effect="plain" round>{{ selectedSteps.length }}/{{ funnelDefinition.length }}</el-tag>
+          </h2>
+          <el-button-group class="funnel-master-actions">
+            <el-button size="small" @click="selectAllSteps">全选</el-button>
+            <el-button size="small" @click="deselectAllSteps">清空</el-button>
+          </el-button-group>
         </div>
-        <div class="report-master-list" v-loading="loading">
+        <div class="funnel-master-list">
           <div
-            v-for="funnel in filteredFunnels"
-            :key="funnel.id"
-            :class="['report-master-item', { active: funnel.id === selectedFunnelId }]"
-            @click="selectFunnel(funnel)"
+            v-for="(step, idx) in funnelDefinition"
+            :key="step.code"
+            :class="['funnel-master-item', { active: selectedSteps.includes(step.code) }]"
+            @click="toggleStep(step.code)"
           >
-            <div class="report-master-item-icon">
-              <el-icon><Filter /></el-icon>
+            <div class="funnel-master-item-order">{{ step.order }}</div>
+            <div class="funnel-master-item-body">
+              <div class="funnel-master-item-name">{{ step.name }}</div>
+              <div class="funnel-master-item-code">{{ step.code }}</div>
             </div>
-            <div class="report-master-item-body">
-              <div class="report-master-item-name">
-                <span class="report-master-item-name-text">{{ funnel.name }}</span>
-                <el-tag v-if="funnel.is_default" size="small" type="primary" effect="plain" class="report-master-item-tag">默认</el-tag>
-              </div>
-              <div class="report-master-item-desc">
-                {{ funnel.funnel_steps?.length || 0 }} 步 · {{ funnel.conversion_metrics?.length || 0 }} 个转化率
-              </div>
-            </div>
-            <div class="report-master-item-actions" @click.stop>
-              <el-dropdown trigger="click" @command="(cmd: string) => onItemCommand(cmd, funnel)">
-                <el-button text :icon="MoreFilled" size="small" class="report-master-item-more" />
-                <template #dropdown>
-                  <el-dropdown-menu>
-                    <el-dropdown-item command="edit" :icon="Edit">编辑</el-dropdown-item>
-                    <el-dropdown-item command="duplicate" :icon="CopyDocument">复制</el-dropdown-item>
-                    <el-dropdown-item v-if="!funnel.is_default" command="delete" :icon="Delete" divided>删除</el-dropdown-item>
-                  </el-dropdown-menu>
-                </template>
-              </el-dropdown>
-            </div>
+            <el-icon v-if="selectedSteps.includes(step.code)" class="funnel-master-item-check"><Check /></el-icon>
+            <span v-else class="funnel-master-item-index">#{{ idx + 1 }}</span>
           </div>
-          <el-empty
-            v-if="!loading && filteredFunnels.length === 0"
-            :description="searchKeyword ? '没有匹配漏斗' : '还没有漏斗'"
-            :image-size="60"
-            class="report-master-empty"
-          >
-            <el-button v-if="!searchKeyword" type="primary" :icon="Plus" size="small" @click="openCreateDialog">新建漏斗</el-button>
-          </el-empty>
         </div>
       </aside>
 
-      <!-- ============ 右侧：漏斗详情区 ============ -->
-      <main class="report-detail-panel">
-        <template v-if="currentFunnel">
-          <!-- 顶部漏斗信息 -->
-          <div class="report-detail-header">
-            <div class="report-detail-header-left">
-              <div class="report-detail-icon">
-                <el-icon :size="24"><Filter /></el-icon>
-              </div>
-              <div class="report-detail-titles">
-                <div class="report-detail-title-row">
-                  <h2 class="report-detail-title">{{ currentFunnel.name }}</h2>
-                  <el-tag v-if="currentFunnel.is_default" size="small" type="primary" effect="plain">默认</el-tag>
-                </div>
-                <p class="report-detail-desc">{{ currentFunnel.description || '暂无描述' }}</p>
-              </div>
-            </div>
-            <div class="report-detail-header-right">
-              <el-button :icon="CopyDocument" plain @click="duplicateCurrent">复制</el-button>
-              <el-button :icon="Edit" plain @click="openEditDialog">编辑</el-button>
-              <el-button v-if="!currentFunnel.is_default" :icon="Delete" type="danger" plain @click="deleteCurrent">删除</el-button>
-            </div>
-          </div>
+      <!-- 中间：漏斗图 + 自定义公式 -->
+      <main class="funnel-detail-panel">
+        <!-- 筛选器 -->
+        <div class="funnel-toolbar">
+          <ReportFilter v-model="filter" @change="loadFunnel" />
+        </div>
 
-          <!-- 漏斗配置摘要 -->
-          <div class="report-detail-config">
-            <div class="config-section config-section--full">
-              <div class="config-section-label">
-                <el-icon><Operation /></el-icon>
-                <span>事件步骤</span>
-                <span class="config-section-count">{{ currentFunnel.funnel_steps?.length || 0 }}</span>
-              </div>
-              <div class="config-section-tags">
-                <el-tag
-                  v-for="(step, i) in currentFunnel.funnel_steps || []"
-                  :key="i"
-                  size="small"
-                  effect="plain"
-                  :type="i === 0 ? 'primary' : 'info'"
-                >
-                  {{ i + 1 }}. {{ step.event_name }}
-                </el-tag>
-              </div>
-            </div>
-            <div class="config-divider"></div>
-            <div class="config-section config-section--full">
-              <div class="config-section-label">
-                <el-icon><Connection /></el-icon>
-                <span>转化率</span>
-                <span class="config-section-count">{{ currentFunnel.conversion_metrics?.length || 0 }}</span>
-              </div>
-              <div class="config-section-tags">
-                <el-tag
-                  v-for="metric in currentFunnel.conversion_metrics || []"
-                  :key="metric.id"
-                  size="small"
-                  effect="plain"
-                  type="success"
-                >
-                  {{ metric.name }} ({{ metric.formula }})
-                </el-tag>
-              </div>
-            </div>
+        <!-- 漏斗图 -->
+        <div class="funnel-chart-card" v-loading="loading">
+          <div class="funnel-chart-header">
+            <h3 class="funnel-chart-title">漏斗可视化</h3>
+            <el-tag size="small" effect="plain" type="info">共 {{ stepRows.length }} 步 · 起始 {{ firstStepValue.toLocaleString() }} · 结束 {{ lastStepValue.toLocaleString() }} · 整体转化 {{ overallRate }}%</el-tag>
           </div>
-
-          <!-- 筛选器 + 导出 -->
-          <div class="report-detail-toolbar">
-            <div class="report-detail-toolbar-left">
-              <ReportFilter v-model="filter" @change="loadData" />
-            </div>
-            <div class="report-detail-toolbar-right">
-              <el-button-group class="report-detail-export">
-                <el-tooltip content="导出 CSV" placement="top">
-                  <el-button :icon="Download" @click="exportCsv">CSV</el-button>
-                </el-tooltip>
-                <el-tooltip content="导出 Excel" placement="top">
-                  <el-button :icon="Download" @click="exportExcel">Excel</el-button>
-                </el-tooltip>
-                <el-tooltip content="导出 PDF" placement="top">
-                  <el-button :icon="Document" @click="exportPdf">PDF</el-button>
-                </el-tooltip>
-              </el-button-group>
-            </div>
+          <div v-if="stepRows.length === 0" class="funnel-empty">
+            <el-empty description="请选择至少 1 个漏斗步骤" />
           </div>
-
-          <!-- 漏斗结果 -->
-          <div class="report-detail-content" v-loading="dataLoading">
-            <!-- 步骤转化漏斗图 -->
-            <div class="funnel-chart-card">
-              <div class="funnel-chart-header">
-                <h3>步骤转化漏斗</h3>
-                <div class="funnel-chart-meta">数据范围：{{ DATE_RANGE_LABELS[filter.dateRange] || filter.dateRange }}</div>
+          <div v-else class="funnel-chart-body">
+            <div
+              v-for="(row, idx) in stepRows"
+              :key="row.code"
+              :class="['funnel-step', { 'is-first': idx === 0, 'is-last': idx === stepRows.length - 1 }]"
+            >
+              <div class="funnel-step-meta">
+                <div class="funnel-step-order">{{ row.order }}</div>
+                <div class="funnel-step-name">{{ row.name }}</div>
               </div>
-              <div class="funnel-chart-body">
+              <div class="funnel-step-bar-wrap">
                 <div
-                  v-for="(step, i) in funnelData"
-                  :key="i"
-                  class="funnel-step"
+                  class="funnel-step-bar"
+                  :style="{ width: stepBarWidth(row, idx) + '%' }"
                 >
-                  <div class="funnel-step-label">
-                    <span class="funnel-step-index">{{ i + 1 }}</span>
-                    <span class="funnel-step-name">{{ step.event_name }}</span>
-                  </div>
-                  <div class="funnel-step-bar-wrapper">
-                    <div
-                      class="funnel-step-bar"
-                      :style="{ width: step.percent + '%', background: getStepColor(i, funnelData.length) }"
-                    >
-                      <span class="funnel-step-value">{{ formatNumber(step.count) }}</span>
-                    </div>
-                  </div>
-                  <div class="funnel-step-conversion">
-                    <span v-if="i > 0">↓ {{ step.conversion }}%</span>
-                    <span v-else>100%</span>
-                  </div>
+                  <span class="funnel-step-value">{{ row.value.toLocaleString() }}</span>
                 </div>
+                <span v-if="idx > 0" class="funnel-step-rate">
+                  转化率：{{ stepRate(idx) }}%
+                </span>
               </div>
-            </div>
-
-            <!-- 自定义转化率表格 -->
-            <div class="funnel-table-card">
-              <div class="funnel-table-header">
-                <h3>自定义转化率</h3>
-              </div>
-              <el-table :data="customMetricsData" stripe>
-                <el-table-column prop="name" label="指标名称" min-width="160" />
-                <el-table-column prop="formula" label="公式" min-width="180">
-                  <template #default="{ row }">
-                    <span class="cell-formula">{{ row.formula }}</span>
-                  </template>
-                </el-table-column>
-                <el-table-column prop="value" label="值" min-width="120" align="right">
-                  <template #default="{ row }">
-                    <span class="cell-num--right">{{ row.value }}%</span>
-                  </template>
-                </el-table-column>
-                <el-table-column prop="denominator" label="分母" min-width="120" align="right">
-                  <template #default="{ row }">
-                    <span class="cell-num--right">{{ formatNumber(row.denominator) }}</span>
-                  </template>
-                </el-table-column>
-                <el-table-column prop="numerator" label="分子" min-width="120" align="right">
-                  <template #default="{ row }">
-                    <span class="cell-num--right">{{ formatNumber(row.numerator) }}</span>
-                  </template>
-                </el-table-column>
-              </el-table>
             </div>
           </div>
-        </template>
+        </div>
 
-        <div v-else class="report-detail-empty">
-          <el-empty :image-size="100" description="从左侧选择一个漏斗查看数据">
-            <el-button type="primary" :icon="Plus" @click="openCreateDialog">新建漏斗</el-button>
-          </el-empty>
+        <!-- 自定义公式 -->
+        <div class="funnel-formula-card">
+          <div class="funnel-formula-header">
+            <h3 class="funnel-formula-title">
+              <el-icon><MagicStick /></el-icon>
+              <span>自定义指标（公式白名单）</span>
+            </h3>
+            <el-tag size="small" effect="plain" type="warning">仅支持 event_a / event_b 或 event_a - event_b</el-tag>
+          </div>
+          <div class="funnel-formula-body">
+            <el-input
+              v-model="formula"
+              placeholder="例如 step_4_click / step_1_impression"
+              clearable
+              @blur="validateAndCompute"
+              @keyup.enter="validateAndCompute"
+            >
+              <template #prepend>
+                <el-select v-model="formulaType" style="width: 100px">
+                  <el-option label="除法" value="div" />
+                  <el-option label="减法" value="sub" />
+                </el-select>
+              </template>
+              <template #append>
+                <el-button type="primary" @click="validateAndCompute">计算</el-button>
+              </template>
+            </el-input>
+            <div v-if="formulaError" class="funnel-formula-msg error">
+              <el-icon><CircleClose /></el-icon> {{ formulaError }}
+            </div>
+            <div v-else-if="formulaValue !== null" class="funnel-formula-msg success">
+              <el-icon><CircleCheck /></el-icon> 计算结果：<strong>{{ formulaValue }}</strong>
+            </div>
+            <div class="funnel-formula-hint">
+              <span>可用指标：</span>
+              <el-tag
+                v-for="s in stepRows"
+                :key="s.code"
+                size="small"
+                type="info"
+                effect="plain"
+                class="funnel-formula-tag"
+                @click="insertMetric(s.code)"
+              >{{ s.code }} ({{ s.name }})</el-tag>
+            </div>
+          </div>
         </div>
       </main>
-    </div>
 
-    <!-- 配置弹窗（简化版，预留扩展） -->
-    <el-dialog v-model="dialogVisible" title="漏斗配置" width="600px" :close-on-click-modal="false">
-      <el-form label-width="100px">
-        <el-form-item label="漏斗名称">
-          <el-input v-model="editingFunnel.name" placeholder="如：注册转化漏斗" />
-        </el-form-item>
-        <el-form-item label="描述">
-          <el-input v-model="editingFunnel.description" type="textarea" :rows="2" />
-        </el-form-item>
-        <el-form-item label="事件步骤">
-          <el-tag v-for="(s, i) in editingFunnel.funnel_steps || []" :key="i" class="funnel-edit-step">
-            {{ i + 1 }}. {{ s.event_name }}
-          </el-tag>
-          <el-button :icon="Plus" size="small" plain @click="addFunnelStep">添加步骤</el-button>
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="dialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="saveFunnel">保存</el-button>
-      </template>
-    </el-dialog>
+      <!-- 右侧：5 个转化率 -->
+      <aside class="funnel-rate-panel">
+        <div class="funnel-rate-header">
+          <h2 class="funnel-rate-title">
+            <el-icon><TrendCharts /></el-icon>
+            <span>转化率</span>
+          </h2>
+        </div>
+        <div class="funnel-rate-list">
+          <div
+            v-for="r in rateRows"
+            :key="r.code"
+            :class="['funnel-rate-item', rateToneClass(r.rate)]"
+          >
+            <div class="funnel-rate-item-name">{{ r.name }}</div>
+            <div class="funnel-rate-item-value">
+              <span class="funnel-rate-item-pct">{{ r.rate }}%</span>
+              <el-icon class="funnel-rate-item-arrow"><TopRight /></el-icon>
+            </div>
+            <div class="funnel-rate-item-detail">
+              <span>{{ r.from_value.toLocaleString() }}</span>
+              <el-icon><Right /></el-icon>
+              <span>{{ r.to_value.toLocaleString() }}</span>
+            </div>
+          </div>
+        </div>
+      </aside>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
-import { ElMessage, ElMessageBox } from 'element-plus';
+import { ref, computed, onMounted, watch } from 'vue';
+import { ElMessage } from 'element-plus';
 import {
-  Plus, CopyDocument, Edit, Download, Document, Delete, Refresh, Search, MoreFilled,
-  Filter, Operation, Connection,
+  Refresh, Download, DataLine, Aim, Check, MagicStick, CircleCheck, CircleClose,
+  TrendCharts, TopRight, Right,
 } from '@element-plus/icons-vue';
 import request from '@/utils/request';
-import ReportFilter, { type ReportFilter as ReportFilterType } from '@/components/report/ReportFilter.vue';
+import ReportFilter, { type ReportFilter as Filter } from '@/components/report/ReportFilter.vue';
 
 interface FunnelStep {
-  event_code: string;
-  event_name: string;
-}
-
-interface ConversionMetric {
-  id: number;
+  code: string;
   name: string;
-  formula: string;
-  numerator_code: string;
-  denominator_code: string;
+  order: number;
 }
-
-interface Funnel {
-  id: number;
+interface FunnelRow extends FunnelStep {
+  value: number;
+}
+interface FunnelRate {
+  code: string;
   name: string;
-  description?: string;
-  funnel_steps: FunnelStep[];
-  conversion_metrics: ConversionMetric[];
-  is_default: boolean;
+  from_value: number;
+  to_value: number;
+  rate: number;
 }
 
-interface FunnelStepResult extends FunnelStep {
-  count: number;
-  percent: number;
-  conversion: number;
-}
-
-const DATE_RANGE_LABELS: Record<string, string> = {
-  today: '今天',
-  yesterday: '昨天',
-  '7d': '近 7 天',
-  '30d': '近 30 天',
-  month: '本月',
-  lastMonth: '上月',
-};
-
-const funnels = ref<Funnel[]>([]);
-const selectedFunnelId = ref<number | null>(null);
-const searchKeyword = ref('');
+const funnelDefinition = ref<FunnelStep[]>([]);
+const stepRows = ref<FunnelRow[]>([]);
+const rateRows = ref<FunnelRate[]>([]);
+const selectedSteps = ref<string[]>([]);
 const loading = ref(false);
-const dataLoading = ref(false);
-const dialogVisible = ref(false);
-const editingFunnel = ref<Partial<Funnel>>({ name: '', description: '', funnel_steps: [], conversion_metrics: [] });
 
-const filter = ref<ReportFilterType>({ dateRange: '7d', appIds: [], placementIds: [], adSourceIds: [], formats: [], country: [] });
+const formula = ref('step_4_click / step_1_impression');
+const formulaType = ref<'div' | 'sub'>('div');
+const formulaValue = ref<number | null>(null);
+const formulaError = ref<string>('');
 
-const funnelData = ref<FunnelStepResult[]>([]);
-const customMetricsData = ref<Array<{ name: string; formula: string; value: number; numerator: number; denominator: number }>>([]);
+const filter = ref<Filter>({ dateRange: '7d', appIds: [], placementIds: [], adSourceIds: [], formats: [], country: [], osList: [], platform: '' });
 
-const currentFunnel = computed<Funnel | null>(() => funnels.value.find((f) => f.id === selectedFunnelId.value) || null);
-const filteredFunnels = computed<Funnel[]>(() => {
-  const kw = searchKeyword.value.trim().toLowerCase();
-  if (!kw) return funnels.value;
-  return funnels.value.filter((f) => f.name.toLowerCase().includes(kw));
+const firstStepValue = computed(() => stepRows.value[0]?.value || 0);
+const lastStepValue = computed(() => stepRows.value[stepRows.value.length - 1]?.value || 0);
+const overallRate = computed(() => {
+  if (!firstStepValue.value) return '0.00';
+  return ((lastStepValue.value / firstStepValue.value) * 100).toFixed(2);
 });
 
-const formatNumber = (n: number) => n.toLocaleString('zh-CN');
-
-const getStepColor = (i: number, total: number) => {
-  const start = [59, 130, 246]; // blue
-  const end = [30, 58, 138];     // dark blue
-  const t = total <= 1 ? 0 : i / (total - 1);
-  const r = Math.round(start[0] + (end[0] - start[0]) * t);
-  const g = Math.round(start[1] + (end[1] - start[1]) * t);
-  const b = Math.round(start[2] + (end[2] - start[2]) * t);
-  return `rgb(${r}, ${g}, ${b})`;
+const stepBarWidth = (row: FunnelRow, idx: number) => {
+  if (idx === 0) return 100;
+  if (firstStepValue.value === 0) return 0;
+  return Math.max(2, (row.value / firstStepValue.value) * 100);
 };
 
-const loadMetrics = async () => {
+const stepRate = (idx: number) => {
+  if (idx === 0) return '100.00';
+  const prev = stepRows.value[idx - 1]?.value || 0;
+  const cur = stepRows.value[idx]?.value || 0;
+  if (prev === 0) return '0.00';
+  return ((cur / prev) * 100).toFixed(2);
+};
+
+const rateToneClass = (rate: number) => {
+  if (rate >= 50) return 'tone-good';
+  if (rate >= 20) return 'tone-warn';
+  return 'tone-bad';
+};
+
+const loadDefinition = async () => {
+  try {
+    const res: any = await request.get('/api/v1/console/report/funnel/definition');
+    if (res.code === 0) {
+      funnelDefinition.value = res.data.steps || [];
+      // 默认选中前 5 步
+      selectedSteps.value = funnelDefinition.value.slice(0, 5).map((s: FunnelStep) => s.code);
+    }
+  } catch (e: any) {
+    ElMessage.error('加载漏斗定义失败：' + (e?.message || ''));
+  }
+};
+
+const loadFunnel = async () => {
   loading.value = true;
   try {
-    // 模拟数据：实际应从 report_funnel_metric_definition 表加载
-    funnels.value = [
-      {
-        id: 1,
-        name: '注册转化漏斗',
-        description: '从浏览 → 注册的转化路径',
-        funnel_steps: [
-          { event_code: 'view_landing', event_name: '访问落地页' },
-          { event_code: 'view_register', event_name: '查看注册页' },
-          { event_code: 'submit_register', event_name: '提交注册' },
-          { event_code: 'register_success', event_name: '注册成功' },
-        ],
-        conversion_metrics: [
-          { id: 1, name: '整体转化率', formula: 'register_success / view_landing', numerator_code: 'register_success', denominator_code: 'view_landing' },
-        ],
-        is_default: true,
-      },
-      {
-        id: 2,
-        name: '广告变现漏斗',
-        description: '从广告请求到展示的转化',
-        funnel_steps: [
-          { event_code: 'ad_request', event_name: '广告请求' },
-          { event_code: 'ad_response', event_name: '广告响应' },
-          { event_code: 'ad_show', event_name: '广告展示' },
-          { event_code: 'ad_click', event_name: '广告点击' },
-        ],
-        conversion_metrics: [
-          { id: 2, name: '填充率', formula: 'ad_response / ad_request', numerator_code: 'ad_response', denominator_code: 'ad_request' },
-          { id: 3, name: '点击率', formula: 'ad_click / ad_show', numerator_code: 'ad_click', denominator_code: 'ad_show' },
-        ],
-        is_default: false,
-      },
-    ];
-    if (funnels.value.length > 0 && !selectedFunnelId.value) {
-      selectFunnel(funnels.value[0]);
+    const res: any = await request.post('/api/v1/console/report/aggregate', {
+      report_type: 'funnel',
+      steps: selectedSteps.value,
+      formula: formula.value,
+      filters: filter.value,
+    });
+    if (res.code === 0) {
+      stepRows.value = res.data.rows || [];
+      rateRows.value = res.data.rates || [];
+      formulaValue.value = res.data.formula_value;
+      formulaError.value = res.data.formula_error || '';
     }
+  } catch (e: any) {
+    ElMessage.error('加载漏斗数据失败：' + (e?.message || ''));
   } finally {
     loading.value = false;
   }
 };
 
-const selectFunnel = (funnel: Funnel) => {
-  selectedFunnelId.value = funnel.id;
-  loadData();
-};
-
-const onItemCommand = (cmd: string, funnel: Funnel) => {
-  if (cmd === 'edit') {
-    selectedFunnelId.value = funnel.id;
-    openEditDialog();
-  } else if (cmd === 'duplicate') {
-    ElMessage.info('复制功能开发中');
-  } else if (cmd === 'delete') {
-    selectedFunnelId.value = funnel.id;
-    deleteCurrent();
-  }
-};
-
-const loadData = async () => {
-  if (!currentFunnel.value) {
-    funnelData.value = [];
-    customMetricsData.value = [];
+const validateAndCompute = async () => {
+  if (!formula.value) {
+    formulaValue.value = null;
+    formulaError.value = '';
     return;
   }
-  dataLoading.value = true;
+  await loadFunnel();
+};
+
+const toggleStep = (code: string) => {
+  if (selectedSteps.value.includes(code)) {
+    selectedSteps.value = selectedSteps.value.filter((c) => c !== code);
+  } else {
+    selectedSteps.value = [...selectedSteps.value, code];
+  }
+  loadFunnel();
+};
+
+const selectAllSteps = () => {
+  selectedSteps.value = funnelDefinition.value.map((s) => s.code);
+  loadFunnel();
+};
+const deselectAllSteps = () => {
+  selectedSteps.value = [];
+  loadFunnel();
+};
+
+const insertMetric = (code: string) => {
+  if (formulaType.value === 'div') {
+    formula.value = `${code} / step_1_impression`;
+  } else {
+    formula.value = `${code} - step_1_impression`;
+  }
+  validateAndCompute();
+};
+
+const exportFunnel = async () => {
   try {
-    // 调用 aggregate API 拿每步数据
-    const steps = currentFunnel.value.funnel_steps || [];
-    const res: any = await request.post('/api/v1/console/report/aggregate', {
-      dimensions: ['date'],
-      metrics: steps.map((s) => s.event_code),
-      filters: filter.value,
+    const res: any = await request.post('/api/v1/console/report/export/csv', {
       report_type: 'funnel',
-    });
-    // 汇总每步 count
-    const counts = steps.map((s) => {
-      const total = (res.data?.rows || []).reduce((sum: number, row: any) => sum + (Number(row[s.event_code]) || 0), 0);
-      return total;
-    });
-    const first = counts[0] || 1;
-    funnelData.value = steps.map((s, i) => {
-      const c = counts[i] || 0;
-      const prev = i > 0 ? counts[i - 1] : c;
-      return {
-        ...s,
-        count: c,
-        percent: first > 0 ? (c / first) * 100 : 0,
-        conversion: prev > 0 ? Math.round((c / prev) * 10000) / 100 : 0,
-      };
-    });
-    // 自定义转化率
-    customMetricsData.value = (currentFunnel.value.conversion_metrics || []).map((m) => {
-      const numIdx = steps.findIndex((s) => s.event_code === m.numerator_code);
-      const denIdx = steps.findIndex((s) => s.event_code === m.denominator_code);
-      const num = numIdx >= 0 ? counts[numIdx] : 0;
-      const den = denIdx >= 0 ? counts[denIdx] : 0;
-      const value = den > 0 ? Math.round((num / den) * 10000) / 100 : 0;
-      return {
-        name: m.name,
-        formula: m.formula,
-        value,
-        numerator: num,
-        denominator: den,
-      };
-    });
-  } catch (e: any) {
-    console.error('funnel load failed:', e);
-    // 使用 mock 数据兜底
-    const steps = currentFunnel.value.funnel_steps || [];
-    const mockCounts = steps.map(() => Math.round(Math.random() * 10000));
-    const first = mockCounts[0] || 1;
-    funnelData.value = steps.map((s, i) => {
-      const c = mockCounts[i];
-      const prev = i > 0 ? mockCounts[i - 1] : c;
-      return {
-        ...s,
-        count: c,
-        percent: first > 0 ? (c / first) * 100 : 0,
-        conversion: prev > 0 ? Math.round((c / prev) * 10000) / 100 : 0,
-      };
-    });
-    customMetricsData.value = (currentFunnel.value.conversion_metrics || []).map((m) => ({
-      name: m.name,
-      formula: m.formula,
-      value: Math.round(Math.random() * 10000) / 100,
-      numerator: Math.round(Math.random() * 10000),
-      denominator: Math.round(Math.random() * 10000),
-    }));
-  } finally {
-    dataLoading.value = false;
-  }
-};
-
-const openCreateDialog = () => {
-  editingFunnel.value = { name: '', description: '', funnel_steps: [{ event_code: '', event_name: '' }], conversion_metrics: [] };
-  dialogVisible.value = true;
-};
-
-const openEditDialog = () => {
-  if (!currentFunnel.value) return;
-  editingFunnel.value = JSON.parse(JSON.stringify(currentFunnel.value));
-  dialogVisible.value = true;
-};
-
-const addFunnelStep = () => {
-  if (!editingFunnel.value.funnel_steps) editingFunnel.value.funnel_steps = [];
-  editingFunnel.value.funnel_steps.push({ event_code: '', event_name: '' });
-};
-
-const saveFunnel = () => {
-  ElMessage.success('已保存（mock）');
-  dialogVisible.value = false;
-  loadMetrics();
-};
-
-const duplicateCurrent = () => {
-  ElMessage.info('复制功能开发中');
-};
-
-const deleteCurrent = async () => {
-  if (!currentFunnel.value) return;
-  try {
-    await ElMessageBox.confirm(`确定删除漏斗「${currentFunnel.value.name}」？`, '删除确认', {
-      type: 'warning',
-    });
-    ElMessage.success('已删除（mock）');
-    selectedFunnelId.value = null;
-    loadMetrics();
-  } catch (e) {
-    if (e !== 'cancel') ElMessage.error('删除失败');
-  }
-};
-
-const exportCsv = () => doExport('csv');
-const exportExcel = () => doExport('excel');
-const exportPdf = () => doExport('pdf');
-
-const doExport = async (format: 'csv' | 'excel' | 'pdf') => {
-  if (!currentFunnel.value) {
-    ElMessage.warning('请先选择漏斗');
-    return;
-  }
-  try {
-    const res: any = await request.post(`/api/v1/console/report/export/${format}`, {
-      board_id: currentFunnel.value.id,
-      dimensions: ['date'],
-      metrics: currentFunnel.value.funnel_steps.map((s) => s.event_code),
+      steps: selectedSteps.value,
+      formula: formula.value,
       filters: filter.value,
-    });
-    if (res.code === 0) {
-      const url = res.data?.url;
-      if (url) {
-        const r = await fetch(url, { credentials: 'include', headers: { Authorization: `Bearer ${localStorage.getItem('token') || ''}` } });
-        const blob = await r.blob();
-        const blobUrl = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = blobUrl;
-        a.download = `funnel_${Date.now()}.${format === 'excel' ? 'csv' : format}`;
-        a.click();
-        window.URL.revokeObjectURL(blobUrl);
-        ElMessage.success('导出已开始');
-      }
-    } else {
-      ElMessage.error(res.message || '导出失败');
-    }
+    }, { responseType: 'blob' });
+    const blob = new Blob([res], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `funnel_${Date.now()}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
   } catch (e: any) {
-    ElMessage.error(e?.message || '导出失败');
+    ElMessage.error('导出失败：' + (e?.message || ''));
   }
 };
 
-onMounted(loadMetrics);
+watch(formulaType, (t) => {
+  // 切换除/减时尝试替换公式中间的符号
+  if (formula.value.includes('/') && t === 'sub') {
+    formula.value = formula.value.replace(/\s*\/\s*/, ' - ');
+  } else if (formula.value.includes('-') && t === 'div') {
+    formula.value = formula.value.replace(/\s*-\s*/, ' / ');
+  }
+  validateAndCompute();
+});
+
+onMounted(async () => {
+  await loadDefinition();
+  await loadFunnel();
+});
 </script>

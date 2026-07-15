@@ -258,7 +258,7 @@ const dataLoading = ref(false);
 const dialogVisible = ref(false);
 const editingBoard = ref<ReportBoard | null>(null);
 
-const filter = ref<Filter>({ dateRange: '7d', appIds: [], placementIds: [], adSourceIds: [], formats: [], country: [] });
+const filter = ref<Filter>({ dateRange: '7d', appIds: [], placementIds: [], adSourceIds: [], formats: [], country: [], osList: [], platform: '' });
 const pickedMetrics = ref<string[]>([]);
 const tableData = ref<Array<Record<string, string | number>>>([]);
 
@@ -313,7 +313,7 @@ const loadBoards = async () => {
 const selectBoard = (board: ReportBoard) => {
   selectedBoardId.value = board.id;
   viewMode.value = board.config?.layout?.view || 'table';
-  filter.value = { dateRange: '7d', appIds: [], placementIds: [], adSourceIds: [], formats: [], country: [] };
+  filter.value = { dateRange: '7d', appIds: [], placementIds: [], adSourceIds: [], formats: [], country: [], osList: [], platform: '' };
   pickedMetrics.value = [];
   loadData();
 };
