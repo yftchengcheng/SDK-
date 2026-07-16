@@ -8891,12 +8891,7 @@ html, body, #app {
   padding: 8px 0;
 }
 
-.funnel-step {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 6px 0;
-}
+
 
 .funnel-step-label {
   width: 160px;
@@ -9163,13 +9158,7 @@ html, body, #app {
   flex-direction: column;
   gap: 10px;
 }
-.funnel-step {
-  display: grid;
-  grid-template-columns: 160px 1fr;
-  align-items: center;
-  gap: 16px;
-  padding: 10px 0;
-}
+
 .funnel-step.is-first .funnel-step-order {
   background: #1E3A8A;
 }
@@ -10488,19 +10477,8 @@ html, body, #app {
 }
 
 
-.funnel-chart-wrap {
-  width: 100%;
-  text-align: center;
-  margin-bottom: 16px;
-}
-.funnel-chart-img {
-  display: block;
-  width: 100%;
-  max-width: 100%;
-  height: auto;
-  border-radius: 4px;
-  user-select: none;
-}
+
+
 /* ---------- 漏斗分析 Funnel ---------- */
 
 .funnel-filter-card { padding: 16px 20px; }
@@ -10538,28 +10516,9 @@ html, body, #app {
 .funnel-side-right .funnel-side-item-label { text-align: left; }
 .funnel-side-item-tip { color: #c9cdd4; cursor: help; }
 
-.funnel-chart-wrap {
-  display: flex; flex-direction: column; align-items: center;
-  background: #fafbfc; border-radius: 8px; padding: 20px;
-  border: 1px solid #e5e6eb;
-}
-.funnel-legend {
-  display: flex; gap: 20px; font-size: 13px; color: #4e5969; margin-bottom: 16px;
-}
-.funnel-legend-item { display: flex; align-items: center; gap: 6px; }
-.funnel-legend-dot { width: 12px; height: 12px; border-radius: 2px; display: inline-block; }
 
-.funnel-chart {
-  display: flex; flex-direction: column; align-items: center; gap: 4px;
-  width: 100%; max-width: 280px;
-}
-.funnel-step {
-  display: flex; align-items: center; justify-content: center;
-  color: #fff; font-size: 13px; font-weight: 500;
-  clip-path: polygon(8% 0, 92% 0, 100% 100%, 0 100%);
-  text-shadow: 0 1px 2px rgba(0,0,0,0.15);
-  height: 32px;
-}
+
+
 .funnel-step-0  { background: #1d4ed8; width: 100%; }
 .funnel-step-1  { background: #2563eb; width: 96%; }
 .funnel-step-2  { background: #3b82f6; width: 90%; }
@@ -10570,7 +10529,6 @@ html, body, #app {
 .funnel-step-7  { background: #93c5fd; width: 60%; color: #1e3a8a; text-shadow: none; }
 .funnel-step-8  { background: #bfdbfe; width: 54%; color: #1e3a8a; text-shadow: none; }
 .funnel-step-9  { background: #bfdbfe; width: 48%; color: #1e3a8a; text-shadow: none; }
-.funnel-step-10 { background: #dbeafe; width: 42%; color: #1e3a8a; text-shadow: none; }
 .funnel-step-text { letter-spacing: 0.5px; }
 
 .funnel-table-wrap { margin-top: 20px; }
@@ -10616,3 +10574,75 @@ html, body, #app {
   color: #909399; font-size: 12px; margin-left: 2px;
   cursor: help;
 }
+
+/* ---------- 漏斗分析 Funnel: 仿用户设计图 (色块堆叠 + 渐变) ---------- */
+.funnel-chart-wrap {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 8px 0;
+}
+.funnel-legend {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 12px;
+  font-size: 13px;
+  color: #303133;
+}
+.funnel-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.funnel-legend-dot {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 2px;
+}
+.funnel-chart {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 0;
+}
+.funnel-block {
+  width: 220px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.5px;
+  position: relative;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  box-shadow: 0 2px 4px rgba(15, 39, 110, 0.12);
+  cursor: default;
+}
+.funnel-block:hover {
+  transform: translateX(2px);
+  box-shadow: 0 4px 12px rgba(15, 39, 110, 0.22);
+}
+.funnel-block-text {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding: 0 12px;
+}
+/* 11 步色块渐变：深蓝 → 浅蓝 */
+.funnel-block-0  { background: linear-gradient(90deg, #154ff0 0%, #2a6df5 100%); }
+.funnel-block-1  { background: linear-gradient(90deg, #154ff0 0%, #2a6df5 100%); }
+.funnel-block-2  { background: linear-gradient(90deg, #154ff0 0%, #2a6df5 100%); }
+.funnel-block-3  { background: linear-gradient(90deg, #154ff0 0%, #2a6df5 100%); }
+.funnel-block-4  { background: linear-gradient(90deg, #237aff 0%, #4091ff 100%); }
+.funnel-block-5  { background: linear-gradient(90deg, #237aff 0%, #4091ff 100%); }
+.funnel-block-6  { background: linear-gradient(90deg, #22a2ff 0%, #5cb8ff 100%); }
+.funnel-block-7  { background: linear-gradient(90deg, #22a2ff 0%, #5cb8ff 100%); }
+.funnel-block-8  { background: linear-gradient(90deg, #22a2ff 0%, #5cb8ff 100%); }
+.funnel-block-9  { background: linear-gradient(90deg, #65d0fe 0%, #93dafe 100%); }
+.funnel-block-10 { background: linear-gradient(90deg, #65d0fe 0%, #93dafe 100%); }

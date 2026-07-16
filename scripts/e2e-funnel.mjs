@@ -31,7 +31,7 @@ import puppeteer from 'puppeteer';
   const hasWarning = await page.evaluate(() => !!document.querySelector('.funnel-warning'));
   console.log('[funnel-e2e] has warning:', hasWarning);
   // 4. 漏斗步骤数
-  const stepCount = await page.evaluate(() => document.querySelectorAll('.funnel-step').length);
+  const stepCount = await page.evaluate(() => document.querySelectorAll('.funnel-block').length);
   console.log('[funnel-e2e] funnel steps:', stepCount);
   // 5. 左右侧指标
   const leftMetric = await page.evaluate(() => document.querySelectorAll('.funnel-side-left .funnel-side-item').length);
