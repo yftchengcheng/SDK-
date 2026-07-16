@@ -6,26 +6,29 @@
   <div class="report-filter">
     <el-form inline :model="local" @submit.prevent>
       <el-form-item label="时间">
-        <el-date-picker
-          :model-value="dateRangeModel"
-          type="daterange"
-          range-separator="至"
-          start-placeholder="开始"
-          end-placeholder="结束"
-          size="default"
-          format="YYYY-MM-DD"
-          value-format="YYYY-MM-DD"
-          :clearable="false"
-          :shortcuts="dateShortcuts"
-          class="filter-date"
-          @update:model-value="onDatePickerChange"
-        >
-          <template #prefix>
-            <span class="filter-date__prefix">
-              <el-icon><Calendar /></el-icon>
-            </span>
-          </template>
-        </el-date-picker>
+        <el-tooltip content="选择完日期后，请点弹窗底部的「确定」按钮（自定义范围才生效）" placement="top" :show-after="500">
+          <el-date-picker
+            :model-value="dateRangeModel"
+            type="daterange"
+            range-separator="至"
+            start-placeholder="开始"
+            end-placeholder="结束"
+            size="default"
+            format="YYYY-MM-DD"
+            value-format="YYYY-MM-DD"
+            :clearable="false"
+            :shortcuts="dateShortcuts"
+            :unlink-panels="true"
+            class="filter-date"
+            @update:model-value="onDatePickerChange"
+          >
+            <template #prefix>
+              <span class="filter-date__prefix">
+                <el-icon><Calendar /></el-icon>
+              </span>
+            </template>
+          </el-date-picker>
+        </el-tooltip>
       </el-form-item>
       <el-form-item label="应用">
         <el-select
