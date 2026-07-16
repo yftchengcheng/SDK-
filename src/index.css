@@ -10831,14 +10831,14 @@ html, body, #app {
 }
 .chart-panel-container .body .left-box,
 .chart-panel-container .body .right-box {
-  width: 220px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
+  display: grid;
+  grid-template-rows: repeat(11, 40px);
+  row-gap: 4px;
   flex-shrink: 0;
+  align-items: start;
 }
 .chart-panel-container .body .main {
-  flex: 1;
+  flex: 1 1 auto;
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -10885,15 +10885,15 @@ html, body, #app {
 
 /* 指标卡 */
 .chart-panel-container .process-box__content {
-  flex: 1;
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: 6px;
   padding: 6px 10px;
   border-radius: 4px;
   font-size: 13px;
   line-height: 1.2;
-  min-width: 0;
+  white-space: nowrap;
+  max-width: 100%;
   overflow: hidden;
 }
 .chart-panel-container .process-box__content .label {
@@ -10978,8 +10978,5 @@ html, body, #app {
 
 /* 响应式：小屏下隐藏图例文字 */
 @media (max-width: 1280px) {
-  .chart-panel-container .body .left-box,
-  .chart-panel-container .body .right-box {
-    width: 180px;
-  }
+  /* 左右 box 宽度由内容自适应，不需要固定值 */
 }

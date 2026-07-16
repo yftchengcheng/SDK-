@@ -21,6 +21,7 @@
           :key="`L-${idx}`"
           class="process-box"
           :class="`process-box__${idx + 1}`"
+          :style="{ gridRow: (m.alignIndex ?? idx) + 1 }"
         >
           <div
             class="process-box__content"
@@ -65,6 +66,7 @@
           :key="`R-${idx}`"
           class="process-box"
           :class="`process-box__${idx + 1}`"
+          :style="{ gridRow: (m.alignIndex ?? idx) + 1 }"
         >
           <div v-if="m.withArrow" class="process-box--arrow" />
           <div
@@ -167,6 +169,7 @@ const defaultLeftMetrics: FunnelMetric[] = [
     color: 'primary',
     withArrow: true,
     linkIndices: [0, 4],
+    alignIndex: 4,
   },
   {
     code: 'trigger_rate',
@@ -176,6 +179,7 @@ const defaultLeftMetrics: FunnelMetric[] = [
     color: 'warning',
     withArrow: true,
     linkIndices: [4, 6],
+    alignIndex: 6,
   },
   {
     code: 'trigger_show_rate',
@@ -185,6 +189,7 @@ const defaultLeftMetrics: FunnelMetric[] = [
     color: 'warning',
     withArrow: true,
     linkIndices: [6, 7],
+    alignIndex: 7,
   },
   {
     code: 'show_rate',
@@ -194,6 +199,7 @@ const defaultLeftMetrics: FunnelMetric[] = [
     color: 'warning',
     withArrow: true,
     linkIndices: [8, 9],
+    alignIndex: 8,
   },
   {
     code: 'click_rate',
@@ -203,6 +209,7 @@ const defaultLeftMetrics: FunnelMetric[] = [
     color: 'warning',
     withArrow: true,
     linkIndices: [9, 10],
+    alignIndex: 10,
   },
 ];
 
@@ -215,6 +222,7 @@ const defaultRightMetrics: FunnelMetric[] = [
     color: 'nope',
     withArrow: false,
     linkIndices: [],
+    alignIndex: 0,
   },
   {
     code: 'traffic_fill_rate',
@@ -224,6 +232,7 @@ const defaultRightMetrics: FunnelMetric[] = [
     color: 'warning',
     withArrow: true,
     linkIndices: [2, 3],
+    alignIndex: 3,
   },
   {
     code: 'ad_ready_rate',
@@ -233,6 +242,7 @@ const defaultRightMetrics: FunnelMetric[] = [
     color: 'warning',
     withArrow: false,
     linkIndices: [4, 5],
+    alignIndex: 4,
   },
   {
     code: 'isready_success_rate',
@@ -242,6 +252,7 @@ const defaultRightMetrics: FunnelMetric[] = [
     color: 'warning',
     withArrow: false,
     linkIndices: [5],
+    alignIndex: 5,
   },
   {
     code: 'show_gap',
@@ -251,6 +262,7 @@ const defaultRightMetrics: FunnelMetric[] = [
     color: 'warning',
     withArrow: true,
     linkIndices: [8, 9],
+    alignIndex: 9,
   },
 ];
 

@@ -363,6 +363,7 @@ const processLeftMetrics = computed<FunnelMetric[]>(() =>
     tip: m.tip,
     color: m.code === 'arrive_rate' ? 'primary' : 'warning',
     withArrow: true,
+    alignIndex: m.alignIndex,
     linkIndices: m.linkIndices,
   })),
 );
@@ -377,6 +378,7 @@ const processRightMetrics = computed<FunnelMetric[]>(() =>
     tip: m.tip,
     color: m.code === 'per_start' ? 'nope' : 'warning',
     withArrow: m.code === 'fill_rate' || m.code === 'show_gap',
+    alignIndex: m.alignIndex,
     linkIndices: m.linkIndices,
   })),
 );
