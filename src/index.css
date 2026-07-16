@@ -10142,18 +10142,55 @@ html, body, #app {
   border-radius: 6px;
 }
 
-/* ===== 报表筛选 + 操作 工具栏（3 段式：filter | actions | export） ===== */
+/* ===== 报表筛选 + 操作 工具栏（上下结构：filter / actions+export） ===== */
 .report-detail-toolbar {
-  display: grid;
-  grid-template-columns: 1fr 1px auto 1px auto;
-  gap: 16px 14px;
-  align-items: center;
+  display: flex;
+  flex-direction: column;
   background: #FFFFFF;
   border: 1px solid #E2E8F0;
   border-radius: 10px;
-  padding: 14px 20px;
   margin-bottom: 12px;
   box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  overflow: hidden;
+}
+
+.toolbar-top {
+  padding: 16px 20px 12px;
+}
+/* filter form 在卡片内的密度调整 */
+.toolbar-top .report-filter .el-form-item {
+  margin-bottom: 8px;
+  margin-right: 14px;
+}
+.toolbar-top .report-filter .el-form-item__label {
+  font-size: 12px;
+  color: #64748B;
+  font-weight: 500;
+  padding-right: 6px;
+}
+.toolbar-top .report-filter .el-select {
+  font-size: 12px;
+}
+.toolbar-top .report-filter .el-button {
+  padding: 6px 12px;
+  font-size: 12px;
+  border-radius: 6px;
+}
+
+.toolbar-divider--horizontal {
+  width: auto;
+  height: 1px;
+  background: #E2E8F0;
+  margin: 0 20px;
+}
+
+.toolbar-bottom {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 20px;
+  background: linear-gradient(180deg, #FFFFFF 0%, #F8FAFC 100%);
 }
 
 .toolbar-section {
@@ -10161,10 +10198,6 @@ html, body, #app {
   align-items: center;
   min-width: 0;
   gap: 10px;
-}
-.toolbar-section--filter {
-  flex-wrap: wrap;
-  flex: 1 1 auto;
 }
 .toolbar-section--actions {
   flex-shrink: 0;
@@ -10176,7 +10209,6 @@ html, body, #app {
 }
 .toolbar-section--export {
   flex-shrink: 0;
-  justify-content: flex-end;
 }
 .toolbar-section-label {
   font-size: 12px;
@@ -10184,13 +10216,6 @@ html, body, #app {
   color: #64748B;
   white-space: nowrap;
   letter-spacing: 0.02em;
-}
-
-.toolbar-divider {
-  width: 1px;
-  height: 32px;
-  background: #E2E8F0;
-  align-self: center;
 }
 
 .report-detail-toolbar .report-detail-export {

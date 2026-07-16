@@ -201,30 +201,31 @@
             </div>
           </div>
 
-          <!-- 工具栏：左筛选 / 中操作 / 右导出 -->
+          <!-- 工具栏：上下结构（上：筛选 / 下：操作 + 导出） -->
           <div class="report-detail-toolbar">
-            <div class="toolbar-section toolbar-section--filter">
+            <div class="toolbar-top">
               <ReportFilter v-model="filter" @change="loadData" />
             </div>
-            <div class="toolbar-divider"></div>
-            <div class="toolbar-section toolbar-section--actions">
-              <el-button :icon="Refresh" @click="loadData" plain>刷新</el-button>
-              <el-button :icon="FolderAdd" type="primary" plain @click="openSaveAsDialog">保存为看版</el-button>
-            </div>
-            <div class="toolbar-divider"></div>
-            <div class="toolbar-section toolbar-section--export">
-              <span class="toolbar-section-label">导出</span>
-              <el-button-group class="report-detail-export">
-                <el-tooltip content="导出 CSV" placement="top">
-                  <el-button :icon="Download" size="small" @click="exportCsv">CSV</el-button>
-                </el-tooltip>
-                <el-tooltip content="导出 Excel" placement="top">
-                  <el-button :icon="Download" size="small" @click="exportExcel">Excel</el-button>
-                </el-tooltip>
-                <el-tooltip content="导出 PDF" placement="top">
-                  <el-button :icon="Document" size="small" @click="exportPdf">PDF</el-button>
-                </el-tooltip>
-              </el-button-group>
+            <div class="toolbar-divider toolbar-divider--horizontal"></div>
+            <div class="toolbar-bottom">
+              <div class="toolbar-section toolbar-section--actions">
+                <el-button :icon="Refresh" @click="loadData" plain>刷新</el-button>
+                <el-button :icon="FolderAdd" type="primary" plain @click="openSaveAsDialog">保存为看版</el-button>
+              </div>
+              <div class="toolbar-section toolbar-section--export">
+                <span class="toolbar-section-label">导出报表</span>
+                <el-button-group class="report-detail-export">
+                  <el-tooltip content="导出 CSV" placement="top">
+                    <el-button :icon="Download" size="small" @click="exportCsv">CSV</el-button>
+                  </el-tooltip>
+                  <el-tooltip content="导出 Excel" placement="top">
+                    <el-button :icon="Download" size="small" @click="exportExcel">Excel</el-button>
+                  </el-tooltip>
+                  <el-tooltip content="导出 PDF" placement="top">
+                    <el-button :icon="Document" size="small" @click="exportPdf">PDF</el-button>
+                  </el-tooltip>
+                </el-button-group>
+              </div>
             </div>
           </div>
 
