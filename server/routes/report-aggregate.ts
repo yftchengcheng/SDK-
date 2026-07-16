@@ -99,7 +99,7 @@ export function validateFormula(
 /**
  * 日期范围 → { startDate, endDate } (YYYY-MM-DD)
  */
-function dateRangeOf(range: string): { startDate: string; endDate: string } {
+function dateRangeOf(range: string, customStart?: string, customEnd?: string): { startDate: string; endDate: string } {
   const today = new Date();
   const fmt = (d: Date) => d.toISOString().slice(0, 10);
   const end = new Date(today);
@@ -125,6 +125,15 @@ function dateRangeOf(range: string): { startDate: string; endDate: string } {
       const s = new Date(today.getFullYear(), today.getMonth() - 1, 1);
       const e = new Date(today.getFullYear(), today.getMonth(), 0);
       return { startDate: fmt(s), endDate: fmt(e) };
+    }
+    case 'custom': {
+      // 自定义范围：要求同时提供 customStart 和 customEnd (YYYY-MM-DD)
+      if (customStart && customEnd) {
+        return { startDate: customStart, endDate: customEnd };
+      }
+      // 缺参降级到 7d
+      start.setDate(start.getDate() - 6);
+      return { startDate: fmt(start), endDate: fmt(end) };
     }
     default:
       start.setDate(start.getDate() - 6);
@@ -227,7 +236,7 @@ async function aggregateOverview(
   metrics: string[],
   filters: any,
 ): Promise<Array<Record<string, any>>> {
-  const { startDate, endDate } = dateRangeOf(filters?.dateRange || '7d');
+  const { startDate, endDate } = dateRangeOf(filters?.dateRange || '7d', filters?.customStart, filters?.customEnd);
 
   let q = db
     .from('report_daily')
@@ -276,7 +285,7 @@ async function aggregateFunnel(
   formula: string,
   filters: any,
 ): Promise<{ rows: any[]; rates: any[]; formula_value: number; formula_error?: string }> {
-  const { startDate, endDate } = dateRangeOf(filters?.dateRange || '7d');
+  const { startDate, endDate } = dateRangeOf(filters?.dateRange || '7d', filters?.customStart, filters?.customEnd);
 
   // 取漏斗事件数据
   let q = db
@@ -406,7 +415,7 @@ async function aggregateBehavior(
   subtype: 'frequency' | 'value' | 'duration',
   compareMetric: string,
 ): Promise<{ primary: any[]; compare: any[]; rows: any[] }> {
-  const { startDate, endDate } = dateRangeOf(filters?.dateRange || '7d');
+  const { startDate, endDate } = dateRangeOf(filters?.dateRange || '7d', filters?.customStart, filters?.customEnd);
 
   let q = db
     .from('report_daily')
@@ -648,7 +657,7 @@ router.post('/export/excel', exportCsv);
 router.post('/export/pdf', async (req: Request, res: Response) => {
   try {
     const { dimensions = ['date'], metrics = [], filters = {}, report_type = 'overview', steps, formula } = req.body || {};
-    const { startDate, endDate } = dateRangeOf(filters?.dateRange || '7d');
+    const { startDate, endDate } = dateRangeOf(filters?.dateRange || '7d', filters?.customStart, filters?.customEnd);
 
     let tableRows = '';
     let summaryHtml = '';

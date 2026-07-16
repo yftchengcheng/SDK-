@@ -10249,3 +10249,169 @@ html, body, #app {
   border-color: #FB923C;
   color: #9A3412;
 }
+
+/* ===== DateRangePicker 自定义日期范围选择器 ===== */
+.date-range-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 12px;
+  background: #FFFFFF;
+  border: 1px solid #E2E8F0;
+  border-radius: 6px;
+  color: #334155;
+  font-size: 12px;
+  font-weight: 500;
+  transition: all 0.15s ease;
+  min-width: 140px;
+  justify-content: space-between;
+}
+.date-range-trigger:hover {
+  border-color: #CBD5E1;
+  color: #1E3A8A;
+}
+.date-range-trigger.is-active {
+  border-color: #1E3A8A;
+  color: #1E3A8A;
+  background: #EFF6FF;
+}
+.date-range-trigger-icon {
+  color: #64748B;
+  font-size: 14px;
+}
+.date-range-trigger.is-active .date-range-trigger-icon {
+  color: #1E3A8A;
+}
+.date-range-trigger-text {
+  flex: 1;
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.date-range-trigger-arrow {
+  color: #94A3B8;
+  font-size: 12px;
+  transition: transform 0.2s ease;
+}
+.date-range-trigger-arrow.is-open {
+  transform: rotate(180deg);
+}
+
+.date-range-panel {
+  display: grid;
+  grid-template-columns: 168px 1fr;
+  gap: 0;
+}
+
+.date-range-quick {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 12px 8px;
+  background: #F8FAFC;
+  border-right: 1px solid #E2E8F0;
+}
+.date-range-quick-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: #94A3B8;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 4px 12px 6px;
+}
+.date-range-quick-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 12px;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  color: #334155;
+  font-size: 13px;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+  transition: all 0.12s ease;
+}
+.date-range-quick-item:hover {
+  background: #FFFFFF;
+  color: #1E3A8A;
+}
+.date-range-quick-item.is-active {
+  background: #EFF6FF;
+  color: #1E3A8A;
+  font-weight: 600;
+}
+.date-range-quick-check {
+  color: #1E3A8A;
+  font-size: 14px;
+}
+.date-range-quick-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #CBD5E1;
+  margin: 0 4px;
+  flex-shrink: 0;
+}
+
+.date-range-calendar {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px 16px;
+  background: #FFFFFF;
+}
+.date-range-calendar-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #475569;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+.date-range-calendar-icon {
+  color: #1E3A8A;
+  font-size: 14px;
+}
+.date-range-calendar-input {
+  width: 100%;
+}
+.date-range-calendar-input .el-input__wrapper {
+  border-radius: 6px;
+}
+.date-range-calendar-preview {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 10px;
+  background: #EFF6FF;
+  border: 1px dashed #BFDBFE;
+  border-radius: 6px;
+  color: #1E3A8A;
+  font-size: 12px;
+  font-weight: 500;
+}
+.date-range-calendar-preview .el-icon {
+  font-size: 13px;
+}
+
+.date-range-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 10px 16px;
+  background: #F8FAFC;
+  border-top: 1px solid #E2E8F0;
+}
+.date-range-footer .el-button {
+  padding: 6px 14px;
+  font-size: 12px;
+  border-radius: 6px;
+}

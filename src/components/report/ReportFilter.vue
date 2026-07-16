@@ -6,14 +6,7 @@
   <div class="report-filter">
     <el-form inline :model="local" @submit.prevent>
       <el-form-item label="时间">
-        <el-select v-model="local.dateRange" style="width: 130px" @change="emitChange">
-          <el-option label="今天" value="today" />
-          <el-option label="昨天" value="yesterday" />
-          <el-option label="近 7 天" value="7d" />
-          <el-option label="近 30 天" value="30d" />
-          <el-option label="本月" value="month" />
-          <el-option label="上月" value="lastMonth" />
-        </el-select>
+        <DateRangePicker v-model="dateRangeModel" @change="onDateRangeChange" />
       </el-form-item>
       <el-form-item label="应用">
         <el-select
@@ -84,9 +77,12 @@
 import { ref, computed, watch, onMounted } from 'vue';
 import { Search, RefreshLeft } from '@element-plus/icons-vue';
 import request from '@/utils/request';
+import DateRangePicker from './DateRangePicker.vue';
 
 export interface ReportFilter {
-  dateRange: 'today' | 'yesterday' | '7d' | '30d' | 'month' | 'lastMonth';
+  dateRange: 'today' | 'yesterday' | '7d' | '30d' | 'month' | 'lastMonth' | 'custom';
+  customStart?: string;
+  customEnd?: string;
   appIds: string[];
   placementIds: string[];
   adSourceIds: string[];
@@ -102,6 +98,8 @@ const emit = defineEmits<{ (e: 'update:modelValue', v: ReportFilter): void; (e: 
 
 const local = ref<ReportFilter>({
   dateRange: props.modelValue.dateRange || '7d',
+  customStart: props.modelValue.customStart,
+  customEnd: props.modelValue.customEnd,
   appIds: [...(props.modelValue.appIds || [])],
   placementIds: [...(props.modelValue.placementIds || [])],
   adSourceIds: [...(props.modelValue.adSourceIds || [])],
@@ -110,6 +108,24 @@ const local = ref<ReportFilter>({
   osList: [...(props.modelValue.osList || [])],
   platform: props.modelValue.platform || '',
 });
+
+// DateRangePicker 用一个独立 v-model，避免触发内层 emit
+const dateRangeModel = computed({
+  get: () => ({ dateRange: local.value.dateRange, customStart: local.value.customStart, customEnd: local.value.customEnd }),
+  set: () => { /* 由 onDateRangeChange 显式处理 */ },
+});
+
+const onDateRangeChange = (next: { dateRange: string; customStart?: string; customEnd?: string }) => {
+  local.value.dateRange = next.dateRange as ReportFilter['dateRange'];
+  if (next.dateRange === 'custom') {
+    local.value.customStart = next.customStart;
+    local.value.customEnd = next.customEnd;
+  } else {
+    local.value.customStart = undefined;
+    local.value.customEnd = undefined;
+  }
+  emitChange();
+};
 
 const apps = ref<Array<{ value: string; label: string }>>([]);
 const placements = ref<Array<{ value: string; label: string; app_id: string }>>([]);
@@ -163,7 +179,8 @@ const emitChange = () => {
 
 const reset = () => {
   local.value = {
-    dateRange: '7d', appIds: [], placementIds: [], adSourceIds: [],
+    dateRange: '7d', customStart: undefined, customEnd: undefined,
+    appIds: [], placementIds: [], adSourceIds: [],
     formats: [], country: [], osList: [], platform: '',
   };
   emitChange();
@@ -176,6 +193,8 @@ onMounted(() => {
 watch(() => props.modelValue, (v) => {
   local.value = {
     dateRange: v.dateRange || '7d',
+    customStart: v.customStart,
+    customEnd: v.customEnd,
     appIds: [...(v.appIds || [])],
     placementIds: [...(v.placementIds || [])],
     adSourceIds: [...(v.adSourceIds || [])],
