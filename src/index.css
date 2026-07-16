@@ -9606,6 +9606,44 @@ html, body, #app {
   display: flex;
   align-items: center;
 }
+.value-col--money {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  color: #1E3A8A;
+}
+
+/* 维度选择弹窗 */
+.value-dim-picker {
+  padding: 4px 0 8px;
+}
+.value-dim-picker-group {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px 12px;
+  width: 100%;
+}
+.value-dim-picker-group .el-checkbox {
+  margin: 0;
+}
+.value-dim-picker-chip {
+  border-radius: 8px;
+  padding: 8px 12px;
+  width: 100%;
+  background: #F8FAFC;
+  border-color: #E2E8F0 !important;
+}
+.value-dim-picker-chip.is-checked {
+  background: #EFF6FF;
+  border-color: #1E3A8A !important;
+}
+.value-dim-picker-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 6px;
+  vertical-align: middle;
+}
 
 /* 时长对比 */
 .duration-summary {

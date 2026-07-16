@@ -210,30 +210,41 @@
                   <el-select v-model="valueRange" style="width: 100px" @change="loadAll">
                     <el-option v-for="r in VALUE_RANGES" :key="r.value" :label="r.label" :value="r.value" />
                   </el-select>
+                  <el-button plain size="small" :icon="EditPen" @click="valueDimPickerOpen = true">维度</el-button>
                 </div>
               </div>
               <div class="value-table">
                 <div class="value-row value-row--header">
                   <div class="value-col">{{ valueMetricLabel }}范围</div>
-                  <div class="value-col">展示数</div>
-                  <div class="value-col">展示占比</div>
-                  <div class="value-col">设备数</div>
-                  <div class="value-col">设备占比</div>
-                  <div class="value-col">预估收益</div>
-                  <div class="value-col">预估收益占比</div>
-                  <div class="value-col">预估收益累计占比</div>
+                  <div v-for="d in visibleDimensions" :key="d.key" class="value-col" :class="{ 'value-col--money': d.type === 'money' }">
+                    {{ d.label }}
+                  </div>
                 </div>
                 <div v-for="row in valueRows" :key="row.range" class="value-row">
                   <div class="value-col value-col--name">{{ row.range }}</div>
-                  <div class="value-col">{{ row.impressions.toLocaleString() }}</div>
-                  <div class="value-col">{{ row.impPercent }}%</div>
-                  <div class="value-col">{{ row.devices.toLocaleString() }}</div>
-                  <div class="value-col">{{ row.devPercent }}%</div>
-                  <div class="value-col">¥{{ row.revenue.toFixed(2) }}</div>
-                  <div class="value-col">{{ row.revPercent }}%</div>
-                  <div class="value-col">{{ row.revCumPercent }}%</div>
+                  <div v-for="d in visibleDimensions" :key="d.key" class="value-col" :class="{ 'value-col--money': d.type === 'money' }">
+                    <template v-if="d.type === 'count'">{{ row[d.key].toLocaleString() }}</template>
+                    <template v-else-if="d.type === 'money'">¥{{ row[d.key].toFixed(2) }}</template>
+                    <template v-else>{{ row[d.key] }}%</template>
+                  </div>
                 </div>
               </div>
+
+              <!-- 维度选择弹窗 -->
+              <el-dialog v-model="valueDimPickerOpen" title="维度选择" width="520px" append-to-body>
+                <div class="value-dim-picker">
+                  <el-checkbox-group v-model="valueDimPicked" class="value-dim-picker-group">
+                    <el-checkbox v-for="d in VALUE_TABLE_DIMENSIONS" :key="d.key" :value="d.key" class="value-dim-picker-chip" border>
+                      <span class="value-dim-picker-dot" :style="{ background: d.color }"></span>
+                      <span>{{ d.label }}</span>
+                    </el-checkbox>
+                  </el-checkbox-group>
+                </div>
+                <template #footer>
+                  <el-button @click="valueDimPickerOpen = false">取消</el-button>
+                  <el-button type="primary" @click="valueDimPickerOpen = false">确定</el-button>
+                </template>
+              </el-dialog>
             </div>
           </div>
         </div>
@@ -588,6 +599,20 @@ const VALUE_TREND_METRICS = [
 
 const valueTrendPicked = ref<string[]>(['impressions', 'devices', 'revenue', 'rev_cum_ratio']);
 const valueTrendPickerOpen = ref(false);
+
+// 详细数据表 8 列（维度可勾选）
+const VALUE_TABLE_DIMENSIONS = [
+  { key: 'impressions',  label: '展示数',           color: '#3B82F6', type: 'count'   },
+  { key: 'impPercent',   label: '展示占比',         color: '#6366F1', type: 'percent' },
+  { key: 'devices',      label: '设备数',           color: '#10B981', type: 'count'   },
+  { key: 'devPercent',   label: '设备占比',         color: '#14B8A6', type: 'percent' },
+  { key: 'revenue',      label: '预估收益',         color: '#F59E0B', type: 'money'   },
+  { key: 'revPercent',   label: '预估收益占比',     color: '#EF4444', type: 'percent' },
+  { key: 'revCumPercent',label: '预估收益累计占比', color: '#A855F7', type: 'percent' },
+];
+const valueDimPicked = ref<string[]>(VALUE_TABLE_DIMENSIONS.map((d) => d.key));
+const valueDimPickerOpen = ref(false);
+const visibleDimensions = computed(() => VALUE_TABLE_DIMENSIONS.filter((d) => valueDimPicked.value.includes(d.key)));
 
 // 复用 frequency 的 getDateRange()（同筛选器）
 
