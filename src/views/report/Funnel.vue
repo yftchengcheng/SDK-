@@ -103,11 +103,76 @@
           </div>
           <div class="funnel-layout">
             <div class="funnel-chart-wrap">
-              <FunnelProcessBox
-                :steps="funnelSteps"
-                :left-metrics="processLeftMetrics"
-                :right-metrics="processRightMetrics"
-              />
+              <svg class="funnel-link-svg" :viewBox="linkViewBox" preserveAspectRatio="none">
+                <!-- 折线 (细实线) -->
+                <path
+                  v-for="(l, i) in linkPaths"
+                  :key="i"
+                  :d="l.d"
+                  :stroke="l.color"
+                  stroke-width="1.4"
+                  fill="none"
+                  stroke-dasharray="5 3"
+                  opacity="0.7"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+                <!-- 箭头 (三角形, 接在 step 边缘) -->
+                <polygon
+                  v-for="(d, i) in linkDots"
+                  :key="'arr-'+i"
+                  :points="d.side === 'L' ? (d.cx - 8) + ',' + (d.cy - 5) + ' ' + d.cx + ',' + d.cy + ' ' + (d.cx - 8) + ',' + (d.cy + 5) : (d.cx + 8) + ',' + (d.cy - 5) + ' ' + d.cx + ',' + d.cy + ' ' + (d.cx + 8) + ',' + (d.cy + 5)"
+                  :fill="d.color"
+                  opacity="0.85"
+                />
+              </svg>
+            <div class="funnel-grid" ref="funnelGridRef">
+
+              <!-- 左指标 -->
+              <div
+                v-for="m in LEFT_METRICS"
+                :key="m.code"
+                :ref="el => setMetricRef(el, 'L', m.code)"
+                class="funnel-metric funnel-metric-left"
+                :style="{ gridRow: m.alignIndex + 1 }"
+              >
+                <span class="funnel-metric-mark" />
+                <span class="funnel-metric-name">{{ m.name }}</span>
+                <span class="funnel-metric-input">{{ metricValues[m.code] || '-' }}</span>
+                <el-tooltip :content="m.tip" placement="top" :show-after="300">
+                  <el-icon class="funnel-metric-tip"><QuestionFilled /></el-icon>
+                </el-tooltip>
+              </div>
+
+              <!-- 中央 11 步漏斗 -->
+              <div class="funnel-chart" style="grid-column: 2; grid-row: 1 / 12">
+                <div
+                  v-for="(step, idx) in FUNNEL_STEPS"
+                  :key="step.code"
+                  :ref="el => setStepRef(el, idx)"
+                  :class="['funnel-block', `funnel-block-${idx}`]"
+                  :title="step.name"
+                >
+                  <span class="funnel-block-text">{{ step.name }}</span>
+                </div>
+              </div>
+
+              <!-- 右指标 -->
+              <div
+                v-for="m in RIGHT_METRICS"
+                :key="m.code"
+                :ref="el => setMetricRef(el, 'R', m.code)"
+                class="funnel-metric funnel-metric-right"
+                :style="{ gridRow: m.alignIndex + 1 }"
+              >
+                <span class="funnel-metric-mark" />
+                <span class="funnel-metric-name">{{ m.name }}</span>
+                <span class="funnel-metric-input">{{ metricValues[m.code] || '-' }}</span>
+                <el-tooltip :content="m.tip" placement="top" :show-after="300">
+                  <el-icon class="funnel-metric-tip"><QuestionFilled /></el-icon>
+                </el-tooltip>
+              </div>
+            </div>
             </div>
           </div>
         </div>
@@ -172,11 +237,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue';
-import { Refresh, EditPen, Download, Warning, Filter, ArrowDown, ArrowUp } from '@element-plus/icons-vue';
+import { ref, computed, nextTick, onMounted, onBeforeUnmount, watch } from 'vue';
+import { Refresh, EditPen, Download, Warning, QuestionFilled, Filter, ArrowDown, ArrowUp } from '@element-plus/icons-vue';
 import dayjs from 'dayjs';
 import MetricPickerDialog from '@/components/report/MetricPickerDialog.vue';
-import FunnelProcessBox, { type FunnelStep, type FunnelMetric } from '@/components/FunnelProcessBox.vue';
 
 const FUNNEL_STEPS = [
   { code: 'app_start', name: '应用启动' },
@@ -329,61 +393,74 @@ const deviceTypes = ref<{ value: string; label: string }[]>([
   { value: 'tv', label: '电视' },
 ]);
 
-// ====== FunnelProcessBox 数据准备 ======
-// step 颜色梯度（与示例图完全一致：4 段蓝色由深到浅）
-const STEP_COLOR_TIERS = [
-  'rgb(21, 79, 240)',   // step 0-3: 深蓝
-  'rgb(21, 79, 240)',
-  'rgb(21, 79, 240)',
-  'rgb(21, 79, 240)',
-  'rgb(34, 122, 255)',   // step 4-5: 中蓝
-  'rgb(34, 122, 255)',
-  'rgb(34, 162, 255)',   // step 6-9: 浅蓝
-  'rgb(34, 162, 255)',
-  'rgb(34, 162, 255)',
-  'rgb(34, 162, 255)',
-  'rgb(100, 208, 255)',  // step 10: 最浅
-];
+// ====== 连接线 ======
+const funnelGridRef = ref<HTMLElement | null>(null);
+const metricRefs = ref<Record<string, HTMLElement>>({});
+const stepRefs = ref<HTMLElement[]>([]);
+const linkPaths = ref<{ d: string; color: string }[]>([]);
+const linkDots = ref<{ cx: number; cy: number; color: string }[]>([]);
+const linkViewBox = ref('0 0 1000 480');
 
-const funnelSteps = computed<FunnelStep[]>(() =>
-  FUNNEL_STEPS.map((s, idx) => ({
-    code: s.code,
-    name: s.name,
-    color: STEP_COLOR_TIERS[idx] || STEP_COLOR_TIERS[0],
-  })),
-);
+// 标记色: 左指标橙红, 右指标青蓝
+const LEFT_COLOR = '#f97316';
+const RIGHT_COLOR = '#06b6d4';
 
-// 左侧 5 个指标：全部 withArrow
-// 颜色：仅 arrive_rate 是 primary (蓝)，其余 4 个 warning (橙)
-const processLeftMetrics = computed<FunnelMetric[]>(() =>
-  LEFT_METRICS.map((m) => ({
-    code: m.code,
-    name: m.name,
-    value: metricValues.value[m.code] || '-',
-    tip: m.tip,
-    color: m.code === 'arrive_rate' ? 'primary' : 'warning',
-    withArrow: true,
-    alignIndex: m.alignIndex,
-    linkIndices: m.linkIndices,
-  })),
-);
+function setMetricRef(el: Element | null, side: 'L' | 'R', code: string) {
+  if (el) metricRefs.value[side + ':' + code] = el as HTMLElement;
+}
+function setStepRef(el: Element | null, idx: number) {
+  if (el) stepRefs.value[idx] = el as HTMLElement;
+}
 
-// 右侧 5 个指标：仅 fill_rate / show_gap 有 arrow
-// 颜色：仅 per_start 是 nope (灰)，其余 4 个 warning (橙)
-// hasIcon: 仅 per_start 是 false（tips 容器空，不渲染 icon — 1:1 复刻示例图）
-const processRightMetrics = computed<FunnelMetric[]>(() =>
-  RIGHT_METRICS.map((m) => ({
-    code: m.code,
-    name: m.name,
-    value: metricValues.value[m.code] || '-',
-    tip: m.tip,
-    color: m.code === 'per_start' ? 'nope' : 'warning',
-    withArrow: m.code === 'fill_rate' || m.code === 'show_gap',
-    hasIcon: m.code !== 'per_start',
-    alignIndex: m.alignIndex,
-    linkIndices: m.linkIndices,
-  })),
-);
+function recomputeLinks() {
+  const grid = funnelGridRef.value;
+  if (!grid) return;
+  const gridRect = grid.getBoundingClientRect();
+  const w = gridRect.width;
+  const h = gridRect.height;
+  linkViewBox.value = `0 0 ${w} ${h}`;
+
+  const newPaths: { d: string; color: string }[] = [];
+  const newDots: { cx: number; cy: number; color: string }[] = [];
+
+  // 所有 step 中点
+  const stepCenters = stepRefs.value.map((el) => {
+    if (!el) return null;
+    const r = el.getBoundingClientRect();
+    return { x: r.left - gridRect.left + r.width / 2, y: r.top - gridRect.top + r.height / 2 };
+  });
+
+  function drawMetric(side: 'L' | 'R', code: string, linkIndices: number[], color: string) {
+    const mel = metricRefs.value[side + ':' + code];
+    if (!mel) return;
+    const mr = mel.getBoundingClientRect();
+    const startX = side === 'L' ? mr.right - gridRect.left : mr.left - gridRect.left;
+    const startY = mr.top - gridRect.top + mr.height / 2;
+
+    // 每个对应项画 1 根折线 + 1 个箭头
+    for (let li = 0; li < linkIndices.length; li++) {
+      const step = stepCenters[linkIndices[li]];
+      if (!step) continue;
+      // 箭头尖端接在 step 边缘 (色块边内 6px), line 终止在箭头底边 (距尖端 8px)
+      const tipX = side === 'L' ? step.x + 6 : step.x - 6;
+      const lineEndX = side === 'L' ? tipX - 8 : tipX + 8;
+      const endY = step.y;
+      // 折线: metric 边 → step 列中点 → line 终点 (箭头底边)
+      const midX = (startX + lineEndX) / 2;
+      const d = `M ${startX} ${startY} L ${midX} ${startY} L ${midX} ${endY} L ${lineEndX} ${endY}`;
+      newPaths.push({ d, color });
+      newDots.push({ cx: tipX, cy: endY, color, side });
+    }
+  }
+
+  for (const m of LEFT_METRICS) drawMetric('L', m.code, m.linkIndices, LEFT_COLOR);
+  for (const m of RIGHT_METRICS) drawMetric('R', m.code, m.linkIndices, RIGHT_COLOR);
+
+  linkPaths.value = newPaths;
+  linkDots.value = newDots;
+}
+
+let resizeObserver: ResizeObserver | null = null;
 
 function loadData() {
   console.log('[funnel] loadData', { dateRange: dateRange.value, filter: filter.value, perCapita: perCapitaMode.value });
@@ -393,5 +470,25 @@ function onMetricPickerConfirm(picked: string[]) {
   pickedMetrics.value = picked;
   console.log('[funnel] picked metrics', picked);
 }
+
+onMounted(() => {
+  nextTick(() => {
+    recomputeLinks();
+    if (funnelGridRef.value) {
+      resizeObserver = new ResizeObserver(() => recomputeLinks());
+      resizeObserver.observe(funnelGridRef.value);
+    }
+  });
+  window.addEventListener('resize', recomputeLinks);
+});
+
+onBeforeUnmount(() => {
+  resizeObserver?.disconnect();
+  window.removeEventListener('resize', recomputeLinks);
+});
+
+watch([perCapitaMode, bottomTab], () => {
+  loadData();
+});
 </script>
 
