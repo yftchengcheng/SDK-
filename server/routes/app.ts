@@ -95,7 +95,8 @@ router.get('/list', authMiddleware, async (req: express.Request, res: express.Re
     const { developerId } = getDeveloper(req);
     const { status, platform, keyword, page = 1, pageSize = 20 } = req.query as Record<string, string>;
 
-    let query = db.from('app').select('*', { count: 'exact' }).eq('developer_id', developerId);
+    // List 阶段不过滤 developer_id：demo 数据全平台共享；update/delete/create 仍按 dev 校验
+    let query = db.from('app').select('*', { count: 'exact' });
 
     if (status) query = query.eq('status', Number(status));
     if (platform) query = query.eq('platform', Number(platform));

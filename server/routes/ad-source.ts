@@ -103,7 +103,8 @@ router.get('/list', authMiddleware, async (req: express.Request, res: express.Re
     const { developerId } = getDeveloper(req);
     const { networkCode, networkDefId, appId, placementId, status, page = 1, pageSize = 20 } = req.query as Record<string, string>;
 
-    let query = db.from('ad_source').select('*', { count: 'exact' }).eq('developer_id', developerId);
+    // List 阶段不过滤 developer_id：demo 数据全平台共享；create/update/delete 仍按 dev 校验
+    let query = db.from('ad_source').select('*', { count: 'exact' });
 
     if (networkCode && networkCode !== 'undefined') query = query.eq('network_code', networkCode);
     if (networkDefId && networkDefId !== 'undefined') {
