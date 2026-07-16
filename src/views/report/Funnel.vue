@@ -437,20 +437,20 @@ function recomputeLinks() {
     const startX = side === 'L' ? mr.right - gridRect.left : mr.left - gridRect.left;
     const startY = mr.top - gridRect.top + mr.height / 2;
 
-    // 每个对应项画 1 根折线 + 1 个箭头
-    for (let li = 0; li < linkIndices.length; li++) {
-      const step = stepCenters[linkIndices[li]];
-      if (!step) continue;
-      // 箭头尖端接在 step 边缘 (色块边内 6px), line 终止在箭头底边 (距尖端 12px)
-      const tipX = side === 'L' ? step.x + 6 : step.x - 6;
-      const lineEndX = side === 'L' ? tipX - 12 : tipX + 12;
-      const endY = step.y;
-      // 折线: metric 边 → step 列中点 → line 终点 (箭头底边)
-      const midX = (startX + lineEndX) / 2;
-      const d = `M ${startX} ${startY} L ${midX} ${startY} L ${midX} ${endY} L ${lineEndX} ${endY}`;
-      newPaths.push({ d, color });
-      newDots.push({ cx: tipX, cy: endY, color, side });
-    }
+    // 每个指标只画 1 根线 (取 linkIndices[0] = 分子 step), 避免分子+分母两线重合
+    const targetIdx = linkIndices[0];
+    const step = stepCenters[targetIdx];
+    if (!step) return;
+    // 箭头尖端接在 step 边缘 (色块边内 6px), line 终止在箭头底边 (距尖端 12px)
+    const tipX = side === 'L' ? step.x + 6 : step.x - 6;
+    const lineEndX = side === 'L' ? tipX - 12 : tipX + 12;
+    const endY = step.y;
+    // 折线: metric 边 → 指标 y 水平段 → 折点到 step y 垂直 → 水平到 step 边缘
+    // 中点 = (指标边 + 折点) 中点, 让 line 在 step 列外侧走水平, step 列内侧到 step y
+    const midX = (startX + lineEndX) / 2;
+    const d = `M ${startX} ${startY} L ${midX} ${startY} L ${midX} ${endY} L ${lineEndX} ${endY}`;
+    newPaths.push({ d, color });
+    newDots.push({ cx: tipX, cy: endY, color, side });
   }
 
   for (const m of LEFT_METRICS) drawMetric('L', m.code, m.linkIndices, LEFT_COLOR);
