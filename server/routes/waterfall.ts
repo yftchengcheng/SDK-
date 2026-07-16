@@ -60,22 +60,50 @@ router.post('/update', authMiddleware, async (req: express.Request, res: express
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const _input = { configName, config_name, description, isDefaultConfig, is_default_config };
 
-    // Get current version
-    const { data: latestConfig } = await db.from('waterfall_config')
-      .select('version')
-      .eq('placement_id', placementId)
-      .eq('traffic_group_id', trafficGroupId)
-      .order('version', { ascending: false })
-      .limit(1)
+    // Get current version（兼容 placement_id 两种形式 + traffic_group_id 兼容 0/NULL/''）
+    // - placement_id: 列存的是 varchar(32)，但历史数据有 "58"（number-as-string）和 "pl_xxx"（业务码）两种写法
+    // - traffic_group_id: 0（默认分组占位）/ NULL（seed 残留）/ ''（空字符串，seed 残留）都视为"默认分组"
+    const { data: placement } = await db.from('placement')
+      .select('id, placement_id')
+      .or(`placement_id.eq.${placementId},id.eq.${Number(placementId) || -1}`)
       .maybeSingle();
+    const pidCandidates = placement
+      ? [String(placement.id), String(placement.placement_id || placement.id)]
+      : [String(placementId)];
+
+    // 查 latest version：先按 placement_id 范围 + tg_id in (0, NULL 没法直接 in)
+    // 策略：分别查 tg_id=0 和 tg_id is null 两条，取 version 最大
+    const [r0, rN] = await Promise.all([
+      db.from('waterfall_config')
+        .select('version, placement_id, traffic_group_id, created_at')
+        .in('placement_id', pidCandidates)
+        .eq('traffic_group_id', 0)
+        .order('version', { ascending: false })
+        .limit(1)
+        .maybeSingle(),
+      db.from('waterfall_config')
+        .select('version, placement_id, traffic_group_id, created_at')
+        .in('placement_id', pidCandidates)
+        .is('traffic_group_id', null)
+        .order('version', { ascending: false })
+        .limit(1)
+        .maybeSingle(),
+    ]);
+    const cands = [r0.data, rN.data].filter(Boolean) as Array<{ version: number; created_at: string }>;
+    cands.sort((a, b) => (b.version || 0) - (a.version || 0) || (new Date(b.created_at).getTime() - new Date(a.created_at).getTime()));
+    const latestConfig = cands[0] || null;
 
     const newVersion = (latestConfig?.version || 0) + 1;
 
     // Create new config version
+    // layers 同步写回 JSONB 列：避免下次 get 时还要 fallback 到 waterfall_layer 表
+    // 使用真实 placement 业务码（保持与 seed 一致），fallback 不到 placement 时用入参
+    const writePlacementId = placement ? String(placement.placement_id || placement.id) : String(placementId);
     const { data: newConfig, error: configError } = await db.from('waterfall_config').insert({
-      placement_id: placementId,
+      placement_id: writePlacementId,
       version: newVersion,
-      traffic_group_id: trafficGroupId,
+      traffic_group_id: 0,
+      layers: Array.isArray(layers) ? layers : [],
 
 
 
@@ -170,22 +198,37 @@ router.get('/list', authMiddleware, async (req: express.Request, res: express.Re
     // 用 in() 数组避免 PostgREST 把 eq.58 当整数解析（varchar 列需要 string 形式）
     const pidStr = String(realPlacementId);
     const placementIdStr = String(placement.placement_id || realPlacementId);
-    // 查询总数（用于分页）
-    const { count: totalCount, error: cntErr } = await db.from('waterfall_config')
-      .select('id', { count: 'exact', head: true })
-      .in('placement_id', [pidStr, placementIdStr]);
-    if (cntErr) throw cntErr;
-    const total = totalCount || 0;
+    const { data: rawConfigs, error: cErr } = await db.from('waterfall_config')
+      .select('*')
+      .in('placement_id', [pidStr, placementIdStr])
+      .order('version', { ascending: false });
+    if (cErr) throw cErr;
+
+    // 2.5 dedup：同一 placement 业务码下历史脏数据可能同时存在 "58" + "pl_xxx" 两种 placement_id 写法
+    // 仅按 traffic_group_id 维度保留 version 最大的那条（避免"一个广告位两个 v1"）
+    // 统计总数（dedup 前）
+    const totalRaw = (rawConfigs || []).length;
+    const dedupMap = new Map<string, typeof rawConfigs[number]>();
+    for (const c of (rawConfigs || [])) {
+      const tgKey = String(c.traffic_group_id ?? '0');
+      const prev = dedupMap.get(tgKey);
+      if (!prev || (c.version || 0) > (prev.version || 0)) {
+        dedupMap.set(tgKey, c);
+      }
+    }
+    const configs = Array.from(dedupMap.values());
+    const total = dedupMap.size;
+
     // 是否分页：前端传 page/pageSize 才走分页
     const wantPaging = page !== undefined || pageSize !== undefined;
     const p = wantPaging ? Math.max(1, Number(page) || 1) : 1;
     const ps = wantPaging ? Math.min(100, Math.max(1, Number(pageSize) || 20)) : 1000;
-    const { data: configs, error: cErr } = await db.from('waterfall_config')
-      .select('*')
-      .in('placement_id', [pidStr, placementIdStr])
-      .order('id', { ascending: false })
-      .range((p - 1) * ps, p * ps - 1);
-    if (cErr) throw cErr;
+    if (wantPaging) {
+      // 简单 page/size 切片
+      const start = (p - 1) * ps;
+      configs.splice(0, configs.length, ...configs.slice(start, start + ps));
+    }
+    // totalRaw 留作调试参考（与 dedup 后 total 形成对比）
 
     // 3. 查该 placement 下的所有 traffic_group（兼容 placement_id 列存 bigint 或 string pl_xxx）
     const tgPid = String(placementId);

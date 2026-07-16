@@ -174,10 +174,12 @@ async function main() {
   console.log('4) AdSources:', sources!.length, '个（3 app × 2 placement × 5 network = 15）');
 
   // === 阶段 5: 6 waterfall_config（每个 placement 一个） ===
+  // traffic_group_id 用 0 表示「默认分组」（与 list 端点虚拟注入的默认分组对齐；避免 ''/NULL 与 0 不匹配导致 version 查不到）
+  // layers 暂存空数组：真实层数据走「阶段 6: waterfall_layer」关联表，阶段 6 之后会回写 layers JSONB
   const { data: configs, error: wcErr } = await c.from('waterfall_config').insert(
     placements!.map((p: any) => ({
       placement_id: p.placement_id,
-      traffic_group_id: null,
+      traffic_group_id: 0,
       status: 1,
       version: 1,
       layers: [],
@@ -219,6 +221,29 @@ async function main() {
   const { error: wlErr } = await c.from('waterfall_layer').insert(layerRows);
   if (wlErr) throw new Error(`WaterfallLayer insert: ${wlErr.message}`);
   console.log('6) WaterfallLayers:', layerRows.length, '个');
+
+  // 6.5 回写 waterfall_config.layers JSONB（按 config_id 聚合 layerRows）
+  // 目的：get/list 端点优先读 config.layers，避免总是 fallback 到 waterfall_layer 表
+  const layersByConfig = new Map<number, any[]>();
+  for (const lr of layerRows) {
+    const arr = layersByConfig.get(lr.config_id) || [];
+    arr.push({
+      layer_type: lr.layer_type,
+      ad_source_id: lr.ad_source_id,
+      sort_price: lr.sort_price,
+      timeout_ms: lr.timeout_ms,
+      priority: lr.priority,
+      status: lr.status,
+    });
+    layersByConfig.set(lr.config_id, arr);
+  }
+  for (const [configId, layers] of layersByConfig) {
+    const { error: upErr } = await c.from('waterfall_config')
+      .update({ layers })
+      .eq('id', configId);
+    if (upErr) console.warn(`回写 config ${configId} layers 失败: ${upErr.message}`);
+  }
+  console.log('6.5) WaterfallConfigs.layers 回写:', layersByConfig.size, '个');
 
   // === 阶段 7: 6 traffic_groups（按地区/版本/机型） ===
   const { data: groups, error: tgErr } = await c.from('traffic_group').insert([
