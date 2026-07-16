@@ -281,7 +281,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
-import dayjs from 'dayjs';
 import {
   Plus, CopyDocument, Edit, Download, Document, Delete, Refresh, Search, MoreFilled,
   DataAnalysis, Files, DataLine, Histogram, Setting, FolderAdd,
@@ -549,73 +548,19 @@ const loadData = async () => {
     if (res.code === 0) {
       tableData.value = res.data?.rows || [];
     } else {
-      // 后端业务失败（如看板配置异常）→ 走 mock fallback，并给个轻提示
-      ElMessage.warning(res.message || '后端查询失败，已切换 mock 数据');
-      tableData.value = generateMockData();
+      // 后端业务失败：显示真实空态，不伪造数据
+      console.error('[overview] aggregate business fail:', res.message);
+      ElMessage.error(res.message || '后端查询失败');
+      tableData.value = [];
     }
   } catch (e: any) {
-    // 网络异常 / 5xx / 超时
+    // 网络异常 / 5xx / 超时：显示真实空态，不伪造数据
     console.error('aggregate failed:', e);
-    ElMessage.warning('网络异常，已显示 mock 数据');
-    tableData.value = generateMockData();
+    ElMessage.error('网络异常，请重试');
+    tableData.value = [];
   } finally {
     dataLoading.value = false;
   }
-};
-
-/**
- * 生成 mock 数据（综合报表后端失败时 fallback）
- * 关键：根据 filter.dateRange / customStart-End 动态决定天数
- * 避免「永远 7 天」导致改日期没反应
- */
-const generateMockData = (): Array<Record<string, string | number>> => {
-  // 1) 算天数
-  const fr = filter.value?.dateRange || '7d';
-  const today = dayjs();
-  let start: dayjs.Dayjs;
-  let end: dayjs.Dayjs = today;
-  switch (fr) {
-    case 'today':
-      start = today; break;
-    case 'yesterday':
-      start = end = today.subtract(1, 'day'); break;
-    case '7d':
-      start = today.subtract(6, 'day'); break;
-    case '30d':
-      start = today.subtract(29, 'day'); break;
-    case 'month':
-      start = today.startOf('month'); break;
-    case 'lastMonth':
-      start = today.subtract(1, 'month').startOf('month');
-      end = today.subtract(1, 'month').endOf('month');
-      break;
-    case 'custom': {
-      const cs = filter.value?.customStart;
-      const ce = filter.value?.customEnd;
-      if (cs && ce) {
-        start = dayjs(cs);
-        end = dayjs(ce);
-      } else {
-        start = today.subtract(6, 'day');
-      }
-      break;
-    }
-    default:
-      start = today.subtract(6, 'day');
-  }
-  const days = end.diff(start, 'day') + 1;
-
-  // 2) 生成 mock 行（每日期 + 各指标随机数）
-  const result: Array<Record<string, string | number>> = [];
-  for (let i = 0; i < days; i++) {
-    const d = start.add(i, 'day');
-    const row: Record<string, string | number> = { date: d.format('YYYY-MM-DD') };
-    for (const m of effectiveMetrics.value) {
-      row[m] = Math.round(Math.random() * 10000 * 100) / 100;
-    }
-    result.push(row);
-  }
-  return result;
 };
 
 const openEditConfigDialog = () => {
