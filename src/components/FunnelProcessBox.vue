@@ -29,18 +29,16 @@
           >
             <div class="label">{{ m.name }}: </div>
             <div class="value">
-              <el-tooltip v-if="m.tip" :content="m.tip" placement="top" :show-after="300">
-                <span class="process-box-value-text">{{ m.value }}</span>
-              </el-tooltip>
-              <span v-else class="process-box-value-text">{{ m.value }}</span>
+              <div class="el-tooltip span" tabindex="0">{{ m.value }}</div>
             </div>
-            <div class="tips">
+            <div v-if="m.tip && m.hasIcon !== false" class="tips">
               <i
-                v-if="m.tip"
-                class="iconfont icon-help--o icon-size--l"
+                class="el-tooltip iconfont icon-help--o icon-size--l"
+                tabindex="0"
                 style="color: rgba(0, 0, 0, 0.25);"
-              />
+              >?</i>
             </div>
+            <div v-else class="tips"><!--  --></div>
           </div>
           <div class="process-box--line" />
           <div v-if="m.withArrow" class="process-box--arrow" />
@@ -79,18 +77,16 @@
           >
             <div class="label">{{ m.name }}: </div>
             <div class="value">
-              <el-tooltip v-if="m.tip" :content="m.tip" placement="top" :show-after="300">
-                <span class="process-box-value-text">{{ m.value }}</span>
-              </el-tooltip>
-              <span v-else class="process-box-value-text">{{ m.value }}</span>
+              <div class="el-tooltip span" tabindex="0">{{ m.value }}</div>
             </div>
-            <div class="tips">
+            <div v-if="m.tip && m.hasIcon !== false" class="tips">
               <i
-                v-if="m.tip"
-                class="iconfont icon-help--o icon-size--l"
+                class="el-tooltip iconfont icon-help--o icon-size--l"
+                tabindex="0"
                 style="color: rgba(0, 0, 0, 0.25);"
-              />
+              >?</i>
             </div>
+            <div v-else class="tips"><!--  --></div>
           </div>
         </div>
       </div>
@@ -218,9 +214,10 @@ const defaultRightMetrics: FunnelMetric[] = [
     code: 'per_start',
     name: '人均启动',
     value: '-',
-    tip: '',
+    tip: '人均启动 = 启动次数 / 设备数',
     color: 'nope',
     withArrow: false,
+    hasIcon: false,
     linkIndices: [],
     alignIndex: 0,
   },

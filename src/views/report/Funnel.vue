@@ -370,6 +370,7 @@ const processLeftMetrics = computed<FunnelMetric[]>(() =>
 
 // 右侧 5 个指标：仅 fill_rate / show_gap 有 arrow
 // 颜色：仅 per_start 是 nope (灰)，其余 4 个 warning (橙)
+// hasIcon: 仅 per_start 是 false（tips 容器空，不渲染 icon — 1:1 复刻示例图）
 const processRightMetrics = computed<FunnelMetric[]>(() =>
   RIGHT_METRICS.map((m) => ({
     code: m.code,
@@ -378,6 +379,7 @@ const processRightMetrics = computed<FunnelMetric[]>(() =>
     tip: m.tip,
     color: m.code === 'per_start' ? 'nope' : 'warning',
     withArrow: m.code === 'fill_rate' || m.code === 'show_gap',
+    hasIcon: m.code !== 'per_start',
     alignIndex: m.alignIndex,
     linkIndices: m.linkIndices,
   })),

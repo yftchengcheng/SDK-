@@ -10927,23 +10927,14 @@ html, body, #app {
   background: #154FF0;
   color: #ffffff;
 }
-.chart-panel-container .process-box__content--primary .tips .iconfont {
-  color: rgba(255, 255, 255, 0.6) !important;
-}
 .chart-panel-container .process-box__content--warning {
   background: #FF7A00;
   color: #ffffff;
-}
-.chart-panel-container .process-box__content--warning .tips .iconfont {
-  color: rgba(255, 255, 255, 0.7) !important;
 }
 .chart-panel-container .process-box__content--nope {
   background: #F1F5F9;
   color: #475569;
   border: 1px solid #E2E8F0;
-}
-.chart-panel-container .process-box__content--nope .tips .iconfont {
-  color: rgba(0, 0, 0, 0.25) !important;
 }
 
 /* 水平连接线 */
@@ -10979,4 +10970,37 @@ html, body, #app {
 /* 响应式：小屏下隐藏图例文字 */
 @media (max-width: 1280px) {
   /* 左右 box 宽度由内容自适应，不需要固定值 */
+}
+
+/* tips icon (i.icon-help--o) — 用 CSS 画圆圈问号
+ * 1:1 复刻示例图 <i class="iconfont icon-help--o icon-size--l">
+ * 项目未加载 iconfont 字体, 用 ::before 伪元素画 ⓘ 形状
+ */
+.chart-panel-container .icon-help--o {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  font-style: normal;
+  font-weight: 600;
+  font-size: 10px;
+  line-height: 1;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  border: 1px solid currentColor;
+  border-radius: 50%;
+  text-align: center;
+  cursor: help;
+  flex-shrink: 0;
+  box-sizing: border-box;
+  opacity: 0.85;
+}
+.chart-panel-container .icon-help--o::before {
+  content: "?";
+  display: block;
+  color: inherit;
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 1;
+  margin-top: -1px;
 }
