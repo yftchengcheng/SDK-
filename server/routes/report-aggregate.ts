@@ -556,18 +556,17 @@ router.post('/aggregate/options', async (req: Request, res: Response) => {
         return ok(res, { options });
       }
       case 'format': {
+        // ad_type 直接来自 placement.name（启动开屏/激励视频/横幅广告/插屏广告/信息流广告/详情插屏），
+        // 全程中文，不再做英→中映射（之前 banner→'Banner' 出现过英文）
         const { data, error } = await db.from('report_daily').select('ad_type').not('ad_type', 'is', null).limit(5000);
         if (error) throw error;
         const seen = new Set<string>();
         const options: Array<{ value: string; label: string }> = [];
-        const LABELS: Record<string, string> = {
-          banner: 'Banner', interstitial: '插屏', native: '原生', rewarded: '激励', splash: '开屏',
-        };
         for (const r of data || []) {
           const code = (r as any).ad_type;
           if (!code || seen.has(code)) continue;
           seen.add(code);
-          options.push({ value: code, label: LABELS[code] || code });
+          options.push({ value: code, label: code });
         }
         options.sort((a, b) => a.label.localeCompare(b.label, 'zh-Hans-CN'));
         return ok(res, { options });
