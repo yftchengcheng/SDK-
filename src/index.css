@@ -10505,7 +10505,8 @@ html, body, #app {
   display: block;
   width: 100%;
   min-height: 480px;
-}
+
+  position: relative;}
 
 .funnel-side { display: flex; flex-direction: column; gap: 36px; padding: 32px 0; }
 .funnel-side-left { align-items: flex-end; }
