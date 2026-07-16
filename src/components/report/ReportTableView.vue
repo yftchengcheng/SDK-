@@ -17,7 +17,7 @@
         >
           <template #default="{ row }">
             <span :class="['cell-num', col.align === 'right' ? 'cell-num--right' : '']">
-              {{ formatCell(row[col.key], col.format) }}
+              {{ formatCell(row[col.key], col.format, col.key) }}
             </span>
           </template>
         </el-table-column>
@@ -29,6 +29,7 @@
 <script setup lang="ts">
 import { computed, onMounted } from 'vue';
 import type { PropType } from 'vue';
+import dayjs from 'dayjs';
 import { loadMetricDict, metricNameOf, metricFormatOf, metricDict } from '@/utils/report-metric-dict';
 
 interface BoardConfig {
@@ -102,10 +103,20 @@ const columns = computed<Column[]>(() => {
   return cols;
 });
 
-const formatCell = (val: string | number | undefined, format?: string): string => {
-  if (val === null || val === undefined) return '--';
+const formatCell = (val: string | number | undefined, format?: string, colKey?: string): string => {
+  if (val === null || val === undefined || val === '') return '--';
+  // 日期维度：后端返回 ISO 字符串如 '2026-07-10'，用 dayjs 格式化（不要走 Number()）
+  if (colKey === 'date' || format === 'date') {
+    const d = dayjs(val as string);
+    return d.isValid() ? d.format('YYYY-MM-DD') : String(val);
+  }
   if (format === 'currency') return '¥' + Number(val).toFixed(2);
   if (format === 'percent') return Number(val).toFixed(1) + '%';
-  return Number(val).toLocaleString('zh-CN');
+  // 数值或数字字符串：toLocaleString
+  if (typeof val === 'number' || (typeof val === 'string' && /^-?\d+(\.\d+)?$/.test(val))) {
+    return Number(val).toLocaleString('zh-CN');
+  }
+  // 其他维度（country / os / app_name / region 等）原样返回字符串
+  return String(val);
 };
 </script>
