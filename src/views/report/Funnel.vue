@@ -91,84 +91,94 @@
     </div>
 
     <div class="page-card funnel-body">
-      <div class="funnel-body-toolbar">
-        <span class="funnel-help">如何使用漏斗分析报表？</span>
-        <div class="funnel-body-toolbar-right">
-          <span class="funnel-body-toolbar-label">人均次数计算方式</span>
-          <el-tooltip content="切换" placement="top" :show-after="300">
-            <el-icon style="color: #909399; cursor: help"><QuestionFilled /></el-icon>
-          </el-tooltip>
-          <el-radio-group v-model="perCapitaMode" size="default" style="margin-left: 12px">
-            <el-radio-button label="device">设备数</el-radio-button>
-            <el-radio-button label="dau">DAU</el-radio-button>
-          </el-radio-group>
-        </div>
-      </div>
-
-      <div class="funnel-layout">
-        <div class="funnel-legend">
-          <span class="funnel-legend-item"><span class="funnel-legend-dot" style="background: #fe9c2c"></span>次数</span>
-          <span class="funnel-legend-item"><span class="funnel-legend-dot" style="background: #3b82f6"></span>设备数</span>
-        </div>
-        <div class="funnel-grid">
-          <!-- 左指标 -->
-          <div
-            v-for="m in LEFT_METRICS"
-            :key="m.code"
-            class="funnel-metric funnel-metric-left"
-            :style="{ gridRow: m.alignIndex + 1 }"
-          >
-            <span class="funnel-metric-mark" />
-            <span class="funnel-metric-name">{{ m.name }}</span>
-            <span class="funnel-metric-input">{{ metricValues[m.code] || '-' }}</span>
-            <el-tooltip :content="m.tip" placement="top" :show-after="300">
-              <el-icon class="funnel-metric-tip"><QuestionFilled /></el-icon>
-            </el-tooltip>
+      <!-- 左右分栏: 左 funnel 漏斗, 右 数据表 -->
+      <div class="funnel-split">
+        <!-- 左栏: funnel 漏斗图 -->
+        <div class="funnel-split-left">
+          <div class="funnel-split-toolbar">
+            <span class="funnel-help">如何使用漏斗分析报表？</span>
+            <span class="funnel-legend-inline">
+              <span class="funnel-legend-item"><span class="funnel-legend-dot" style="background: #3b82f6"></span>次数</span>
+            </span>
           </div>
+          <div class="funnel-layout">
+            <div class="funnel-grid">
+              <!-- 左指标 -->
+              <div
+                v-for="m in LEFT_METRICS"
+                :key="m.code"
+                class="funnel-metric funnel-metric-left"
+                :style="{ gridRow: m.alignIndex + 1 }"
+              >
+                <span class="funnel-metric-mark" />
+                <span class="funnel-metric-name">{{ m.name }}</span>
+                <span class="funnel-metric-input">{{ metricValues[m.code] || '-' }}</span>
+                <el-tooltip :content="m.tip" placement="top" :show-after="300">
+                  <el-icon class="funnel-metric-tip"><QuestionFilled /></el-icon>
+                </el-tooltip>
+              </div>
 
-          <!-- 中央 11 步漏斗 (row 1-11 col 2) -->
-          <div class="funnel-chart" style="grid-column: 2; grid-row: 1 / 12">
-            <div
-              v-for="(step, idx) in FUNNEL_STEPS"
-              :key="step.code"
-              :class="['funnel-block', `funnel-block-${idx}`]"
-              :title="step.name"
-            >
-              <span class="funnel-block-text">{{ step.name }}</span>
+              <!-- 中央 11 步漏斗 -->
+              <div class="funnel-chart" style="grid-column: 2; grid-row: 1 / 12">
+                <div
+                  v-for="(step, idx) in FUNNEL_STEPS"
+                  :key="step.code"
+                  :class="['funnel-block', `funnel-block-${idx}`]"
+                  :title="step.name"
+                >
+                  <span class="funnel-block-text">{{ step.name }}</span>
+                </div>
+              </div>
+
+              <!-- 右指标 -->
+              <div
+                v-for="m in RIGHT_METRICS"
+                :key="m.code"
+                class="funnel-metric funnel-metric-right"
+                :style="{ gridRow: m.alignIndex + 1 }"
+              >
+                <span class="funnel-metric-mark" />
+                <span class="funnel-metric-name">{{ m.name }}</span>
+                <span class="funnel-metric-input">{{ metricValues[m.code] || '-' }}</span>
+                <el-tooltip :content="m.tip" placement="top" :show-after="300">
+                  <el-icon class="funnel-metric-tip"><QuestionFilled /></el-icon>
+                </el-tooltip>
+              </div>
             </div>
           </div>
+        </div>
 
-          <!-- 右指标 -->
-          <div
-            v-for="m in RIGHT_METRICS"
-            :key="m.code"
-            class="funnel-metric funnel-metric-right"
-            :style="{ gridRow: m.alignIndex + 1 }"
-          >
-            <span class="funnel-metric-mark" />
-            <span class="funnel-metric-name">{{ m.name }}</span>
-            <span class="funnel-metric-input">{{ metricValues[m.code] || '-' }}</span>
-            <el-tooltip :content="m.tip" placement="top" :show-after="300">
-              <el-icon class="funnel-metric-tip"><QuestionFilled /></el-icon>
-            </el-tooltip>
+        <!-- 右栏: 数据表 -->
+        <div class="funnel-split-right">
+          <div class="funnel-split-toolbar funnel-split-toolbar-right">
+            <span class="funnel-help">分阶段数据</span>
+            <div class="funnel-split-toolbar-actions">
+              <span class="funnel-body-toolbar-label">人均基数</span>
+              <el-radio-group v-model="perCapitaMode" size="default" style="margin-left: 8px">
+                <el-radio-button label="device">设备数</el-radio-button>
+                <el-radio-button label="dau">DAU</el-radio-button>
+              </el-radio-group>
+            </div>
+          </div>
+          <div class="funnel-table-wrap">
+            <el-table :data="stageTableData" border stripe size="default">
+              <el-table-column prop="stage" label="阶段" width="100" align="center" fixed />
+              <el-table-column prop="flow" label="流程" min-width="120" fixed />
+              <el-table-column :label="`次数(${perCapitaMode === 'device' ? '设备数' : 'DAU'})`" align="right" min-width="120">
+                <template #default="{ row }">{{ row.count }}</template>
+              </el-table-column>
+              <el-table-column label="上一阶段转化率" align="right" min-width="130">
+                <template #default="{ row }">{{ row.prevRate }}</template>
+              </el-table-column>
+              <el-table-column label="流失数" align="right" min-width="100">
+                <template #default="{ row }">{{ row.lost }}</template>
+              </el-table-column>
+              <el-table-column label="流失率" align="right" min-width="100">
+                <template #default="{ row }">{{ row.lostRate }}</template>
+              </el-table-column>
+            </el-table>
           </div>
         </div>
-      </div>
-
-      <div class="funnel-table-wrap">
-        <el-table :data="STAGE_ROWS" border stripe>
-          <el-table-column prop="stage" label="阶段" width="120" align="center" />
-          <el-table-column prop="flow" label="流程" min-width="200" />
-          <el-table-column label="次数" align="right" min-width="120">
-            <template #default>-</template>
-          </el-table-column>
-          <el-table-column label="设备数" align="right" min-width="120">
-            <template #default>-</template>
-          </el-table-column>
-          <el-table-column label="人均次数" align="right" min-width="120">
-            <template #default>-</template>
-          </el-table-column>
-        </el-table>
       </div>
     </div>
 
@@ -198,7 +208,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, watch } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
 import { Refresh, EditPen, Download, Warning, QuestionFilled, Filter, ArrowDown, ArrowUp } from '@element-plus/icons-vue';
 import dayjs from 'dayjs';
 import MetricPickerDialog from '@/components/report/MetricPickerDialog.vue';
@@ -234,18 +244,31 @@ const RIGHT_METRICS = [
 ];
 
 const STAGE_ROWS = [
-  { stage: '广告请求', flow: '应用启动' },
-  { stage: '广告请求', flow: '获取配置' },
-  { stage: '广告请求', flow: '流量请求' },
-  { stage: '广告请求', flow: '流量填充' },
-  { stage: '广告缓存', flow: '到达广告场景' },
-  { stage: '广告缓存', flow: '查询isReady' },
-  { stage: '广告展示', flow: '触发展示' },
-  { stage: '广告展示', flow: '触发展示成功' },
-  { stage: '广告展示', flow: '展示' },
-  { stage: '广告展示', flow: '展示API' },
-  { stage: '广告点击', flow: '点击' },
+  { stage: '广告请求', flow: '应用启动', count: 12580 },
+  { stage: '广告请求', flow: '获取配置', count: 12340 },
+  { stage: '广告请求', flow: '流量请求', count: 11980 },
+  { stage: '广告请求', flow: '流量填充', count: 11250 },
+  { stage: '广告缓存', flow: '到达广告场景', count: 10800 },
+  { stage: '广告缓存', flow: '查询isReady', count: 10350 },
+  { stage: '广告展示', flow: '触发展示', count: 9800 },
+  { stage: '广告展示', flow: '触发展示成功', count: 8650 },
+  { stage: '广告展示', flow: '展示', count: 7820 },
+  { stage: '广告展示', flow: '展示API', count: 7500 },
+  { stage: '广告点击', flow: '点击', count: 320 },
 ];
+
+// 表格数据：按 perCapitaMode 联动基数（设备数/DAU）
+const stageTableData = computed(() => {
+  const divisor = perCapitaMode.value === 'dau' ? 1.6 : 1; // 模拟 DAU 比设备数大 1.6 倍
+  return STAGE_ROWS.map((row, idx) => {
+    const count = Math.round(row.count / divisor);
+    const prevCount = idx === 0 ? count : Math.round(STAGE_ROWS[idx - 1].count / divisor);
+    const prevRate = idx === 0 ? '-' : (count / prevCount * 100).toFixed(2) + '%';
+    const lost = prevCount - count;
+    const lostRate = idx === 0 ? '-' : (lost / prevCount * 100).toFixed(2) + '%';
+    return { ...row, count, prevRate, lost, lostRate };
+  });
+});
 
 const METRIC_DEFINITIONS = [
   {

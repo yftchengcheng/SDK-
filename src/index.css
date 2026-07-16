@@ -10710,3 +10710,55 @@ html, body, #app {
   cursor: help;
 }
 
+
+/* ===== 漏斗分析 左右分栏 ===== */
+.funnel-split {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+  gap: 16px;
+  min-height: 600px;
+}
+.funnel-split-left {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding: 12px 8px 16px;
+}
+.funnel-split-right {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  border-left: 1px solid #e2e8f0;
+  padding-left: 16px;
+}
+.funnel-split-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 8px 12px;
+  font-size: 13px;
+  color: #64748b;
+}
+.funnel-split-toolbar-right {
+  padding-bottom: 8px;
+}
+.funnel-split-toolbar-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.funnel-legend-inline {
+  display: inline-flex;
+  gap: 12px;
+  font-size: 12px;
+  color: #475569;
+}
+.funnel-help {
+  color: #3b82f6;
+  font-size: 12px;
+  cursor: pointer;
+}
+.funnel-body-toolbar-label {
+  font-size: 12px;
+  color: #475569;
+}
