@@ -1027,3 +1027,63 @@ Could not find the 'frequency_config' column of 'app' in the schema cache
 #### 桶策略（V1 硬编码）
 - 27 个 bucket：[0-1] [1-2] ... [19-20] [20-25] [25-30] [30-35] [35-40] [40-45] [45-50]
 - 帕累托图：V2 实现，V1 统一柱状
+
+---
+
+## 数据表格「精致范」规范（v1，2026-07）
+
+适用范围：所有需要宽列展示的指标表格（用户行为 / 数据报表 / 趋势对比等）。已落地：`Behavior.vue` 三类表格（展示频次 / 用户价值 / 使用时长）。
+
+### 容器
+- 卡片容器：`background: #ffffff / border: 1px solid #E2E8F0 / border-radius: 10px`
+- 卡片阴影：`0 1px 2px rgba(15, 23, 42, 0.04), 0 0 0 1px rgba(15, 23, 42, 0.02)`
+- `overflow: hidden` + `box-sizing: border-box`
+
+### 网格布局（必读）
+- 表格用 `display: grid`（不用 table / flex）
+- 表格顶层定义 `grid-template-columns: 50px <min> <min> ...`（用 `minmax(90px, 1fr)` 弹性）
+- **关键：每一行（`grid-column: 1 / -1`）必须显式跨满表格全部列**——否则行只占第 1 列，宽度 = 50px，导致 col 错位
+- 每一行也是 grid 容器，复制一份 `grid-template-columns`（与表格同），让 col 自动按列分配
+- 行最小高度：`min-height: 44px`（数据）/ `40px`（表头）
+
+### 表头
+- 背景 `#F8FAFC`，下边框 `1px solid #E2E8F0`
+- 字号 `12px`，字重 `600`，颜色 `#334155`
+- 字距 `letter-spacing: 0.2px`
+- padding：`0 14px`
+
+### 行
+- 字号 `13px`，颜色 `#334155`，下边框 `1px solid #F1F5F9`
+- 斑马纹：偶数行 `background-color: #FAFBFC`
+- hover：`background-color: #EFF6FF` + `box-shadow: inset 3px 0 0 0 #2563EB`（左侧 3px 蓝条）
+- hover 文字：`color: #1E293B`
+
+### 列变体
+- `num`：`justify-content: flex-end`、`font-weight: 500`、`color: #1E293B`、`font-variant-numeric: tabular-nums`
+- `ratio`：同 num
+- `money`：`¥` 前缀 + tabular-nums
+- `label`：默认左对齐
+- `range`：`font-family: 'SF Mono', Menlo, monospace`（等宽，给区间用）
+- `bar`：宽度比例的渐变条
+- 涨跌幅 `delta-up`：`color: #059669` + `::before` 三角 `▲`
+- 涨跌幅 `delta-down`：`color: #DC2626` + `::before` 三角 `▼`
+- 涨跌幅 `delta-flat`：`color: #94A3B8`
+
+### 分页
+- 容器：`.behavior-table-pagination`（或同类命名空间）
+- 背景 `#FAFBFC`，圆角 `0 0 10px 10px`（与卡片底部对齐），顶部 `1px solid #F1F5F9`
+- `padding: 12px 20px`
+- `el-pagination` 属性：`background small layout="total, sizes, prev, pager, next, jumper"`
+- `page-sizes` 按数据量选：`[10, 20, 50]` / `[10, 20, 50, 100]` / `[7, 14, 30]`
+
+### 宽度适配
+- 表格设置 `min-width: 720px ~ 920px`（避免窄屏挤压）
+- 列定义用 `minmax(<min>, <fr>)` 弹性扩展
+- 大屏（≥1920）列自然撑开；中屏（1440）保持最小宽度，必要时横向滚动
+
+### 反模式
+- ❌ 行不用 `grid-column: 1 / -1` → 错位（最常见的 bug）
+- ❌ 行内不复制列定义 → col 全部堆第一格
+- ❌ `<style scoped>` 写表格 CSS → 触发 CDN 拦截（见 AGENTS.md）
+- ❌ 表格用 `<table>` 元素 → 难以做 1fr 弹性列宽 + hover 蓝条
+- ❌ 涨跌幅用 emoji ▲▼ → 改用 `::before` 伪元素 + 颜色编码

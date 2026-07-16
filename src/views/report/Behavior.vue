@@ -122,10 +122,11 @@
                   <div class="frequency-col">设备占比</div>
                   <div class="frequency-col">预估收益</div>
                   <div class="frequency-col">预估收益占比</div>
+                  <div class="frequency-col">eCPM</div>
                   <div class="frequency-col frequency-col--bar">分布</div>
                 </div>
                 <div
-                  v-for="row in frequencyRows"
+                  v-for="row in pagedFrequencyRows"
                   :key="row.label"
                   class="frequency-row"
                 >
@@ -139,10 +140,22 @@
                   <div class="frequency-col">{{ row.devPercent }}%</div>
                   <div class="frequency-col">¥{{ row.revenue.toFixed(2) }}</div>
                   <div class="frequency-col">{{ row.revPercent }}%</div>
+                  <div class="frequency-col">¥{{ row.ecpm.toFixed(2) }}</div>
                   <div class="frequency-col frequency-col--bar">
                     <div class="frequency-bar" :style="{ width: row.barWidth + '%' }"></div>
                   </div>
                 </div>
+              </div>
+              <div class="behavior-table-pagination" v-if="frequencyRows.length > 0">
+                <el-pagination
+                  v-model:current-page="freqPage"
+                  v-model:page-size="freqPageSize"
+                  :total="frequencyRows.length"
+                  :page-sizes="[10, 20, 50]"
+                  layout="total, sizes, prev, pager, next, jumper"
+                  background
+                  small
+                />
               </div>
             </div>
           </div>
@@ -220,7 +233,7 @@
                     {{ d.label }}
                   </div>
                 </div>
-                <div v-for="row in valueRows" :key="row.range" class="value-row">
+                <div v-for="row in pagedValueRows" :key="row.range" class="value-row">
                   <div class="value-col value-col--name">{{ row.range }}</div>
                   <div v-for="d in visibleDimensions" :key="d.key" class="value-col" :class="{ 'value-col--money': d.type === 'money' }">
                     <template v-if="d.type === 'count'">{{ row[d.key].toLocaleString() }}</template>
@@ -228,6 +241,17 @@
                     <template v-else>{{ row[d.key] }}%</template>
                   </div>
                 </div>
+              </div>
+              <div class="behavior-table-pagination" v-if="valueRows.length > 0">
+                <el-pagination
+                  v-model:current-page="valuePage"
+                  v-model:page-size="valuePageSize"
+                  :total="valueRows.length"
+                  :page-sizes="[10, 20, 50, 100]"
+                  layout="total, sizes, prev, pager, next, jumper"
+                  background
+                  small
+                />
               </div>
 
               <!-- 维度选择弹窗 -->
@@ -299,7 +323,7 @@
                 <div class="duration-col duration-col--num">差异%</div>
               </div>
               <div
-                v-for="(r, i) in durationTableRows"
+                v-for="(r, i) in pagedDurationRows"
                 :key="i"
                 class="duration-row"
               >
@@ -309,6 +333,17 @@
                 <div class="duration-col duration-col--num" :class="r.diffTone">{{ r.diffSign }}{{ r.diffAbs.toFixed(2) }}</div>
                 <div class="duration-col duration-col--num" :class="r.diffTone">{{ r.diffSign }}{{ Math.abs(r.diffPct).toFixed(2) }}%</div>
               </div>
+            </div>
+            <div class="behavior-table-pagination" v-if="durationTableRows.length > 0">
+              <el-pagination
+                v-model:current-page="durationPage"
+                v-model:page-size="durationPageSize"
+                :total="durationTableRows.length"
+                :page-sizes="[7, 14, 30]"
+                layout="total, sizes, prev, pager, next, jumper"
+                background
+                small
+              />
             </div>
           </div>
         </div>
@@ -349,6 +384,7 @@ interface FrequencyRow {
   devPercent: string;
   revenue: number;
   revPercent: string;
+  ecpm: number;
   barWidth: number;
 }
 
@@ -408,6 +444,27 @@ const DURATION_METRICS = [
 const currentSubtype = ref<'frequency' | 'value' | 'duration'>('frequency');
 const loading = ref(false);
 const filter = ref<Filter>({ dateRange: '7d', appIds: [], placementIds: [], adSourceIds: [], formats: [], country: [], osList: [], platforms: [] });
+
+// 表格分页
+const freqPage = ref(1);
+const freqPageSize = ref(10);
+const valuePage = ref(1);
+const valuePageSize = ref(10);
+const durationPage = ref(1);
+const durationPageSize = ref(10);
+
+const pagedFrequencyRows = computed(() => {
+  const start = (freqPage.value - 1) * freqPageSize.value;
+  return frequencyRows.value.slice(start, start + freqPageSize.value);
+});
+const pagedValueRows = computed(() => {
+  const start = (valuePage.value - 1) * valuePageSize.value;
+  return valueRows.value.slice(start, start + valuePageSize.value);
+});
+const pagedDurationRows = computed(() => {
+  const start = (durationPage.value - 1) * durationPageSize.value;
+  return durationTableRows.value.slice(start, start + durationPageSize.value);
+});
 
 // 频次
 const frequencyRows = ref<FrequencyRow[]>([]);
@@ -879,6 +936,7 @@ const loadFrequency = async () => {
         devPercent: totalUsers > 0 ? (dev / totalUsers * 100).toFixed(2) : '0.00',
         revenue: rev,
         revPercent: totalRev > 0 ? (rev / totalRev * 100).toFixed(2) : '0.00',
+        ecpm: imp > 0 ? (rev / imp * 1000) : 0,
         barWidth: Math.max(2, normW[i] * 100 * 1.4),
       };
     });
