@@ -10625,33 +10625,38 @@ html, body, #app {
 .funnel-block {
   display: flex;
   align-items: center;
-  padding: 0 12px;
+  justify-content: flex-start;
+  padding: 0 14px;
   color: #fff;
   font-size: 13px;
   font-weight: 500;
-  height: 36px;
-  border-radius: 3px;
+  height: 40px;
+  border-radius: 4px;
   letter-spacing: 0.3px;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
+  box-shadow:
+    0 1px 2px rgba(15, 23, 42, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.18);
   width: 100%;
+  position: relative;
+  overflow: hidden;
 }
 .funnel-block-text {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
-/* 11 步色块：色相由深到浅渐变，宽度按"漏斗"型变化 */
-.funnel-block-0  { background: #154ff0; width: 40%; }
-.funnel-block-1  { background: #1a5cf2; width: 42%; }
-.funnel-block-2  { background: #1f6cf5; width: 45%; }
-.funnel-block-3  { background: #247cf7; width: 50%; }
-.funnel-block-4  { background: #2b8bfa; width: 55%; }
-.funnel-block-5  { background: #319afc; width: 58%; }
-.funnel-block-6  { background: #4ba9fd; width: 52%; }
-.funnel-block-7  { background: #65b8fe; width: 50%; }
-.funnel-block-8  { background: #7fc6fe; width: 48%; }
-.funnel-block-9  { background: #98d3fe; width: 45%; }
-.funnel-block-10 { background: #b3dffe; width: 42%; }
+/* 11 步色块：色相由深到浅渐变，统一宽度 100% */
+.funnel-block-0  { background: linear-gradient(90deg, #154ff0 0%, #1a5cf2 100%); }
+.funnel-block-1  { background: linear-gradient(90deg, #1a5cf2 0%, #1f6cf5 100%); }
+.funnel-block-2  { background: linear-gradient(90deg, #1f6cf5 0%, #247cf7 100%); }
+.funnel-block-3  { background: linear-gradient(90deg, #247cf7 0%, #2b8bfa 100%); }
+.funnel-block-4  { background: linear-gradient(90deg, #2b8bfa 0%, #319afc 100%); }
+.funnel-block-5  { background: linear-gradient(90deg, #319afc 0%, #4ba9fd 100%); }
+.funnel-block-6  { background: linear-gradient(90deg, #4ba9fd 0%, #65b8fe 100%); }
+.funnel-block-7  { background: linear-gradient(90deg, #65b8fe 0%, #7fc6fe 100%); }
+.funnel-block-8  { background: linear-gradient(90deg, #7fc6fe 0%, #98d3fe 100%); }
+.funnel-block-9  { background: linear-gradient(90deg, #98d3fe 0%, #b3dffe 100%); }
+.funnel-block-10 { background: linear-gradient(90deg, #b3dffe 0%, #cfe9fe 100%); }
 
 /* 左侧 / 右侧指标行 */
 .funnel-metric {
