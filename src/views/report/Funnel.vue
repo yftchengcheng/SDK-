@@ -437,20 +437,20 @@ function recomputeLinks() {
     const startX = side === 'L' ? mr.right - gridRect.left : mr.left - gridRect.left;
     const startY = mr.top - gridRect.top + mr.height / 2;
 
-    // 每个指标只画 1 根线 (取 linkIndices[0] = 分子 step), 避免分子+分母两线重合
+    // 每个指标只画 1 根线 (取 linkIndices[0] = 分子 step)
     const targetIdx = linkIndices[0];
     const step = stepCenters[targetIdx];
     if (!step) return;
-    // step 块宽度 = 90px, 中心 = step.x, 边缘 = step.x ± 45
+    // step 块宽度 90px, 中心 = step.x, 边缘 = step.x ± 45
     const STEP_HALF_W = 45;
     const stepEdgeX = side === 'L' ? step.x - STEP_HALF_W : step.x + STEP_HALF_W;
     // 箭头尖端接在 step 边缘 (色块边内 6px), line 终止在箭头底边 (距尖端 12px)
     const tipX = side === 'L' ? stepEdgeX + 6 : stepEdgeX - 6;
     const lineEndX = side === 'L' ? tipX - 12 : tipX + 12;
     const endY = step.y;
-    // 折线: metric 边 → step 边缘外 12px 处 → step.y → 箭头底边
-    // midX 在 step 列外, 避免终点水平段穿过 step 色块
-    const midX = lineEndX;
+    // 3 段折线: metric 边 → step 中心 (midX = step.x) → step y → 箭头底边
+    // 折点在 step 中心, 视觉上像示例图 (line 水平段从指标拉到 step 中点, 再垂直到 step y, 再水平到 step 边缘)
+    const midX = step.x;
     const d = `M ${startX} ${startY} L ${midX} ${startY} L ${midX} ${endY} L ${lineEndX} ${endY}`;
     newPaths.push({ d, color });
     newDots.push({ cx: tipX, cy: endY, color, side });
