@@ -102,29 +102,29 @@
             </span>
           </div>
           <div class="funnel-layout">
-            <!-- SVG 连接线层: 绝对定位覆盖整个 layout (在 grid 外面才能 width 100%) -->
-            <svg class="funnel-link-svg" :viewBox="linkViewBox" preserveAspectRatio="none">
-              <path
-                v-for="(l, i) in linkPaths"
-                :key="i"
-                :d="l.d"
-                :stroke="l.color"
-                stroke-width="1.6"
-                fill="none"
-                stroke-dasharray="5 3"
-                opacity="0.9"
-              />
-              <circle
-                v-for="(d, i) in linkDots"
-                :key="'dot-'+i"
-                :cx="d.cx"
-                :cy="d.cy"
-                r="3"
-                :fill="d.color"
-                stroke="#fff"
-                stroke-width="1"
-              />
-            </svg>
+            <div class="funnel-chart-wrap">
+              <svg class="funnel-link-svg" :viewBox="linkViewBox" preserveAspectRatio="none">
+                <path
+                  v-for="(l, i) in linkPaths"
+                  :key="i"
+                  :d="l.d"
+                  :stroke="l.color"
+                  stroke-width="1.6"
+                  fill="none"
+                  stroke-dasharray="5 3"
+                  opacity="0.9"
+                />
+                <circle
+                  v-for="(d, i) in linkDots"
+                  :key="'dot-'+i"
+                  :cx="d.cx"
+                  :cy="d.cy"
+                  r="3"
+                  :fill="d.color"
+                  stroke="#fff"
+                  stroke-width="1"
+                />
+              </svg>
             <div class="funnel-grid" ref="funnelGridRef">
 
               <!-- 左指标 -->
@@ -171,6 +171,7 @@
                   <el-icon class="funnel-metric-tip"><QuestionFilled /></el-icon>
                 </el-tooltip>
               </div>
+            </div>
             </div>
           </div>
         </div>
