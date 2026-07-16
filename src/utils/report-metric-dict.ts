@@ -90,7 +90,7 @@ export function useMetricLabels(fallback?: Record<string, string>) {
 export const FALLBACK_METRIC_LABELS: Record<string, string> = {
   impressions: '展示数',
   clicks: '点击数',
-  revenue_actual: '预估收益',
+  revenue_actual: '实际收益',
   ctr: '点击率',
   ecpm: 'eCPM',
   fill_rate: '填充率',
