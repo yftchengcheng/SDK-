@@ -50,7 +50,19 @@
                 <el-tag v-if="board.is_default" size="small" type="primary" effect="plain" class="report-master-item-tag">默认</el-tag>
               </div>
               <div class="report-master-item-desc">
-                {{ DIM_LABELS[(board.config?.dimensions || [])[0] || 'date'] }} · {{ (board.config?.metrics || []).length }} 个指标
+                <span>{{ DIM_LABELS[(board.config?.dimensions || [])[0] || 'date'] }} · </span>
+                <span v-if="(board.config?.metrics || []).length === 0">未选指标</span>
+                <template v-else>
+                  <el-tag
+                    v-for="(m, idx) in (board.config?.metrics || []).slice(0, 3)"
+                    :key="m + idx"
+                    size="small"
+                    type="info"
+                    effect="plain"
+                    class="report-master-item-metric-tag"
+                  >{{ metricNameOf(m) }}</el-tag>
+                  <span v-if="(board.config?.metrics || []).length > 3" class="report-master-item-metric-more">+{{ (board.config?.metrics || []).length - 3 }}</span>
+                </template>
               </div>
             </div>
             <div class="report-master-item-actions" @click.stop>
@@ -143,6 +155,17 @@
                 <el-button :icon="Setting" size="small" @click="openMetricPicker">设置指标</el-button>
               </div>
             </div>
+            <div v-if="effectiveMetrics.length > 0" class="config-metric-tags">
+              <el-tag
+                v-for="(m, idx) in effectiveMetrics"
+                :key="m + idx"
+                size="default"
+                type="info"
+                effect="plain"
+                class="config-metric-tag"
+                :title="metricNameOf(m)"
+              >{{ metricNameOf(m) }}</el-tag>
+            </div>
           </div>
 
           <!-- 筛选器 + 导出 -->
@@ -195,7 +218,7 @@
       :config="saveAsConfig"
       :report-type="'overview'"
       :dim-labels="DIM_LABELS"
-      :metric-labels="METRIC_LABELS"
+      :metric-labels="liveMetricLabels"
       @saved="onSavedAs"
     />
 
@@ -322,6 +345,18 @@ const pickedDimensions = ref<string[]>([]);
 const metricPickerRef = ref<{ open: () => void } | null>(null);
 const dimPickerRef = ref<{ open: (codes: string[]) => void } | null>(null);
 const tableData = ref<Array<Record<string, string | number>>>([]);
+
+// 指标字典：用 src/utils/report-metric-dict 的共享缓存（跨组件复用）
+// 用于把用户选中的 code 翻译成与选择弹窗一致的中文名
+import {
+  loadMetricDict,
+  metricDict,
+  metricNameOf as _metricNameOf,
+  metricFormatOf,
+  useMetricLabels,
+} from '@/utils/report-metric-dict';
+const metricNameOf = (code: string) => _metricNameOf(code, METRIC_LABELS);
+const liveMetricLabels = useMetricLabels(METRIC_LABELS);
 
 const currentBoard = computed<ReportBoard | null>(() => boards.value.find((b) => b.id === selectedBoardId.value) || null);
 const filteredBoards = computed<ReportBoard[]>(() => {
@@ -592,5 +627,8 @@ const doExport = async (format: 'csv' | 'excel' | 'pdf') => {
   }
 };
 
-onMounted(loadBoards);
+onMounted(() => {
+  loadMetricDict();
+  loadBoards();
+});
 </script>

@@ -8704,6 +8704,26 @@ html, body, #app {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: nowrap;
+}
+.report-master-item-metric-tag {
+  max-width: 70px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 10px !important;
+  height: 18px !important;
+  line-height: 16px !important;
+  padding: 0 6px !important;
+}
+.report-master-item-metric-more {
+  font-size: 10px;
+  color: #94A3B8;
+  font-weight: 500;
+  flex-shrink: 0;
 }
 
 .report-master-item-actions {
@@ -8854,6 +8874,21 @@ html, body, #app {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
+}
+
+.config-metric-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 0 24px 16px;
+  margin-top: -8px;
+}
+.config-metric-tag {
+  font-size: 12px !important;
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .config-divider {

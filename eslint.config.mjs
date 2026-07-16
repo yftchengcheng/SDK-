@@ -20,6 +20,17 @@ export default defineConfig([
     },
     rules: {
       'import/no-cycle': ['error', { ignoreExternal: true }],
+      // 允许下划线前缀标识「故意未使用」（如 const { id: _id, ...rest }）
+      '@typescript-eslint/no-unused-vars': [
+        'error',
+        {
+          argsIgnorePattern: '^_',
+          varsIgnorePattern: '^_',
+          caughtErrorsIgnorePattern: '^_',
+        },
+      ],
+      // 服务端 Supabase/Express 大量参数是动态结构，先降为 warn，type 化逐步推进
+      '@typescript-eslint/no-explicit-any': 'warn',
     },
   },
   globalIgnores([

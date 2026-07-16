@@ -1,4 +1,3 @@
-import type { AuthRequest } from '../middleware/auth';
 /**
  * 报表聚合 API
  * 路由前缀：/api/v1/console/report
@@ -16,27 +15,6 @@ import { randomUUID } from 'crypto';
 
 const router = Router();
 router.use(authMiddleware);
-
-/**
- * 报告支持的 15 维度
- */
-const SUPPORTED_DIMENSIONS = [
-  'date',       // 日期
-  'app',        // 应用
-  'placement',  // 广告位
-  'ad_source',  // 广告源
-  'platform',   // 平台（自有/第三方）
-  'country',    // 地区
-  'format',     // 变现类型（banner/interstitial/native/...）
-  'ad_type',    // 广告类型
-  'os',         // 操作系统
-  'device',     // 设备类型
-  'network',    // 网络类型
-  'hour',       // 时段
-  'age',        // 年龄
-  'gender',     // 性别
-  'os_version', // 系统版本
-] as const;
 
 /**
  * 漏斗 12 步定义（漏斗分析专用）
@@ -496,8 +474,7 @@ function mockBehavior(metrics: string[], subtype: string, compareMetric: string)
  */
 router.post('/aggregate/options', async (req: Request, res: Response) => {
   try {
-    const { type, app_id, platform, ad_type } = req.body || {};
-    let q;
+    const { type, app_id } = req.body || {};
     switch (type) {
       case 'app': {
         // 从 app 表拉所有
@@ -515,7 +492,7 @@ router.post('/aggregate/options', async (req: Request, res: Response) => {
       }
       case 'ad_source': {
         // 级联：选了 platform 或 ad_type 才拉对应的 ad_source
-        let aq = db.from('ad_source').select('id, source_name, network_name').order('source_name').limit(500);
+        const aq = db.from('ad_source').select('id, source_name, network_name').order('source_name').limit(500);
         const { data, error } = await aq;
         if (error) throw error;
         return ok(res, { options: (data || []).map((r: any) => ({ value: r.id, label: r.source_name || r.network_name, platform: r.network_name, ad_type: null })) });

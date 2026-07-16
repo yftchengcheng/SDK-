@@ -1,6 +1,7 @@
 <!--
   ReportTableView - 表格视图
   Props: board, data
+  列头：维度用 DIM_LABELS 翻译；指标用共享 metric dict 翻译（与 MetricPicker / 看版卡 完全一致）
 -->
 <template>
   <div class="page-card">
@@ -26,8 +27,9 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, onMounted } from 'vue';
 import type { PropType } from 'vue';
+import { loadMetricDict, metricNameOf, metricFormatOf } from '@/utils/report-metric-dict';
 
 interface BoardConfig {
   dimensions: string[];
@@ -44,24 +46,29 @@ interface Column {
   label: string;
   minWidth: number;
   align?: 'left' | 'right' | 'center';
-  format?: 'number' | 'percent' | 'currency';
+  format?: string;
 }
 
-const METRIC_LABELS: Record<string, { label: string; format: 'number' | 'percent' | 'currency' }> = {
-  revenue_actual: { label: '实际收益', format: 'currency' },
-  revenue_estimated: { label: '预估收益', format: 'currency' },
-  impressions: { label: '展示数', format: 'number' },
-  requests: { label: '请求数', format: 'number' },
-  clicks: { label: '点击数', format: 'number' },
-  fill_rate: { label: '填充率', format: 'percent' },
-  ecpm: { label: 'eCPM', format: 'currency' },
-};
 const DIM_LABELS: Record<string, string> = {
   date: '日期',
+  hour: '小时',
+  week: '周',
+  month: '月',
+  scene: '场景',
   app: '应用',
   placement: '广告位',
+  format: '广告类型',
   platform: '广告平台',
-  country: '国家',
+  ad_source: '广告源',
+  bid_type: '竞价类型',
+  channel: '渠道',
+  sdk_version: 'SDK 版本',
+  ab_test: 'A-B 测试',
+  idfa: 'IDFA 状态',
+  country: '地区',
+  os: '系统平台',
+  traffic_group: '流量分组',
+  scene_name: '广告场景',
 };
 
 const props = defineProps({
@@ -70,16 +77,25 @@ const props = defineProps({
   loading: { type: Boolean, default: false },
 });
 
+onMounted(() => {
+  loadMetricDict();
+});
+
 const columns = computed<Column[]>(() => {
   const cols: Column[] = [];
   // 第一列：维度
   const dim = props.board.config?.dimensions?.[0] || 'date';
   cols.push({ key: dim, label: DIM_LABELS[dim] || dim, minWidth: 140 });
-  // 后续列：指标
+  // 后续列：指标（用共享 dict 翻译中文名 + 取 format）
   const metrics = props.board.config?.metrics || [];
   for (const m of metrics) {
-    const def = METRIC_LABELS[m] || { label: m, format: 'number' as const };
-    cols.push({ key: m, label: def.label, minWidth: 120, align: 'right', format: def.format });
+    cols.push({
+      key: m,
+      label: metricNameOf(m),
+      minWidth: 120,
+      align: 'right',
+      format: metricFormatOf(m) || 'number',
+    });
   }
   return cols;
 });
