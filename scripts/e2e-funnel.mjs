@@ -33,10 +33,18 @@ import puppeteer from 'puppeteer';
   // 4. 漏斗步骤数
   const stepCount = await page.evaluate(() => document.querySelectorAll('.funnel-block').length);
   console.log('[funnel-e2e] funnel steps:', stepCount);
-  // 5. 左右侧指标
-  const leftMetric = await page.evaluate(() => document.querySelectorAll('.funnel-side-left .funnel-side-item').length);
-  const rightMetric = await page.evaluate(() => document.querySelectorAll('.funnel-side-right .funnel-side-item').length);
+  // 5. 左右侧指标（新结构：.funnel-metric-left / .funnel-metric-right）
+  const leftMetric = await page.evaluate(() => document.querySelectorAll('.funnel-metric-left').length);
+  const rightMetric = await page.evaluate(() => document.querySelectorAll('.funnel-metric-right').length);
   console.log('[funnel-e2e] left metrics:', leftMetric, 'right metrics:', rightMetric);
+  // 5.1 检查 marker 色块
+  const markerCount = await page.evaluate(() => document.querySelectorAll('.funnel-metric-mark').length);
+  console.log('[funnel-e2e] metric marks:', markerCount);
+  // 5.2 验证对齐：取第一个 left-metric 的 gridRow
+  const leftAligns = await page.evaluate(() => Array.from(document.querySelectorAll('.funnel-metric-left')).map((el) => el.style.gridRow));
+  console.log('[funnel-e2e] left aligns:', leftAligns.join(','));
+  const rightAligns = await page.evaluate(() => Array.from(document.querySelectorAll('.funnel-metric-right')).map((el) => el.style.gridRow));
+  console.log('[funnel-e2e] right aligns:', rightAligns.join(','));
   // 6. 表格行数
   const tableRows = await page.evaluate(() => document.querySelectorAll('.funnel-table-wrap .el-table__row').length);
   console.log('[funnel-e2e] table rows:', tableRows);

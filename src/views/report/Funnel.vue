@@ -106,39 +106,52 @@
       </div>
 
       <div class="funnel-layout">
-        <div class="funnel-side funnel-side-left">
-          <div v-for="m in LEFT_METRICS" :key="m.code" class="funnel-side-item">
-            <div class="funnel-side-item-label">{{ m.name }}</div>
-            <el-input v-model="metricValues[m.code]" size="small" placeholder="-" style="width: 110px" />
+        <div class="funnel-grid">
+          <!-- 左指标：对齐到对应 step 的 y 位置 -->
+          <div
+            v-for="m in LEFT_METRICS"
+            :key="m.code"
+            class="funnel-metric funnel-metric-left"
+            :style="{ gridRow: m.alignIndex + 1 }"
+          >
+            <span class="funnel-metric-mark" />
+            <span class="funnel-metric-name">{{ m.name }}</span>
+            <span class="funnel-metric-input">{{ metricValues[m.code] || '-' }}</span>
             <el-tooltip :content="m.tip" placement="top" :show-after="300">
-              <el-icon class="funnel-side-item-tip"><QuestionFilled /></el-icon>
+              <el-icon class="funnel-metric-tip"><QuestionFilled /></el-icon>
             </el-tooltip>
           </div>
-        </div>
 
-        <div class="funnel-chart-wrap">
-          <div class="funnel-legend">
-            <span class="funnel-legend-item"><span class="funnel-legend-dot" style="background: #fe9c2c"></span>次数</span>
-            <span class="funnel-legend-item"><span class="funnel-legend-dot" style="background: #3b82f6"></span>设备数</span>
-          </div>
-          <div class="funnel-chart">
-            <div
-              v-for="(step, idx) in FUNNEL_STEPS"
-              :key="step.code"
-              :class="['funnel-block', `funnel-block-${idx}`]"
-              :title="step.name"
-            >
-              <span class="funnel-block-text">{{ step.name }}</span>
+          <!-- 中央 11 步漏斗 -->
+          <div class="funnel-col">
+            <div class="funnel-legend">
+              <span class="funnel-legend-item"><span class="funnel-legend-dot" style="background: #fe9c2c"></span>次数</span>
+              <span class="funnel-legend-item"><span class="funnel-legend-dot" style="background: #3b82f6"></span>设备数</span>
+            </div>
+            <div class="funnel-chart">
+              <div
+                v-for="(step, idx) in FUNNEL_STEPS"
+                :key="step.code"
+                :class="['funnel-block', `funnel-block-${idx}`]"
+                :title="step.name"
+              >
+                <span class="funnel-block-text">{{ step.name }}</span>
+              </div>
             </div>
           </div>
-        </div>
 
-        <div class="funnel-side funnel-side-right">
-          <div v-for="m in RIGHT_METRICS" :key="m.code" class="funnel-side-item">
-            <div class="funnel-side-item-label">{{ m.name }}</div>
-            <el-input v-model="metricValues[m.code]" size="small" placeholder="-" style="width: 110px" />
+          <!-- 右指标：对齐到对应 step 的 y 位置 -->
+          <div
+            v-for="m in RIGHT_METRICS"
+            :key="m.code"
+            class="funnel-metric funnel-metric-right"
+            :style="{ gridRow: m.alignIndex + 1 }"
+          >
+            <span class="funnel-metric-mark" />
+            <span class="funnel-metric-name">{{ m.name }}</span>
+            <span class="funnel-metric-input">{{ metricValues[m.code] || '-' }}</span>
             <el-tooltip :content="m.tip" placement="top" :show-after="300">
-              <el-icon class="funnel-side-item-tip"><QuestionFilled /></el-icon>
+              <el-icon class="funnel-metric-tip"><QuestionFilled /></el-icon>
             </el-tooltip>
           </div>
         </div>
@@ -207,19 +220,19 @@ const FUNNEL_STEPS = [
 ];
 
 const LEFT_METRICS = [
-  { code: 'arrive_rate', name: '广告场景到达率', tip: '到达广告场景 / 流量填充' },
-  { code: 'trigger_rate', name: '广告触发率', tip: '触发展示 / 到达广告场景' },
-  { code: 'show_success_rate', name: '触发展示成功率', tip: '触发展示成功 / 触发展示' },
-  { code: 'show_rate', name: '展示成功率', tip: '展示 / 触发展示成功' },
-  { code: 'click_rate', name: '点击率', tip: '点击 / 展示' },
+  { code: 'arrive_rate', name: '广告场景到达率', tip: '到达广告场景 / 流量填充', alignIndex: 3 },
+  { code: 'trigger_rate', name: '广告触发率', tip: '触发展示 / 到达广告场景', alignIndex: 5 },
+  { code: 'show_success_rate', name: '触发展示成功率', tip: '触发展示成功 / 触发展示', alignIndex: 6 },
+  { code: 'show_rate', name: '展示成功率', tip: '展示 / 触发展示成功', alignIndex: 7 },
+  { code: 'click_rate', name: '点击率', tip: '点击 / 展示', alignIndex: 9 },
 ];
 
 const RIGHT_METRICS = [
-  { code: 'per_start', name: '人均启动', tip: '应用启动 / 设备数' },
-  { code: 'fill_rate', name: '流量填充率', tip: '流量填充 / 流量请求' },
-  { code: 'ready_rate', name: '广告Ready率', tip: '到达广告场景 / 流量填充' },
-  { code: 'isready_rate', name: 'isReady成功率', tip: '查询isReady / 到达广告场景' },
-  { code: 'show_gap', name: '展示Gap', tip: '展示API - 展示 差值' },
+  { code: 'per_start', name: '人均启动', tip: '应用启动 / 设备数', alignIndex: 0 },
+  { code: 'fill_rate', name: '流量填充率', tip: '流量填充 / 流量请求', alignIndex: 3 },
+  { code: 'ready_rate', name: '广告Ready率', tip: '到达广告场景 / 流量填充', alignIndex: 4 },
+  { code: 'isready_rate', name: 'isReady成功率', tip: '查询isReady / 到达广告场景', alignIndex: 5 },
+  { code: 'show_gap', name: '展示Gap', tip: '展示API - 展示 差值', alignIndex: 8 },
 ];
 
 const STAGE_ROWS = [
