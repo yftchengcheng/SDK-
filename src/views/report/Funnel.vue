@@ -110,10 +110,10 @@
                   :key="i"
                   :d="l.d"
                   :stroke="l.color"
-                  stroke-width="1.4"
+                  stroke-width="1.8"
                   fill="none"
-                  stroke-dasharray="5 3"
-                  opacity="0.7"
+                  stroke-dasharray="6 3"
+                  opacity="0.9"
                   stroke-linecap="round"
                   stroke-linejoin="round"
                 />
@@ -121,9 +121,9 @@
                 <polygon
                   v-for="(d, i) in linkDots"
                   :key="'arr-'+i"
-                  :points="d.side === 'L' ? (d.cx - 8) + ',' + (d.cy - 5) + ' ' + d.cx + ',' + d.cy + ' ' + (d.cx - 8) + ',' + (d.cy + 5) : (d.cx + 8) + ',' + (d.cy - 5) + ' ' + d.cx + ',' + d.cy + ' ' + (d.cx + 8) + ',' + (d.cy + 5)"
+                  :points="d.side === 'L' ? (d.cx - 12) + ',' + (d.cy - 6) + ' ' + d.cx + ',' + d.cy + ' ' + (d.cx - 12) + ',' + (d.cy + 6) : (d.cx + 12) + ',' + (d.cy - 6) + ' ' + d.cx + ',' + d.cy + ' ' + (d.cx + 12) + ',' + (d.cy + 6)"
                   :fill="d.color"
-                  opacity="0.85"
+                  opacity="1"
                 />
               </svg>
             <div class="funnel-grid" ref="funnelGridRef">
@@ -441,9 +441,9 @@ function recomputeLinks() {
     for (let li = 0; li < linkIndices.length; li++) {
       const step = stepCenters[linkIndices[li]];
       if (!step) continue;
-      // 箭头尖端接在 step 边缘 (色块边内 6px), line 终止在箭头底边 (距尖端 8px)
+      // 箭头尖端接在 step 边缘 (色块边内 6px), line 终止在箭头底边 (距尖端 12px)
       const tipX = side === 'L' ? step.x + 6 : step.x - 6;
-      const lineEndX = side === 'L' ? tipX - 8 : tipX + 8;
+      const lineEndX = side === 'L' ? tipX - 12 : tipX + 12;
       const endY = step.y;
       // 折线: metric 边 → step 列中点 → line 终点 (箭头底边)
       const midX = (startX + lineEndX) / 2;
