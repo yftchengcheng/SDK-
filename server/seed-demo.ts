@@ -343,16 +343,16 @@ async function main() {
   // 按 (app, placement, network) 三元组从 srcByKey 取 ad_source_id
   const appOsMap: Record<string, { allowedOs: string[]; allowedNets: string[]; placements: { id: number; placementIdCode: string; fmt: string }[] }> = {
     app_game_001: { allowedOs: ['android', 'ios'], allowedNets: allPresetCodes, placements: [
-      { id: plIdByCode['pl_splash_001'], placementIdCode: 'pl_splash_001', fmt: '启动开屏' },
-      { id: plIdByCode['pl_reward_002'], placementIdCode: 'pl_reward_002', fmt: '激励视频' },
+      { id: plIdByCode['pl_splash_001'], placementIdCode: 'pl_splash_001', fmt: 'splash' },
+      { id: plIdByCode['pl_reward_002'], placementIdCode: 'pl_reward_002', fmt: 'rewarded' },
     ] },
     app_tool_002: { allowedOs: ['android'],         allowedNets: firstHalf,        placements: [
-      { id: plIdByCode['pl_banner_003'], placementIdCode: 'pl_banner_003', fmt: '横幅广告' },
-      { id: plIdByCode['pl_inter_004'],  placementIdCode: 'pl_inter_004',  fmt: '插屏广告' },
+      { id: plIdByCode['pl_banner_003'], placementIdCode: 'pl_banner_003', fmt: 'banner' },
+      { id: plIdByCode['pl_inter_004'],  placementIdCode: 'pl_inter_004',  fmt: 'interstitial' },
     ] },
     app_ecom_003: { allowedOs: ['ios'],             allowedNets: secondHalf,       placements: [
-      { id: plIdByCode['pl_native_005'], placementIdCode: 'pl_native_005', fmt: '信息流广告' },
-      { id: plIdByCode['pl_inter_006'],  placementIdCode: 'pl_inter_006',  fmt: '详情插屏' },
+      { id: plIdByCode['pl_native_005'], placementIdCode: 'pl_native_005', fmt: 'native' },
+      { id: plIdByCode['pl_inter_006'],  placementIdCode: 'pl_inter_006',  fmt: 'interstitial' },
     ] },
   };
   const dates = genDates(27, 0); // 27 天前（=28天数据点含今天）到今天

@@ -107,6 +107,30 @@ function roundMetric(m: string, v: number): number {
   return Math.round(v);
 }
 
+/** 软维度 enum → label 映射（DB 存 enum code，API 返回中文 label） */
+const SOFT_DIM_ENUM_LABELS: Record<string, Record<string, string>> = {
+  adType: {
+    banner: '横幅广告',
+    interstitial: '插屏广告',
+    native: '信息流广告',
+    rewarded: '激励视频',
+    splash: '开屏广告',
+  },
+  region: {
+    CN: '中国',
+    US: '美国',
+    JP: '日本',
+    KR: '韩国',
+    GB: '英国',
+    HK: '中国香港',
+    TW: '中国台湾',
+  },
+  os: {
+    android: 'Android',
+    ios: 'iOS',
+  },
+};
+
 /** dimension → 实体配置（含表名 / ID 列 / 名称列）
  * - virtual=true 表示该维度在 report_daily 表中无对应列（adType/region/os），
  *   此时 ranking/trend 接口会直接返回空数据，前端按"暂无数据"渲染
@@ -118,25 +142,31 @@ interface DimConfig {
   reportCol: string;           // report_daily 中该维度的列名（用于主查询 select / group by）
   virtual: boolean;            // true = 维度不参与聚合（保留兼容，新维度都用 false）
   isSoftDim?: boolean;         // true = report_daily 自带列，无独立 entity 表，id 即 name
+  enumLabels?: Record<string, string>;  // 软维度的 enum code → 中文 label 映射
 }
 function dimensionConfig(dim: string): DimConfig | null {
   const map: Record<string, DimConfig> = {
     app:       { table: 'app',       idCol: 'app_key',       nameCol: 'app_name',    reportCol: 'app_key',       virtual: false },
     placement: { table: 'placement', idCol: 'placement_id',  nameCol: 'name',        reportCol: 'placement_id',  virtual: false },
     network:   { table: 'ad_source', idCol: 'id',            nameCol: 'source_name', reportCol: 'ad_source_id',  virtual: false },
-    adType:    { table: null,        idCol: 'ad_type',       nameCol: 'ad_type',     reportCol: 'ad_type',       virtual: false, isSoftDim: true },
-    region:    { table: null,        idCol: 'region',        nameCol: 'region',      reportCol: 'region',        virtual: false, isSoftDim: true },
-    os:        { table: null,        idCol: 'os',            nameCol: 'os',          reportCol: 'os',            virtual: false, isSoftDim: true },
+    adType:    { table: null,        idCol: 'ad_type',       nameCol: 'ad_type',     reportCol: 'ad_type',       virtual: false, isSoftDim: true, enumLabels: SOFT_DIM_ENUM_LABELS.adType },
+    region:    { table: null,        idCol: 'region',        nameCol: 'region',      reportCol: 'region',        virtual: false, isSoftDim: true, enumLabels: SOFT_DIM_ENUM_LABELS.region },
+    os:        { table: null,        idCol: 'os',            nameCol: 'os',          reportCol: 'os',            virtual: false, isSoftDim: true, enumLabels: SOFT_DIM_ENUM_LABELS.os },
   };
   return map[dim] || null;
 }
 
-/** 批量查表，把 entity id 映射为友好名（软维度直接用 id 当 name） */
+/** 批量查表，把 entity id 映射为友好名
+ * - 软维度：优先用 enumLabels 映射（DB 存 enum code，返回中文 label）
+ * - 其他维度：从关联 entity 表 select id→name
+ */
 async function enrichNames(cfg: DimConfig, ids: string[]): Promise<Record<string, string>> {
   if (!ids.length) return {};
   if (cfg.isSoftDim) {
     const m: Record<string, string> = {};
-    for (const id of ids) m[id] = id;
+    for (const id of ids) {
+      m[id] = cfg.enumLabels?.[id] ?? id;
+    }
     return m;
   }
   if (!cfg.table) return {};

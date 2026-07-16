@@ -167,6 +167,32 @@ const DIM_FIELD: Record<string, string> = {
   hour: 'hour',
 };
 
+/** 软维度 enum code → 中文 label（DB 存 enum code，API 返回中文 label 给前端展示） */
+const SOFT_DIM_LABELS: Record<string, Record<string, string>> = {
+  format: { banner: '横幅广告', interstitial: '插屏广告', native: '信息流广告', rewarded: '激励视频', splash: '开屏广告' },
+  ad_type: { banner: '横幅广告', interstitial: '插屏广告', native: '信息流广告', rewarded: '激励视频', splash: '开屏广告' },
+  os: { android: 'Android', ios: 'iOS' },
+  country: {
+    CN: '中国', US: '美国', JP: '日本', KR: '韩国', GB: '英国', UK: '英国',
+    IN: '印度', DE: '德国', FR: '法国', BR: '巴西', RU: '俄罗斯',
+    CA: '加拿大', AU: '澳大利亚', SG: '新加坡', ID: '印度尼西亚', TH: '泰国', VN: '越南',
+    HK: '中国香港', TW: '中国台湾',
+  },
+  region: {
+    CN: '中国', US: '美国', JP: '日本', KR: '韩国', GB: '英国', UK: '英国',
+    IN: '印度', DE: '德国', FR: '法国', BR: '巴西', RU: '俄罗斯',
+    CA: '加拿大', AU: '澳大利亚', SG: '新加坡', ID: '印度尼西亚', TH: '泰国', VN: '越南',
+    HK: '中国香港', TW: '中国台湾',
+  },
+};
+
+/** 软维度 enum code → 中文 label（DB 存 enum code，API 返回中文 label 给前端展示）
+ *  非软维度（app/placement/ad_source）：value 就是 entity id，由前端用 name 映射展示
+ */
+function softDimLabel(dim: string, code: string): string {
+  return SOFT_DIM_LABELS[dim]?.[code] ?? code;
+}
+
 /**
  * 单 metric 真实取值（基于 report_daily 行）
  */
@@ -265,13 +291,13 @@ async function aggregateOverview(
   const buckets = new Map<string, Record<string, any>>();
 
   (data || []).forEach((row: any) => {
-    const key = String(row[primaryField] ?? '');
-    if (!buckets.has(key)) {
-      const b: Record<string, any> = { [primaryDim]: key };
+    const rawKey = String(row[primaryField] ?? '');
+    if (!buckets.has(rawKey)) {
+      const b: Record<string, any> = { [primaryDim]: softDimLabel(primaryDim, rawKey) };
       metrics.forEach((m) => { b[m] = 0; });
-      buckets.set(key, b);
+      buckets.set(rawKey, b);
     }
-    const b = buckets.get(key)!;
+    const b = buckets.get(rawKey)!;
     metrics.forEach((m) => {
       b[m] = Number(b[m] || 0) + metricValue(m, row);
     });
@@ -539,12 +565,14 @@ router.post('/aggregate/options', async (req: Request, res: Response) => {
         return ok(res, { options });
       }
       case 'os': {
+        // os 是 enum code（android/ios），从 app.platform 联动继承
+        // API 返回时做 enum→label 转换；不存在 harmony/windows/macos
         const { data, error } = await db.from('report_daily').select('os').not('os', 'is', null).limit(5000);
         if (error) throw error;
         const seen = new Set<string>();
         const options: Array<{ value: string; label: string }> = [];
         const LABELS: Record<string, string> = {
-          android: 'Android', ios: 'iOS', harmony: '鸿蒙', windows: 'Windows', macos: 'macOS',
+          android: 'Android', ios: 'iOS',
         };
         for (const r of data || []) {
           const code = (r as any).os;
@@ -556,17 +584,24 @@ router.post('/aggregate/options', async (req: Request, res: Response) => {
         return ok(res, { options });
       }
       case 'format': {
-        // ad_type 直接来自 placement.name（启动开屏/激励视频/横幅广告/插屏广告/信息流广告/详情插屏），
-        // 全程中文，不再做英→中映射（之前 banner→'Banner' 出现过英文）
+        // ad_type 是 enum code（banner/interstitial/native/rewarded/splash），从 placement.format 语义继承
+        // API 返回时做 enum→label 转换（DB 存 enum code，符合 enum 规范；label 仅做展示）
         const { data, error } = await db.from('report_daily').select('ad_type').not('ad_type', 'is', null).limit(5000);
         if (error) throw error;
         const seen = new Set<string>();
         const options: Array<{ value: string; label: string }> = [];
+        const AD_TYPE_LABELS: Record<string, string> = {
+          banner: '横幅广告',
+          interstitial: '插屏广告',
+          native: '信息流广告',
+          rewarded: '激励视频',
+          splash: '开屏广告',
+        };
         for (const r of data || []) {
           const code = (r as any).ad_type;
           if (!code || seen.has(code)) continue;
           seen.add(code);
-          options.push({ value: code, label: code });
+          options.push({ value: code, label: AD_TYPE_LABELS[code] || code });
         }
         options.sort((a, b) => a.label.localeCompare(b.label, 'zh-Hans-CN'));
         return ok(res, { options });
