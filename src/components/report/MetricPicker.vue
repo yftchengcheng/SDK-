@@ -106,8 +106,6 @@ const showHidden = ref(false);
 // 按截图 6 个主分类（顺序固定）
 const CATEGORY_ORDER = [
   { key: 'taku_user', label: '用户行为' },
-  { key: 'taku_basic', label: '基础数据' },
-  { key: 'taku_rate', label: '比率数据' },
   { key: 'taku_revenue', label: '收益数据' },
   { key: 'taku_bidding', label: '竞价数据' },
   { key: 'ad_request', label: '广告请求展示' },

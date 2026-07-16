@@ -3395,6 +3395,7 @@ html, body, #app {
 }
 .page-table-wrap :deep(.el-table) {
   border-radius: 0;
+  table-layout: fixed;
   --el-table-border-color: var(--color-slate-100, #F1F5F9);
   --el-table-header-bg-color: var(--color-slate-50, #F8FAFC);
   --el-table-header-text-color: var(--color-slate-700, #334155);
@@ -10458,3 +10459,4 @@ html, body, #app {
   color: #94a3b8;
   font-size: 12px;
 }
+

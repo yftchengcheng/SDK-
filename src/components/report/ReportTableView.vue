@@ -6,14 +6,16 @@
 <template>
   <div class="page-card">
     <div class="page-table-wrap">
-      <el-table :data="data" v-loading="loading" stripe style="width: 100%">
+      <el-table :data="data" v-loading="loading" stripe :fit="false" :max-height="tableMaxHeight" style="width: 100%">
         <el-table-column
           v-for="col in columns"
           :key="col.key"
           :prop="col.key"
           :label="col.label"
-          :min-width="col.minWidth"
+          :width="col.width"
+          :min-width="col.width"
           :align="col.align || 'left'"
+          :fixed="col.fixed"
         >
           <template #default="{ row }">
             <span :class="['cell-num', col.align === 'right' ? 'cell-num--right' : '']">
@@ -45,9 +47,11 @@ interface ReportBoard {
 interface Column {
   key: string;
   label: string;
+  width: number;
   minWidth: number;
   align?: 'left' | 'right' | 'center';
   format?: string;
+  fixed?: 'left' | 'right';
 }
 
 const DIM_LABELS: Record<string, string> = {
@@ -76,20 +80,24 @@ const props = defineProps({
   board: { type: Object as PropType<ReportBoard>, required: true },
   data: { type: Array as PropType<Array<Record<string, string | number>>>, required: true },
   loading: { type: Boolean, default: false },
+  maxHeight: { type: [Number, String] as PropType<number | string>, default: undefined },
 });
 
 onMounted(() => {
   loadMetricDict();
 });
 
+const tableMaxHeight = computed(() => props.maxHeight);
+
 const columns = computed<Column[]>(() => {
   const cols: Column[] = [];
   // 维度列：每个 dimension 渲染一列（支持多维度组合：按日 + 按应用 → 表格有「日期」「应用」两列）
+  // 维度列固定在左侧（fixed='left'），指标列在右侧可横向滑动
   const dimensions = props.board.config?.dimensions || [];
   for (const d of dimensions) {
-    cols.push({ key: d, label: DIM_LABELS[d] || d, minWidth: 140 });
+    cols.push({ key: d, label: DIM_LABELS[d] || d, minWidth: 140, width: 140, fixed: 'left' });
   }
-  // 指标列：用共享 dict 翻译中文名 + 取 format
+  // 指标列：用共享 dict 翻译中文名 + 取 format（指标列随表格横向滚动）
   const metrics = props.board.config?.metrics || [];
   for (const m of metrics) {
     const name = metricNameOf(m);
@@ -97,7 +105,7 @@ const columns = computed<Column[]>(() => {
     cols.push({
       key: m,
       label: name,
-      minWidth: 120,
+      minWidth: 140, width: 140,
       align: 'right',
       format: metricFormatOf(m) || 'number',
     });
