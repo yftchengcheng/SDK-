@@ -15,11 +15,15 @@
     :show-arrow="false"
   >
     <template #reference>
-      <el-button class="date-range-trigger" :class="{ 'is-active': isCustom }">
+      <button
+        type="button"
+        class="date-range-trigger"
+        :class="{ 'is-active': isCustom }"
+      >
         <el-icon class="date-range-trigger-icon"><Calendar /></el-icon>
         <span class="date-range-trigger-text">{{ displayText }}</span>
         <el-icon class="date-range-trigger-arrow" :class="{ 'is-open': visible }"><ArrowDown /></el-icon>
-      </el-button>
+      </button>
     </template>
 
     <div class="date-range-panel">

@@ -10266,6 +10266,13 @@ html, body, #app {
   transition: all 0.15s ease;
   min-width: 140px;
   justify-content: space-between;
+  cursor: pointer;
+  outline: none;
+  font-family: inherit;
+}
+.date-range-trigger:focus-visible {
+  border-color: #1E3A8A;
+  box-shadow: 0 0 0 2px rgba(30, 58, 138, 0.1);
 }
 .date-range-trigger:hover {
   border-color: #CBD5E1;
