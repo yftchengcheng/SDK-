@@ -6,7 +6,26 @@
   <div class="report-filter">
     <el-form inline :model="local" @submit.prevent>
       <el-form-item label="时间">
-        <DateRangePicker v-model="dateRangeModel" @change="onDateRangeChange" />
+        <el-date-picker
+          :model-value="dateRangeModel"
+          type="daterange"
+          range-separator="至"
+          start-placeholder="开始"
+          end-placeholder="结束"
+          size="default"
+          format="YYYY-MM-DD"
+          value-format="YYYY-MM-DD"
+          :clearable="false"
+          :shortcuts="dateShortcuts"
+          class="filter-date"
+          @update:model-value="onDatePickerChange"
+        >
+          <template #prefix>
+            <span class="filter-date__prefix">
+              <el-icon><Calendar /></el-icon>
+            </span>
+          </template>
+        </el-date-picker>
       </el-form-item>
       <el-form-item label="应用">
         <el-select
@@ -75,9 +94,9 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, onMounted } from 'vue';
-import { Search, RefreshLeft } from '@element-plus/icons-vue';
+import { Search, RefreshLeft, Calendar } from '@element-plus/icons-vue';
 import request from '@/utils/request';
-import DateRangePicker from './DateRangePicker.vue';
+import { dateShortcuts, resolveDateRange } from '@/utils/date-shortcuts';
 
 export interface ReportFilter {
   dateRange: 'today' | 'yesterday' | '7d' | '30d' | 'month' | 'lastMonth' | 'custom';
@@ -109,21 +128,19 @@ const local = ref<ReportFilter>({
   platform: props.modelValue.platform || '',
 });
 
-// DateRangePicker 用一个独立 v-model，避免触发内层 emit
-const dateRangeModel = computed({
-  get: () => ({ dateRange: local.value.dateRange, customStart: local.value.customStart, customEnd: local.value.customEnd }),
-  set: () => { /* 由 onDateRangeChange 显式处理 */ },
+// el-date-picker 用 [start, end] 数组作为 v-model
+const dateRangeModel = computed<[string, string] | null>(() => {
+  if (local.value.dateRange === 'custom' && local.value.customStart && local.value.customEnd) {
+    return [local.value.customStart, local.value.customEnd];
+  }
+  return resolveDateRange(local.value.dateRange);
 });
 
-const onDateRangeChange = (next: { dateRange: string; customStart?: string; customEnd?: string }) => {
-  local.value.dateRange = next.dateRange as ReportFilter['dateRange'];
-  if (next.dateRange === 'custom') {
-    local.value.customStart = next.customStart;
-    local.value.customEnd = next.customEnd;
-  } else {
-    local.value.customStart = undefined;
-    local.value.customEnd = undefined;
-  }
+const onDatePickerChange = (next: [string, string] | null) => {
+  if (!next || next.length !== 2) return;
+  local.value.dateRange = 'custom';
+  local.value.customStart = next[0];
+  local.value.customEnd = next[1];
   emitChange();
 };
 

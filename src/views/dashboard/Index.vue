@@ -169,6 +169,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onBeforeUnmount, watch, reactive } from 'vue'
 import dayjs from 'dayjs'
+import { dateShortcuts as sharedDateShortcuts } from '@/utils/date-shortcuts'
 import { use } from 'echarts/core'
 import { CanvasRenderer, SVGRenderer } from 'echarts/renderers'
 import { LineChart, BarChart } from 'echarts/charts'
@@ -298,51 +299,9 @@ const rankingRowsMap = reactive<Record<string, Array<{ entity: string; name: str
   os: [],
 })
 
-// ─── 日期快捷选项（Element Plus daterange shortcuts） ───────
-const dateShortcuts = [
-  {
-    text: '今天',
-    value: () => {
-      const d = dayjs().format('YYYY-MM-DD')
-      return [d, d]
-    },
-  },
-  {
-    text: '昨天',
-    value: () => {
-      const d = dayjs().subtract(1, 'day').format('YYYY-MM-DD')
-      return [d, d]
-    },
-  },
-  {
-    text: '过去 7 天',
-    value: () => [
-      dayjs().subtract(6, 'day').format('YYYY-MM-DD'),
-      dayjs().format('YYYY-MM-DD'),
-    ],
-  },
-  {
-    text: '过去 14 天',
-    value: () => [
-      dayjs().subtract(13, 'day').format('YYYY-MM-DD'),
-      dayjs().format('YYYY-MM-DD'),
-    ],
-  },
-  {
-    text: '过去 30 天',
-    value: () => [
-      dayjs().subtract(29, 'day').format('YYYY-MM-DD'),
-      dayjs().format('YYYY-MM-DD'),
-    ],
-  },
-  {
-    text: '自定义',
-    value: () => [
-      dayjs().subtract(6, 'day').format('YYYY-MM-DD'),
-      dayjs().format('YYYY-MM-DD'),
-    ],
-  },
-]
+// 日期快捷选项复用 @/utils/date-shortcuts
+const dateShortcuts = sharedDateShortcuts
+
 
 // ─── 计算属性 ─────────────────────────────────────
 const rangeLabel = computed(() => {
