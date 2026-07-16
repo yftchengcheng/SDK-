@@ -104,15 +104,26 @@
           <div class="funnel-layout">
             <div class="funnel-chart-wrap">
               <svg class="funnel-link-svg" :viewBox="linkViewBox" preserveAspectRatio="none">
+                <!-- 折线 (细实线) -->
                 <path
                   v-for="(l, i) in linkPaths"
                   :key="i"
                   :d="l.d"
                   :stroke="l.color"
-                  stroke-width="1.2"
+                  stroke-width="1.4"
                   fill="none"
-                  stroke-dasharray="4 4"
-                  opacity="0.5"
+                  stroke-dasharray="5 3"
+                  opacity="0.7"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+                <!-- 箭头 (三角形, 接在 step 边缘) -->
+                <polygon
+                  v-for="(d, i) in linkDots"
+                  :key="'arr-'+i"
+                  :points="d.side === 'L' ? (d.cx - 8) + ',' + (d.cy - 5) + ' ' + d.cx + ',' + d.cy + ' ' + (d.cx - 8) + ',' + (d.cy + 5) : (d.cx + 8) + ',' + (d.cy - 5) + ' ' + d.cx + ',' + d.cy + ' ' + (d.cx + 8) + ',' + (d.cy + 5)"
+                  :fill="d.color"
+                  opacity="0.85"
                 />
               </svg>
             <div class="funnel-grid" ref="funnelGridRef">
@@ -426,16 +437,19 @@ function recomputeLinks() {
     const startX = side === 'L' ? mr.right - gridRect.left : mr.left - gridRect.left;
     const startY = mr.top - gridRect.top + mr.height / 2;
 
-    // 简化: 每个对应项画 1 根直线, 端点接在 step 边缘, 不画圆点
+    // 每个对应项画 1 根折线 + 1 个箭头
     for (let li = 0; li < linkIndices.length; li++) {
       const step = stepCenters[linkIndices[li]];
       if (!step) continue;
-      // 端点接在 step 边缘 (左 6px 处), 避免线压在色块上
-      const endX = side === 'L' ? step.x + 6 : step.x - 6;
-      // 折线: metric 边 → step 列中点 → step 边缘 (3 段: 水平+垂直+水平)
-      const midX = (startX + endX) / 2;
-      const d = `M ${startX} ${startY} L ${midX} ${startY} L ${midX} ${step.y} L ${endX} ${step.y}`;
+      // 箭头尖端接在 step 边缘 (色块边内 6px), line 终止在箭头底边 (距尖端 8px)
+      const tipX = side === 'L' ? step.x + 6 : step.x - 6;
+      const lineEndX = side === 'L' ? tipX - 8 : tipX + 8;
+      const endY = step.y;
+      // 折线: metric 边 → step 列中点 → line 终点 (箭头底边)
+      const midX = (startX + lineEndX) / 2;
+      const d = `M ${startX} ${startY} L ${midX} ${startY} L ${midX} ${endY} L ${lineEndX} ${endY}`;
       newPaths.push({ d, color });
+      newDots.push({ cx: tipX, cy: endY, color, side });
     }
   }
 
