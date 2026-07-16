@@ -507,27 +507,73 @@ router.post('/aggregate/options', async (req: Request, res: Response) => {
         return ok(res, { options: (data || []).map((r: any) => ({ value: r.id, label: r.source_name || r.network_name, platform: r.network_name, ad_type: null })) });
       }
       case 'country': {
-        return ok(res, { options: [
-          { value: 'CN', label: '中国' }, { value: 'US', label: '美国' }, { value: 'JP', label: '日本' },
-          { value: 'KR', label: '韩国' }, { value: 'IN', label: '印度' }, { value: 'GB', label: '英国' },
-          { value: 'DE', label: '德国' }, { value: 'BR', label: '巴西' },
-        ]});
+        // 从 report_daily 拉真实存在的 region，附带中文 label
+        const { data, error } = await db.from('report_daily').select('region').not('region', 'is', null).limit(5000);
+        if (error) throw error;
+        const seen = new Set<string>();
+        const options: Array<{ value: string; label: string }> = [];
+        const LABELS: Record<string, string> = {
+          CN: '中国', HK: '中国香港', TW: '中国台湾', US: '美国', JP: '日本', KR: '韩国',
+          IN: '印度', GB: '英国', UK: '英国', DE: '德国', FR: '法国', BR: '巴西', RU: '俄罗斯',
+          CA: '加拿大', AU: '澳大利亚', SG: '新加坡', ID: '印度尼西亚', TH: '泰国', VN: '越南',
+        };
+        for (const r of data || []) {
+          const code = (r as any).region;
+          if (!code || seen.has(code)) continue;
+          seen.add(code);
+          options.push({ value: code, label: LABELS[code] || code });
+        }
+        options.sort((a, b) => a.label.localeCompare(b.label, 'zh-Hans-CN'));
+        return ok(res, { options });
       }
       case 'os': {
-        return ok(res, { options: [
-          { value: 'android', label: 'Android' }, { value: 'ios', label: 'iOS' }, { value: 'harmony', label: '鸿蒙' },
-        ]});
+        const { data, error } = await db.from('report_daily').select('os').not('os', 'is', null).limit(5000);
+        if (error) throw error;
+        const seen = new Set<string>();
+        const options: Array<{ value: string; label: string }> = [];
+        const LABELS: Record<string, string> = {
+          android: 'Android', ios: 'iOS', harmony: '鸿蒙', windows: 'Windows', macos: 'macOS',
+        };
+        for (const r of data || []) {
+          const code = (r as any).os;
+          if (!code || seen.has(code)) continue;
+          seen.add(code);
+          options.push({ value: code, label: LABELS[code] || code });
+        }
+        options.sort((a, b) => a.label.localeCompare(b.label, 'zh-Hans-CN'));
+        return ok(res, { options });
       }
       case 'format': {
-        return ok(res, { options: [
-          { value: 'banner', label: 'Banner' }, { value: 'interstitial', label: '插屏' },
-          { value: 'native', label: '原生' }, { value: 'rewarded', label: '激励' }, { value: 'splash', label: '开屏' },
-        ]});
+        const { data, error } = await db.from('report_daily').select('ad_type').not('ad_type', 'is', null).limit(5000);
+        if (error) throw error;
+        const seen = new Set<string>();
+        const options: Array<{ value: string; label: string }> = [];
+        const LABELS: Record<string, string> = {
+          banner: 'Banner', interstitial: '插屏', native: '原生', rewarded: '激励', splash: '开屏',
+        };
+        for (const r of data || []) {
+          const code = (r as any).ad_type;
+          if (!code || seen.has(code)) continue;
+          seen.add(code);
+          options.push({ value: code, label: LABELS[code] || code });
+        }
+        options.sort((a, b) => a.label.localeCompare(b.label, 'zh-Hans-CN'));
+        return ok(res, { options });
       }
       case 'platform': {
-        return ok(res, { options: [
-          { value: 'self', label: '自有' }, { value: '3rd', label: '第三方' },
-        ]});
+        // platform 取自 ad_source.network_name（广告平台名）
+        const { data, error } = await db.from('ad_source').select('network_name').not('network_name', 'is', null).limit(5000);
+        if (error) throw error;
+        const seen = new Set<string>();
+        const options: Array<{ value: string; label: string }> = [];
+        for (const r of data || []) {
+          const code = (r as any).network_name;
+          if (!code || seen.has(code)) continue;
+          seen.add(code);
+          options.push({ value: code, label: code });
+        }
+        options.sort((a, b) => a.label.localeCompare(b.label));
+        return ok(res, { options });
       }
       default:
         return fail(res, 400, `不支持的选项类型：${type}`);

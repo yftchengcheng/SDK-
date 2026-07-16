@@ -93,7 +93,7 @@ const groups: DimGroup[] = [
       { value: 'date', label: '按日' },
       { value: 'hour', label: '按小时' },
       { value: 'week', label: '按周' },
-      { value: 'month', label: '按月' }
+      { value: 'month', label: '按月' },
     ]
   },
   {
@@ -102,7 +102,7 @@ const groups: DimGroup[] = [
       { value: 'scene', label: '广告场景' },
       { value: 'app', label: '应用' },
       { value: 'placement', label: '广告位' },
-      { value: 'format', label: '广告类型' }
+      { value: 'format', label: '广告类型' },
     ]
   },
   {
@@ -112,7 +112,7 @@ const groups: DimGroup[] = [
       { value: 'ad_source', label: '广告源' },
       { value: 'bid_type', label: '竞价类型' },
       { value: 'channel', label: '渠道' },
-      { value: 'sdk_version', label: 'SDK 版本' }
+      { value: 'sdk_version', label: 'SDK 版本' },
     ]
   },
   {
@@ -123,7 +123,7 @@ const groups: DimGroup[] = [
       { value: 'country', label: '地区' },
       { value: 'os', label: '系统平台' },
       { value: 'traffic_group', label: '流量分组' },
-      { value: 'scene_name', label: '广告场景名称' }
+      { value: 'scene_name', label: '广告场景名称' },
     ]
   }
 ];
