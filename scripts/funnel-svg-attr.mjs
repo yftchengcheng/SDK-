@@ -16,20 +16,22 @@ await page.evaluate((tk) => localStorage.setItem('token', tk), tk);
 await page.goto('http://localhost:5000/report/funnel', { waitUntil: 'networkidle0' });
 await new Promise(r => setTimeout(r, 2500));
 
-// 截整个页面, 并拿到 grid DOM 位置
-await page.screenshot({ path: 'public/funnel-page-shot.png', fullPage: false });
-
 const v = await page.evaluate(() => {
   const grid = document.querySelector('.funnel-grid');
   const gridRect = grid.getBoundingClientRect();
-  const wrap = document.querySelector('.funnel-split-left');
-  const wrapRect = wrap.getBoundingClientRect();
-  // 所有步骤块的 DOM 位置
-  const steps = Array.from(document.querySelectorAll('.funnel-step')).map((s, i) => {
-    const r = s.getBoundingClientRect();
-    return { i, top: r.top - gridRect.top, bottom: r.bottom - gridRect.top, h: r.height };
-  });
-  return { wrapTop: wrapRect.top, gridTop: gridRect.top, gridH: gridRect.height, steps };
+  const svg = document.querySelector('.funnel-link-svg');
+  const svgRect = svg.getBoundingClientRect();
+  const polys = Array.from(document.querySelectorAll('.funnel-link-svg polygon'));
+  // 0 号箭头的实际 DOM 位置
+  const p0 = polys[0];
+  const p0Rect = p0.getBoundingClientRect();
+  return {
+    grid: { w: gridRect.width, h: gridRect.height },
+    svg: { w: svgRect.width, h: svgRect.height, viewBox: svg.getAttribute('viewBox'), preserveAspectRatio: svg.getAttribute('preserveAspectRatio') || 'default(xMidYMid meet)' },
+    gridTop: gridRect.top,
+    svgTop: svgRect.top,
+    arrow0Dom: { left: p0Rect.left, top: p0Rect.top, w: p0Rect.width, h: p0Rect.height },
+  };
 });
 console.log(JSON.stringify(v, null, 2));
 await browser.close();

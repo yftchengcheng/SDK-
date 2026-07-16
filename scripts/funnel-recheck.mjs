@@ -7,29 +7,25 @@ const tk = (await reg.json()).data.token;
 const browser = await puppeteer.launch({
   headless: 'new',
   executablePath: '/root/.cache/ms-playwright/chromium-1161/chrome-linux/chrome',
-  args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
+  args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-cache'],
 });
 const page = await browser.newPage();
-await page.setViewport({ width: 1440, height: 1448 });
+await page.setCacheEnabled(false);
+await page.setViewport({ width: 1440, height: 1448, deviceScaleFactor: 2 });
 await page.goto('http://localhost:5000/login', { waitUntil: 'networkidle2' });
 await page.evaluate((tk) => localStorage.setItem('token', tk), tk);
 await page.goto('http://localhost:5000/report/funnel', { waitUntil: 'networkidle0' });
-await new Promise(r => setTimeout(r, 2500));
+await new Promise(r => setTimeout(r, 3000));
 
-// 截整个页面, 并拿到 grid DOM 位置
-await page.screenshot({ path: 'public/funnel-page-shot.png', fullPage: false });
+const wrap = await page.$('.funnel-split-left');
+if (wrap) await wrap.screenshot({ path: 'public/funnel-recheck.png' });
 
 const v = await page.evaluate(() => {
-  const grid = document.querySelector('.funnel-grid');
-  const gridRect = grid.getBoundingClientRect();
-  const wrap = document.querySelector('.funnel-split-left');
-  const wrapRect = wrap.getBoundingClientRect();
-  // 所有步骤块的 DOM 位置
-  const steps = Array.from(document.querySelectorAll('.funnel-step')).map((s, i) => {
-    const r = s.getBoundingClientRect();
-    return { i, top: r.top - gridRect.top, bottom: r.bottom - gridRect.top, h: r.height };
+  const polys = Array.from(document.querySelectorAll('.funnel-link-svg polygon'));
+  return polys.map((p, i) => {
+    const pts = p.getAttribute('points').split(' ').map(s => s.split(',').map(Number));
+    return { idx: i, tipX: pts[1][0], tipY: pts[1][1], color: p.getAttribute('fill') };
   });
-  return { wrapTop: wrapRect.top, gridTop: gridRect.top, gridH: gridRect.height, steps };
 });
 console.log(JSON.stringify(v, null, 2));
 await browser.close();
