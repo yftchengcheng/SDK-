@@ -221,7 +221,7 @@
                 <el-table-column label="状态" width="100" align="center">
                   <template #default="{ row }">
                     <el-tag :type="row.status === 1 ? 'success' : 'info'" size="small" effect="light">
-                      {{ row.status === 1 ? '启用' : '停用' }}
+                      {{ waterfallConfigStatusLabel(row.status) }}
                     </el-tag>
                   </template>
                 </el-table-column>
@@ -410,6 +410,7 @@
 import { ref, reactive, computed, onMounted, nextTick, onBeforeUnmount } from 'vue';
 import request from '../../utils/request';
 import { ElMessage } from 'element-plus';
+import { waterfallConfigStatusLabel } from '../../shared/enum-labels';
 import Sortable from 'sortablejs';
 import dayjs from 'dayjs';
 import { Operation, Refresh, Plus, Aim, Key, CopyDocument, Top, PriceTag, Bottom, Search, Folder, UserFilled, Lock, Document, CircleClose, QuestionFilled } from '@element-plus/icons-vue';

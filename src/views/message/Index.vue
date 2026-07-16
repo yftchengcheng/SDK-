@@ -57,7 +57,7 @@
                 'status-tag--active': row.type === 3,
                 'status-tag--error': row.type === 4,
                 'status-tag--neutral': ![1,2,3,4].includes(row.type)
-              }">{{ typeLabelMap[row.type] || '未知' }}</span>
+              }">{{ messageTypeLabel(row.type) }}</span>
           </template>
         </el-table-column>
         <el-table-column prop="created_at" label="时间" width="170">
@@ -91,8 +91,8 @@ import TablePagination from '@/components/TablePagination.vue';
 import request from '../../utils/request';
 import dayjs from 'dayjs';
 import { Bell, Search } from '@element-plus/icons-vue';
+import { messageTypeLabel } from '../../shared/enum-labels';
 
-const typeLabelMap: Record<number, string> = { 1: '系统通知', 2: '运营公告', 3: '收益提醒', 4: '异常告警' };
 const typeTagMap: Record<number, string> = { 1: 'info', 2: '', 3: 'success', 4: 'danger' };
 
 const loading = ref(false);

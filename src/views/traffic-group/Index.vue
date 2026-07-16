@@ -39,7 +39,7 @@
         </el-table-column>
         <el-table-column prop="status" label="状态" width="80">
           <template #default="{ row }">
-            <span class="status-tag" :class="row.status === 1 ? 'status-tag--active' : 'status-tag--paused'">{{ row.status === 1 ? '启用' : '禁用' }}</span>
+            <span class="status-tag" :class="row.status === 1 ? 'status-tag--active' : 'status-tag--paused'">{{ trafficGroupStatusLabel(row.status) }}</span>
           </template>
         </el-table-column>
         <el-table-column label="操作" width="160" fixed="right">
@@ -166,6 +166,7 @@ import request from '../../utils/request';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import type { FormInstance, FormRules } from 'element-plus';
 import { Plus, Search, RefreshLeft, Delete, Filter, Edit, InfoFilled, Close, Check, Lock } from '@element-plus/icons-vue';
+import { trafficGroupStatusLabel } from '../../shared/enum-labels';
 import RuleEditor from '../../components/RuleEditor.vue';
 import TablePagination from '../../components/TablePagination.vue';
 import { DIMENSION_LABEL } from '../../shared/rule-dimensions';

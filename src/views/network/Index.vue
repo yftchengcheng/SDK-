@@ -47,9 +47,9 @@
             <el-table-column prop="network_name" label="平台名称" min-width="140" />
             <el-table-column label="系统" width="100">
               <template #default="{ row }">
-                <el-tag v-if="row.system_type === 1" type="success" size="small">Android</el-tag>
-                <el-tag v-else-if="row.system_type === 2" type="warning" size="small">iOS</el-tag>
-                <el-tag v-else type="info" size="small">通用</el-tag>
+                <el-tag v-if="row.system_type === 1" type="success" size="small">{{ systemTypeLabel(row.system_type) }}</el-tag>
+                <el-tag v-else-if="row.system_type === 2" type="warning" size="small">{{ systemTypeLabel(row.system_type) }}</el-tag>
+                <el-tag v-else type="info" size="small">{{ systemTypeLabel(row.system_type) }}</el-tag>
               </template>
             </el-table-column>
             <el-table-column prop="supports_bidding" label="支持Bidding" width="120">
@@ -57,7 +57,7 @@
             </el-table-column>
             <el-table-column prop="status" label="状态" width="80">
               <template #default="{ row }">
-                <span class="status-tag" :class="row.status === 1 ? 'status-tag--active' : 'status-tag--paused'">{{ row.status === 1 ? '启用' : '禁用' }}</span>
+                <span class="status-tag" :class="row.status === 1 ? 'status-tag--active' : 'status-tag--paused'">{{ adNetworkDefStatusLabel(row.status) }}</span>
               </template>
             </el-table-column>
             <el-table-column label="操作" width="280" fixed="right">
@@ -626,6 +626,7 @@ import { useRouter } from 'vue-router';
 import request from '../../utils/request';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import type { FormInstance, FormRules } from 'element-plus';
+import { systemTypeLabel, isPresetLabel, adNetworkDefStatusLabel } from '../../shared/enum-labels';
 import { Plus, Connection, Search, RefreshLeft, UploadFilled, Filter, Edit, InfoFilled, Box, Document, Cellphone, Setting, Close, Check, Picture, Delete, Loading } from '@element-plus/icons-vue';
 import NetworkAccountManager from '../../components/NetworkAccountManager.vue';
 import ReviewPanel, { type AdapterVersion } from '../../components/ReviewPanel.vue';

@@ -298,47 +298,20 @@ import { ElMessage, ElMessageBox } from 'element-plus';
 import type { FormInstance, FormRules } from 'element-plus';
 import dayjs from 'dayjs';
 import { useUserStore } from '../../stores/user';
+import { ENUM_DIMS, enumLabel, enumOptions } from '../../shared/enum-labels';
+import EnumTag from '../../components/EnumTag.vue';
 import { Plus, Search, RefreshLeft, Edit, InfoFilled, Monitor, Picture, VideoCamera, Close, Check, Key } from '@element-plus/icons-vue';
 
 const userStore = useUserStore();
 
 // 广告形式：spec 顺序 = 横幅/插屏/开屏/原生/视频 → 1/2/3/4/5
-const formatOptions = [
-  { value: 1, label: '横幅' },
-  { value: 2, label: '插屏' },
-  { value: 3, label: '开屏' },
-  { value: 4, label: '原生' },
-  { value: 5, label: '视频' },
-];
+const formatOptions = enumOptions('placement.format');
 
-const biddingOptions = [
-  { value: 1, label: '固价' },
-  { value: 2, label: '竞价' },
-];
-
-const orientationOptions = [
-  { value: 1, label: '横屏' },
-  { value: 2, label: '竖屏' },
-  { value: 3, label: '横竖兼容' },
-];
-
-const adSizeOptions = [
-  { value: 1, label: '半屏' },
-  { value: 2, label: '全屏' },
-  { value: 3, label: '优选' },
-];
-
-const materialOptions = [
-  { value: 1, label: '图片' },
-  { value: 2, label: '视频' },
-  { value: 3, label: '视频+图片' },
-];
-
-const autoPlayOptions = [
-  { value: 1, label: '总是' },
-  { value: 2, label: '仅WIFI' },
-  { value: 3, label: '点击播放' },
-];
+const biddingOptions = enumOptions('placement.bidding_type');
+const orientationOptions = enumOptions('placement.screen_orientation');
+const adSizeOptions = enumOptions('placement.ad_size');
+const materialOptions = enumOptions('placement.material_type');
+const autoPlayOptions = enumOptions('placement.auto_play');
 
 const templateOptions = [
   { value: 1,  label: '1图1文' },
@@ -359,8 +332,8 @@ const templateOptions = [
 const findLabel = (options: { value: number; label: string }[], v: number | null | undefined) =>
   options.find(o => o.value === v)?.label || '--';
 
-const formatLabel = (v: number) => findLabel(formatOptions, v);
-const biddingLabel = (v: number) => findLabel(biddingOptions, v);
+const formatLabel = (v: number) => enumLabel('placement.format', v);
+const biddingLabel = (v: number) => enumLabel('placement.bidding_type', v);
 const formatTime = (t: string) => t ? dayjs(t).format('YYYY-MM-DD HH:mm:ss') : '--';
 const copyText = (text: string) => navigator.clipboard.writeText(text).then(() => ElMessage.success('已复制'));
 

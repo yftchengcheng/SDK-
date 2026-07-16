@@ -55,8 +55,13 @@
           <div class="app-master-item-body">
             <div class="app-master-item-name">
               <span class="app-master-item-name-text">{{ app.app_name }}</span>
-              <el-tag v-if="app.platform === 1" size="small" effect="plain" type="info" class="platform-tag">Android</el-tag>
-              <el-tag v-else-if="app.platform === 2" size="small" effect="plain" type="success" class="platform-tag">iOS</el-tag>
+              <EnumTag
+                v-if="app.platform"
+                dim="app.platform"
+                :value="app.platform"
+                effect="plain"
+                :force-type="app.platform === 1 ? 'info' : 'success'"
+              />
             </div>
             <div class="app-master-item-token" @click.stop="copyText(app.app_key)" :title="app.app_key">
               <el-icon :size="10"><Key /></el-icon>
@@ -84,12 +89,13 @@
             <div class="app-detail-app-info">
               <div class="app-detail-app-name-row">
                 <h1 class="app-detail-app-name">{{ currentApp.app_name }}</h1>
-                <el-tag :type="currentApp.platform === 1 ? 'info' : 'success'" effect="light" size="small">
-                  {{ currentApp.platform === 1 ? 'Android' : currentApp.platform === 2 ? 'iOS' : '未知' }}
-                </el-tag>
-                <el-tag :type="currentApp.status === 1 ? 'success' : 'info'" effect="light" size="small">
-                  {{ currentApp.status === 1 ? '启用' : '禁用' }}
-                </el-tag>
+                <EnumTag
+                  v-if="currentApp.platform"
+                  dim="app.platform"
+                  :value="currentApp.platform"
+                  :force-type="currentApp.platform === 1 ? 'info' : 'success'"
+                />
+                <EnumTag dim="app.status" :value="currentApp.status" />
                 <el-tag v-if="currentApp.store_listed" effect="light" type="warning" size="small">已上架</el-tag>
               </div>
               <div class="app-detail-app-meta">
@@ -417,6 +423,7 @@ import { useUserStore } from '../../stores/user';
 import AppDrawer from './components/AppDrawer.vue';
 import PlacementDrawer from './components/PlacementDrawer.vue';
 import FrequencyDrawer from './components/FrequencyDrawer.vue';
+import EnumTag from '../../components/EnumTag.vue';
 
 const router = useRouter();
 const userStore = useUserStore();

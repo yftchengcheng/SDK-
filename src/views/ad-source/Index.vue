@@ -140,7 +140,7 @@
           <el-table-column label="状态" width="80">
             <template #default="{ row }">
               <span class="status-tag" :class="row.status === 1 ? 'status-tag--active' : 'status-tag--paused'">
-                {{ row.status === 1 ? '启用' : '禁用' }}
+                {{ adSourceStatusLabel(row.status) }}
               </span>
             </template>
           </el-table-column>
@@ -497,6 +497,7 @@ import TablePagination from '@/components/TablePagination.vue';
 import { useRoute, useRouter } from 'vue-router';
 import request from '../../utils/request';
 import { ElMessage, ElMessageBox } from 'element-plus';
+import { adSourceStatusLabel } from '../../shared/enum-labels';
 import type { FormInstance, FormRules } from 'element-plus';
 import {
   Plus, Connection, Search, InfoFilled, Edit, RefreshLeft, Close, Check,
