@@ -10781,3 +10781,205 @@ html, body, #app {
   font-size: 12px;
   color: #475569;
 }
+
+/* ============================================================
+ * 漏斗分析 — process-box 三栏布局（1:1 复刻示例图）
+ * 文件: src/components/FunnelProcessBox.vue
+ * 规范: 所有样式统一在 index.css（无 <style scoped>）
+ * ============================================================ */
+
+.chart-panel-container {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  padding: 0;
+}
+
+/* 顶部图例 */
+.chart-panel-container .header {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  margin-bottom: 16px;
+  padding: 0 4px;
+}
+.chart-panel-container .header .panel {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: #475569;
+}
+.chart-panel-container .header .panel.mr20 {
+  margin-right: 0;
+}
+.chart-panel-container .header .panel .square {
+  width: 12px;
+  height: 12px;
+  border-radius: 2px;
+  background: #154FF0;
+}
+.chart-panel-container .header .panel .square.warning {
+  background: #FF7A00;
+}
+
+/* 主体三栏（左侧 | 中间 | 右侧，紧贴布局：line 终点 = step 左/右边缘） */
+.chart-panel-container .body {
+  display: flex;
+  align-items: flex-start;
+  gap: 0;
+}
+.chart-panel-container .body .left-box,
+.chart-panel-container .body .right-box {
+  width: 220px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  flex-shrink: 0;
+}
+.chart-panel-container .body .main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  padding: 0;
+}
+.chart-panel-container .body .main .main-item {
+  height: 40px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  color: #ffffff;
+  font-size: 13px;
+  cursor: pointer;
+  transition: opacity 0.2s;
+  user-select: none;
+}
+.chart-panel-container .body .main .main-item:hover {
+  opacity: 0.88;
+}
+.chart-panel-container .body .main .main-item__label {
+  display: flex;
+  align-items: center;
+  font-weight: 500;
+}
+
+/* process-box 指标单元（左右通用） */
+.chart-panel-container .process-box {
+  display: flex;
+  align-items: center;
+  min-height: 36px;
+}
+
+/* 左侧 process-box：content | line | arrow */
+.chart-panel-container .left-box .process-box {
+  flex-direction: row;
+}
+
+/* 右侧 process-box：DOM 顺序 = arrow | line | content (默认 row 即正确) */
+.chart-panel-container .right-box .process-box {
+  flex-direction: row;
+}
+
+/* 指标卡 */
+.chart-panel-container .process-box__content {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 4px;
+  font-size: 13px;
+  line-height: 1.2;
+  min-width: 0;
+  overflow: hidden;
+}
+.chart-panel-container .process-box__content .label {
+  white-space: nowrap;
+  font-weight: 500;
+  flex-shrink: 0;
+}
+.chart-panel-container .process-box__content .value {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.chart-panel-container .process-box__content .tips {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  width: 14px;
+  height: 14px;
+}
+.chart-panel-container .process-box__content .iconfont {
+  font-style: normal;
+  font-size: 14px;
+  line-height: 1;
+  cursor: help;
+}
+
+/* 颜色变体 */
+.chart-panel-container .process-box__content--primary {
+  background: #154FF0;
+  color: #ffffff;
+}
+.chart-panel-container .process-box__content--primary .tips .iconfont {
+  color: rgba(255, 255, 255, 0.6) !important;
+}
+.chart-panel-container .process-box__content--warning {
+  background: #FF7A00;
+  color: #ffffff;
+}
+.chart-panel-container .process-box__content--warning .tips .iconfont {
+  color: rgba(255, 255, 255, 0.7) !important;
+}
+.chart-panel-container .process-box__content--nope {
+  background: #F1F5F9;
+  color: #475569;
+  border: 1px solid #E2E8F0;
+}
+.chart-panel-container .process-box__content--nope .tips .iconfont {
+  color: rgba(0, 0, 0, 0.25) !important;
+}
+
+/* 水平连接线 */
+.chart-panel-container .process-box--line {
+  width: 32px;
+  height: 2px;
+  background: #FF7A00;
+  flex-shrink: 0;
+}
+.chart-panel-container .process-box--line__single {
+  /* 单线变体：视觉上无差别，但可作为"无 arrow"的标记 */
+  background: #FF7A00;
+  opacity: 0.85;
+}
+
+/* 箭头（CSS 三角形，固定尺寸） */
+.chart-panel-container .process-box--arrow {
+  width: 0;
+  height: 0;
+  flex-shrink: 0;
+  border-top: 5px solid transparent;
+  border-bottom: 5px solid transparent;
+}
+/* 左侧箭头：尖端朝左（指向 process-box） */
+.chart-panel-container .left-box .process-box--arrow {
+  border-right: 8px solid #FF7A00;
+}
+/* 右侧箭头：尖端朝右（指向 process-box） */
+.chart-panel-container .right-box .process-box--arrow {
+  border-left: 8px solid #FF7A00;
+}
+
+/* 响应式：小屏下隐藏图例文字 */
+@media (max-width: 1280px) {
+  .chart-panel-container .body .left-box,
+  .chart-panel-container .body .right-box {
+    width: 180px;
+  }
+}
