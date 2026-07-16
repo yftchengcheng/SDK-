@@ -1,347 +1,432 @@
-<!--
-  Funnel.vue - 漏斗分析
-  左：漏斗指标列表（11 步）
-  中：漏斗图（11 步骤可视化 + 转化率）
-  右：5 个转化率侧栏 + 自定义公式
--->
 <template>
   <div class="page-shell funnel-page">
     <div class="page-header">
       <div class="page-header-left">
-        <div class="page-header-icon"><el-icon><DataLine /></el-icon></div>
+        <div class="page-header-icon"><el-icon><Filter /></el-icon></div>
         <div class="page-header-titles">
           <h1 class="page-header-title">漏斗分析</h1>
-          <p class="page-header-subtitle">12 步用户行为漏斗，10 个核心转化率，支持自定义公式（白名单：除/减）</p>
+          <p class="page-header-subtitle">11 步用户行为漏斗，10 个核心转化率，支持自定义公式</p>
         </div>
       </div>
       <div class="page-header-actions">
-        <el-button :icon="Refresh" @click="loadFunnel">刷新</el-button>
-        <el-button :icon="Download" @click="exportFunnel">导出</el-button>
+        <el-button :icon="Refresh" @click="loadData">刷新</el-button>
       </div>
     </div>
 
-    <div class="funnel-master-detail">
-      <!-- 左侧：漏斗步骤列表 -->
-      <aside class="funnel-master-panel">
-        <div class="funnel-master-header">
-          <h2 class="funnel-master-title">
-            <el-icon><Aim /></el-icon>
-            <span>漏斗步骤</span>
-            <el-tag size="small" type="primary" effect="plain" round>{{ selectedSteps.length }}/{{ funnelDefinition.length }}</el-tag>
-          </h2>
-          <el-button-group class="funnel-master-actions">
-            <el-button size="small" @click="selectAllSteps">全选</el-button>
-            <el-button size="small" @click="deselectAllSteps">清空</el-button>
-          </el-button-group>
-        </div>
-        <div class="funnel-master-list">
-          <div
-            v-for="(step, idx) in funnelDefinition"
-            :key="step.code"
-            :class="['funnel-master-item', { active: selectedSteps.includes(step.code) }]"
-            @click="toggleStep(step.code)"
-          >
-            <div class="funnel-master-item-order">{{ step.order }}</div>
-            <div class="funnel-master-item-body">
-              <div class="funnel-master-item-name">{{ step.name }}</div>
-              <div class="funnel-master-item-code">{{ step.code }}</div>
-            </div>
-            <el-icon v-if="selectedSteps.includes(step.code)" class="funnel-master-item-check"><Check /></el-icon>
-            <span v-else class="funnel-master-item-index">#{{ idx + 1 }}</span>
-          </div>
-        </div>
-      </aside>
-
-      <!-- 中间：漏斗图 + 自定义公式 -->
-      <main class="funnel-detail-panel">
-        <!-- 筛选器 -->
-        <div class="funnel-toolbar">
-          <ReportFilter v-model="filter" @change="loadFunnel" />
-        </div>
-
-        <!-- 漏斗图 -->
-        <div class="funnel-chart-card" v-loading="loading">
-          <div class="funnel-chart-header">
-            <h3 class="funnel-chart-title">漏斗可视化</h3>
-            <el-tag size="small" effect="plain" type="info">共 {{ stepRows.length }} 步 · 起始 {{ firstStepValue.toLocaleString() }} · 结束 {{ lastStepValue.toLocaleString() }} · 整体转化 {{ overallRate }}%</el-tag>
-          </div>
-          <div v-if="stepRows.length === 0" class="funnel-empty">
-            <el-empty description="请选择至少 1 个漏斗步骤" />
-          </div>
-          <div v-else class="funnel-chart-body">
-            <div
-              v-for="(row, idx) in stepRows"
-              :key="row.code"
-              :class="['funnel-step', { 'is-first': idx === 0, 'is-last': idx === stepRows.length - 1 }]"
-            >
-              <div class="funnel-step-meta">
-                <div class="funnel-step-order">{{ row.order }}</div>
-                <div class="funnel-step-name">{{ row.name }}</div>
-              </div>
-              <div class="funnel-step-bar-wrap">
-                <div
-                  class="funnel-step-bar"
-                  :style="{ width: stepBarWidth(row, idx) + '%' }"
-                >
-                  <span class="funnel-step-value">{{ row.value.toLocaleString() }}</span>
-                </div>
-                <span v-if="idx > 0" class="funnel-step-rate">
-                  转化率：{{ stepRate(idx) }}%
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- 自定义公式 -->
-        <div class="funnel-formula-card">
-          <div class="funnel-formula-header">
-            <h3 class="funnel-formula-title">
-              <el-icon><MagicStick /></el-icon>
-              <span>自定义指标（公式白名单）</span>
-            </h3>
-            <el-tag size="small" effect="plain" type="warning">仅支持 event_a / event_b 或 event_a - event_b</el-tag>
-          </div>
-          <div class="funnel-formula-body">
-            <el-input
-              v-model="formula"
-              placeholder="例如 step_4_click / step_1_impression"
-              clearable
-              @blur="validateAndCompute"
-              @keyup.enter="validateAndCompute"
-            >
-              <template #prepend>
-                <el-select v-model="formulaType" style="width: 100px">
-                  <el-option label="除法" value="div" />
-                  <el-option label="减法" value="sub" />
-                </el-select>
-              </template>
-              <template #append>
-                <el-button type="primary" @click="validateAndCompute">计算</el-button>
-              </template>
-            </el-input>
-            <div v-if="formulaError" class="funnel-formula-msg error">
-              <el-icon><CircleClose /></el-icon> {{ formulaError }}
-            </div>
-            <div v-else-if="formulaValue !== null" class="funnel-formula-msg success">
-              <el-icon><CircleCheck /></el-icon> 计算结果：<strong>{{ formulaValue }}</strong>
-            </div>
-            <div class="funnel-formula-hint">
-              <span>可用指标：</span>
-              <el-tag
-                v-for="s in stepRows"
-                :key="s.code"
-                size="small"
-                type="info"
-                effect="plain"
-                class="funnel-formula-tag"
-                @click="insertMetric(s.code)"
-              >{{ s.code }} ({{ s.name }})</el-tag>
-            </div>
-          </div>
-        </div>
-      </main>
-
-      <!-- 右侧：5 个转化率 -->
-      <aside class="funnel-rate-panel">
-        <div class="funnel-rate-header">
-          <h2 class="funnel-rate-title">
-            <el-icon><TrendCharts /></el-icon>
-            <span>转化率</span>
-          </h2>
-        </div>
-        <div class="funnel-rate-list">
-          <div
-            v-for="r in rateRows"
-            :key="r.code"
-            :class="['funnel-rate-item', rateToneClass(r.rate)]"
-          >
-            <div class="funnel-rate-item-name">{{ r.name }}</div>
-            <div class="funnel-rate-item-value">
-              <span class="funnel-rate-item-pct">{{ r.rate }}%</span>
-              <el-icon class="funnel-rate-item-arrow"><TopRight /></el-icon>
-            </div>
-            <div class="funnel-rate-item-detail">
-              <span>{{ r.from_value.toLocaleString() }}</span>
-              <el-icon><Right /></el-icon>
-              <span>{{ r.to_value.toLocaleString() }}</span>
-            </div>
-          </div>
-        </div>
-      </aside>
+    <div class="page-card funnel-filter-card">
+      <el-form inline :model="filter" class="funnel-filter" @submit.prevent>
+        <el-form-item label="日期">
+          <el-date-picker
+            v-model="dateRange"
+            type="daterange"
+            range-separator="至"
+            start-placeholder="开始"
+            end-placeholder="结束"
+            format="YYYY-MM-DD"
+            value-format="YYYY-MM-DD"
+            :clearable="false"
+            :unlink-panels="true"
+            style="width: 240px"
+          />
+        </el-form-item>
+        <el-form-item label="应用">
+          <el-select v-model="filter.appId" placeholder="请选择" clearable filterable style="width: 200px">
+            <el-option v-for="a in apps" :key="a.value" :label="a.label" :value="a.value" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="广告位">
+          <el-select v-model="filter.placementId" placeholder="请选择" clearable filterable style="width: 200px">
+            <el-option v-for="p in placements" :key="p.value" :label="p.label" :value="p.value" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="广告场景">
+          <el-select v-model="filter.adScene" placeholder="请选择" clearable style="width: 180px">
+            <el-option v-for="s in adScenes" :key="s" :label="s" :value="s" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="渠道">
+          <el-select v-model="filter.channel" placeholder="请选择" clearable style="width: 160px">
+            <el-option v-for="c in channels" :key="c" :label="c" :value="c" />
+          </el-select>
+        </el-form-item>
+        <el-form-item v-if="!collapsed" label="地区">
+          <el-select v-model="filter.region" placeholder="请选择" clearable style="width: 160px">
+            <el-option v-for="r in regions" :key="r" :label="r" :value="r" />
+          </el-select>
+        </el-form-item>
+        <el-form-item v-if="!collapsed" label="SDK版本">
+          <el-select v-model="filter.sdkVersion" placeholder="请选择" clearable style="width: 160px">
+            <el-option v-for="v in sdkVersions" :key="v" :label="v" :value="v" />
+          </el-select>
+        </el-form-item>
+        <el-form-item v-if="!collapsed" label="应用版本">
+          <el-select v-model="filter.appVersion" placeholder="请选择" clearable style="width: 160px">
+            <el-option v-for="v in appVersions" :key="v" :label="v" :value="v" />
+          </el-select>
+        </el-form-item>
+        <el-form-item v-if="!collapsed" label="设备类型">
+          <el-select v-model="filter.deviceType" placeholder="请选择" clearable style="width: 160px">
+            <el-option v-for="d in deviceTypes" :key="d.value" :label="d.label" :value="d.value" />
+          </el-select>
+        </el-form-item>
+        <el-form-item>
+          <el-button text type="primary" @click="collapsed = !collapsed">
+            {{ collapsed ? '展开' : '收起' }}
+            <el-icon style="margin-left: 4px; vertical-align: -1px">
+              <component :is="collapsed ? ArrowDown : ArrowUp" />
+            </el-icon>
+          </el-button>
+        </el-form-item>
+      </el-form>
     </div>
+
+    <div class="funnel-warning" v-if="missingScene">
+      <el-icon class="funnel-warning-icon"><Warning /></el-icon>
+      <span>
+        当前漏斗缺少到达广告场景数据，为更好地分析并优化漏斗数据，提升收益，可按照文档补充广告场景数据。详情请查看
+        <el-link type="primary" :underline="false">广告场景接入指导</el-link>
+        或
+        <el-button text type="primary" :underline="false">立即配置广告场景</el-button>
+      </span>
+    </div>
+
+    <div class="page-card funnel-body">
+      <div class="funnel-body-toolbar">
+        <span class="funnel-help">如何使用漏斗分析报表？</span>
+        <div class="funnel-body-toolbar-right">
+          <span class="funnel-body-toolbar-label">人均次数计算方式</span>
+          <el-tooltip content="切换" placement="top" :show-after="300">
+            <el-icon style="color: #909399; cursor: help"><QuestionFilled /></el-icon>
+          </el-tooltip>
+          <el-radio-group v-model="perCapitaMode" size="default" style="margin-left: 12px">
+            <el-radio-button label="device">设备数</el-radio-button>
+            <el-radio-button label="dau">DAU</el-radio-button>
+          </el-radio-group>
+        </div>
+      </div>
+
+      <div class="funnel-layout">
+        <div class="funnel-side funnel-side-left">
+          <div v-for="m in LEFT_METRICS" :key="m.code" class="funnel-side-item">
+            <div class="funnel-side-item-label">{{ m.name }}</div>
+            <el-input v-model="metricValues[m.code]" size="small" placeholder="-" style="width: 110px" />
+            <el-tooltip :content="m.tip" placement="top" :show-after="300">
+              <el-icon class="funnel-side-item-tip"><QuestionFilled /></el-icon>
+            </el-tooltip>
+          </div>
+        </div>
+
+        <div class="funnel-chart-wrap">
+          <div class="funnel-legend">
+            <span class="funnel-legend-item"><span class="funnel-legend-dot" style="background: #f97316"></span>次数</span>
+            <span class="funnel-legend-item"><span class="funnel-legend-dot" style="background: #3b82f6"></span>设备数</span>
+          </div>
+          <div class="funnel-chart">
+            <div
+              v-for="(step, idx) in FUNNEL_STEPS"
+              :key="step.code"
+              :class="['funnel-step', `funnel-step-${idx}`]"
+            >
+              <div class="funnel-step-text">{{ step.name }}</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="funnel-side funnel-side-right">
+          <div v-for="m in RIGHT_METRICS" :key="m.code" class="funnel-side-item">
+            <div class="funnel-side-item-label">{{ m.name }}</div>
+            <el-input v-model="metricValues[m.code]" size="small" placeholder="-" style="width: 110px" />
+            <el-tooltip :content="m.tip" placement="top" :show-after="300">
+              <el-icon class="funnel-side-item-tip"><QuestionFilled /></el-icon>
+            </el-tooltip>
+          </div>
+        </div>
+      </div>
+
+      <div class="funnel-table-wrap">
+        <el-table :data="STAGE_ROWS" border stripe>
+          <el-table-column prop="stage" label="阶段" width="120" align="center" />
+          <el-table-column prop="flow" label="流程" min-width="200" />
+          <el-table-column label="次数" align="right" min-width="120">
+            <template #default>-</template>
+          </el-table-column>
+          <el-table-column label="设备数" align="right" min-width="120">
+            <template #default>-</template>
+          </el-table-column>
+          <el-table-column label="人均次数" align="right" min-width="120">
+            <template #default>-</template>
+          </el-table-column>
+        </el-table>
+      </div>
+    </div>
+
+    <div class="page-card funnel-bottom-card">
+      <div class="funnel-bottom-toolbar">
+        <el-radio-group v-model="bottomTab" size="default">
+          <el-radio-button label="daily">分天</el-radio-button>
+          <el-radio-button label="trend">趋势</el-radio-button>
+        </el-radio-group>
+        <div class="funnel-bottom-actions">
+          <el-button :icon="EditPen" plain @click="metricPickerOpen = true">指标选择</el-button>
+          <el-button :icon="Download" plain>导出报表</el-button>
+        </div>
+      </div>
+      <div class="funnel-bottom-empty">
+        <el-empty description="暂无数据" />
+      </div>
+    </div>
+
+    <MetricPickerDialog
+      v-model:visible="metricPickerOpen"
+      :value="pickedMetrics"
+      :definitions="METRIC_DEFINITIONS"
+      @confirm="onMetricPickerConfirm"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue';
-import { ElMessage } from 'element-plus';
-import {
-  Refresh, Download, DataLine, Aim, Check, MagicStick, CircleCheck, CircleClose,
-  TrendCharts, TopRight, Right,
-} from '@element-plus/icons-vue';
-import request from '@/utils/request';
-import ReportFilter, { type ReportFilter as Filter } from '@/components/report/ReportFilter.vue';
+import { ref, onMounted, watch } from 'vue';
+import { Refresh, EditPen, Download, Warning, QuestionFilled, Filter, ArrowDown, ArrowUp } from '@element-plus/icons-vue';
+import dayjs from 'dayjs';
+import MetricPickerDialog from '@/components/report/MetricPickerDialog.vue';
 
-interface FunnelStep {
-  code: string;
-  name: string;
-  order: number;
-}
-interface FunnelRow extends FunnelStep {
-  value: number;
-}
-interface FunnelRate {
-  code: string;
-  name: string;
-  from_value: number;
-  to_value: number;
-  rate: number;
-}
+const FUNNEL_STEPS = [
+  { code: 'app_start', name: '应用启动' },
+  { code: 'config_get', name: '获取配置' },
+  { code: 'flow_request', name: '流量请求' },
+  { code: 'flow_fill', name: '流量填充' },
+  { code: 'scene_arrive', name: '到达广告场景' },
+  { code: 'isready_query', name: '查询isReady' },
+  { code: 'show_trigger', name: '触发展示' },
+  { code: 'show_success', name: '触发展示成功' },
+  { code: 'show', name: '展示' },
+  { code: 'show_api', name: '展示API' },
+  { code: 'click', name: '点击' },
+];
 
-const funnelDefinition = ref<FunnelStep[]>([]);
-const stepRows = ref<FunnelRow[]>([]);
-const rateRows = ref<FunnelRate[]>([]);
-const selectedSteps = ref<string[]>([]);
-const loading = ref(false);
+const LEFT_METRICS = [
+  { code: 'arrive_rate', name: '广告场景到达率', tip: '到达广告场景 / 流量填充' },
+  { code: 'trigger_rate', name: '广告触发率', tip: '触发展示 / 到达广告场景' },
+  { code: 'show_success_rate', name: '触发展示成功率', tip: '触发展示成功 / 触发展示' },
+  { code: 'show_rate', name: '展示成功率', tip: '展示 / 触发展示成功' },
+  { code: 'click_rate', name: '点击率', tip: '点击 / 展示' },
+];
 
-const formula = ref('step_4_click / step_1_impression');
-const formulaType = ref<'div' | 'sub'>('div');
-const formulaValue = ref<number | null>(null);
-const formulaError = ref<string>('');
+const RIGHT_METRICS = [
+  { code: 'per_start', name: '人均启动', tip: '应用启动 / 设备数' },
+  { code: 'fill_rate', name: '流量填充率', tip: '流量填充 / 流量请求' },
+  { code: 'ready_rate', name: '广告Ready率', tip: '到达广告场景 / 流量填充' },
+  { code: 'isready_rate', name: 'isReady成功率', tip: '查询isReady / 到达广告场景' },
+  { code: 'show_gap', name: '展示Gap', tip: '展示API - 展示 差值' },
+];
 
-const filter = ref<Filter>({ dateRange: '7d', appIds: [], placementIds: [], adSourceIds: [], formats: [], country: [], osList: [], platforms: [] });
+const STAGE_ROWS = [
+  { stage: '广告请求', flow: '应用启动' },
+  { stage: '广告请求', flow: '获取配置' },
+  { stage: '广告请求', flow: '流量请求' },
+  { stage: '广告请求', flow: '流量填充' },
+  { stage: '广告缓存', flow: '到达广告场景' },
+  { stage: '广告缓存', flow: '查询isReady' },
+  { stage: '广告展示', flow: '触发展示' },
+  { stage: '广告展示', flow: '触发展示成功' },
+  { stage: '广告展示', flow: '展示' },
+  { stage: '广告展示', flow: '展示API' },
+  { stage: '广告点击', flow: '点击' },
+];
 
-const firstStepValue = computed(() => stepRows.value[0]?.value || 0);
-const lastStepValue = computed(() => stepRows.value[stepRows.value.length - 1]?.value || 0);
-const overallRate = computed(() => {
-  if (!firstStepValue.value) return '0.00';
-  return ((lastStepValue.value / firstStepValue.value) * 100).toFixed(2);
+const METRIC_DEFINITIONS = [
+  {
+    key: 'ad_request',
+    label: '广告请求',
+    items: [
+      { code: 'app_start', name: '应用启动' },
+      { code: 'config_get', name: '获取配置' },
+      { code: 'flow_request', name: '流量请求' },
+      { code: 'flow_fill', name: '流量填充' },
+      { code: 'flow_fill_rate', name: '流量填充率' },
+    ],
+  },
+  {
+    key: 'ad_cache',
+    label: '广告缓存',
+    items: [
+      { code: 'scene_arrive', name: '到达广告场景' },
+      { code: 'scene_arrive_rate', name: '广告场景到达率' },
+      { code: 'ad_ready_rate', name: '广告Ready率' },
+      { code: 'isready_query', name: '查询isReady' },
+      { code: 'isready_rate', name: 'isReady成功率' },
+    ],
+  },
+  {
+    key: 'ad_show',
+    label: '广告展示',
+    items: [
+      { code: 'show_trigger', name: '触发展示' },
+      { code: 'trigger_rate', name: '广告触发率' },
+      { code: 'show_success', name: '触发展示成功' },
+      { code: 'show_success_rate', name: '触发展示成功率' },
+      { code: 'show', name: '展示' },
+      { code: 'show_rate', name: '展示成功率' },
+      { code: 'show_api', name: '展示API' },
+      { code: 'show_gap', name: '展示Gap' },
+    ],
+  },
+  {
+    key: 'ad_click',
+    label: '广告点击',
+    items: [
+      { code: 'click', name: '点击' },
+      { code: 'click_rate', name: '点击率' },
+    ],
+  },
+];
+
+const today = dayjs().format('YYYY-MM-DD');
+const dateRange = ref<[string, string]>([today, today]);
+const filter = ref<{
+  appId: string | undefined;
+  placementId: string | undefined;
+  adScene: string | undefined;
+  channel: string | undefined;
+  region: string | undefined;
+  sdkVersion: string | undefined;
+  appVersion: string | undefined;
+  deviceType: string | undefined;
+}>({
+  appId: undefined,
+  placementId: undefined,
+  adScene: undefined,
+  channel: undefined,
+  region: undefined,
+  sdkVersion: undefined,
+  appVersion: undefined,
+  deviceType: undefined,
 });
+const collapsed = ref(false);
+const missingScene = ref(true);
+const perCapitaMode = ref<'device' | 'dau'>('device');
+const bottomTab = ref<'daily' | 'trend'>('daily');
+const metricPickerOpen = ref(false);
 
-const stepBarWidth = (row: FunnelRow, idx: number) => {
-  if (idx === 0) return 100;
-  if (firstStepValue.value === 0) return 0;
-  return Math.max(2, (row.value / firstStepValue.value) * 100);
-};
+const metricValues = ref<Record<string, string>>({});
+for (const m of [...LEFT_METRICS, ...RIGHT_METRICS]) {
+  metricValues.value[m.code] = '';
+}
 
-const stepRate = (idx: number) => {
-  if (idx === 0) return '100.00';
-  const prev = stepRows.value[idx - 1]?.value || 0;
-  const cur = stepRows.value[idx]?.value || 0;
-  if (prev === 0) return '0.00';
-  return ((cur / prev) * 100).toFixed(2);
-};
+const pickedMetrics = ref<string[]>(METRIC_DEFINITIONS.flatMap((c) => c.items.map((i) => i.code)));
 
-const rateToneClass = (rate: number) => {
-  if (rate >= 50) return 'tone-good';
-  if (rate >= 20) return 'tone-warn';
-  return 'tone-bad';
-};
+const apps = ref<{ value: string; label: string }[]>([]);
+const placements = ref<{ value: string; label: string }[]>([]);
+const adScenes = ref<string[]>(['开屏', '信息流', '激励视频', '插屏', 'Banner']);
+const channels = ref<string[]>(['AppStore', 'GooglePlay', '华为', '小米', 'OPPO']);
+const regions = ref<string[]>(['中国', '美国', '日本', '韩国', '印度']);
+const sdkVersions = ref<string[]>(['1.0.0', '1.1.0', '1.2.0', '1.3.0']);
+const appVersions = ref<string[]>(['1.0', '1.1', '1.2', '1.3']);
+const deviceTypes = ref<{ value: string; label: string }[]>([
+  { value: 'phone', label: '手机' },
+  { value: 'tablet', label: '平板' },
+  { value: 'tv', label: '电视' },
+]);
 
-const loadDefinition = async () => {
-  try {
-    const res: any = await request.get('/api/v1/console/report/funnel/definition');
-    if (res.code === 0) {
-      funnelDefinition.value = res.data.steps || [];
-      // 默认选中全部 12 步（按截图）
-      selectedSteps.value = funnelDefinition.value.map((s: FunnelStep) => s.code);
-    }
-  } catch (e: any) {
-    ElMessage.error('加载漏斗定义失败：' + (e?.message || ''));
-  }
-};
+function loadData() {
+  console.log('[funnel] loadData', { dateRange: dateRange.value, filter: filter.value, perCapita: perCapitaMode.value });
+}
 
-const loadFunnel = async () => {
-  loading.value = true;
-  try {
-    const res: any = await request.post('/api/v1/console/report/aggregate', {
-      report_type: 'funnel',
-      steps: selectedSteps.value,
-      formula: formula.value,
-      filters: filter.value,
-    });
-    if (res.code === 0) {
-      stepRows.value = res.data.rows || [];
-      rateRows.value = res.data.rates || [];
-      formulaValue.value = res.data.formula_value;
-      formulaError.value = res.data.formula_error || '';
-    }
-  } catch (e: any) {
-    ElMessage.error('加载漏斗数据失败：' + (e?.message || ''));
-  } finally {
-    loading.value = false;
-  }
-};
+function onMetricPickerConfirm(picked: string[]) {
+  pickedMetrics.value = picked;
+  console.log('[funnel] picked metrics', picked);
+}
 
-const validateAndCompute = async () => {
-  if (!formula.value) {
-    formulaValue.value = null;
-    formulaError.value = '';
-    return;
-  }
-  await loadFunnel();
-};
+onMounted(() => {});
 
-const toggleStep = (code: string) => {
-  if (selectedSteps.value.includes(code)) {
-    selectedSteps.value = selectedSteps.value.filter((c) => c !== code);
-  } else {
-    selectedSteps.value = [...selectedSteps.value, code];
-  }
-  loadFunnel();
-};
-
-const selectAllSteps = () => {
-  selectedSteps.value = funnelDefinition.value.map((s) => s.code);
-  loadFunnel();
-};
-const deselectAllSteps = () => {
-  selectedSteps.value = [];
-  loadFunnel();
-};
-
-const insertMetric = (code: string) => {
-  if (formulaType.value === 'div') {
-    formula.value = `${code} / step_1_impression`;
-  } else {
-    formula.value = `${code} - step_1_impression`;
-  }
-  validateAndCompute();
-};
-
-const exportFunnel = async () => {
-  try {
-    const res: any = await request.post('/api/v1/console/report/export/csv', {
-      report_type: 'funnel',
-      steps: selectedSteps.value,
-      formula: formula.value,
-      filters: filter.value,
-    }, { responseType: 'blob' });
-    const blob = new Blob([res], { type: 'text/csv;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `funnel_${Date.now()}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
-  } catch (e: any) {
-    ElMessage.error('导出失败：' + (e?.message || ''));
-  }
-};
-
-watch(formulaType, (t) => {
-  // 切换除/减时尝试替换公式中间的符号
-  if (formula.value.includes('/') && t === 'sub') {
-    formula.value = formula.value.replace(/\s*\/\s*/, ' - ');
-  } else if (formula.value.includes('-') && t === 'div') {
-    formula.value = formula.value.replace(/\s*-\s*/, ' / ');
-  }
-  validateAndCompute();
-});
-
-onMounted(async () => {
-  await loadDefinition();
-  await loadFunnel();
+watch([perCapitaMode, bottomTab], () => {
+  loadData();
 });
 </script>
+
+<style scoped>
+.funnel-page { display: flex; flex-direction: column; gap: 16px; }
+
+.funnel-filter-card { padding: 16px 20px; }
+.funnel-filter { display: flex; flex-wrap: wrap; gap: 12px 16px; }
+.funnel-filter :deep(.el-form-item) { margin-right: 0; margin-bottom: 0; }
+
+.funnel-warning {
+  display: flex; align-items: center; gap: 8px;
+  background: #fff7e6; border: 1px solid #ffd591; border-radius: 6px;
+  padding: 10px 16px; color: #874d00; font-size: 13px;
+}
+.funnel-warning-icon { color: #fa8c16; font-size: 16px; flex-shrink: 0; }
+
+.funnel-body { padding: 16px 20px; }
+.funnel-body-toolbar {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 16px;
+}
+.funnel-help { color: #6b7785; font-size: 13px; cursor: help; }
+.funnel-body-toolbar-right { display: flex; align-items: center; }
+.funnel-body-toolbar-label { color: #4e5969; font-size: 13px; margin-right: 4px; }
+
+.funnel-layout {
+  display: grid; grid-template-columns: 200px 1fr 200px; gap: 16px;
+  align-items: stretch; min-height: 480px;
+}
+
+.funnel-side { display: flex; flex-direction: column; gap: 36px; padding: 32px 0; }
+.funnel-side-left { align-items: flex-end; }
+.funnel-side-right { align-items: flex-start; }
+.funnel-side-item {
+  display: flex; align-items: center; gap: 6px; font-size: 13px;
+}
+.funnel-side-item-label { color: #4e5969; min-width: 100px; text-align: right; }
+.funnel-side-right .funnel-side-item-label { text-align: left; }
+.funnel-side-item-tip { color: #c9cdd4; cursor: help; }
+
+.funnel-chart-wrap {
+  display: flex; flex-direction: column; align-items: center;
+  background: #fafbfc; border-radius: 8px; padding: 20px;
+  border: 1px solid #e5e6eb;
+}
+.funnel-legend {
+  display: flex; gap: 20px; font-size: 13px; color: #4e5969; margin-bottom: 16px;
+}
+.funnel-legend-item { display: flex; align-items: center; gap: 6px; }
+.funnel-legend-dot { width: 12px; height: 12px; border-radius: 2px; display: inline-block; }
+
+.funnel-chart {
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  width: 100%; max-width: 280px;
+}
+.funnel-step {
+  display: flex; align-items: center; justify-content: center;
+  color: #fff; font-size: 13px; font-weight: 500;
+  clip-path: polygon(8% 0, 92% 0, 100% 100%, 0 100%);
+  text-shadow: 0 1px 2px rgba(0,0,0,0.15);
+  height: 32px;
+}
+.funnel-step-0  { background: #1d4ed8; width: 100%; }
+.funnel-step-1  { background: #2563eb; width: 96%; }
+.funnel-step-2  { background: #3b82f6; width: 90%; }
+.funnel-step-3  { background: #3b82f6; width: 84%; }
+.funnel-step-4  { background: #60a5fa; width: 78%; }
+.funnel-step-5  { background: #60a5fa; width: 72%; }
+.funnel-step-6  { background: #93c5fd; width: 66%; color: #1e3a8a; text-shadow: none; }
+.funnel-step-7  { background: #93c5fd; width: 60%; color: #1e3a8a; text-shadow: none; }
+.funnel-step-8  { background: #bfdbfe; width: 54%; color: #1e3a8a; text-shadow: none; }
+.funnel-step-9  { background: #bfdbfe; width: 48%; color: #1e3a8a; text-shadow: none; }
+.funnel-step-10 { background: #dbeafe; width: 42%; color: #1e3a8a; text-shadow: none; }
+.funnel-step-text { letter-spacing: 0.5px; }
+
+.funnel-table-wrap { margin-top: 20px; }
+.funnel-table-wrap :deep(.el-table) { font-size: 13px; }
+
+.funnel-bottom-card { padding: 16px 20px; }
+.funnel-bottom-toolbar {
+  display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px;
+}
+.funnel-bottom-actions { display: flex; gap: 8px; }
+.funnel-bottom-empty {
+  padding: 40px 0;
+}
+</style>
