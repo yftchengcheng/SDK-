@@ -10438,3 +10438,8 @@ html, body, #app {
   max-width: calc(100vw - 24px);
   font-family: inherit;
 }
+
+/* EnumTag 通用样式（按 AGENTS.md 规范统一在 index.css，禁止 .vue 写 style）*/
+.enum-tag {
+  font-weight: 500;
+}

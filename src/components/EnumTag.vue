@@ -51,9 +51,3 @@ const tagType = computed(() => {
   return getEnumTagType(props.dim, props.value);
 });
 </script>
-
-<style scoped>
-.enum-tag {
-  font-weight: 500;
-}
-</style>
