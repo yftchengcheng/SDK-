@@ -105,84 +105,124 @@
               </div>
             </div>
             <div class="report-detail-header-right">
-              <el-button type="primary" :icon="FolderAdd" @click="openSaveAsDialog">保存为看版</el-button>
               <el-button :icon="CopyDocument" plain @click="duplicateCurrent">复制看版</el-button>
               <el-button :icon="Edit" plain @click="openEditConfigDialog">编辑配置</el-button>
               <el-button v-if="!currentBoard.is_default" :icon="Delete" type="danger" plain @click="deleteCurrent">删除</el-button>
             </div>
           </div>
 
-          <!-- 看版配置摘要 -->
+          <!-- 看版配置摘要：2 行 chip 布局（维度 / 指标） -->
           <div class="report-detail-config">
-            <div class="config-section">
-              <div class="config-section-label">
+            <!-- Row 1: 维度 -->
+            <div class="config-row">
+              <div class="config-row-head">
                 <el-icon><Grid /></el-icon>
-                <span>维度</span>
-                <span class="config-section-count">{{ effectiveDimensions.length }}</span>
+                <span class="config-row-label">维度</span>
+                <span class="config-row-count">{{ effectiveDimensions.length }}</span>
               </div>
-              <div class="config-section-tags">
-                <el-tag
-                  v-for="dim in effectiveDimensions"
-                  :key="dim"
-                  size="small"
-                  effect="plain"
-                  type="info"
-                  class="config-section-tag"
-                >
-                  {{ DIM_LABELS[dim] || dim }}
-                </el-tag>
-                <el-button
-                  v-if="effectiveDimensions.length === 0"
-                  :icon="Plus"
-                  size="small"
-                  text
-                  type="primary"
-                  @click="openDimensionPicker"
-                >选择维度</el-button>
+              <div class="config-row-body">
+                <template v-if="effectiveDimensions.length > 0">
+                  <el-tag
+                    v-for="dim in (showAllDims ? effectiveDimensions : effectiveDimensions.slice(0, 8))"
+                    :key="dim"
+                    :closable="dim !== 'date'"
+                    :disable-transitions="true"
+                    size="default"
+                    effect="light"
+                    class="config-chip config-chip--dim"
+                    @close="removeDim(dim)"
+                  >
+                    {{ DIM_LABELS[dim] || dim }}
+                  </el-tag>
+                  <span
+                    v-if="effectiveDimensions.length > 8 && !showAllDims"
+                    class="config-overflow"
+                    @click="showAllDims = true"
+                  >+{{ effectiveDimensions.length - 8 }} 更多</span>
+                  <span
+                    v-if="showAllDims && effectiveDimensions.length > 8"
+                    class="config-overflow"
+                    @click="showAllDims = false"
+                  >收起</span>
+                  <span
+                    v-if="removedDimensions.size > 0"
+                    class="config-restore"
+                    @click="restoreDimensions"
+                  >还原 ({{ removedDimensions.size }})</span>
+                </template>
+                <span v-else class="config-empty">点击右侧「编辑」选择维度</span>
               </div>
-              <div class="config-section-actions">
-                <el-button :icon="Edit" size="small" text type="primary" @click="openDimensionPicker">编辑维度</el-button>
+              <div class="config-row-tail">
+                <el-button :icon="Edit" size="small" plain @click="openDimensionPicker">编辑</el-button>
               </div>
             </div>
-            <div class="config-divider"></div>
-            <div class="config-section config-section--metrics">
-              <div class="config-section-label">
+
+            <!-- Row 2: 已选指标 -->
+            <div class="config-row">
+              <div class="config-row-head">
                 <el-icon><Histogram /></el-icon>
-                <span>已选指标</span>
-                <span class="config-section-count">{{ effectiveMetrics.length }}</span>
+                <span class="config-row-label">已选指标</span>
+                <span class="config-row-count">{{ effectiveMetrics.length }}</span>
               </div>
-              <div class="config-section-actions">
-                <el-button :icon="Setting" size="small" @click="openMetricPicker">设置指标</el-button>
+              <div class="config-row-body">
+                <template v-if="effectiveMetrics.length > 0">
+                  <el-tag
+                    v-for="m in (showAllMetrics ? effectiveMetrics : effectiveMetrics.slice(0, 8))"
+                    :key="m"
+                    :closable="true"
+                    :disable-transitions="true"
+                    size="default"
+                    effect="light"
+                    class="config-chip config-chip--metric"
+                    :title="metricNameOf(m)"
+                    @close="removeMetric(m)"
+                  >{{ metricNameOf(m) }}</el-tag>
+                  <span
+                    v-if="effectiveMetrics.length > 8 && !showAllMetrics"
+                    class="config-overflow"
+                    @click="showAllMetrics = true"
+                  >+{{ effectiveMetrics.length - 8 }} 更多</span>
+                  <span
+                    v-if="showAllMetrics && effectiveMetrics.length > 8"
+                    class="config-overflow"
+                    @click="showAllMetrics = false"
+                  >收起</span>
+                  <span
+                    v-if="removedMetrics.size > 0"
+                    class="config-restore"
+                    @click="restoreMetrics"
+                  >还原 ({{ removedMetrics.size }})</span>
+                </template>
+                <span v-else class="config-empty">点击右侧「设置」选择指标</span>
               </div>
-            </div>
-            <div v-if="effectiveMetrics.length > 0" class="config-metric-tags">
-              <el-tag
-                v-for="(m, idx) in effectiveMetrics"
-                :key="m + idx"
-                size="default"
-                type="info"
-                effect="plain"
-                class="config-metric-tag"
-                :title="metricNameOf(m)"
-              >{{ metricNameOf(m) }}</el-tag>
+              <div class="config-row-tail">
+                <el-button :icon="Setting" size="small" plain @click="openMetricPicker">设置</el-button>
+              </div>
             </div>
           </div>
 
-          <!-- 筛选器 + 导出 -->
+          <!-- 工具栏：左筛选 / 中操作 / 右导出 -->
           <div class="report-detail-toolbar">
-            <div class="report-detail-toolbar-left">
+            <div class="toolbar-section toolbar-section--filter">
               <ReportFilter v-model="filter" @change="loadData" />
             </div>
-            <div class="report-detail-toolbar-right">
+            <div class="toolbar-divider"></div>
+            <div class="toolbar-section toolbar-section--actions">
+              <el-button :icon="Refresh" @click="loadData" plain>刷新</el-button>
+              <el-button :icon="FolderAdd" type="primary" plain @click="openSaveAsDialog">保存为看版</el-button>
+            </div>
+            <div class="toolbar-divider"></div>
+            <div class="toolbar-section toolbar-section--export">
+              <span class="toolbar-section-label">导出</span>
               <el-button-group class="report-detail-export">
                 <el-tooltip content="导出 CSV" placement="top">
-                  <el-button :icon="Download" @click="exportCsv">CSV</el-button>
+                  <el-button :icon="Download" size="small" @click="exportCsv">CSV</el-button>
                 </el-tooltip>
                 <el-tooltip content="导出 Excel" placement="top">
-                  <el-button :icon="Download" @click="exportExcel">Excel</el-button>
+                  <el-button :icon="Download" size="small" @click="exportExcel">Excel</el-button>
                 </el-tooltip>
                 <el-tooltip content="导出 PDF" placement="top">
-                  <el-button :icon="Document" @click="exportPdf">PDF</el-button>
+                  <el-button :icon="Document" size="small" @click="exportPdf">PDF</el-button>
                 </el-tooltip>
               </el-button-group>
             </div>
@@ -243,6 +283,7 @@ import { ElMessage, ElMessageBox } from 'element-plus';
 import {
   Plus, CopyDocument, Edit, Download, Document, Delete, Refresh, Search, MoreFilled,
   DataAnalysis, Files, DataLine, Histogram, Setting, FolderAdd,
+  Grid,
 } from '@element-plus/icons-vue';
 import request from '@/utils/request';
 import DimensionPicker from '@/components/report/DimensionPicker.vue';
@@ -342,6 +383,10 @@ const editingBoard = ref<ReportBoard | null>(null);
 const filter = ref<Filter>({ dateRange: '7d', appIds: [], placementIds: [], adSourceIds: [], formats: [], country: [], osList: [], platform: '' });
 const pickedMetrics = ref<string[]>([]);
 const pickedDimensions = ref<string[]>([]);
+const showAllMetrics = ref(false);
+const showAllDims = ref(false);
+const removedMetrics = ref<Set<string>>(new Set());
+const removedDimensions = ref<Set<string>>(new Set());
 const metricPickerRef = ref<{ open: () => void } | null>(null);
 const dimPickerRef = ref<{ open: (codes: string[]) => void } | null>(null);
 const tableData = ref<Array<Record<string, string | number>>>([]);
@@ -366,17 +411,17 @@ const filteredBoards = computed<ReportBoard[]>(() => {
 });
 
 const effectiveMetrics = computed<string[]>(() => {
-  if (!currentBoard.value) return pickedMetrics.value;
+  if (!currentBoard.value) return pickedMetrics.value.filter((m) => !removedMetrics.value.has(m));
   const cfgMetrics = currentBoard.value.config?.metrics || [];
-  const picked = pickedMetrics.value.filter((m) => !cfgMetrics.includes(m));
-  return [...cfgMetrics, ...picked];
+  const picked = pickedMetrics.value.filter((m) => !cfgMetrics.includes(m) && !removedMetrics.value.has(m));
+  return [...cfgMetrics.filter((m) => !removedMetrics.value.has(m)), ...picked];
 });
 
 const effectiveDimensions = computed<string[]>(() => {
-  if (!currentBoard.value) return pickedDimensions.value;
+  if (!currentBoard.value) return pickedDimensions.value.filter((d) => !removedDimensions.value.has(d));
   const cfgDims = currentBoard.value.config?.dimensions || ['date'];
-  const picked = pickedDimensions.value.filter((d) => !cfgDims.includes(d));
-  return [...cfgDims, ...picked];
+  const picked = pickedDimensions.value.filter((d) => !cfgDims.includes(d) && !removedDimensions.value.has(d));
+  return [...cfgDims.filter((d) => !removedDimensions.value.has(d)), ...picked];
 });
 
 const effectiveBoard = computed<ReportBoard>(() => {
@@ -417,7 +462,29 @@ const onDimensionsApply = (codes: string[]) => {
 const onBoardChange = (board: ReportBoard) => {
   pickedMetrics.value = [];
   pickedDimensions.value = [];
+  removedMetrics.value = new Set();
+  removedDimensions.value = new Set();
+  showAllMetrics.value = false;
+  showAllDims.value = false;
   selectedBoardId.value = board.id;
+  loadData();
+};
+
+const removeMetric = (code: string) => {
+  removedMetrics.value = new Set([...removedMetrics.value, code]);
+  loadData();
+};
+const restoreMetrics = () => {
+  removedMetrics.value = new Set();
+  loadData();
+};
+const removeDim = (code: string) => {
+  if (code === 'date') return; // date 维度不能移除
+  removedDimensions.value = new Set([...removedDimensions.value, code]);
+  loadData();
+};
+const restoreDimensions = () => {
+  removedDimensions.value = new Set();
   loadData();
 };
 

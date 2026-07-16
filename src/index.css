@@ -8832,96 +8832,6 @@ html, body, #app {
   flex-shrink: 0;
 }
 
-.config-section {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.config-section--full {
-  flex: 1;
-  min-width: 0;
-}
-
-.config-section-label {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 12px;
-  font-weight: 500;
-  color: #64748B;
-}
-
-.config-section-label .el-icon {
-  color: #1E3A8A;
-  font-size: 14px;
-}
-
-.config-section-count {
-  background: #FFFFFF;
-  border: 1px solid #E2E8F0;
-  border-radius: 10px;
-  padding: 0 6px;
-  font-size: 11px;
-  color: #475569;
-  font-weight: 600;
-  margin-left: 4px;
-}
-
-.config-section-tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
-.config-metric-tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  padding: 0 24px 16px;
-  margin-top: -8px;
-}
-.config-metric-tag {
-  font-size: 12px !important;
-  max-width: 160px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.config-divider {
-  width: 1px;
-  background: #E2E8F0;
-  margin: 0 24px;
-}
-
-.report-detail-toolbar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 12px 24px;
-  border-bottom: 1px solid #E2E8F0;
-  flex-shrink: 0;
-  flex-wrap: wrap;
-  gap: 12px;
-  background: #FFFFFF;
-}
-
-.report-detail-toolbar-left {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex: 1;
-  min-width: 0;
-}
-
-.report-detail-toolbar-right {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-shrink: 0;
-}
-
 .report-detail-content {
   flex: 1;
   padding: 20px 24px;
@@ -10049,4 +9959,268 @@ html, body, #app {
 }
 @media (max-width: 700px) {
   .dp-group-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+/* ===== 报表配置摘要卡片（左色条 + 双行 + chip 自动换行） ===== */
+.report-detail-config {
+  background: #FFFFFF;
+  border: 1px solid #E2E8F0;
+  border-radius: 10px;
+  padding: 0;
+  margin-bottom: 12px;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  transition: box-shadow 0.2s ease;
+}
+.report-detail-config::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 4px;
+  background: linear-gradient(180deg, #1E3A8A 0%, #3B82F6 100%);
+}
+.report-detail-config:hover {
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06);
+}
+
+.config-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 20px 14px 24px;
+}
+.config-row + .config-row {
+  border-top: 1px dashed #E2E8F0;
+}
+
+.config-row-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 132px;
+  flex-shrink: 0;
+  padding-top: 3px;
+}
+.config-row-head-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  background: #EFF6FF;
+  color: #1E3A8A;
+  font-size: 13px;
+}
+.config-row-head-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #0F172A;
+  white-space: nowrap;
+}
+.config-row-head-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 18px;
+  padding: 0 6px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #1E3A8A;
+  background: #DBEAFE;
+  border-radius: 9px;
+}
+
+.config-row-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 8px;
+  align-items: center;
+  padding-top: 1px;
+}
+
+.config-chip {
+  display: inline-flex;
+  align-items: center;
+  height: 26px;
+  padding: 0 6px 0 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  line-height: 26px;
+  transition: all 0.15s ease;
+  cursor: default;
+  white-space: nowrap;
+  max-width: 100%;
+  border: 1px solid transparent;
+}
+.config-chip-dim {
+  background: #EFF6FF;
+  color: #1E3A8A;
+  border-color: #DBEAFE;
+}
+.config-chip-dim:hover {
+  background: #DBEAFE;
+  border-color: #BFDBFE;
+}
+.config-chip-metric {
+  background: #F1F5F9;
+  color: #334155;
+  border-color: #E2E8F0;
+}
+.config-chip-metric:hover {
+  background: #E2E8F0;
+  border-color: #CBD5E1;
+}
+.config-chip-name {
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 200px;
+}
+.config-chip-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  margin-left: 4px;
+  border-radius: 4px;
+  color: currentColor;
+  opacity: 0.5;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  font-size: 13px;
+  line-height: 1;
+}
+.config-chip-remove:hover {
+  opacity: 1;
+  background: rgba(0, 0, 0, 0.08);
+}
+
+.config-overflow {
+  display: inline-flex;
+  align-items: center;
+  height: 26px;
+  padding: 0 10px;
+  border-radius: 6px;
+  background: transparent;
+  border: 1px dashed #CBD5E1;
+  color: #64748B;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  user-select: none;
+}
+.config-overflow:hover {
+  background: #F1F5F9;
+  border-color: #94A3B8;
+  color: #475569;
+}
+
+.config-empty {
+  color: #94A3B8;
+  font-size: 12px;
+  font-style: italic;
+  padding: 4px 0;
+}
+
+.config-row-tail {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  padding-top: 1px;
+}
+.config-row-tail .el-button {
+  padding: 4px 10px;
+  font-size: 12px;
+  border-radius: 6px;
+}
+
+/* ===== 报表筛选 + 操作 工具栏（3 段式：filter | actions | export） ===== */
+.report-detail-toolbar {
+  display: grid;
+  grid-template-columns: 1fr 1px auto 1px auto;
+  gap: 16px 14px;
+  align-items: center;
+  background: #FFFFFF;
+  border: 1px solid #E2E8F0;
+  border-radius: 10px;
+  padding: 14px 20px;
+  margin-bottom: 12px;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
+.toolbar-section {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  gap: 10px;
+}
+.toolbar-section--filter {
+  flex-wrap: wrap;
+  flex: 1 1 auto;
+}
+.toolbar-section--actions {
+  flex-shrink: 0;
+}
+.toolbar-section--actions .el-button {
+  padding: 6px 12px;
+  font-size: 12px;
+  border-radius: 6px;
+}
+.toolbar-section--export {
+  flex-shrink: 0;
+  justify-content: flex-end;
+}
+.toolbar-section-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #64748B;
+  white-space: nowrap;
+  letter-spacing: 0.02em;
+}
+
+.toolbar-divider {
+  width: 1px;
+  height: 32px;
+  background: #E2E8F0;
+  align-self: center;
+}
+
+.report-detail-toolbar .report-detail-export {
+  display: inline-flex;
+  align-items: center;
+  gap: 0;
+}
+.report-detail-toolbar .report-detail-export .el-button {
+  padding: 6px 10px;
+  font-size: 12px;
+  border-radius: 6px;
+}
+
+.config-restore {
+  display: inline-flex;
+  align-items: center;
+  height: 26px;
+  padding: 0 10px;
+  border-radius: 6px;
+  background: #FFF7ED;
+  border: 1px dashed #FDBA74;
+  color: #C2410C;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  user-select: none;
+}
+.config-restore:hover {
+  background: #FFEDD5;
+  border-color: #FB923C;
+  color: #9A3412;
 }
