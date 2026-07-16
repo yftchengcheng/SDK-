@@ -44,11 +44,9 @@ export const COUNTRY_LABELS: Record<string, string> = {
 export const OS_LABELS: Record<string, string> = {
   android: 'Android',
   ios: 'iOS',
-  harmony: '鸿蒙',
-  windows: 'Windows',
-  macos: 'macOS',
-  linux: 'Linux',
 };
+// 注意：系统边界只支持 Android / iOS，与 app.platform (1=Android, 2=iOS, 3=Both) 一一对应。
+// 不支持 HarmonyOS / Windows / macOS / Linux（数据模型未定义）。
 
 export const FORMAT_LABELS: Record<string, string> = {
   banner: 'Banner',
@@ -56,19 +54,12 @@ export const FORMAT_LABELS: Record<string, string> = {
   native: '原生',
   rewarded: '激励',
   splash: '开屏',
-  draw: 'Draw 信息流',
-  roll: '横幅',
-  popup: '弹窗',
-  video: '视频',
-  fullscreen: '全屏',
 };
 
-export const PLATFORM_LABELS: Record<string, string> = {
-  self: '自有',
-  '3rd': '第三方',
-  third: '第三方',
-  custom: '自定义',
-};
+// "平台"在综合报表中指的是「广告平台名」（即 ad_source.network_name），
+// 数据模型没有「自有 / 第三方」这个维度（预置/自定义区分在 is_preset/network_type，不在 platform）。
+// 所以 PLATFORM_LABELS 不应再硬塞 self / 3rd / third / custom 这类易误导的分类标签。
+export const PLATFORM_LABELS: Record<string, string> = {};
 
 /**
  * 根据 type 把 code 翻译成中文 label；找不到 fallback 到 code
