@@ -226,7 +226,7 @@ const LEFT_METRICS = [
 ];
 
 const RIGHT_METRICS = [
-  { code: 'per_start', name: '人均启动', tip: '应用启动', alignIndex: 0 },
+  { code: 'per_start', name: '人均启动', tip: '应用启动 / 设备数', alignIndex: 0 },
   { code: 'fill_rate', name: '流量填充率', tip: '流量请求 / 流量填充', alignIndex: 3 },
   { code: 'ready_rate', name: '广告Ready率', tip: '广告ready / 到达广告场景 × 100%', alignIndex: 4 },
   { code: 'isready_rate', name: 'isReady成功率', tip: 'isReady返回True / 调用isReady次数 × 100%', alignIndex: 5 },
