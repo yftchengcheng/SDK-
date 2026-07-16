@@ -279,7 +279,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import {
   Plus, CopyDocument, Edit, Download, Document, Delete, Refresh, Search, MoreFilled,
@@ -390,6 +390,7 @@ const removedMetrics = ref<Set<string>>(new Set());
 const removedDimensions = ref<Set<string>>(new Set());
 const metricPickerRef = ref<{ open: () => void } | null>(null);
 const dimPickerRef = ref<{ open: (codes: string[]) => void } | null>(null);
+
 const tableData = ref<Array<Record<string, string | number>>>([]);
 
 // 指标字典：用 src/utils/report-metric-dict 的共享缓存（跨组件复用）
@@ -411,18 +412,36 @@ const filteredBoards = computed<ReportBoard[]>(() => {
   return boards.value.filter((b) => b.name.toLowerCase().includes(kw));
 });
 
+// 让 pickedDimensions / pickedMetrics 初始值与 cfg 对齐（首次打开弹窗勾选状态正确）
+// 不再用 [] 兜底，否则 effectiveDimensions 走 cfgDims 会让用户在弹窗里的勾选永远无效
+// 切换/初始化 board 后自动 reload：loadData 早退依赖 effectiveMetrics.length > 0，
+// 而 pickedMetrics 在 boards 加载好之前是空的，所以需要 watch 重新触发 loadData
+watch(
+  currentBoard,
+  (b) => {
+    if (!b) return;
+    const dims = b.config?.dimensions || ['date'];
+    if (pickedDimensions.value.length === 0) {
+      pickedDimensions.value = [...dims];
+    }
+    const metrics = b.config?.metrics || [];
+    if (pickedMetrics.value.length === 0) {
+      pickedMetrics.value = [...metrics];
+    }
+    // cfg 加载完成 / 切换 board 后自动 reload
+    if (effectiveMetrics.value.length > 0) {
+      loadData();
+    }
+  },
+  { immediate: true }
+);
+
 const effectiveMetrics = computed<string[]>(() => {
-  if (!currentBoard.value) return pickedMetrics.value.filter((m) => !removedMetrics.value.has(m));
-  const cfgMetrics = currentBoard.value.config?.metrics || [];
-  const picked = pickedMetrics.value.filter((m) => !cfgMetrics.includes(m) && !removedMetrics.value.has(m));
-  return [...cfgMetrics.filter((m) => !removedMetrics.value.has(m)), ...picked];
+  return pickedMetrics.value.filter((m) => !removedMetrics.value.has(m));
 });
 
 const effectiveDimensions = computed<string[]>(() => {
-  if (!currentBoard.value) return pickedDimensions.value.filter((d) => !removedDimensions.value.has(d));
-  const cfgDims = currentBoard.value.config?.dimensions || ['date'];
-  const picked = pickedDimensions.value.filter((d) => !cfgDims.includes(d) && !removedDimensions.value.has(d));
-  return [...cfgDims.filter((d) => !removedDimensions.value.has(d)), ...picked];
+  return pickedDimensions.value.filter((d) => !removedDimensions.value.has(d));
 });
 
 const effectiveBoard = computed<ReportBoard>(() => {
