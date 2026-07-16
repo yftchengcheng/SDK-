@@ -58,41 +58,92 @@
 
         <!-- Tab 1: 展示频次（10 个频次档） -->
         <div v-if="currentSubtype === 'frequency'" class="behavior-card" v-loading="loading">
-          <div class="behavior-card-header">
-            <h3 class="behavior-card-title">详细数据</h3>
-            <div class="behavior-card-actions">
-              <el-tag size="small" effect="plain" type="info">日均展示频次</el-tag>
-            </div>
-          </div>
-          <div class="frequency-table">
-            <div class="frequency-row frequency-row--header">
-              <div class="frequency-col">频次</div>
-              <div class="frequency-col">展示数</div>
-              <div class="frequency-col">展示占比</div>
-              <div class="frequency-col">设备数</div>
-              <div class="frequency-col">设备占比</div>
-              <div class="frequency-col">预估收益</div>
-              <div class="frequency-col">预估收益占比</div>
-              <div class="frequency-col frequency-col--bar">分布</div>
-            </div>
-            <div
-              v-for="row in frequencyRows"
-              :key="row.label"
-              class="frequency-row"
-            >
-              <div class="frequency-col frequency-col--range">
-                <el-icon><DataLine /></el-icon>
-                <span>{{ row.label }}</span>
+          <div class="behavior-freq-layout">
+            <!-- 左：频次分布表 -->
+            <div class="behavior-freq-table-pane">
+              <div class="behavior-card-header">
+                <h3 class="behavior-card-title">详细数据</h3>
+                <div class="behavior-card-actions">
+                  <el-tag size="small" effect="plain" type="info">日均展示频次</el-tag>
+                </div>
               </div>
-              <div class="frequency-col">{{ row.impressions.toLocaleString() }}</div>
-              <div class="frequency-col">{{ row.impPercent }}%</div>
-              <div class="frequency-col">{{ row.devices.toLocaleString() }}</div>
-              <div class="frequency-col">{{ row.devPercent }}%</div>
-              <div class="frequency-col">¥{{ row.revenue.toFixed(2) }}</div>
-              <div class="frequency-col">{{ row.revPercent }}%</div>
-              <div class="frequency-col frequency-col--bar">
-                <div class="frequency-bar" :style="{ width: row.barWidth + '%' }"></div>
+              <div class="frequency-table">
+                <div class="frequency-row frequency-row--header">
+                  <div class="frequency-col">频次</div>
+                  <div class="frequency-col">展示数</div>
+                  <div class="frequency-col">展示占比</div>
+                  <div class="frequency-col">设备数</div>
+                  <div class="frequency-col">设备占比</div>
+                  <div class="frequency-col">预估收益</div>
+                  <div class="frequency-col">预估收益占比</div>
+                  <div class="frequency-col frequency-col--bar">分布</div>
+                </div>
+                <div
+                  v-for="row in frequencyRows"
+                  :key="row.label"
+                  class="frequency-row"
+                >
+                  <div class="frequency-col frequency-col--range">
+                    <el-icon><DataLine /></el-icon>
+                    <span>{{ row.label }}</span>
+                  </div>
+                  <div class="frequency-col">{{ row.impressions.toLocaleString() }}</div>
+                  <div class="frequency-col">{{ row.impPercent }}%</div>
+                  <div class="frequency-col">{{ row.devices.toLocaleString() }}</div>
+                  <div class="frequency-col">{{ row.devPercent }}%</div>
+                  <div class="frequency-col">¥{{ row.revenue.toFixed(2) }}</div>
+                  <div class="frequency-col">{{ row.revPercent }}%</div>
+                  <div class="frequency-col frequency-col--bar">
+                    <div class="frequency-bar" :style="{ width: row.barWidth + '%' }"></div>
+                  </div>
+                </div>
               </div>
+            </div>
+
+            <!-- 右：7 天趋势图 -->
+            <div class="behavior-freq-trend-pane">
+              <div class="behavior-card-header">
+                <h3 class="behavior-card-title">
+                  <el-icon><TrendCharts /></el-icon>
+                  <span>7 天趋势</span>
+                </h3>
+                <div class="behavior-card-actions">
+                  <el-button text size="small" @click="trendPickerOpen = true">指标</el-button>
+                </div>
+              </div>
+
+              <div class="freq-trend-kpi">
+                <div v-for="k in freqTrendKpi" :key="k.code" class="freq-trend-kpi-item" :style="{ borderLeftColor: k.color }">
+                  <span class="freq-trend-kpi-name">{{ k.name }}</span>
+                  <span class="freq-trend-kpi-value" :style="{ color: k.color }">{{ k.value }}</span>
+                  <span class="freq-trend-kpi-delta" :class="k.delta >= 0 ? 'tone-up' : 'tone-down'">
+                    {{ k.delta >= 0 ? '↑' : '↓' }}&nbsp;{{ Math.abs(k.delta).toFixed(2) }}%
+                  </span>
+                </div>
+              </div>
+
+              <div class="freq-trend-chart">
+                <v-chart v-if="freqTrendDates.length > 0" :option="freqTrendChartOption" autoresize style="height: 320px" />
+                <div v-else class="frequency-empty">暂无数据</div>
+              </div>
+
+              <el-dialog
+                v-model="trendPickerOpen"
+                title="选择趋势指标"
+                width="520px"
+                :close-on-click-modal="false"
+                append-to-body
+              >
+                <el-checkbox-group v-model="freqTrendPicked" class="freq-trend-picker">
+                  <el-checkbox v-for="m in FREQ_TREND_METRICS" :key="m.code" :label="m.code">
+                    <span class="freq-trend-picker-chip" :style="{ background: m.color + '20', color: m.color, borderColor: m.color + '50' }">{{ m.name }}</span>
+                  </el-checkbox>
+                </el-checkbox-group>
+                <template #footer>
+                  <el-button @click="trendPickerOpen = false">取消</el-button>
+                  <el-button type="primary" @click="trendPickerOpen = false">确定</el-button>
+                </template>
+              </el-dialog>
             </div>
           </div>
         </div>
@@ -182,7 +233,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
 import { ElMessage } from 'element-plus';
-import { Histogram, DataLine, Menu, Refresh, Download, ArrowRight } from '@element-plus/icons-vue';
+import { Histogram, DataLine, Menu, Refresh, Download, ArrowRight, TrendCharts } from '@element-plus/icons-vue';
 import VChart from 'vue-echarts';
 import { use } from 'echarts/core';
 import { CanvasRenderer } from 'echarts/renderers';
@@ -191,6 +242,7 @@ import { GridComponent, TooltipComponent, LegendComponent } from 'echarts/compon
 import request from '@/utils/request';
 import ReportFilter from '@/components/report/ReportFilter.vue';
 import type { ReportFilter as Filter } from '@/components/report/ReportFilter.vue';
+import dayjs from 'dayjs';
 
 use([CanvasRenderer, LineChart, BarChart, GridComponent, TooltipComponent, LegendComponent]);
 
@@ -304,6 +356,171 @@ const diffPercent = computed(() => {
 const diffTone = computed(() => {
   const d = Number(primaryAvg.value) - Number(compareAvg.value);
   return d > 0 ? 'tone-up' : d < 0 ? 'tone-down' : 'tone-flat';
+});
+
+// ====== 展示频次 · 7 天趋势图（mock）======
+const FREQ_TREND_METRICS = [
+  { code: 'impressions', name: '展示数',         color: '#3B82F6', base: 0,     kind: 'count'   },
+  { code: 'imp_ratio',   name: '展示占比',       color: '#6366F1', base: 30,    kind: 'percent' },
+  { code: 'devices',     name: '设备数',         color: '#10B981', base: 0,     kind: 'count'   },
+  { code: 'dev_ratio',   name: '设备占比',       color: '#14B8A6', base: 30,    kind: 'percent' },
+  { code: 'revenue',     name: '预估收益',       color: '#F59E0B', base: 0,     kind: 'money'   },
+  { code: 'rev_ratio',   name: '预估收益占比',   color: '#EF4444', base: 30,    kind: 'percent' },
+  { code: 'ecpm',        name: 'eCPM',           color: '#A855F7', base: 0,     kind: 'money'   },
+];
+
+const freqTrendPicked = ref<string[]>(['impressions', 'devices', 'revenue', 'ecpm']);
+const trendPickerOpen = ref(false);
+
+function seededRand(seed: number) {
+  let s = seed;
+  return () => {
+    s = (s * 9301 + 49297) % 233280;
+    return s / 233280;
+  };
+}
+
+// 取筛选器里的日期范围（默认最近 7 天）
+function getDateRange(): { start: string; end: string } {
+  const f = filter.value as any;
+  // ReportFilter 传的可能是个字符串 '7d' / '30d' / 自定义 [start, end]
+  if (Array.isArray(f?.dateRange) && f.dateRange.length === 2) {
+    return { start: f.dateRange[0], end: f.dateRange[1] };
+  }
+  // 默认 7 天
+  const end = dayjs();
+  const start = end.subtract(6, 'day');
+  return { start: start.format('YYYY-MM-DD'), end: end.format('YYYY-MM-DD') };
+}
+
+const freqTrendDates = computed<string[]>(() => {
+  const { start, end } = getDateRange();
+  const s = dayjs(start);
+  const e = dayjs(end);
+  const days = e.diff(s, 'day') + 1;
+  if (days <= 0) return [];
+  const arr: string[] = [];
+  for (let i = 0; i < days; i++) arr.push(s.add(i, 'day').format('MM-DD'));
+  return arr;
+});
+
+// 7 指标 × N 天的 mock 数据
+const freqTrendSeries = computed<Record<string, { values: number[]; delta: number; latest: number; unit: string; display: string }>>(() => {
+  const dates = freqTrendDates.value;
+  if (dates.length === 0) return {} as any;
+  const out: Record<string, any> = {};
+  // 基线：每天总展示 ~ 50,000，设备 ~ 12,000，收益 ~ 1,200，eCPM 25 元
+  const totalImpsBase = 50000;
+  const totalDevBase = 12000;
+  const totalRevBase = 1200;
+
+  for (const m of FREQ_TREND_METRICS) {
+    const rand = seededRand(dates.length * 100 + m.code.length);
+    const trendUp = 1 + (m.kind === 'money' ? 0.04 : 0.02) * (dates.length / 7);
+    const values: number[] = [];
+    for (let i = 0; i < dates.length; i++) {
+      // 周末 -5%
+      const dow = dayjs(dates[i], 'MM-DD').day();
+      const weekend = (dow === 0 || dow === 6) ? 0.95 : 1.0;
+      const jitter = 0.92 + rand() * 0.16;
+      let v: number;
+      if (m.code === 'impressions') v = totalImpsBase * trendUp * weekend * jitter;
+      else if (m.code === 'devices') v = totalDevBase * trendUp * weekend * jitter;
+      else if (m.code === 'revenue') v = totalRevBase * trendUp * weekend * jitter;
+      else if (m.code === 'ecpm') v = 25 * (0.94 + rand() * 0.16) * (1 + i * 0.005);
+      else v = m.base * (0.95 + rand() * 0.1);
+      values.push(+v.toFixed(2));
+    }
+    // 占比类 = 该指标 / 总展示 (3 段: 展示 / 设备 / 收益)
+    if (m.code === 'imp_ratio') {
+      const total = out['impressions']?.values;
+      if (total) values.splice(0, values.length, ...values.map((_, i) => +(values[i] / total[i] * 100).toFixed(2)));
+    }
+    if (m.code === 'dev_ratio') {
+      const total = out['impressions']?.values;
+      if (total) values.splice(0, values.length, ...values.map((_, i) => +(values[i] / total[i] * 100).toFixed(2)));
+    }
+    if (m.code === 'rev_ratio') {
+      // 收益占比：每日收益 / 当日总展示 * 1000
+      const total = out['impressions']?.values;
+      if (total) values.splice(0, values.length, ...values.map((_, i) => +(values[i] / total[i] * 1000).toFixed(2)));
+    }
+    // 计算 delta
+    const latest = values[values.length - 1];
+    const prev = values.length > 1 ? values[values.length - 2] : latest;
+    const delta = prev > 0 ? ((latest - prev) / prev * 100) : 0;
+    const unit = m.kind === 'percent' ? '%' : m.kind === 'money' ? '¥' : '';
+    const display = m.kind === 'percent'
+      ? latest.toFixed(2) + '%'
+      : m.kind === 'money'
+        ? (m.code === 'ecpm' ? '¥' + latest.toFixed(2) : '¥' + latest.toFixed(0))
+        : Math.round(latest).toLocaleString();
+    out[m.code] = { values, delta, latest, unit, display };
+  }
+  return out;
+});
+
+// 顶部 KPI 卡片：展示选中指标的最新值 + 环比
+const freqTrendKpi = computed(() =>
+  freqTrendPicked.value.map((code) => {
+    const def = FREQ_TREND_METRICS.find((m) => m.code === code)!;
+    const s = freqTrendSeries.value[code];
+    return { ...def, value: s?.display || '-', delta: s?.delta || 0 };
+  })
+);
+
+const freqTrendChartOption = computed(() => {
+  const picked = freqTrendPicked.value;
+  const series = FREQ_TREND_METRICS
+    .filter((m) => picked.includes(m.code))
+    .map((m) => {
+      const s = freqTrendSeries.value[m.code];
+      const isPercent = m.kind === 'percent';
+      return {
+        name: m.name,
+        type: 'line',
+        smooth: true,
+        symbol: 'circle',
+        symbolSize: 6,
+        showSymbol: false,
+        yAxisIndex: 0,
+        lineStyle: { width: 2, color: m.color },
+        itemStyle: { color: m.color },
+        emphasis: { focus: 'series' },
+        data: s?.values || [],
+        ...(picked.length === 1 ? {
+          markLine: {
+            silent: true,
+            symbol: 'none',
+            lineStyle: { color: m.color, type: 'dashed', opacity: 0.5 },
+            data: [{ type: 'average', name: '均值' }],
+            label: { color: m.color, fontSize: 11 },
+          },
+        } : {}),
+      };
+    });
+  return {
+    color: FREQ_TREND_METRICS.filter((m) => picked.includes(m.code)).map((m) => m.color),
+    grid: { left: 56, right: 30, top: 36, bottom: 40 },
+    tooltip: {
+      trigger: 'axis',
+      valueFormatter: (v: number) => v.toFixed(2),
+    },
+    legend: {
+      top: 4,
+      type: 'scroll',
+      data: FREQ_TREND_METRICS.filter((m) => picked.includes(m.code)).map((m) => m.name),
+    },
+    xAxis: { type: 'category', data: freqTrendDates.value, boundaryGap: false, axisLabel: { fontSize: 11 } },
+    yAxis: {
+      type: 'value',
+      axisLabel: {
+        formatter: (v: number) => v >= 1000 ? (v / 1000).toFixed(1) + 'k' : v,
+      },
+      splitLine: { lineStyle: { type: 'dashed', color: '#e4e7ed' } },
+    },
+    series,
+  };
 });
 
 const durationChartOption = computed(() => ({
