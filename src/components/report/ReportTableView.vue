@@ -29,7 +29,7 @@
 <script setup lang="ts">
 import { computed, onMounted } from 'vue';
 import type { PropType } from 'vue';
-import { loadMetricDict, metricNameOf, metricFormatOf } from '@/utils/report-metric-dict';
+import { loadMetricDict, metricNameOf, metricFormatOf, metricDict } from '@/utils/report-metric-dict';
 
 interface BoardConfig {
   dimensions: string[];
@@ -89,9 +89,11 @@ const columns = computed<Column[]>(() => {
   // 后续列：指标（用共享 dict 翻译中文名 + 取 format）
   const metrics = props.board.config?.metrics || [];
   for (const m of metrics) {
+    const name = metricNameOf(m);
+    if (name === m) console.warn('[ReportTableView] metricNameOf fallback to code for:', m, 'dict keys sample:', Object.keys(metricDict.value).slice(0,3));
     cols.push({
       key: m,
-      label: metricNameOf(m),
+      label: name,
       minWidth: 120,
       align: 'right',
       format: metricFormatOf(m) || 'number',

@@ -943,9 +943,7 @@ html, body, #app {
 .el-table th.el-table__cell {
   font-weight: 600;
   color: var(--el-text-color-secondary);
-  font-size: 12px;
-  text-transform: uppercase;
-  letter-spacing: 0.02em;
+  font-size: 13px;
 }
 
 .el-tag {
