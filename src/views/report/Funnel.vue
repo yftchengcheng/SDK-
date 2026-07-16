@@ -109,20 +109,10 @@
                   :key="i"
                   :d="l.d"
                   :stroke="l.color"
-                  stroke-width="1.6"
+                  stroke-width="1.2"
                   fill="none"
-                  stroke-dasharray="5 3"
-                  opacity="0.9"
-                />
-                <circle
-                  v-for="(d, i) in linkDots"
-                  :key="'dot-'+i"
-                  :cx="d.cx"
-                  :cy="d.cy"
-                  r="3"
-                  :fill="d.color"
-                  stroke="#fff"
-                  stroke-width="1"
+                  stroke-dasharray="4 4"
+                  opacity="0.5"
                 />
               </svg>
             <div class="funnel-grid" ref="funnelGridRef">
@@ -436,15 +426,16 @@ function recomputeLinks() {
     const startX = side === 'L' ? mr.right - gridRect.left : mr.left - gridRect.left;
     const startY = mr.top - gridRect.top + mr.height / 2;
 
-    // 每个对应项各画一根线: metric -> 水平延伸到 step 列 -> 垂直到 step y
+    // 简化: 每个对应项画 1 根直线, 端点接在 step 边缘, 不画圆点
     for (let li = 0; li < linkIndices.length; li++) {
       const step = stepCenters[linkIndices[li]];
       if (!step) continue;
-      // 折线: 起点(metric 边) -> midX (step 列内) -> step 中心
-      const midX = (startX + step.x) / 2;
-      const d = `M ${startX} ${startY} L ${midX} ${startY} L ${midX} ${step.y} L ${step.x} ${step.y}`;
+      // 端点接在 step 边缘 (左 6px 处), 避免线压在色块上
+      const endX = side === 'L' ? step.x + 6 : step.x - 6;
+      // 折线: metric 边 → step 列中点 → step 边缘 (3 段: 水平+垂直+水平)
+      const midX = (startX + endX) / 2;
+      const d = `M ${startX} ${startY} L ${midX} ${startY} L ${midX} ${step.y} L ${endX} ${step.y}`;
       newPaths.push({ d, color });
-      newDots.push({ cx: step.x, cy: step.y, color });
     }
   }
 
