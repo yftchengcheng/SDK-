@@ -125,3 +125,44 @@ function getSupabaseClient(token?: string): SupabaseClient {
 }
 
 export { loadEnv, getSupabaseCredentials, getSupabaseServiceRoleKey, getSupabaseClient };
+
+/**
+ * 分页拉取 Supabase 表的所有行（绕过 PostgREST 默认 1000 行硬限制）
+ *
+ * 用法：build 是 builder 工厂（每次 range 都要 new query，不能复用）
+ *   const { data, error } = await fetchAllRows<MyRow>({
+ *     build: () => supabaseClient.from('report_daily').select('*').gte('stat_date', start).lte('stat_date', end),
+ *     applyRange: (q, from, to) => q.range(from, to),
+ *   });
+ *
+ * 注意：supabase-js v2 的 PostgrestFilterBuilder 在 await execute 后会"耗尽"，
+ *      第二次 .range() 返 0 行！所以必须每次 new query。
+ */
+export async function fetchAllRows<T = unknown>(options: {
+  build: () => any;
+  applyRange: (q: any, from: number, to: number) => any;
+  pageSize?: number;
+}): Promise<{ data: T[]; error: unknown }> {
+  const { build, applyRange, pageSize = 1000 } = options;
+  const all: T[] = [];
+  let error: unknown = null;
+
+  let from = 0;
+  for (;;) {
+    const baseQ = build();
+    const q = applyRange(baseQ, from, from + pageSize - 1);
+    const result = await q;
+    const data = (result as { data?: T[] | null }).data;
+    const pageErr = (result as { error?: unknown }).error;
+    if (pageErr) {
+      error = pageErr;
+      break;
+    }
+    if (!data || data.length === 0) break;
+    all.push(...(data as T[]));
+    if (data.length < pageSize) break;
+    from += pageSize;
+  }
+
+  return { data: all, error };
+}

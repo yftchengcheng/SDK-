@@ -8,6 +8,7 @@
  */
 import { Router, type Request, type Response } from 'express';
 import { db } from '../db';
+import { fetchAllRows } from '../utils/supabase-client';
 import { authMiddleware } from '../middleware/auth';
 import { success as ok, fail } from '../utils/response';
 import nodeCache from '../utils/cache';
@@ -114,8 +115,20 @@ function dateRangeOf(range: string, customStart?: string, customEnd?: string): {
     case '7d':
       start.setDate(start.getDate() - 6);
       return { startDate: fmt(start), endDate: fmt(end) };
+    case '14d':
+      start.setDate(start.getDate() - 13);
+      return { startDate: fmt(start), endDate: fmt(end) };
+    case '28d':
+      start.setDate(start.getDate() - 27);
+      return { startDate: fmt(start), endDate: fmt(end) };
     case '30d':
       start.setDate(start.getDate() - 29);
+      return { startDate: fmt(start), endDate: fmt(end) };
+    case '60d':
+      start.setDate(start.getDate() - 59);
+      return { startDate: fmt(start), endDate: fmt(end) };
+    case '90d':
+      start.setDate(start.getDate() - 89);
       return { startDate: fmt(start), endDate: fmt(end) };
     case 'month': {
       const s = new Date(today.getFullYear(), today.getMonth(), 1);
@@ -223,8 +236,14 @@ function metricValue(code: string, row: any): number {
 
 /**
  * 应用筛选器（级联）：app → placement → ad_source
+ *
+ * 注意：本函数是 **同步** 的，且不接受 thenable 作为返回值。
+ * supabase-js 的 PostgrestFilterBuilder 是 thenable — 如果在 async function 里
+ * `return q`，外层 `await` 会触发查询执行，把 q 变成 `{data, error, ...}` 结果。
+ * 解决方案：把需要 await 的预查询（platforms 反查 ad_source）提到函数外，
+ *           把 srcIds 作为入参传入，本函数只做链式 .in()/.eq() 调用。
  */
-async function applyFilters(q: any, filters: any): Promise<any> {
+function applyFilters(q: any, filters: any, srcIdsByPlatform?: number[] | null): any {
   if (!filters) return q;
   const { appIds, placementIds, adSourceIds, countries, osList, formats, platforms, adType } = filters;
   if (Array.isArray(appIds) && appIds.length > 0) {
@@ -246,14 +265,9 @@ async function applyFilters(q: any, filters: any): Promise<any> {
     q = q.in('ad_type', formats);
   }
   if (Array.isArray(platforms) && platforms.length > 0) {
-    // platform = ad_network_def.network_name，需要先查 ad_source 拿到 network_code 集合
-    // report_daily 没有 platform/network_name 列，通过 ad_source_id 反查 network_code
-    // 这里用 in() 不可行（report_daily 没有 network_code 列），先取 ad_source.id 集合
-    // 注：这是一个优化 — 实际上 ad_source.id 范围通常不大，全取也无妨
-    const { data: srcList } = await db.from('ad_source').select('id, network_name').in('network_name', platforms);
-    const srcIds = (srcList || []).map((r: any) => r.id);
-    if (srcIds.length > 0) {
-      q = q.in('ad_source_id', srcIds);
+    // srcIdsByPlatform 已经在调用方预查询
+    if (Array.isArray(srcIdsByPlatform) && srcIdsByPlatform.length > 0) {
+      q = q.in('ad_source_id', srcIdsByPlatform);
     } else {
       // 选了 platform 但 ad_source 里找不到 → 强制无结果
       q = q.eq('ad_source_id', -1);
@@ -275,14 +289,28 @@ async function aggregateOverview(
 ): Promise<Array<Record<string, any>>> {
   const { startDate, endDate } = dateRangeOf(filters?.dateRange || '7d', filters?.customStart, filters?.customEnd);
 
-  let q = db
-    .from('report_daily')
-    .select('stat_date, app_key, placement_id, ad_source_id, ad_type, region, os, hour, requests, fills, impressions, clicks, revenue')
-    .gte('stat_date', startDate)
-    .lte('stat_date', endDate)
-    .limit(20000);
-  q = await applyFilters(q, filters);
-  const { data, error } = await q;
+  // build factory：supabase-js v2 的 query 是 one-shot，每次 range 必须 new builder
+  const buildBaseQ = () =>
+    db
+      .from('report_daily')
+      .select('stat_date, app_key, placement_id, ad_source_id, ad_type, region, os, hour, requests, fills, impressions, clicks, revenue')
+      .gte('stat_date', startDate)
+      .lte('stat_date', endDate);
+  // 预查询 platforms → ad_source.id 集合（避免在 applyFilters 内 await 触发 thenable）
+  const platforms = filters?.platforms;
+  let srcIdsByPlatform: number[] | null | undefined = undefined;
+  if (Array.isArray(platforms) && platforms.length > 0) {
+    const { data: srcList } = await db.from('ad_source').select('id, network_name').in('network_name', platforms);
+    srcIdsByPlatform = (srcList || []).map((r: any) => r.id);
+  }
+  // 用 fetchAllRows 绕过 PostgREST 1000 行硬限制
+  const { data, error } = await fetchAllRows<any>({
+    build: () => buildBaseQ(),
+    applyRange: (b, from, to) => {
+      const filtered = applyFilters(b, filters, srcIdsByPlatform);
+      return filtered.range(from, to);
+    },
+  });
   if (error) throw error;
 
   // 按 dimensions 组合分组（取第一个 dimension 主分组）

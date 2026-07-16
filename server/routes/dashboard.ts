@@ -1,5 +1,6 @@
 import express, { Router } from 'express';
 import { db } from '../db';
+import { fetchAllRows } from '../utils/supabase-client';
 import { authMiddleware, getDeveloper } from '../middleware/auth';
 import { success, fail } from '../utils/response';
 
@@ -266,14 +267,18 @@ router.get('/trend', authMiddleware, async (req: express.Request, res: express.R
 
     // summary：单 series
     if (dim === 'summary') {
-      const { data, error } = await db
-        .from('report_daily')
-        .select(isHourly ? `stat_date, hour, ${metricCol}` : `stat_date, ${metricCol}`)
-        .eq('developer_id', developerId)
-        .gte('stat_date', start)
-        .lte('stat_date', end)
-        .order('stat_date', { ascending: true });
-      if (error) throw new Error(`Query failed: ${error.message}`);
+      const { data, error } = await fetchAllRows<Record<string, unknown>>({
+        build: () =>
+          db
+            .from('report_daily')
+            .select(isHourly ? `stat_date, hour, ${metricCol}` : `stat_date, ${metricCol}`)
+            .eq('developer_id', developerId)
+            .gte('stat_date', start)
+            .lte('stat_date', end)
+            .order('stat_date', { ascending: true }),
+        applyRange: (q: any, from: number, to: number) => q.range(from, to),
+      });
+      if (error) throw new Error(`Query failed: ${(error as { message?: string })?.message ?? 'unknown'}`);
 
       const map: Record<string, number> = {};
       for (const r of (data || []) as unknown as Array<Record<string, unknown>>) {
@@ -304,14 +309,18 @@ router.get('/trend', authMiddleware, async (req: express.Request, res: express.R
       return success(res, { dimension: dim, metric: m, dates, series: [] });
     }
 
-    const { data, error } = await db
-      .from('report_daily')
-      .select(isHourly ? `stat_date, hour, ${cfg.reportCol}, ${metricCol}` : `stat_date, ${cfg.reportCol}, ${metricCol}`)
-      .eq('developer_id', developerId)
-      .gte('stat_date', start)
-      .lte('stat_date', end)
-      .order('stat_date', { ascending: true });
-    if (error) throw new Error(`Query failed: ${error.message}`);
+    const { data, error } = await fetchAllRows<Record<string, unknown>>({
+      build: () =>
+        db
+          .from('report_daily')
+          .select(isHourly ? `stat_date, hour, ${cfg.reportCol}, ${metricCol}` : `stat_date, ${cfg.reportCol}, ${metricCol}`)
+          .eq('developer_id', developerId)
+          .gte('stat_date', start)
+          .lte('stat_date', end)
+          .order('stat_date', { ascending: true }),
+      applyRange: (q: any, from: number, to: number) => q.range(from, to),
+    });
+    if (error) throw new Error(`Query failed: ${(error as { message?: string })?.message ?? 'unknown'}`);
 
     // 1) 找 top 5 实体
     const entityTotals: Record<string, number> = {};
