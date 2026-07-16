@@ -84,10 +84,12 @@ onMounted(() => {
 
 const columns = computed<Column[]>(() => {
   const cols: Column[] = [];
-  // 第一列：维度
-  const dim = props.board.config?.dimensions?.[0] || 'date';
-  cols.push({ key: dim, label: DIM_LABELS[dim] || dim, minWidth: 140 });
-  // 后续列：指标（用共享 dict 翻译中文名 + 取 format）
+  // 维度列：每个 dimension 渲染一列（支持多维度组合：按日 + 按应用 → 表格有「日期」「应用」两列）
+  const dimensions = props.board.config?.dimensions || [];
+  for (const d of dimensions) {
+    cols.push({ key: d, label: DIM_LABELS[d] || d, minWidth: 140 });
+  }
+  // 指标列：用共享 dict 翻译中文名 + 取 format
   const metrics = props.board.config?.metrics || [];
   for (const m of metrics) {
     const name = metricNameOf(m);

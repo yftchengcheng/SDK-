@@ -313,28 +313,71 @@ async function aggregateOverview(
   });
   if (error) throw error;
 
-  // 按 dimensions 组合分组（取第一个 dimension 主分组）
-  const primaryDim = dimensions[0] || 'date';
-  const primaryField = DIM_FIELD[primaryDim] || 'stat_date';
+  // 按 dimensions 组合分组（多维度：所有 dim 的 value 一起作为 group key）
+  // 每个 row 输出 { [dim1]: val1, [dim2]: val2, ..., [metric1]: num, ... }
+  // dimensions 为空时回退到单维度 date
+  const dims = (Array.isArray(dimensions) && dimensions.length > 0) ? dimensions : ['date'];
+  const dimFields = dims.map((d) => DIM_FIELD[d] || 'stat_date');
   const buckets = new Map<string, Record<string, any>>();
 
+  // 为 entity 类维度（app/placement/ad_source）预查 name 映射
+  // DB 存 id，UI 要展示 name
+  const ENTITY_DIM_TABLE: Record<string, { table: string; keyField: string; nameField: string }> = {
+    app: { table: 'app', keyField: 'app_key', nameField: 'app_name' },
+    placement: { table: 'placement', keyField: 'placement_id', nameField: 'name' },
+    ad_source: { table: 'ad_source', keyField: 'id', nameField: 'source_name' },
+  };
+  const nameMaps = new Map<string, Map<string, string>>(); // dim code → (key → name)
+  await Promise.all(
+    dims
+      .filter((d) => ENTITY_DIM_TABLE[d])
+      .map(async (d) => {
+        const m = ENTITY_DIM_TABLE[d];
+        const { data: rows } = await db.from(m.table).select(`${m.keyField}, ${m.nameField}`);
+        const map = new Map<string, string>();
+        (rows || []).forEach((r: any) => {
+          map.set(String(r[m.keyField]), String(r[m.nameField] ?? r[m.keyField]));
+        });
+        nameMaps.set(d, map);
+      })
+  );
+  const resolveName = (dim: string, code: string): string => {
+    const m = nameMaps.get(dim);
+    if (!m) return code;
+    return m.get(code) ?? code;
+  };
+
+  const makeBucket = (rawValues: string[]): Record<string, any> => {
+    const b: Record<string, any> = {};
+    dims.forEach((d, i) => {
+      const raw = rawValues[i] ?? '';
+      // entity 类维度（app/placement/ad_source）查 name 映射；soft 维度走 softDimLabel
+      b[d] = nameMaps.has(d) ? resolveName(d, raw) : softDimLabel(d, raw);
+    });
+    metrics.forEach((m) => { b[m] = 0; });
+    return b;
+  };
+
   (data || []).forEach((row: any) => {
-    const rawKey = String(row[primaryField] ?? '');
-    if (!buckets.has(rawKey)) {
-      const b: Record<string, any> = { [primaryDim]: softDimLabel(primaryDim, rawKey) };
-      metrics.forEach((m) => { b[m] = 0; });
-      buckets.set(rawKey, b);
+    const rawValues = dimFields.map((f) => String(row[f] ?? ''));
+    const key = rawValues.join('|||');
+    if (!buckets.has(key)) {
+      buckets.set(key, makeBucket(rawValues));
     }
-    const b = buckets.get(rawKey)!;
+    const b = buckets.get(key)!;
     metrics.forEach((m) => {
       b[m] = Number(b[m] || 0) + metricValue(m, row);
     });
   });
 
+  // 排序：按 dims 顺序字典序逐个 dim 比
   return Array.from(buckets.values()).sort((a, b) => {
-    const ak = String(a[primaryDim] ?? '');
-    const bk = String(b[primaryDim] ?? '');
-    return ak.localeCompare(bk);
+    for (const d of dims) {
+      const ak = String(a[d] ?? '');
+      const bk = String(b[d] ?? '');
+      if (ak !== bk) return ak.localeCompare(bk);
+    }
+    return 0;
   });
 }
 
