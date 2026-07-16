@@ -436,28 +436,15 @@ function recomputeLinks() {
     const startX = side === 'L' ? mr.right - gridRect.left : mr.left - gridRect.left;
     const startY = mr.top - gridRect.top + mr.height / 2;
 
-    // 1) 主连线: 指标 -> 第一个对应项 (分子)
-    const first = stepCenters[linkIndices[0]];
-    if (first) {
-      const endX = first.x;
-      const endY = first.y;
-      // 用三段折线: 水平延伸到 step 列, 然后竖直到 step y
-      const midX = (startX + endX) / 2;
-      const d = `M ${startX} ${startY} L ${midX} ${startY} L ${midX} ${endY} L ${endX} ${endY}`;
+    // 每个对应项各画一根线: metric -> 水平延伸到 step 列 -> 垂直到 step y
+    for (let li = 0; li < linkIndices.length; li++) {
+      const step = stepCenters[linkIndices[li]];
+      if (!step) continue;
+      // 折线: 起点(metric 边) -> midX (step 列内) -> step 中心
+      const midX = (startX + step.x) / 2;
+      const d = `M ${startX} ${startY} L ${midX} ${startY} L ${midX} ${step.y} L ${step.x} ${step.y}`;
       newPaths.push({ d, color });
-      newDots.push({ cx: endX, cy: endY, color });
-    }
-
-    // 2) 副连线: 第一对应项 -> 第二对应项 (分母)  在中央列内画
-    if (linkIndices.length >= 2) {
-      const a = stepCenters[linkIndices[0]];
-      const b = stepCenters[linkIndices[1]];
-      if (a && b) {
-        // 在 step 列内画弧线/折线
-        const d = `M ${a.x + 6} ${a.y} L ${a.x + 18} ${a.y} L ${a.x + 18} ${b.y} L ${b.x} ${b.y}`;
-        newPaths.push({ d, color });
-        newDots.push({ cx: b.x, cy: b.y, color });
-      }
+      newDots.push({ cx: step.x, cy: step.y, color });
     }
   }
 
