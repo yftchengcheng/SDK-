@@ -1,18 +1,28 @@
 <!--
   DimensionPicker - 维度选择器（弹窗 Dialog）
-  按产品截图：5 分组 + 多选 + 搜索
+  卡片网格布局：4 分组 + 多选 + 搜索 + 已选展示
 -->
 <template>
   <el-dialog
     v-model="visible"
     title="维度设置"
-    width="640"
+    width="760"
     :close-on-click-modal="false"
     class="dimension-picker-dialog"
     @close="onClose"
   >
     <div class="dp-search-row">
-      <el-input v-model="searchText" :prefix-icon="Search" placeholder="搜索维度" clearable class="dp-search" />
+      <el-input
+        v-model="searchText"
+        :prefix-icon="Search"
+        placeholder="搜索维度"
+        clearable
+        class="dp-search"
+      />
+      <div class="dp-search-actions">
+        <el-button text type="primary" size="small" @click="selectAll">全选</el-button>
+        <el-button text type="primary" size="small" @click="clearAll">清空</el-button>
+      </div>
     </div>
 
     <div class="dp-main">
@@ -22,25 +32,26 @@
         class="dp-group"
       >
         <div class="dp-group-header">
+          <span class="dp-group-label">{{ group.label }}</span>
           <el-checkbox
             :model-value="isGroupAllSelected(group)"
             :indeterminate="isGroupIndeterminate(group)"
             @change="(v: boolean | string | number) => toggleGroup(group, !!v)"
           >
-            {{ group.label }}
+            全选
           </el-checkbox>
         </div>
-        <div class="dp-group-items">
-          <el-checkbox
+        <div class="dp-group-grid">
+          <div
             v-for="opt in group.options"
             :key="opt.value"
-            :model-value="selected.includes(opt.value)"
-            class="dp-option"
-            @change="(v: boolean | string | number) => toggleOne(opt.value, !!v)"
+            class="dp-card"
+            :class="{ 'is-selected': selected.includes(opt.value) }"
+            @click="toggleOne(opt.value, !selected.includes(opt.value))"
           >
-            <span class="dp-option-name">{{ opt.label }}</span>
-            <span class="dp-option-code">{{ opt.value }}</span>
-          </el-checkbox>
+            <el-icon class="dp-card-icon"><Check v-if="selected.includes(opt.value)" /><Grid v-else /></el-icon>
+            <span class="dp-card-name">{{ opt.label }}</span>
+          </div>
         </div>
       </div>
     </div>
@@ -49,7 +60,7 @@
       <span class="dp-footer-hint">已选 {{ selected.length }} / {{ totalOptions }} 个维度</span>
       <div class="dp-footer-actions">
         <el-button @click="visible = false">取消</el-button>
-        <el-button type="primary" @click="confirm">确定</el-button>
+        <el-button type="primary" :disabled="selected.length === 0" @click="confirm">确定</el-button>
       </div>
     </div>
   </el-dialog>
@@ -57,7 +68,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue';
-import { Search } from '@element-plus/icons-vue';
+import { Search, Check, Grid } from '@element-plus/icons-vue';
 
 interface DimOption { value: string; label: string }
 interface DimGroup { label: string; options: DimOption[] }
@@ -122,9 +133,7 @@ const filteredGroups = computed<DimGroup[]>(() => {
   return groups
     .map((g) => ({
       ...g,
-      options: g.options.filter(
-        (o) => o.label.toLowerCase().includes(kw) || o.value.toLowerCase().includes(kw)
-      )
+      options: g.options.filter((o) => o.label.toLowerCase().includes(kw))
     }))
     .filter((g) => g.options.length > 0);
 });
@@ -165,6 +174,15 @@ const toggleOne = (code: string, checked: boolean) => {
   }
 };
 
+const selectAll = () => {
+  const all = groups.flatMap((g) => g.options.map((o) => o.value));
+  selected.value = [...all];
+};
+
+const clearAll = () => {
+  selected.value = [];
+};
+
 const confirm = () => {
   emit('update:modelValue', [...selected.value]);
   emit('change', [...selected.value]);
@@ -172,7 +190,6 @@ const confirm = () => {
 };
 
 const onClose = () => {
-  // 还原为 props 当前值
   selected.value = Array.isArray(props.modelValue) ? [...props.modelValue] : [];
 };
 
