@@ -80,56 +80,98 @@ async function main() {
   await c.from('app').delete().neq('id', 0);
   console.log('1) 清空 12 张表完成');
 
-  // === 阶段 2: 3 apps（覆盖 Android / iOS / Both） ===
+  // === 阶段 2: 3 apps（覆盖 Android / iOS / Both，所有前端 form 必填项填齐） ===
+  // 前端 form 必填：appName, packageName, platform, category(2级), storeListed, storeName(cond), storeUrl(cond), downloadUrl(cond), orientation
   const { data: apps, error: appErr } = await c.from('app').insert([
     {
       developer_id: devId, app_key: 'app_game_001', app_name: '开心消消乐',
-      package_name: 'com.demo.xiaoxiaole', platform: 3, category: '游戏',
-      status: 1, timeout_ms: 5000, store_listed: true, store_name: '应用宝', access_type: 1,
+      package_name: 'com.demo.xiaoxiaole', platform: 3, orientation: 3,
+      category: 'Game/Puzzle', access_type: 1, timeout_ms: 5000,
+      store_listed: true,
+      store_name: 'google-play',
+      store_url: 'https://play.google.com/store/apps/details?id=com.demo.xiaoxiaole',
+      download_url: 'https://download.demo.com/xiaoxiaole.apk',
+      icon_url: 'https://cdn.demo.com/icons/xiaoxiaole.png',
+      coppa_compliant: true, ccpa_compliant: false,
+      status: 1,
     },
     {
       developer_id: devId, app_key: 'app_tool_002', app_name: '万能工具箱',
-      package_name: 'com.demo.toolbox', platform: 1, category: '工具',
-      status: 1, timeout_ms: 5000, store_listed: true, store_name: '应用宝', access_type: 1,
+      package_name: 'com.demo.toolbox', platform: 1, orientation: 1,
+      category: 'Utilities/Tool', access_type: 1, timeout_ms: 5000,
+      store_listed: true,
+      store_name: 'google-play',
+      store_url: 'https://play.google.com/store/apps/details?id=com.demo.toolbox',
+      download_url: 'https://download.demo.com/toolbox.apk',
+      icon_url: 'https://cdn.demo.com/icons/toolbox.png',
+      coppa_compliant: false, ccpa_compliant: true,
+      status: 1,
     },
     {
       developer_id: devId, app_key: 'app_ecom_003', app_name: '优选商城',
-      package_name: 'com.demo.mall', platform: 2, category: '电商',
-      status: 1, timeout_ms: 5000, store_listed: true, store_name: 'App Store', access_type: 2,
+      package_name: 'com.demo.mall', platform: 2, orientation: 2,
+      category: 'Shopping/Shopping', access_type: 1, timeout_ms: 5000,
+      store_listed: true,
+      store_name: 'app-store',
+      store_url: 'https://apps.apple.com/cn/app/id000000001',
+      download_url: 'https://download.demo.com/mall.ipa',
+      icon_url: 'https://cdn.demo.com/icons/mall.png',
+      coppa_compliant: false, ccpa_compliant: false,
+      status: 1,
     },
   ]).select();
   if (appErr) throw new Error(`App insert: ${appErr.message}`);
-  console.log('2) Apps:', apps!.map((a: any) => `${a.app_name}(platform=${a.platform})`).join(', '));
+  const appIdByKey: Record<string, number> = {};
+  for (const a of apps!) appIdByKey[a.app_key] = a.id;
+  console.log('2) Apps:', apps!.map((a: any) => `${a.app_name}(platform=${a.platform}, id=${a.id})`).join(', '));
 
-  // === 阶段 3: 6 placements（覆盖 5 种 format） ===
+  // === 阶段 3: 6 placements（覆盖 5 种 format，所有前端 form 必填项填齐） ===
+  // 前端 form 必填：app_key, name, format, bidding_type, screen_orientation, ad_size(format=2), material_type(format 2/4), video_mute/auto_play/template_style(format=4)
   const { data: placements, error: plErr } = await c.from('placement').insert([
-    { app_key: 'app_game_001', placement_id: 'pl_splash_001', name: '启动开屏',   format: 5, status: 1, bidding_type: 1, screen_orientation: 0 },
-    { app_key: 'app_game_001', placement_id: 'pl_reward_002', name: '激励视频',   format: 4, status: 1, bidding_type: 2, screen_orientation: 1 },
-    { app_key: 'app_tool_002', placement_id: 'pl_banner_003', name: '横幅广告',   format: 1, status: 1, bidding_type: 1, screen_orientation: 0 },
-    { app_key: 'app_tool_002', placement_id: 'pl_inter_004',  name: '插屏广告',   format: 2, status: 1, bidding_type: 1, screen_orientation: 1 },
-    { app_key: 'app_ecom_003', placement_id: 'pl_native_005', name: '信息流广告', format: 3, status: 1, bidding_type: 2, screen_orientation: 0 },
-    { app_key: 'app_ecom_003', placement_id: 'pl_inter_006',  name: '详情插屏',   format: 2, status: 1, bidding_type: 1, screen_orientation: 0 },
+    { app_key: 'app_game_001', placement_id: 'pl_splash_001', name: '启动开屏',   format: 5, status: 1, bidding_type: 2, screen_orientation: 1 },
+    { app_key: 'app_game_001', placement_id: 'pl_reward_002', name: '激励视频',   format: 4, status: 1, bidding_type: 2, screen_orientation: 1, material_type: 2, video_mute: 1, auto_play: 1, template_style: 1 },
+    { app_key: 'app_tool_002', placement_id: 'pl_banner_003', name: '横幅广告',   format: 1, status: 1, bidding_type: 1, screen_orientation: 2 },
+    { app_key: 'app_tool_002', placement_id: 'pl_inter_004',  name: '插屏广告',   format: 2, status: 1, bidding_type: 1, screen_orientation: 1, ad_size: 1, material_type: 1 },
+    { app_key: 'app_ecom_003', placement_id: 'pl_native_005', name: '信息流广告', format: 3, status: 1, bidding_type: 2, screen_orientation: 2 },
+    { app_key: 'app_ecom_003', placement_id: 'pl_inter_006',  name: '详情插屏',   format: 2, status: 1, bidding_type: 1, screen_orientation: 1, ad_size: 2, material_type: 1 },
   ]).select();
   if (plErr) throw new Error(`Placement insert: ${plErr.message}`);
-  console.log('3) Placements:', placements!.length, '个');
+  const plIdByCode: Record<string, number> = {};
+  for (const p of placements!) plIdByCode[p.placement_id] = p.id;
+  console.log('3) Placements:', placements!.map((p: any) => `${p.name}(format=${p.format}, id=${p.id})`).join(', '));
 
-  // === 阶段 4: 5 ad_source（每个预置平台 1 个） ===
-  const adSourceRows = defs.map((d: any) => ({
-    developer_id: devId,
-    network_def_id: d.id,
-    network_code: d.network_code,
-    network_name: d.network_name,
-    source_name: `${d.network_name}-默认`,
-    status: 1,
-    is_custom: false,
-    third_app_id: `${d.network_code.toLowerCase()}_app_001`,
-    third_placement_id: `${d.network_code.toLowerCase()}_pl_001`,
-  }));
+  // === 阶段 4: 5 ad_source（每个预置平台 1 个，所有前端 form 必填项填齐） ===
+  // 前端 form 必填：source_name, networkDefId, third_app_id, third_placement_id, appId, placementId
+  // 按 (app, placement, network) 三元组创建 15 个 ad_source，覆盖 3 app × 2 placement × 5 network 中实际关联的子集
+  const adSourceRows: any[] = [];
+  for (const p of placements!) {
+    for (const d of defs) {
+      adSourceRows.push({
+        developer_id: devId,
+        network_def_id: d.id,
+        network_code: d.network_code,
+        network_name: d.network_name,
+        source_name: `${d.network_name}-${p.name}`,
+        status: 1,
+        is_custom: false,
+        app_id: appIdByKey[p.app_key],
+        placement_id: p.id,
+        third_app_id: `${d.network_code.toLowerCase()}_app_${p.app_key.replace('app_', '').replace(/^0+/, '')}`,
+        third_placement_id: `${d.network_code.toLowerCase()}_pl_${p.placement_id.replace('pl_', '').replace(/_0+/, '_')}`,
+        store_dim_params: { width: 1080, height: 1920, refresh: 30 },
+      });
+    }
+  }
   const { data: sources, error: srcErr } = await c.from('ad_source').insert(adSourceRows).select();
   if (srcErr) throw new Error(`AdSource insert: ${srcErr.message}`);
-  const srcByCode: Record<string, number> = {};
-  for (const s of sources!) srcByCode[s.network_code] = s.id;
-  console.log('4) AdSources:', sources!.map((s: any) => `${s.network_code}(id=${s.id})`).join(','));
+  // srcByCode: 不再一对一 — 同一 network_code 对应多个 ad_source（每个 placement 一个）
+  // 改用 srcByKey: 选第一个作为默认主源
+  const srcByKey: Record<string, number> = {};
+  for (const s of sources!) {
+    const key = `${s.network_code}__${s.app_id}__${s.placement_id}`;
+    srcByKey[key] = s.id;
+  }
+  console.log('4) AdSources:', sources!.length, '个（3 app × 2 placement × 5 network = 15）');
 
   // === 阶段 5: 6 waterfall_config（每个 placement 一个） ===
   const { data: configs, error: wcErr } = await c.from('waterfall_config').insert(
@@ -144,23 +186,31 @@ async function main() {
   if (wcErr) throw new Error(`WaterfallConfig insert: ${wcErr.message}`);
   console.log('5) WaterfallConfigs:', configs!.length, '个');
 
-  // === 阶段 6: waterfall_layer（每个 config 3 层：Bidding/瀑布/兜底） ===
+  // === 阶段 6: waterfall_layer（每个 config 4 层：B1/B2 竞价 + 瀑布 + 兜底） ===
   // 字段：config_id, layer_type(1=Bidding/2=瀑布/3=兜底), ad_source_id, sort_price, timeout_ms, priority, status
+  // 每个 config 对应一个 placement，从 srcByKey 选该 placement 的 5 个 ad_source 中的 4 个作为 4 层
   const layerRows: any[] = [];
   const layerPlan = [
-    { type: 1, code: 'CSJ', price: 50, priority: 100 }, // Bidding
-    { type: 1, code: 'YLH', price: 45, priority: 90 },
-    { type: 2, code: 'KS',  price: 30, priority: 80 }, // 瀑布
-    { type: 3, code: 'BD',  price: 0,  priority: 70 }, // 兜底
+    { type: 1, offset: 0, priceMul: 1.0,  timeoutMs: 3000, priority: 100 }, // Bidding 1
+    { type: 1, offset: 1, priceMul: 0.95, timeoutMs: 3000, priority: 90 },  // Bidding 2
+    { type: 2, offset: 2, priceMul: 0.8,  timeoutMs: 5000, priority: 80 },  // 瀑布
+    { type: 3, offset: 3, priceMul: 0,    timeoutMs: 5000, priority: 70 },  // 兜底
   ];
   for (const cfg of configs!) {
+    // cfg.placement_id 是 placement 业务码
+    const placementCode = cfg.placement_id;
+    const pl = placements!.find((p: any) => p.placement_id === placementCode)!;
+    const appKey = pl.app_key;
     for (const lp of layerPlan) {
+      const net = defs[lp.offset].network_code;
+      const sourceId = srcByKey[`${net}__${appIdByKey[appKey]}__${pl.id}`];
+      if (!sourceId) continue;
       layerRows.push({
         config_id: cfg.id,
         layer_type: lp.type,
-        ad_source_id: srcByCode[lp.code],
-        sort_price: lp.price,
-        timeout_ms: 5000,
+        ad_source_id: sourceId,
+        sort_price: lp.priceMul,
+        timeout_ms: lp.timeoutMs,
         priority: lp.priority,
         status: 1,
       });
@@ -182,11 +232,11 @@ async function main() {
   if (tgErr) throw new Error(`TrafficGroup insert: ${tgErr.message}`);
   console.log('7) TrafficGroups:', groups!.length, '个');
 
-  // === 阶段 8: ad_source_traffic_group（每个 ad_source 关联 2-3 个 group） ===
+  // === 阶段 8: ad_source_traffic_group（每个 ad_source 关联 2 个 group） ===
   const astgRows: any[] = [];
   for (let i = 0; i < sources!.length; i++) {
     const src = sources![i];
-    const assignedGroups = [groups![i % 3].id, groups![(i + 1) % 3].id];
+    const assignedGroups = [groups![i % groups!.length].id, groups![(i + 1) % groups!.length].id];
     for (const gid of assignedGroups) {
       astgRows.push({
         ad_source_id: src.id,
@@ -285,15 +335,25 @@ async function main() {
   console.log('12) ReportBoards:', rbs!.length, '个');
 
   // === 阶段 13: report_daily（28 天连续数据：28天前 ~ 今天；不造未来） ===
-  // os 严格与 app.platform 对齐
+  // os 严格与 app.platform 对齐；每个 (app, placement, network) 唯一组合 1 行
   const allPresetCodes = defs.map((d: any) => d.network_code);
   const halfCount = Math.max(1, Math.ceil(allPresetCodes.length * 0.6));
   const firstHalf = allPresetCodes.slice(0, halfCount);
   const secondHalf = allPresetCodes.slice(-halfCount);
-  const appOsMap: Record<string, { allowedOs: string[]; allowedNets: string[]; placements: { id: string; fmt: string }[] }> = {
-    app_game_001: { allowedOs: ['android', 'ios'], allowedNets: allPresetCodes, placements: [{ id: 'pl_splash_001', fmt: 'splash' }, { id: 'pl_reward_002', fmt: 'rewarded' }] },
-    app_tool_002: { allowedOs: ['android'],         allowedNets: firstHalf,        placements: [{ id: 'pl_banner_003', fmt: 'banner' }, { id: 'pl_inter_004',  fmt: 'interstitial' }] },
-    app_ecom_003: { allowedOs: ['ios'],             allowedNets: secondHalf,       placements: [{ id: 'pl_native_005', fmt: 'native' },  { id: 'pl_inter_006',  fmt: 'interstitial' }] },
+  // 按 (app, placement, network) 三元组从 srcByKey 取 ad_source_id
+  const appOsMap: Record<string, { allowedOs: string[]; allowedNets: string[]; placements: { id: number; placementIdCode: string; fmt: string }[] }> = {
+    app_game_001: { allowedOs: ['android', 'ios'], allowedNets: allPresetCodes, placements: [
+      { id: plIdByCode['pl_splash_001'], placementIdCode: 'pl_splash_001', fmt: 'splash' },
+      { id: plIdByCode['pl_reward_002'], placementIdCode: 'pl_reward_002', fmt: 'rewarded' },
+    ] },
+    app_tool_002: { allowedOs: ['android'],         allowedNets: firstHalf,        placements: [
+      { id: plIdByCode['pl_banner_003'], placementIdCode: 'pl_banner_003', fmt: 'banner' },
+      { id: plIdByCode['pl_inter_004'],  placementIdCode: 'pl_inter_004',  fmt: 'interstitial' },
+    ] },
+    app_ecom_003: { allowedOs: ['ios'],             allowedNets: secondHalf,       placements: [
+      { id: plIdByCode['pl_native_005'], placementIdCode: 'pl_native_005', fmt: 'native' },
+      { id: plIdByCode['pl_inter_006'],  placementIdCode: 'pl_inter_006',  fmt: 'interstitial' },
+    ] },
   };
   const dates = genDates(27, 0); // 27 天前（=28天数据点含今天）到今天
   const regions = ['CN', 'US', 'JP', 'KR', 'GB'];
@@ -303,7 +363,7 @@ async function main() {
       const { allowedOs, allowedNets, placements: pps } = appOsMap[appKey];
       for (const p of pps) {
         for (const net of allowedNets) {
-          const sourceId = srcByCode[net];
+          const sourceId = srcByKey[`${net}__${appIdByKey[appKey]}__${p.id}`];
           if (!sourceId) continue;
           const os = allowedOs[Math.floor(Math.random() * allowedOs.length)];
           const region = regions[Math.floor(Math.random() * regions.length)];
@@ -312,7 +372,7 @@ async function main() {
             rows.push({
               developer_id: devId,
               app_key: appKey,
-              placement_id: p.id,
+              placement_id: p.placementIdCode,
               ad_source_id: sourceId,
               stat_date: date,
               requests:    Math.floor(r * 8000 + 100),
