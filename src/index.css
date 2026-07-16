@@ -9446,14 +9446,16 @@ html, body, #app {
   font-size: 12px;
 }
 
-/* 频次分布 */
-.behavior-freq-layout {
+/* 频次/价值 Tab 公共上下布局 */
+.behavior-tab-layout {
   display: flex;
   flex-direction: column;
   gap: 20px;
 }
-.behavior-freq-table-pane { min-width: 0; }
-.behavior-freq-trend-pane {
+.behavior-freq-table-pane,
+.behavior-value-table-pane { min-width: 0; }
+.behavior-freq-trend-pane,
+.behavior-value-trend-pane {
   min-width: 0;
   display: flex; flex-direction: column; gap: 12px;
   padding: 14px 16px;
@@ -9461,7 +9463,8 @@ html, body, #app {
   border: 1px solid #E2E8F0;
   border-radius: 10px;
 }
-.behavior-freq-trend-pane .behavior-card-header { margin-bottom: 0; }
+.behavior-freq-trend-pane .behavior-card-header,
+.behavior-value-trend-pane .behavior-card-header { margin-bottom: 0; }
 
 .freq-trend-kpi {
   display: grid;

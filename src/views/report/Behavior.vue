@@ -58,7 +58,7 @@
 
         <!-- Tab 1: 展示频次（10 个频次档） -->
         <div v-if="currentSubtype === 'frequency'" class="behavior-card" v-loading="loading">
-          <div class="behavior-freq-layout">
+          <div class="behavior-tab-layout">
             <!-- 上：7 天趋势图 -->
             <div class="behavior-freq-trend-pane">
               <div class="behavior-card-header">
@@ -150,39 +150,90 @@
 
         <!-- Tab 2: 用户价值（eCPM 范围 25 段） -->
         <div v-else-if="currentSubtype === 'value'" class="behavior-card" v-loading="loading">
-          <div class="behavior-card-header">
-            <h3 class="behavior-card-title">详细数据</h3>
-            <div class="behavior-card-actions">
-              <span class="behavior-card-vs">eCPM 范围</span>
-              <el-select v-model="valueMetric" style="width: 130px" @change="loadAll">
-                <el-option v-for="m in VALUE_METRICS" :key="m.value" :label="m.label" :value="m.value" />
-              </el-select>
-              <span class="behavior-card-vs">范围</span>
-              <el-select v-model="valueRange" style="width: 100px" @change="loadAll">
-                <el-option v-for="r in VALUE_RANGES" :key="r.value" :label="r.label" :value="r.value" />
-              </el-select>
+          <div class="behavior-tab-layout">
+            <!-- 上：7 天趋势图 -->
+            <div class="behavior-value-trend-pane">
+              <div class="behavior-card-header">
+                <h3 class="behavior-card-title">
+                  <el-icon><TrendCharts /></el-icon>
+                  <span>7 天趋势</span>
+                </h3>
+                <div class="behavior-card-actions">
+                  <el-button :icon="EditPen" plain size="small" @click="valueTrendPickerOpen = true">指标选择</el-button>
+                </div>
+              </div>
+
+              <div class="freq-trend-kpi">
+                <div v-for="k in valueTrendKpi" :key="k.code" class="freq-trend-kpi-item" :style="{ borderLeftColor: k.color }">
+                  <span class="freq-trend-kpi-name">{{ k.name }}</span>
+                  <span class="freq-trend-kpi-value" :style="{ color: k.color }">{{ k.value }}</span>
+                  <span class="freq-trend-kpi-delta" :class="k.delta >= 0 ? 'tone-up' : 'tone-down'">
+                    {{ k.delta >= 0 ? '↑' : '↓' }}&nbsp;{{ Math.abs(k.delta).toFixed(2) }}%
+                  </span>
+                </div>
+              </div>
+
+              <div class="freq-trend-chart">
+                <v-chart v-if="valueTrendDates.length > 0" :option="valueTrendChartOption" autoresize style="height: 280px" />
+                <div v-else class="frequency-empty">暂无数据</div>
+              </div>
+
+              <el-dialog
+                v-model="valueTrendPickerOpen"
+                title="选择趋势指标"
+                width="520px"
+                :close-on-click-modal="false"
+                append-to-body
+              >
+                <el-checkbox-group v-model="valueTrendPicked" class="freq-trend-picker">
+                  <el-checkbox v-for="m in VALUE_TREND_METRICS" :key="m.code" :label="m.code">
+                    <span class="freq-trend-picker-chip" :style="{ background: m.color + '20', color: m.color, borderColor: m.color + '50' }">{{ m.name }}</span>
+                  </el-checkbox>
+                </el-checkbox-group>
+                <template #footer>
+                  <el-button @click="valueTrendPickerOpen = false">取消</el-button>
+                  <el-button type="primary" @click="valueTrendPickerOpen = false">确定</el-button>
+                </template>
+              </el-dialog>
             </div>
-          </div>
-          <div class="value-table">
-            <div class="value-row value-row--header">
-              <div class="value-col">{{ valueMetricLabel }}范围</div>
-              <div class="value-col">展示数</div>
-              <div class="value-col">展示占比</div>
-              <div class="value-col">设备数</div>
-              <div class="value-col">设备占比</div>
-              <div class="value-col">预估收益</div>
-              <div class="value-col">预估收益占比</div>
-              <div class="value-col">预估收益累计占比</div>
-            </div>
-            <div v-for="row in valueRows" :key="row.range" class="value-row">
-              <div class="value-col value-col--name">{{ row.range }}</div>
-              <div class="value-col">{{ row.impressions.toLocaleString() }}</div>
-              <div class="value-col">{{ row.impPercent }}%</div>
-              <div class="value-col">{{ row.devices.toLocaleString() }}</div>
-              <div class="value-col">{{ row.devPercent }}%</div>
-              <div class="value-col">¥{{ row.revenue.toFixed(2) }}</div>
-              <div class="value-col">{{ row.revPercent }}%</div>
-              <div class="value-col">{{ row.revCumPercent }}%</div>
+
+            <!-- 下：eCPM 范围分布表 -->
+            <div class="behavior-value-table-pane">
+              <div class="behavior-card-header">
+                <h3 class="behavior-card-title">详细数据</h3>
+                <div class="behavior-card-actions">
+                  <span class="behavior-card-vs">eCPM 范围</span>
+                  <el-select v-model="valueMetric" style="width: 130px" @change="loadAll">
+                    <el-option v-for="m in VALUE_METRICS" :key="m.value" :label="m.label" :value="m.value" />
+                  </el-select>
+                  <span class="behavior-card-vs">范围</span>
+                  <el-select v-model="valueRange" style="width: 100px" @change="loadAll">
+                    <el-option v-for="r in VALUE_RANGES" :key="r.value" :label="r.label" :value="r.value" />
+                  </el-select>
+                </div>
+              </div>
+              <div class="value-table">
+                <div class="value-row value-row--header">
+                  <div class="value-col">{{ valueMetricLabel }}范围</div>
+                  <div class="value-col">展示数</div>
+                  <div class="value-col">展示占比</div>
+                  <div class="value-col">设备数</div>
+                  <div class="value-col">设备占比</div>
+                  <div class="value-col">预估收益</div>
+                  <div class="value-col">预估收益占比</div>
+                  <div class="value-col">预估收益累计占比</div>
+                </div>
+                <div v-for="row in valueRows" :key="row.range" class="value-row">
+                  <div class="value-col value-col--name">{{ row.range }}</div>
+                  <div class="value-col">{{ row.impressions.toLocaleString() }}</div>
+                  <div class="value-col">{{ row.impPercent }}%</div>
+                  <div class="value-col">{{ row.devices.toLocaleString() }}</div>
+                  <div class="value-col">{{ row.devPercent }}%</div>
+                  <div class="value-col">¥{{ row.revenue.toFixed(2) }}</div>
+                  <div class="value-col">{{ row.revPercent }}%</div>
+                  <div class="value-col">{{ row.revCumPercent }}%</div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -517,6 +568,152 @@ const freqTrendChartOption = computed(() => {
       axisLabel: {
         formatter: (v: number) => v >= 1000 ? (v / 1000).toFixed(1) + 'k' : v,
       },
+      splitLine: { lineStyle: { type: 'dashed', color: '#e4e7ed' } },
+    },
+    series,
+  };
+});
+
+// ====== 用户价值 · 7 天趋势图（mock）======
+// 7 指标：展示数 / 展示占比 / 设备数 / 设备占比 / 预估收益 / 预估收益占比 / 预估收益累计占比
+const VALUE_TREND_METRICS = [
+  { code: 'impressions',  name: '展示数',             color: '#3B82F6', base: 0,  kind: 'count'   },
+  { code: 'imp_ratio',    name: '展示占比',           color: '#6366F1', base: 30, kind: 'percent' },
+  { code: 'devices',      name: '设备数',             color: '#10B981', base: 0,  kind: 'count'   },
+  { code: 'dev_ratio',    name: '设备占比',           color: '#14B8A6', base: 30, kind: 'percent' },
+  { code: 'revenue',      name: '预估收益',           color: '#F59E0B', base: 0,  kind: 'money'   },
+  { code: 'rev_ratio',    name: '预估收益占比',       color: '#EF4444', base: 30, kind: 'percent' },
+  { code: 'rev_cum_ratio',name: '预估收益累计占比',   color: '#A855F7', base: 30, kind: 'percent' },
+];
+
+const valueTrendPicked = ref<string[]>(['impressions', 'devices', 'revenue', 'rev_cum_ratio']);
+const valueTrendPickerOpen = ref(false);
+
+// 复用 frequency 的 getDateRange()（同筛选器）
+
+const valueTrendDates = computed<string[]>(() => {
+  const { start, end } = getDateRange();
+  const s = dayjs(start);
+  const e = dayjs(end);
+  const days = e.diff(s, 'day') + 1;
+  if (days <= 0) return [];
+  const arr: string[] = [];
+  for (let i = 0; i < days; i++) arr.push(s.add(i, 'day').format('MM-DD'));
+  return arr;
+});
+
+const valueTrendSeries = computed<Record<string, { values: number[]; delta: number; latest: number; unit: string; display: string }>>(() => {
+  const dates = valueTrendDates.value;
+  if (dates.length === 0) return {} as any;
+  const out: Record<string, any> = {};
+  const totalImpsBase = 50000;
+  const totalDevBase = 12000;
+  const totalRevBase = 1200;
+
+  for (const m of VALUE_TREND_METRICS) {
+    const rand = seededRand(dates.length * 100 + m.code.length);
+    const trendUp = 1 + (m.kind === 'money' ? 0.04 : 0.02) * (dates.length / 7);
+    const values: number[] = [];
+    for (let i = 0; i < dates.length; i++) {
+      const dow = dayjs(dates[i], 'MM-DD').day();
+      const weekend = (dow === 0 || dow === 6) ? 0.95 : 1.0;
+      const jitter = 0.92 + rand() * 0.16;
+      let v: number;
+      if (m.code === 'impressions') v = totalImpsBase * trendUp * weekend * jitter;
+      else if (m.code === 'devices') v = totalDevBase * trendUp * weekend * jitter;
+      else if (m.code === 'revenue') v = totalRevBase * trendUp * weekend * jitter;
+      else v = m.base * (0.95 + rand() * 0.1);
+      values.push(+v.toFixed(2));
+    }
+    // 占比类：相对总展示
+    if (m.code === 'imp_ratio') {
+      const total = out['impressions']?.values;
+      if (total) for (let i = 0; i < values.length; i++) values[i] = +(values[i] / total[i] * 100).toFixed(2);
+    }
+    if (m.code === 'dev_ratio') {
+      const total = out['impressions']?.values;
+      if (total) for (let i = 0; i < values.length; i++) values[i] = +(values[i] / total[i] * 100).toFixed(2);
+    }
+    if (m.code === 'rev_ratio') {
+      const total = out['impressions']?.values;
+      if (total) for (let i = 0; i < values.length; i++) values[i] = +(values[i] / total[i] * 1000).toFixed(2);
+    }
+    if (m.code === 'rev_cum_ratio') {
+      // 累计占比：每日累计收益 / 7 天总收益
+      const total = out['revenue']?.values;
+      if (total) {
+        const sum = total.reduce((a: number, b: number) => a + b, 0);
+        let acc = 0;
+        for (let i = 0; i < total.length; i++) {
+          acc += total[i];
+          values[i] = +(acc / sum * 100).toFixed(2);
+        }
+      }
+    }
+    const latest = values[values.length - 1];
+    const prev = values[values.length - 2] ?? latest;
+    const delta = prev === 0 ? 0 : +(((latest - prev) / prev) * 100).toFixed(2);
+    const unit = m.kind === 'percent' ? '%' : m.kind === 'money' ? '¥' : '';
+    const display = m.kind === 'percent'
+      ? latest.toFixed(2) + '%'
+      : m.kind === 'money'
+        ? '¥' + latest.toFixed(0)
+        : Math.round(latest).toLocaleString();
+    out[m.code] = { values, delta, latest, unit, display };
+  }
+  return out;
+});
+
+const valueTrendKpi = computed(() =>
+  valueTrendPicked.value.map((code) => {
+    const def = VALUE_TREND_METRICS.find((m) => m.code === code)!;
+    const s = valueTrendSeries.value[code];
+    return { ...def, value: s?.display || '-', delta: s?.delta || 0 };
+  })
+);
+
+const valueTrendChartOption = computed(() => {
+  const picked = valueTrendPicked.value;
+  const series = VALUE_TREND_METRICS
+    .filter((m) => picked.includes(m.code))
+    .map((m) => {
+      const s = valueTrendSeries.value[m.code];
+      return {
+        name: m.name,
+        type: 'line',
+        smooth: true,
+        symbol: 'circle',
+        symbolSize: 6,
+        showSymbol: false,
+        yAxisIndex: 0,
+        lineStyle: { width: 2, color: m.color },
+        itemStyle: { color: m.color },
+        emphasis: { focus: 'series' },
+        data: s?.values || [],
+        ...(picked.length === 1 ? {
+          markLine: {
+            silent: true,
+            symbol: 'none',
+            lineStyle: { color: m.color, type: 'dashed', opacity: 0.5 },
+            data: [{ type: 'average', name: '均值' }],
+            label: { color: m.color, fontSize: 11 },
+          },
+        } : {}),
+      };
+    });
+  return {
+    color: VALUE_TREND_METRICS.filter((m) => picked.includes(m.code)).map((m) => m.color),
+    grid: { left: 56, right: 30, top: 36, bottom: 40 },
+    tooltip: { trigger: 'axis', valueFormatter: (v: number) => v.toFixed(2) },
+    legend: {
+      top: 4,
+      type: 'scroll',
+      data: VALUE_TREND_METRICS.filter((m) => picked.includes(m.code)).map((m) => m.name),
+    },
+    xAxis: { type: 'category', data: valueTrendDates.value, boundaryGap: false, axisLabel: { fontSize: 11 } },
+    yAxis: {
+      type: 'value',
+      axisLabel: { formatter: (v: number) => v >= 1000 ? (v / 1000).toFixed(1) + 'k' : v },
       splitLine: { lineStyle: { type: 'dashed', color: '#e4e7ed' } },
     },
     series,
