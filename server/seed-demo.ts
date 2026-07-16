@@ -1,18 +1,19 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /**
- * Demo 数据种子脚本
+ * Demo 数据种子脚本（按前端功能要求 Mock）
  *
- * 系统边界（来自 PLAN.md / DB schema）：
+ * 系统边界（来自 PLAN.md / DB schema / AGENTS.md "系统数据模型边界" 章节）：
  * - app.platform: 1=Android / 2=iOS / 3=Both（无鸿蒙）
- * - ad_network_def.system_type: 1=Android / 2=iOS / 3=Both（无鸿蒙）
+ * - ad_network_def.system_type: 1=Android / 2=iOS / 3=Both
  * - ad_network_def.is_preset: true=预置（官方），false=自定义
- * - 预置广告网络从 ad_network_def.is_preset=true 动态加载（不写死 code 列表）
+ * - 预置广告网络从 ad_network_def.is_preset=true 动态加载（不写死 code）
  * - report_daily.os 必须与关联 app.platform 严格一致：
  *     platform=1 → os=android
  *     platform=2 → os=ios
- *     platform=3 → os=android 或 ios 均可
+ *     platform=3 → os=android 或 ios
  * - ad_source.network_code / network_name 必须从 ad_network_def 引用
- *   （即 network_code 在 ad_network_def 中 is_preset=true 的 code 集合）
+ * - ad_source.third_app_id / third_placement_id 必填（NOT NULL）
+ * - report_daily 唯一约束 (developer_id, app_key, placement_id, ad_source_id, stat_date, hour)
  */
 import { createClient } from '@supabase/supabase-js';
 
@@ -21,86 +22,86 @@ const c = createClient(
   process.env.COZE_SUPABASE_SERVICE_ROLE_KEY!,
 );
 
+// 0 个用户报告里写的 developer_id：dashboard-test@demo.com
+const devId = 'dev_6NkEhLUUWZpHkmH8';
+
+function todayStr(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function daysAgoStr(days: number): string {
+  const d = new Date();
+  d.setUTCDate(d.getUTCDate() - days);
+  return d.toISOString().slice(0, 10);
+}
+
+function genDates(startDaysAgo: number, endDaysAgo: number): string[] {
+  // startDaysAgo 更大（更早），endDaysAgo 更小（更近）
+  // 例：genDates(7, 1) = [7天前, 6天前, ..., 2天前, 1天前]
+  if (startDaysAgo < endDaysAgo) [startDaysAgo, endDaysAgo] = [endDaysAgo, startDaysAgo];
+  const out: string[] = [];
+  for (let i = startDaysAgo; i >= endDaysAgo; i--) {
+    out.push(daysAgoStr(i));
+  }
+  return out;
+}
+
 async function main() {
   console.log('Target:', process.env.COZE_SUPABASE_URL);
-  const devId = 'dev_W7dOvj90HaEGi3Ez';
-  console.log('Owner:', devId);
+  console.log('Owner:', devId, '(dashboard-test@demo.com)');
 
-  // 0) 动态读取所有预置 ad_network_def（is_preset=true）
-  //    保证 link 的 network_def_id 是真实存在的；不写死 5 个 code
+  // === 阶段 0: 动态加载预置广告平台（不写死） ===
   const { data: defs, error: defErr } = await c
     .from('ad_network_def')
     .select('id, network_code, network_name, system_type, is_preset')
     .eq('is_preset', true)
     .order('id');
   if (defErr) throw new Error(`Load ad_network_def failed: ${defErr.message}`);
-  if (!defs || defs.length === 0) {
-    throw new Error('需要至少 1 个预置 ad_network_def（is_preset=true），实际 0');
-  }
-  // 验证预置平台都是 Both（system_type=3）才通用
+  if (!defs || defs.length === 0) throw new Error('需要至少 1 个预置 ad_network_def（is_preset=true）');
   for (const d of defs) {
-    if (d.system_type !== 3) {
-      console.warn(`!! ${d.network_code} system_type=${d.system_type}（非 Both，可能影响 demo 联动）`);
-    }
+    if (d.system_type !== 3) console.warn(`!! ${d.network_code} system_type=${d.system_type}（非 Both）`);
   }
-  const defByCode: Record<string, { id: number; network_code: string; network_name: string }> = {};
-  for (const d of defs) defByCode[d.network_code] = d;
-  console.log('0) 预置 ad_network_def 已加载（动态从 DB 读）:', Object.keys(defByCode).join(','));
+  const presetCodeSet = new Set(defs.map((d: any) => d.network_code));
+  console.log('0) 预置 ad_network_def:', defs.map((d: any) => d.network_code).join(','));
 
-  // 1) 清 4 张表（保留 902 个 developer + 5 个预置 ad_network_def + traffic_group + 消息等）
+  // === 阶段 1: 清 12 张表（保留 developer / ad_network_def / ad_network_account / app_network_binding / report_metric_definition / report_funnel_metric_definition / health_check / hal_*） ===
+  // 清表顺序：依赖表先清
   await c.from('report_daily').delete().neq('id', 0);
+  await c.from('report_board').delete().neq('id', 0);
+  await c.from('message').delete().neq('id', 0);
+  await c.from('custom_network_report').delete().neq('id', 0);
+  await c.from('custom_adapter_version').delete().neq('id', 0);
+  await c.from('ad_source_traffic_group').delete().neq('id', 0);
+  await c.from('traffic_group').delete().neq('id', 0);
+  await c.from('waterfall_layer').delete().neq('id', 0);
+  await c.from('waterfall_config').delete().neq('id', 0);
   await c.from('ad_source').delete().neq('id', 0);
   await c.from('placement').delete().neq('id', 0);
   await c.from('app').delete().neq('id', 0);
-  console.log('1) 清空 app/placement/ad_source/report_daily 完成');
+  console.log('1) 清空 12 张表完成');
 
-  // 2) 3 apps（覆盖 Android / iOS / Both 三种 platform）
+  // === 阶段 2: 3 apps（覆盖 Android / iOS / Both） ===
   const { data: apps, error: appErr } = await c.from('app').insert([
     {
-      developer_id: devId,
-      app_key: 'app_game_001',
-      app_name: '开心消消乐',
-      package_name: 'com.demo.xiaoxiaole',
-      platform: 3, // 双端（Android + iOS）
-      category: '游戏',
-      status: 1,
-      timeout_ms: 5000,
-      store_listed: true,
-      store_name: '应用宝',
-      access_type: 1,
+      developer_id: devId, app_key: 'app_game_001', app_name: '开心消消乐',
+      package_name: 'com.demo.xiaoxiaole', platform: 3, category: '游戏',
+      status: 1, timeout_ms: 5000, store_listed: true, store_name: '应用宝', access_type: 1,
     },
     {
-      developer_id: devId,
-      app_key: 'app_tool_002',
-      app_name: '万能工具箱',
-      package_name: 'com.demo.toolbox',
-      platform: 1, // Android
-      category: '工具',
-      status: 1,
-      timeout_ms: 5000,
-      store_listed: true,
-      store_name: '应用宝',
-      access_type: 1,
+      developer_id: devId, app_key: 'app_tool_002', app_name: '万能工具箱',
+      package_name: 'com.demo.toolbox', platform: 1, category: '工具',
+      status: 1, timeout_ms: 5000, store_listed: true, store_name: '应用宝', access_type: 1,
     },
     {
-      developer_id: devId,
-      app_key: 'app_ecom_003',
-      app_name: '优选商城',
-      package_name: 'com.demo.mall',
-      platform: 2, // iOS
-      category: '电商',
-      status: 1,
-      timeout_ms: 5000,
-      store_listed: true,
-      store_name: 'App Store',
-      access_type: 1,
+      developer_id: devId, app_key: 'app_ecom_003', app_name: '优选商城',
+      package_name: 'com.demo.mall', platform: 2, category: '电商',
+      status: 1, timeout_ms: 5000, store_listed: true, store_name: 'App Store', access_type: 2,
     },
   ]).select();
-  if (appErr) throw new Error(`App insert failed: ${appErr.message}`);
-  if (!apps || apps.length !== 3) throw new Error(`期望 3 apps，实际 ${apps?.length}`);
-  console.log('2) Apps:', apps.map(a => `${a.app_name}(platform=${a.platform})`).join(', '));
+  if (appErr) throw new Error(`App insert: ${appErr.message}`);
+  console.log('2) Apps:', apps!.map((a: any) => `${a.app_name}(platform=${a.platform})`).join(', '));
 
-  // 3) 6 placements（按广告位类型 + 关联 app）
+  // === 阶段 3: 6 placements（覆盖 5 种 format） ===
   const { data: placements, error: plErr } = await c.from('placement').insert([
     { app_key: 'app_game_001', placement_id: 'pl_splash_001', name: '启动开屏',   format: 5, status: 1, bidding_type: 1, screen_orientation: 0 },
     { app_key: 'app_game_001', placement_id: 'pl_reward_002', name: '激励视频',   format: 4, status: 1, bidding_type: 2, screen_orientation: 1 },
@@ -109,14 +110,11 @@ async function main() {
     { app_key: 'app_ecom_003', placement_id: 'pl_native_005', name: '信息流广告', format: 3, status: 1, bidding_type: 2, screen_orientation: 0 },
     { app_key: 'app_ecom_003', placement_id: 'pl_inter_006',  name: '详情插屏',   format: 2, status: 1, bidding_type: 1, screen_orientation: 0 },
   ]).select();
-  if (plErr) throw new Error(`Placement insert failed: ${plErr.message}`);
-  if (!placements || placements.length !== 6) throw new Error(`期望 6 placements，实际 ${placements?.length}`);
-  console.log('3) Placements:', placements.length, '个');
+  if (plErr) throw new Error(`Placement insert: ${plErr.message}`);
+  console.log('3) Placements:', placements!.length, '个');
 
-  // 4) ad_source：每个预置 ad_network_def 生成一条 source
-  //    关键：network_code / network_name / network_def_id 必须从 ad_network_def 引用
-  //    第三方 app_id / placement_id 用占位业务码
-  const adSourceRows = defs.map((d: { id: number; network_code: string; network_name: string }) => ({
+  // === 阶段 4: 5 ad_source（每个预置平台 1 个） ===
+  const adSourceRows = defs.map((d: any) => ({
     developer_id: devId,
     network_def_id: d.id,
     network_code: d.network_code,
@@ -128,48 +126,185 @@ async function main() {
     third_placement_id: `${d.network_code.toLowerCase()}_pl_001`,
   }));
   const { data: sources, error: srcErr } = await c.from('ad_source').insert(adSourceRows).select();
-  if (srcErr) throw new Error(`AdSource insert failed: ${srcErr.message}`);
-  if (!sources || sources.length === 0) throw new Error(`ad_source insert 失败，0 条`);
+  if (srcErr) throw new Error(`AdSource insert: ${srcErr.message}`);
   const srcByCode: Record<string, number> = {};
-  for (const s of sources) srcByCode[s.network_code] = s.id;
-  console.log('4) Ad sources:', sources.map(s => `${s.network_code}(id=${s.id})`).join(', '));
+  for (const s of sources!) srcByCode[s.network_code] = s.id;
+  console.log('4) AdSources:', sources!.map((s: any) => `${s.network_code}(id=${s.id})`).join(','));
 
-  // 5) report_daily：os 严格与 app.platform 对齐
-  //    联动规则（按 defs 动态分片，不硬编码 code）：
-  //    - 双端 app (platform=3) → 关联所有预置平台，os ∈ {android, ios}
-  //    - 单端 Android app (platform=1) → 关联前 60% 预置平台，os = android
-  //    - 单端 iOS app (platform=2) → 关联后 60% 预置平台，os = ios
+  // === 阶段 5: 6 waterfall_config（每个 placement 一个） ===
+  const { data: configs, error: wcErr } = await c.from('waterfall_config').insert(
+    placements!.map((p: any) => ({
+      placement_id: p.placement_id,
+      traffic_group_id: null,
+      status: 1,
+      version: 1,
+      layers: [],
+    })),
+  ).select();
+  if (wcErr) throw new Error(`WaterfallConfig insert: ${wcErr.message}`);
+  console.log('5) WaterfallConfigs:', configs!.length, '个');
+
+  // === 阶段 6: waterfall_layer（每个 config 3 层：Bidding/瀑布/兜底） ===
+  // 字段：config_id, layer_type(1=Bidding/2=瀑布/3=兜底), ad_source_id, sort_price, timeout_ms, priority, status
+  const layerRows: any[] = [];
+  const layerPlan = [
+    { type: 1, code: 'CSJ', price: 50, priority: 100 }, // Bidding
+    { type: 1, code: 'YLH', price: 45, priority: 90 },
+    { type: 2, code: 'KS',  price: 30, priority: 80 }, // 瀑布
+    { type: 3, code: 'BD',  price: 0,  priority: 70 }, // 兜底
+  ];
+  for (const cfg of configs!) {
+    for (const lp of layerPlan) {
+      layerRows.push({
+        config_id: cfg.id,
+        layer_type: lp.type,
+        ad_source_id: srcByCode[lp.code],
+        sort_price: lp.price,
+        timeout_ms: 5000,
+        priority: lp.priority,
+        status: 1,
+      });
+    }
+  }
+  const { error: wlErr } = await c.from('waterfall_layer').insert(layerRows);
+  if (wlErr) throw new Error(`WaterfallLayer insert: ${wlErr.message}`);
+  console.log('6) WaterfallLayers:', layerRows.length, '个');
+
+  // === 阶段 7: 6 traffic_groups（按地区/版本/机型） ===
+  const { data: groups, error: tgErr } = await c.from('traffic_group').insert([
+    { developer_id: devId, group_name: '地区-亚太',       conditions: { region: ['CN', 'JP', 'KR'] }, priority: 1, status: 1, is_default: false, is_system: true, is_locked: false, waterfall_config_id: configs![0].id, placement_id: 'pl_splash_001' },
+    { developer_id: devId, group_name: '地区-欧美',       conditions: { region: ['US', 'GB', 'DE'] }, priority: 2, status: 1, is_default: false, is_system: true, is_locked: false, waterfall_config_id: configs![0].id, placement_id: 'pl_splash_001' },
+    { developer_id: devId, group_name: '地区-中东',       conditions: { region: ['SA', 'AE'] },       priority: 3, status: 1, is_default: false, is_system: true, is_locked: false, waterfall_config_id: configs![0].id, placement_id: 'pl_splash_001' },
+    { developer_id: devId, group_name: '版本-老用户',     conditions: { app_version: ['1.0.0', '1.1.0'] }, priority: 4, status: 1, is_default: false, is_system: true, is_locked: false, waterfall_config_id: configs![0].id, placement_id: 'pl_splash_001' },
+    { developer_id: devId, group_name: '版本-新用户',     conditions: { app_version: ['2.0.0'] },      priority: 5, status: 1, is_default: false, is_system: true, is_locked: false, waterfall_config_id: configs![0].id, placement_id: 'pl_splash_001' },
+    { developer_id: devId, group_name: '机型-高端机',     conditions: { device_level: 'high' },     priority: 6, status: 1, is_default: false, is_system: true, is_locked: false, waterfall_config_id: configs![0].id, placement_id: 'pl_splash_001' },
+  ]).select();
+  if (tgErr) throw new Error(`TrafficGroup insert: ${tgErr.message}`);
+  console.log('7) TrafficGroups:', groups!.length, '个');
+
+  // === 阶段 8: ad_source_traffic_group（每个 ad_source 关联 2-3 个 group） ===
+  const astgRows: any[] = [];
+  for (let i = 0; i < sources!.length; i++) {
+    const src = sources![i];
+    const assignedGroups = [groups![i % 3].id, groups![(i + 1) % 3].id];
+    for (const gid of assignedGroups) {
+      astgRows.push({
+        ad_source_id: src.id,
+        traffic_group_id: gid,
+        status: 1,
+        price: 50 + i * 5,
+        hour_limit: 100000,
+        day_limit: 1000000,
+        interval_sec: 60,
+      });
+    }
+  }
+  const { error: astgErr } = await c.from('ad_source_traffic_group').insert(astgRows);
+  if (astgErr) throw new Error(`AdSourceTrafficGroup insert: ${astgErr.message}`);
+  console.log('8) AdSourceTrafficGroup:', astgRows.length, '行');
+
+  // === 阶段 9: 5 custom_adapter_version（每个预置平台 1 个） ===
+  const cavRows = defs.map((d: any, i: number) => ({
+    developer_id: devId,
+    network_def_id: d.id,
+    version: `1.0.${i + 1}`,
+    file_name: `${d.network_code}_adapter_v1.0.${i + 1}.jar`,
+    file_url: `https://demo.example.com/adapters/${d.network_code}/v1.0.${i + 1}.jar`,
+    file_size: 1024 * 200,
+    file_md5: `md5_${d.network_code}_v1`,
+    sdk_min_version: '1.0.0',
+    changelog: `${d.network_name} 适配器 v1.0.${i + 1} 初始化版本`,
+    status: 1,
+  }));
+  const { data: cavs, error: cavErr } = await c.from('custom_adapter_version').insert(cavRows).select();
+  if (cavErr) throw new Error(`CustomAdapterVersion insert: ${cavErr.message}`);
+  console.log('9) CustomAdapterVersions:', cavs!.length, '个');
+
+  // === 阶段 10: custom_network_report（7 天 × 5 账号 × 6 placement = 210 行） ===
+  const cnrRows: any[] = [];
+  const reportDates = genDates(7, 1); // 7 天前到 1 天前（不造今天，给 server 时间落库）
+  for (const date of reportDates) {
+    for (const d of defs) {
+      for (const p of placements!) {
+        const appKey = (p as any).app_key;
+        const r = Math.random();
+        cnrRows.push({
+          developer_id: devId,
+          app_key: appKey,
+          placement_id: p.placement_id,
+          network_def_id: d.id,
+          stat_date: date,
+          impressions: Math.floor(r * 5000 + 100),
+          clicks: Math.floor(r * 200 + 5),
+          revenue: Number((r * 80 + 1).toFixed(2)),
+          upload_type: 1,
+        });
+      }
+    }
+  }
+  const batchSize = 100;
+  let totalCNR = 0;
+  for (let i = 0; i < cnrRows.length; i += batchSize) {
+    const batch = cnrRows.slice(i, i + batchSize);
+    const { error: cnrErr } = await c.from('custom_network_report').insert(batch);
+    if (cnrErr) throw new Error(`CustomNetworkReport batch ${i}: ${cnrErr.message}`);
+    totalCNR += batch.length;
+  }
+  console.log('10) CustomNetworkReports:', totalCNR, '行');
+
+  // === 阶段 11: 20 messages（10 系统 + 10 业务） ===
+  const msgTypes = [1, 2, 3, 4]; // 1=系统 / 2=广告 / 3=财务 / 4=活动
+  const msgRows: any[] = [];
+  for (let i = 0; i < 20; i++) {
+    const isSystem = i < 10;
+    const t = isSystem ? 1 : msgTypes[1 + (i % 3)];
+    msgRows.push({
+      developer_id: devId,
+      type: t,
+      title: isSystem ? `系统通知 #${i + 1}` : `业务通知 #${i - 9}（类型${t}）`,
+      content: isSystem
+        ? `系统维护公告：第 ${i + 1} 次例行升级，请提前知悉。`
+        : `您的账户有一条新业务提醒（类型=${t}），请及时查看。`,
+      is_read: i < 5 ? 1 : 0,
+    });
+  }
+  const { data: msgs, error: msgErr } = await c.from('message').insert(msgRows).select();
+  if (msgErr) throw new Error(`Message insert: ${msgErr.message}`);
+  console.log('11) Messages:', msgs!.length, '条');
+
+  // === 阶段 12: 5 report_boards（保存的报表看板） ===
+  const rbRows = [
+    { name: '日报看板',  report_type: 'overview', is_default: true,  is_hidden: false, sort_order: 1, config: { metrics: ['requests', 'impressions', 'revenue'], dimensions: ['app', 'ad_source', 'os'], dateRange: 'last7days' } },
+    { name: '周报看板',  report_type: 'overview', is_default: false, is_hidden: false, sort_order: 2, config: { metrics: ['requests', 'impressions', 'revenue'], dimensions: ['app', 'placement', 'region'], dateRange: 'last14days' } },
+    { name: '月报看板',  report_type: 'overview', is_default: false, is_hidden: false, sort_order: 3, config: { metrics: ['clicks', 'revenue', 'fill_rate'], dimensions: ['app', 'ad_source'], dateRange: 'last28days' } },
+    { name: '对比看板',  report_type: 'overview', is_default: false, is_hidden: false, sort_order: 4, config: { metrics: ['revenue'], dimensions: ['app', 'ad_source', 'os'], dateRange: 'last14days', compareWith: 'prev14days' } },
+    { name: '异常看板',  report_type: 'overview', is_default: false, is_hidden: false, sort_order: 5, config: { metrics: ['fill_rate', 'show_rate', 'click_rate'], dimensions: ['app', 'ad_source'], dateRange: 'last7days' } },
+  ].map(r => ({ developer_id: devId, ...r }));
+  const { data: rbs, error: rbErr } = await c.from('report_board').insert(rbRows).select();
+  if (rbErr) throw new Error(`ReportBoard insert: ${rbErr.message}`);
+  console.log('12) ReportBoards:', rbs!.length, '个');
+
+  // === 阶段 13: report_daily（28 天连续数据：28天前 ~ 今天；不造未来） ===
+  // os 严格与 app.platform 对齐
   const allPresetCodes = defs.map((d: any) => d.network_code);
   const halfCount = Math.max(1, Math.ceil(allPresetCodes.length * 0.6));
   const firstHalf = allPresetCodes.slice(0, halfCount);
   const secondHalf = allPresetCodes.slice(-halfCount);
-  const appOsMap: Record<string, { allowedOs: string[]; allowedNets: string[] }> = {
-    app_game_001: { allowedOs: ['android', 'ios'], allowedNets: allPresetCodes }, // 双端 → 全部
-    app_tool_002: { allowedOs: ['android'],     allowedNets: firstHalf },        // Android → 前 60%
-    app_ecom_003: { allowedOs: ['ios'],         allowedNets: secondHalf },       // iOS → 后 60%
+  const appOsMap: Record<string, { allowedOs: string[]; allowedNets: string[]; placements: { id: string; fmt: string }[] }> = {
+    app_game_001: { allowedOs: ['android', 'ios'], allowedNets: allPresetCodes, placements: [{ id: 'pl_splash_001', fmt: 'splash' }, { id: 'pl_reward_002', fmt: 'rewarded' }] },
+    app_tool_002: { allowedOs: ['android'],         allowedNets: firstHalf,        placements: [{ id: 'pl_banner_003', fmt: 'banner' }, { id: 'pl_inter_004',  fmt: 'interstitial' }] },
+    app_ecom_003: { allowedOs: ['ios'],             allowedNets: secondHalf,       placements: [{ id: 'pl_native_005', fmt: 'native' },  { id: 'pl_inter_006',  fmt: 'interstitial' }] },
   };
-  const appPlacementMap: Record<string, { id: string; fmt: string }[]> = {
-    app_game_001: [{ id: 'pl_splash_001', fmt: 'splash' }, { id: 'pl_reward_002', fmt: 'rewarded' }],
-    app_tool_002: [{ id: 'pl_banner_003', fmt: 'banner' }, { id: 'pl_inter_004', fmt: 'interstitial' }],
-    app_ecom_003: [{ id: 'pl_native_005', fmt: 'native' }, { id: 'pl_inter_006', fmt: 'interstitial' }],
-  };
-
-  const dates: string[] = [];
-  for (let d = new Date('2026-06-15'); d <= new Date('2026-07-08'); d.setDate(d.getDate() + 1)) {
-    dates.push(d.toISOString().slice(0, 10));
-  }
-  const regions = ['CN', 'US', 'JP']; // 国家与 OS 无关
-
+  const dates = genDates(27, 0); // 27 天前（=28天数据点含今天）到今天
+  const regions = ['CN', 'US', 'JP', 'KR', 'GB'];
   const rows: any[] = [];
   for (const date of dates) {
     for (const appKey of ['app_game_001', 'app_tool_002', 'app_ecom_003']) {
-      const { allowedOs, allowedNets } = appOsMap[appKey];
-      const placements = appPlacementMap[appKey];
-      for (const p of placements) {
+      const { allowedOs, allowedNets, placements: pps } = appOsMap[appKey];
+      for (const p of pps) {
         for (const net of allowedNets) {
           const sourceId = srcByCode[net];
-          if (!sourceId) throw new Error(`ad_source 缺 ${net}`);
-          // 每个 (date, app, placement, ad_source) 唯一组合，os 在 allowedOs 中随机
+          if (!sourceId) continue;
           const os = allowedOs[Math.floor(Math.random() * allowedOs.length)];
           const region = regions[Math.floor(Math.random() * regions.length)];
           for (const hour of [0, 6, 12, 18]) {
@@ -195,10 +330,8 @@ async function main() {
       }
     }
   }
-  console.log('5) Rows planned:', rows.length);
-
-  const batchSize = 200;
-  let totalInserted = 0;
+  console.log('13) Report_daily 计划插入:', rows.length, '行（28 天 × 4 小时 × 3 apps × 2 placements × N 网络）');
+  let totalRD = 0;
   for (let i = 0; i < rows.length; i += batchSize) {
     const batch = rows.slice(i, i + batchSize);
     const { error: rdErr } = await c.from('report_daily').insert(batch);
@@ -206,38 +339,72 @@ async function main() {
       console.log('   Batch', i, 'err:', rdErr.message);
       break;
     }
-    totalInserted += batch.length;
+    totalRD += batch.length;
   }
-  console.log('   Inserted:', totalInserted);
+  console.log('   Inserted:', totalRD);
 
-  // 6) 校验：os 不应出现 harmony / windows / macos / linux；ad_source.network_code 应在预置 5 个内
+  // === 阶段 14: 反向校验（联动规则） ===
+  // 14.1 ad_source.network_code 必须在预置 ad_network_def 中
+  const { data: srcCheck } = await c.from('ad_source').select('network_code, third_app_id, third_placement_id');
+  for (const s of srcCheck!) {
+    if (!presetCodeSet.has(s.network_code)) throw new Error(`!! ad_source.network_code=${s.network_code} 不在预置列表`);
+    if (!s.third_app_id) throw new Error(`!! ad_source.third_app_id 为空（id=${(s as any).id}）`);
+    if (!s.third_placement_id) throw new Error(`!! ad_source.third_placement_id 为空（id=${(s as any).id}）`);
+  }
+  // 14.2 report_daily.os ⊆ {android, ios}
   const { data: osCheck } = await c.from('report_daily').select('os');
-  const osSet = new Set((osCheck || []).map(r => r.os));
-  const forbidden = ['harmony', 'windows', 'macos', 'linux'];
-  for (const f of forbidden) {
+  const osSet = new Set((osCheck || []).map((r: any) => r.os));
+  for (const f of ['harmony', 'windows', 'macos', 'linux']) {
     if (osSet.has(f)) throw new Error(`!! report_daily.os 出现非法值 ${f}`);
   }
-  if (osSet.size > 2 || !osSet.has('android') || !osSet.has('ios')) {
-    throw new Error(`!! report_daily.os 应为 {android, ios} 集合，实际 ${[...osSet].join(',')}`);
+  if (!osSet.has('android') || !osSet.has('ios')) {
+    throw new Error(`!! report_daily.os 应包含 {android, ios}，实际 ${[...osSet].join(',')}`);
   }
-  // 校验：ad_source.network_code 必须在预置 ad_network_def 中（动态从 DB 读，不硬编码）
-  const { data: presetDefs } = await c.from('ad_network_def').select('network_code').eq('is_preset', true);
-  const presetCodeSet = new Set((presetDefs || []).map((d: any) => d.network_code));
-  const { data: srcCheck } = await c.from('ad_source').select('network_code');
-  for (const s of srcCheck || []) {
-    if (!presetCodeSet.has(s.network_code)) {
-      throw new Error(`!! ad_source.network_code=${s.network_code} 不在预置列表内（is_preset=true）`);
-    }
+  // 14.3 report_daily.placement_id ⊆ placement.placement_id
+  const { data: allPl } = await c.from('placement').select('placement_id, app_key');
+  const plSet = new Set(allPl!.map((p: any) => p.placement_id));
+  const { data: rdPlCheck } = await c.from('report_daily').select('placement_id, app_key').limit(1000);
+  for (const r of rdPlCheck || []) {
+    if (!plSet.has(r.placement_id)) throw new Error(`!! report_daily.placement_id=${r.placement_id} 不存在`);
+  }
+  // 14.4 report_daily.ad_source_id ⊆ ad_source.id
+  const { data: allSrc } = await c.from('ad_source').select('id');
+  const srcIdSet = new Set(allSrc!.map((s: any) => s.id));
+  const { data: rdSrcCheck } = await c.from('report_daily').select('ad_source_id').limit(1000);
+  for (const r of rdSrcCheck || []) {
+    if (!srcIdSet.has(r.ad_source_id)) throw new Error(`!! report_daily.ad_source_id=${r.ad_source_id} 不存在`);
+  }
+  // 14.5 ad_source_traffic_group 的 ad_source_id/traffic_group_id 都存在
+  const { data: allTg } = await c.from('traffic_group').select('id');
+  const tgIdSet = new Set(allTg!.map((g: any) => g.id));
+  const { data: astgCheck } = await c.from('ad_source_traffic_group').select('ad_source_id, traffic_group_id');
+  for (const r of astgCheck || []) {
+    if (!srcIdSet.has(r.ad_source_id)) throw new Error(`!! ad_source_traffic_group.ad_source_id=${r.ad_source_id} 不存在`);
+    if (!tgIdSet.has(r.traffic_group_id)) throw new Error(`!! ad_source_traffic_group.traffic_group_id=${r.traffic_group_id} 不存在`);
+  }
+  // 14.6 report_daily.app_key → app.platform → os 对齐
+  const { data: appCheck } = await c.from('app').select('app_key, platform');
+  const appPlatformMap: Record<string, number> = {};
+  for (const a of appCheck!) appPlatformMap[a.app_key] = a.platform;
+  const { data: rdAppCheck } = await c.from('report_daily').select('app_key, os').limit(2000);
+  for (const r of rdAppCheck || []) {
+    const p = appPlatformMap[r.app_key];
+    if (p === 1 && r.os !== 'android') throw new Error(`!! ${r.app_key} platform=1 但 os=${r.os}`);
+    if (p === 2 && r.os !== 'ios')     throw new Error(`!! ${r.app_key} platform=2 但 os=${r.os}`);
+    if (p === 3 && !['android', 'ios'].includes(r.os)) throw new Error(`!! ${r.app_key} platform=3 但 os=${r.os}`);
   }
 
-  // 7) 输出最终统计
-  const { count: ac } = await c.from('app').select('*', { count: 'exact', head: true });
-  const { count: pc } = await c.from('placement').select('*', { count: 'exact', head: true });
-  const { count: sc } = await c.from('ad_source').select('*', { count: 'exact', head: true });
-  const { count: rc } = await c.from('report_daily').select('*', { count: 'exact', head: true });
-  console.log('7) 校验通过:', { app: ac, placement: pc, ad_source: sc, report_daily: rc });
-  console.log('   OS 集合:', [...osSet].join(','));
-  console.log('   Ad source network_codes:', (srcCheck || []).map(s => s.network_code).join(','));
+  // === 阶段 15: 输出最终统计 ===
+  const counts: Record<string, number> = {};
+  for (const t of ['app', 'placement', 'ad_source', 'waterfall_config', 'waterfall_layer', 'traffic_group', 'ad_source_traffic_group', 'custom_adapter_version', 'custom_network_report', 'message', 'report_board', 'report_daily']) {
+    const { count } = await c.from(t).select('*', { count: 'exact', head: true });
+    counts[t] = count || 0;
+  }
+  console.log('15) 最终统计:', JSON.stringify(counts, null, 2));
+  console.log('    OS 集合:', [...osSet].join(','));
+  console.log('    AdSource network_codes:', (srcCheck!).map((s: any) => s.network_code).join(','));
+  console.log('    今日:', todayStr());
+  console.log('    ✅ 全部联动校验通过');
 }
 
 main().catch(e => { console.error('ERROR:', e); process.exit(1); });
