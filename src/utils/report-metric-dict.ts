@@ -24,7 +24,7 @@ export function loadMetricDict(): Promise<void> {
   if (_loadPromise) return _loadPromise;
   _loading.value = true;
   _loadPromise = request
-    .get('/api/v1/console/report/metric/list', { params: { is_active: 'true' } })
+    .get('/api/v1/console/report-metric/list', { params: { is_active: 'true' } })
     .then((raw) => {
       // request 拦截器返回的是 data 字段本身：{ code, data, message }
       const res = raw as unknown as { code: number; data?: Array<{ code: string; name: string; format?: string; unit?: string }> };
