@@ -573,10 +573,10 @@ router.post('/aggregate/options', async (req: Request, res: Response) => {
         return ok(res, { options });
       }
       case 'platform': {
-        // 平台 = 预置的 5 个广告平台（穿山甲/优量汇/快手/百度/Sigmob）
-        // 用硬编码 network_code 白名单，避免被用户注册的自定义平台污染
-        const PRESET_PLATFORMS = ['CSJ', 'YLH', 'KS', 'BD', 'SIGMOB'];
-        const { data, error } = await db.from('ad_network_def').select('network_name').in('network_code', PRESET_PLATFORMS).order('network_name');
+        // 平台 = ad_network_def 中预置的广告平台（is_preset=true）
+        // 不拉用户注册的自定义平台（is_preset=false），避免 platform 下拉被测试残留污染
+        // 这才是"自有 vs 第三方"维度的真数据库字段：is_preset=true 是平台官方预置，false 是开发者自定义
+        const { data, error } = await db.from('ad_network_def').select('network_name').eq('is_preset', true).order('network_name');
         if (error) throw error;
         return ok(res, { options: (data || []).map((r: any) => ({ value: r.network_name, label: r.network_name })) });
       }

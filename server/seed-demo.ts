@@ -6,13 +6,13 @@
  * - app.platform: 1=Android / 2=iOS / 3=Both（无鸿蒙）
  * - ad_network_def.system_type: 1=Android / 2=iOS / 3=Both（无鸿蒙）
  * - ad_network_def.is_preset: true=预置（官方），false=自定义
- * - 预置广告网络固定 5 个：CSJ/YLH/KS/BD/SIGMOB（id 1~5）
+ * - 预置广告网络从 ad_network_def.is_preset=true 动态加载（不写死 code 列表）
  * - report_daily.os 必须与关联 app.platform 严格一致：
  *     platform=1 → os=android
  *     platform=2 → os=ios
  *     platform=3 → os=android 或 ios 均可
  * - ad_source.network_code / network_name 必须从 ad_network_def 引用
- *   （即 network_code ∈ {CSJ,YLH,KS,BD,SIGMOB} 或自定义的 CUSTOM_xxx）
+ *   （即 network_code 在 ad_network_def 中 is_preset=true 的 code 集合）
  */
 import { createClient } from '@supabase/supabase-js';
 
@@ -26,28 +26,26 @@ async function main() {
   const devId = 'dev_W7dOvj90HaEGi3Ez';
   console.log('Owner:', devId);
 
-  // 0) 读取 5 个预置 ad_network_def（保证 link 的 network_def_id 是真实存在的）
+  // 0) 动态读取所有预置 ad_network_def（is_preset=true）
+  //    保证 link 的 network_def_id 是真实存在的；不写死 5 个 code
   const { data: defs, error: defErr } = await c
     .from('ad_network_def')
     .select('id, network_code, network_name, system_type, is_preset')
-    .in('network_code', ['CSJ', 'YLH', 'KS', 'BD', 'SIGMOB'])
+    .eq('is_preset', true)
     .order('id');
   if (defErr) throw new Error(`Load ad_network_def failed: ${defErr.message}`);
-  if (!defs || defs.length !== 5) {
-    throw new Error(`需要 5 个预置 ad_network_def，实际 ${defs?.length}`);
+  if (!defs || defs.length === 0) {
+    throw new Error('需要至少 1 个预置 ad_network_def（is_preset=true），实际 0');
   }
-  // 验证 5 个都是 Both（system_type=3），符合通用广告平台特性
+  // 验证预置平台都是 Both（system_type=3）才通用
   for (const d of defs) {
     if (d.system_type !== 3) {
       console.warn(`!! ${d.network_code} system_type=${d.system_type}（非 Both，可能影响 demo 联动）`);
     }
-    if (d.is_preset !== true) {
-      throw new Error(`${d.network_code} is_preset 不是 true，违反预置规则`);
-    }
   }
   const defByCode: Record<string, { id: number; network_code: string; network_name: string }> = {};
   for (const d of defs) defByCode[d.network_code] = d;
-  console.log('0) 5 个预置 ad_network_def 已加载:', Object.keys(defByCode).join(','));
+  console.log('0) 预置 ad_network_def 已加载（动态从 DB 读）:', Object.keys(defByCode).join(','));
 
   // 1) 清 4 张表（保留 902 个 developer + 5 个预置 ad_network_def + traffic_group + 消息等）
   await c.from('report_daily').delete().neq('id', 0);
@@ -115,81 +113,40 @@ async function main() {
   if (!placements || placements.length !== 6) throw new Error(`期望 6 placements，实际 ${placements?.length}`);
   console.log('3) Placements:', placements.length, '个');
 
-  // 4) 5 ad_source（全部 link 到 5 个预置 ad_network_def）
+  // 4) ad_source：每个预置 ad_network_def 生成一条 source
   //    关键：network_code / network_name / network_def_id 必须从 ad_network_def 引用
   //    第三方 app_id / placement_id 用占位业务码
-  const { data: sources, error: srcErr } = await c.from('ad_source').insert([
-    {
-      developer_id: devId,
-      network_def_id: defByCode.CSJ.id,
-      network_code: 'CSJ',
-      network_name: defByCode.CSJ.network_name, // 「穿山甲」
-      source_name: '穿山甲-默认',
-      status: 1,
-      is_custom: false,
-      third_app_id: 'csj_app_001',
-      third_placement_id: 'csj_pl_001',
-    },
-    {
-      developer_id: devId,
-      network_def_id: defByCode.YLH.id,
-      network_code: 'YLH',
-      network_name: defByCode.YLH.network_name, // 「优量汇」
-      source_name: '优量汇-默认',
-      status: 1,
-      is_custom: false,
-      third_app_id: 'ylh_app_001',
-      third_placement_id: 'ylh_pl_001',
-    },
-    {
-      developer_id: devId,
-      network_def_id: defByCode.KS.id,
-      network_code: 'KS',
-      network_name: defByCode.KS.network_name, // 「快手」
-      source_name: '快手-默认',
-      status: 1,
-      is_custom: false,
-      third_app_id: 'ks_app_001',
-      third_placement_id: 'ks_pl_001',
-    },
-    {
-      developer_id: devId,
-      network_def_id: defByCode.BD.id,
-      network_code: 'BD',
-      network_name: defByCode.BD.network_name, // 「百度」
-      source_name: '百度-默认',
-      status: 1,
-      is_custom: false,
-      third_app_id: 'bd_app_001',
-      third_placement_id: 'bd_pl_001',
-    },
-    {
-      developer_id: devId,
-      network_def_id: defByCode.SIGMOB.id,
-      network_code: 'SIGMOB',
-      network_name: defByCode.SIGMOB.network_name, // 「Sigmob」
-      source_name: 'Sigmob-默认',
-      status: 1,
-      is_custom: false,
-      third_app_id: 'sgm_app_001',
-      third_placement_id: 'sgm_pl_001',
-    },
-  ]).select();
+  const adSourceRows = defs.map((d: { id: number; network_code: string; network_name: string }) => ({
+    developer_id: devId,
+    network_def_id: d.id,
+    network_code: d.network_code,
+    network_name: d.network_name,
+    source_name: `${d.network_name}-默认`,
+    status: 1,
+    is_custom: false,
+    third_app_id: `${d.network_code.toLowerCase()}_app_001`,
+    third_placement_id: `${d.network_code.toLowerCase()}_pl_001`,
+  }));
+  const { data: sources, error: srcErr } = await c.from('ad_source').insert(adSourceRows).select();
   if (srcErr) throw new Error(`AdSource insert failed: ${srcErr.message}`);
-  if (!sources || sources.length !== 5) throw new Error(`期望 5 ad_sources，实际 ${sources?.length}`);
+  if (!sources || sources.length === 0) throw new Error(`ad_source insert 失败，0 条`);
   const srcByCode: Record<string, number> = {};
   for (const s of sources) srcByCode[s.network_code] = s.id;
   console.log('4) Ad sources:', sources.map(s => `${s.network_code}(id=${s.id})`).join(', '));
 
   // 5) report_daily：os 严格与 app.platform 对齐
-  //    联动约束：
-  //    - app_game_001 (platform=3) → os ∈ {android, ios}
-  //    - app_tool_002 (platform=1) → os = android
-  //    - app_ecom_003 (platform=2) → os = ios
+  //    联动规则（按 defs 动态分片，不硬编码 code）：
+  //    - 双端 app (platform=3) → 关联所有预置平台，os ∈ {android, ios}
+  //    - 单端 Android app (platform=1) → 关联前 60% 预置平台，os = android
+  //    - 单端 iOS app (platform=2) → 关联后 60% 预置平台，os = ios
+  const allPresetCodes = defs.map((d: any) => d.network_code);
+  const halfCount = Math.max(1, Math.ceil(allPresetCodes.length * 0.6));
+  const firstHalf = allPresetCodes.slice(0, halfCount);
+  const secondHalf = allPresetCodes.slice(-halfCount);
   const appOsMap: Record<string, { allowedOs: string[]; allowedNets: string[] }> = {
-    app_game_001: { allowedOs: ['android', 'ios'], allowedNets: ['CSJ', 'YLH', 'KS', 'BD', 'SIGMOB'] }, // 双端
-    app_tool_002: { allowedOs: ['android'],     allowedNets: ['CSJ', 'YLH', 'BD'] }, // Android 选 3 个
-    app_ecom_003: { allowedOs: ['ios'],         allowedNets: ['YLH', 'KS', 'SIGMOB'] }, // iOS 选 3 个
+    app_game_001: { allowedOs: ['android', 'ios'], allowedNets: allPresetCodes }, // 双端 → 全部
+    app_tool_002: { allowedOs: ['android'],     allowedNets: firstHalf },        // Android → 前 60%
+    app_ecom_003: { allowedOs: ['ios'],         allowedNets: secondHalf },       // iOS → 后 60%
   };
   const appPlacementMap: Record<string, { id: string; fmt: string }[]> = {
     app_game_001: [{ id: 'pl_splash_001', fmt: 'splash' }, { id: 'pl_reward_002', fmt: 'rewarded' }],
@@ -263,10 +220,13 @@ async function main() {
   if (osSet.size > 2 || !osSet.has('android') || !osSet.has('ios')) {
     throw new Error(`!! report_daily.os 应为 {android, ios} 集合，实际 ${[...osSet].join(',')}`);
   }
+  // 校验：ad_source.network_code 必须在预置 ad_network_def 中（动态从 DB 读，不硬编码）
+  const { data: presetDefs } = await c.from('ad_network_def').select('network_code').eq('is_preset', true);
+  const presetCodeSet = new Set((presetDefs || []).map((d: any) => d.network_code));
   const { data: srcCheck } = await c.from('ad_source').select('network_code');
   for (const s of srcCheck || []) {
-    if (!['CSJ', 'YLH', 'KS', 'BD', 'SIGMOB'].includes(s.network_code)) {
-      throw new Error(`!! ad_source.network_code=${s.network_code} 不在预置 5 个内`);
+    if (!presetCodeSet.has(s.network_code)) {
+      throw new Error(`!! ad_source.network_code=${s.network_code} 不在预置列表内（is_preset=true）`);
     }
   }
 

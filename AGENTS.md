@@ -293,6 +293,76 @@
 3. **【完成】** `POST /api/v1/console/ad-source/create-custom`
 4. **【完成】** `POST /api/v1/auth/verify`
 
+## 系统数据模型边界（造数据 / 硬编码必读）
+
+> 任何前端下拉 / 后端过滤 / seed 脚本都必须**从 DB 读**，不允许硬编码。  
+> 任何 demo 数据必须严格按必填字段 + 唯一约束 + 枚举值生成。
+
+### 1. 核心枚举值（从 `information_schema` / 字段语义推断，不许猜）
+
+| 字段 | 表 | 合法取值 | 备注 |
+|------|-----|---------|------|
+| `platform` | `app` | 1=Android / 2=iOS / 3=双端 (Both) | **无鸿蒙 / Windows / macOS** |
+| `system_type` | `ad_network_def` | 1=Android / 2=iOS / 3=Both | **无鸿蒙** |
+| `is_preset` | `ad_network_def` | true=平台官方预置 / false=开发者自定义 | **唯一可靠的"预置 vs 自定义"区分字段** |
+| `network_type` | `ad_network_def` | 1 或 2 | 字段被滥用（用户测试残留也设 1），**不要用此字段做预置过滤** |
+| `format` | `placement` | 1=banner / 2=interstitial / 3=native / 4=rewarded / 5=splash | — |
+| `bidding_type` | `placement` | 1=客户端竞价 / 2=服务端竞价 | — |
+| `screen_orientation` | `placement` | 0=竖屏 / 1=横屏 / 2=不限 | — |
+| `access_type` | `app` | 1=自有 / 2=联运 / 3=合作 | — |
+
+### 2. 必填字段（NOT NULL，无默认值）
+
+- **`ad_network_def` 必填 6 字段**：`id` / `network_code` / `network_name` / `network_type` / `is_preset` / `system_type`
+- **`ad_source` 必填 8 字段**：`developer_id` / `network_def_id` / `network_code` / `network_name` / `source_name` / `status` / `third_app_id` / `third_placement_id`（最后 2 个易漏，NOT NULL）
+- **`app` 必填 5 字段**：`developer_id` / `app_key` / `app_name` / `package_name` / `platform` / `status`
+- **`placement` 必填 7 字段**：`app_key` / `placement_id` / `name` / `format` / `status` / `bidding_type` / `screen_orientation`
+- **`report_daily` 必填**：`developer_id` / `app_key` / `placement_id` / `ad_source_id` / `stat_date` / `hour`
+
+### 3. 唯一约束
+
+- `ad_network_def.network_code` 唯一
+- `app.app_key` 唯一（不区分 developer）
+- `placement.placement_id` 唯一（不区分 app）
+- `report_daily` 复合唯一：(developer_id, app_key, placement_id, ad_source_id, stat_date, hour)
+  - **每个唯一组合只能 1 行**，循环里 region/os 随机会导致重复键
+
+### 4. 联动规则（造数据必须遵守）
+
+| 关系 | 联动逻辑 |
+|------|----------|
+| `app.platform` → `report_daily.os` | platform=1→os=android；platform=2→os=ios；platform=3→os∈{android,ios} |
+| `ad_source` → `ad_network_def` | `ad_source.network_def_id` 必须 link 到 `ad_network_def.id`；`ad_source.network_code` = `ad_network_def.network_code` |
+| `ad_source` → `app`（间接） | 通过 `app_network_binding` 关联；demo 里简化为同一 dev 名下 ad_source 共享 |
+| `placement.format` → `ad_source` 支持的格式 | ad_source 必须支持 placement 选定的 format（SDK 层面） |
+
+### 5. 下拉选项生成规则
+
+| 字段 | 来源 | 过滤条件 |
+|------|------|---------|
+| 平台 | `ad_network_def.network_name` | `is_preset = true`（不要用 `network_type`，被滥用） |
+| 系统 | `report_daily.os` DISTINCT | 仅 `android / ios`（无 harmony） |
+| 应用 | `app.app_name` | — |
+| 广告位 | `placement.name` | — |
+| 广告源 | `ad_source.source_name` | — |
+| 广告类型 | `report_daily.ad_type` DISTINCT | — |
+| 国家 | `report_daily.region` DISTINCT | — |
+
+### 6. 反模式（绝对禁止）
+
+- ❌ 在前端代码 / 后端 options 端点 / seed 脚本里硬编码 `'CSJ' / 'YLH' / 'SIGMOB'` 等具体网络 code
+- ❌ 在 option-labels 里造 `harmony / windows / macOS` 等枚举值不在 DB 字段语义中的 OS
+- ❌ 在 PLATFORM_LABELS 里造 `self / 3rd / third / custom` 等"分类"标签（数据库没这个维度）
+- ❌ 用 `network_type` 字段判断"预置 vs 自定义"（被滥用，应改用 `is_preset`）
+- ❌ seed 时 region/os 循环套娃造成 report_daily 唯一约束违反
+- ❌ ad_source 漏填 `third_app_id` / `third_placement_id` 必填字段
+
+### 7. seed 脚本规范
+
+- 任何 `network_code` / `network_name` 引用都从 `ad_network_def` SELECT 出来
+- 任何 `app_key` / `placement_id` 引用都从对应表 SELECT 出来
+- demo 跑完后做反向校验：所有 ad_source.network_code 都在 is_preset=true 的 code 集合中
+
 ## 开发流程
 
 1. 每次开发前读取 `PLAN.md`，确认当前阶段待办
