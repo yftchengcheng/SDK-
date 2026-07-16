@@ -67,7 +67,7 @@
                   <span>7 天趋势</span>
                 </h3>
                 <div class="behavior-card-actions">
-                  <el-button text size="small" @click="trendPickerOpen = true">指标</el-button>
+                  <el-button :icon="EditPen" plain size="small" @click="trendPickerOpen = true">指标选择</el-button>
                 </div>
               </div>
 
@@ -233,7 +233,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
 import { ElMessage } from 'element-plus';
-import { Histogram, DataLine, Menu, Refresh, Download, ArrowRight, TrendCharts } from '@element-plus/icons-vue';
+import { Histogram, DataLine, Menu, Refresh, Download, ArrowRight, TrendCharts, EditPen } from '@element-plus/icons-vue';
 import VChart from 'vue-echarts';
 import { use } from 'echarts/core';
 import { CanvasRenderer } from 'echarts/renderers';
