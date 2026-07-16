@@ -10545,6 +10545,29 @@ html, body, #app {
   padding: 40px 0;
 }
 
+/* 分天 */
+.funnel-bottom-daily { display: flex; flex-direction: column; gap: 16px; }
+.funnel-bottom-summary {
+  display: flex; gap: 32px; padding: 12px 16px; background: #f8fafc; border-radius: 6px; border: 1px solid #e2e8f0;
+}
+.funnel-bottom-summary-item { display: flex; flex-direction: column; gap: 2px; }
+.funnel-bottom-summary-label { font-size: 12px; color: #64748b; }
+.funnel-bottom-summary-value { font-size: 18px; font-weight: 600; color: #0f172a; }
+.funnel-bottom-chart { width: 100%; }
+.funnel-bottom-table { margin-top: 4px; }
+.funnel-bottom-table .el-table { font-size: 12px; }
+.funnel-bottom-table .el-table th { background: #f1f5f9 !important; color: #475569; font-weight: 600; }
+
+/* 趋势 */
+.funnel-bottom-trend { display: flex; flex-direction: column; gap: 12px; }
+.funnel-bottom-trend-toolbar { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.funnel-bottom-trend-label { font-size: 13px; color: #475569; }
+.funnel-bottom-trend-checks { display: flex; flex-wrap: wrap; gap: 6px 12px; }
+.funnel-bottom-trend-checks .el-checkbox { margin-right: 0; }
+.funnel-bottom-trend-chip {
+  display: inline-block; padding: 1px 8px; border-radius: 4px; border: 1px solid; font-size: 12px; line-height: 18px;
+}
+
 
 /* ---------- 漏斗指标选择弹窗 MetricPickerDialog ---------- */
 .metric-picker {
