@@ -441,13 +441,16 @@ function recomputeLinks() {
     const targetIdx = linkIndices[0];
     const step = stepCenters[targetIdx];
     if (!step) return;
+    // step 块宽度 = 90px, 中心 = step.x, 边缘 = step.x ± 45
+    const STEP_HALF_W = 45;
+    const stepEdgeX = side === 'L' ? step.x - STEP_HALF_W : step.x + STEP_HALF_W;
     // 箭头尖端接在 step 边缘 (色块边内 6px), line 终止在箭头底边 (距尖端 12px)
-    const tipX = side === 'L' ? step.x + 6 : step.x - 6;
+    const tipX = side === 'L' ? stepEdgeX + 6 : stepEdgeX - 6;
     const lineEndX = side === 'L' ? tipX - 12 : tipX + 12;
     const endY = step.y;
-    // 折线: metric 边 → 指标 y 水平段 → 折点到 step y 垂直 → 水平到 step 边缘
-    // 中点 = (指标边 + 折点) 中点, 让 line 在 step 列外侧走水平, step 列内侧到 step y
-    const midX = (startX + lineEndX) / 2;
+    // 折线: metric 边 → step 边缘外 12px 处 → step.y → 箭头底边
+    // midX 在 step 列外, 避免终点水平段穿过 step 色块
+    const midX = lineEndX;
     const d = `M ${startX} ${startY} L ${midX} ${startY} L ${midX} ${endY} L ${lineEndX} ${endY}`;
     newPaths.push({ d, color });
     newDots.push({ cx: tipX, cy: endY, color, side });
