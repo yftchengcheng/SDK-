@@ -9448,8 +9448,8 @@ html, body, #app {
 
 /* 频次分布 */
 .behavior-freq-layout {
-  display: grid;
-  grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
+  display: flex;
+  flex-direction: column;
   gap: 20px;
 }
 .behavior-freq-table-pane { min-width: 0; }

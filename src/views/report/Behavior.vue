@@ -59,7 +59,53 @@
         <!-- Tab 1: 展示频次（10 个频次档） -->
         <div v-if="currentSubtype === 'frequency'" class="behavior-card" v-loading="loading">
           <div class="behavior-freq-layout">
-            <!-- 左：频次分布表 -->
+            <!-- 上：7 天趋势图 -->
+            <div class="behavior-freq-trend-pane">
+              <div class="behavior-card-header">
+                <h3 class="behavior-card-title">
+                  <el-icon><TrendCharts /></el-icon>
+                  <span>7 天趋势</span>
+                </h3>
+                <div class="behavior-card-actions">
+                  <el-button text size="small" @click="trendPickerOpen = true">指标</el-button>
+                </div>
+              </div>
+
+              <div class="freq-trend-kpi">
+                <div v-for="k in freqTrendKpi" :key="k.code" class="freq-trend-kpi-item" :style="{ borderLeftColor: k.color }">
+                  <span class="freq-trend-kpi-name">{{ k.name }}</span>
+                  <span class="freq-trend-kpi-value" :style="{ color: k.color }">{{ k.value }}</span>
+                  <span class="freq-trend-kpi-delta" :class="k.delta >= 0 ? 'tone-up' : 'tone-down'">
+                    {{ k.delta >= 0 ? '↑' : '↓' }}&nbsp;{{ Math.abs(k.delta).toFixed(2) }}%
+                  </span>
+                </div>
+              </div>
+
+              <div class="freq-trend-chart">
+                <v-chart v-if="freqTrendDates.length > 0" :option="freqTrendChartOption" autoresize style="height: 280px" />
+                <div v-else class="frequency-empty">暂无数据</div>
+              </div>
+
+              <el-dialog
+                v-model="trendPickerOpen"
+                title="选择趋势指标"
+                width="520px"
+                :close-on-click-modal="false"
+                append-to-body
+              >
+                <el-checkbox-group v-model="freqTrendPicked" class="freq-trend-picker">
+                  <el-checkbox v-for="m in FREQ_TREND_METRICS" :key="m.code" :label="m.code">
+                    <span class="freq-trend-picker-chip" :style="{ background: m.color + '20', color: m.color, borderColor: m.color + '50' }">{{ m.name }}</span>
+                  </el-checkbox>
+                </el-checkbox-group>
+                <template #footer>
+                  <el-button @click="trendPickerOpen = false">取消</el-button>
+                  <el-button type="primary" @click="trendPickerOpen = false">确定</el-button>
+                </template>
+              </el-dialog>
+            </div>
+
+            <!-- 下：频次分布表 -->
             <div class="behavior-freq-table-pane">
               <div class="behavior-card-header">
                 <h3 class="behavior-card-title">详细数据</h3>
@@ -98,52 +144,6 @@
                   </div>
                 </div>
               </div>
-            </div>
-
-            <!-- 右：7 天趋势图 -->
-            <div class="behavior-freq-trend-pane">
-              <div class="behavior-card-header">
-                <h3 class="behavior-card-title">
-                  <el-icon><TrendCharts /></el-icon>
-                  <span>7 天趋势</span>
-                </h3>
-                <div class="behavior-card-actions">
-                  <el-button text size="small" @click="trendPickerOpen = true">指标</el-button>
-                </div>
-              </div>
-
-              <div class="freq-trend-kpi">
-                <div v-for="k in freqTrendKpi" :key="k.code" class="freq-trend-kpi-item" :style="{ borderLeftColor: k.color }">
-                  <span class="freq-trend-kpi-name">{{ k.name }}</span>
-                  <span class="freq-trend-kpi-value" :style="{ color: k.color }">{{ k.value }}</span>
-                  <span class="freq-trend-kpi-delta" :class="k.delta >= 0 ? 'tone-up' : 'tone-down'">
-                    {{ k.delta >= 0 ? '↑' : '↓' }}&nbsp;{{ Math.abs(k.delta).toFixed(2) }}%
-                  </span>
-                </div>
-              </div>
-
-              <div class="freq-trend-chart">
-                <v-chart v-if="freqTrendDates.length > 0" :option="freqTrendChartOption" autoresize style="height: 320px" />
-                <div v-else class="frequency-empty">暂无数据</div>
-              </div>
-
-              <el-dialog
-                v-model="trendPickerOpen"
-                title="选择趋势指标"
-                width="520px"
-                :close-on-click-modal="false"
-                append-to-body
-              >
-                <el-checkbox-group v-model="freqTrendPicked" class="freq-trend-picker">
-                  <el-checkbox v-for="m in FREQ_TREND_METRICS" :key="m.code" :label="m.code">
-                    <span class="freq-trend-picker-chip" :style="{ background: m.color + '20', color: m.color, borderColor: m.color + '50' }">{{ m.name }}</span>
-                  </el-checkbox>
-                </el-checkbox-group>
-                <template #footer>
-                  <el-button @click="trendPickerOpen = false">取消</el-button>
-                  <el-button type="primary" @click="trendPickerOpen = false">确定</el-button>
-                </template>
-              </el-dialog>
             </div>
           </div>
         </div>
