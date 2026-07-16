@@ -422,6 +422,25 @@ async function loadTrend() {
     const isRevenue = metric === 'revenue' || metric === 'estimatedRevenue'
     const yFormatter = isRevenue ? '¥{value}' : '{value}'
     const isHourly = d.granularity === 'hour'
+    const xCount = (d.points?.length ?? d.xAxis?.length ?? d.dates?.length ?? d.hours?.length ?? 0)
+    // 智适应 axisLabel：避免 30+ 天时 30 个 "MM-DD" 标签挤在一起重叠
+    // 估算可用宽度 ~700px，每个 "MM-DD" 约 30px：
+    // - hourly 模式（≤24 点）：横排全显示
+    // - ≤14 点：横排全显示（14×30=420 < 700）
+    // - 15-30 点：rotate 30° + interval=Math.ceil(x/6)（15天5个 / 30天6个 label）
+    // - 31-60 点：rotate 30° + interval=Math.ceil(x/8)（60天8个 label）
+    // - 60+ 点：rotate 45° + interval=Math.ceil(x/10)（90天10个 label）
+    const axisLabelCfg = isHourly
+      ? { color: '#64748B', fontSize: 11, interval: 0, rotate: 0 }
+      : xCount <= 14
+        ? { color: '#64748B', fontSize: 11, interval: 0, rotate: 0 }
+        : xCount <= 30
+          ? { color: '#64748B', fontSize: 11, interval: Math.ceil(xCount / 6), rotate: 30 }
+          : xCount <= 60
+            ? { color: '#64748B', fontSize: 11, interval: Math.ceil(xCount / 8), rotate: 30 }
+            : { color: '#64748B', fontSize: 11, interval: Math.ceil(xCount / 10), rotate: 45 }
+    // 旋转时给 grid.bottom 留更多空间
+    const gridBottom = isHourly ? 40 : (axisLabelCfg.rotate as number) > 0 ? 56 : 36
 
     // x 轴标签
     const buildXAxisData = (): string[] => {
@@ -435,7 +454,7 @@ async function loadTrend() {
     if (d.dimension === 'summary' && d.points) {
       const xData = buildXAxisData()
       trendOption.value = {
-        grid: { left: 56, right: 24, top: 36, bottom: isHourly ? 40 : 36 },
+        grid: { left: 56, right: 24, top: 36, bottom: gridBottom },
         tooltip: {
           trigger: 'axis',
           formatter: (params: unknown) => {
@@ -452,7 +471,7 @@ async function loadTrend() {
           type: 'category',
           data: xData,
           axisLine: { lineStyle: { color: '#CBD5E1' } },
-          axisLabel: { color: '#64748B', fontSize: 11, interval: isHourly ? 'auto' : 0, rotate: isHourly ? 0 : 0 },
+          axisLabel: axisLabelCfg,
         },
         yAxis: {
           type: 'value',
@@ -478,7 +497,7 @@ async function loadTrend() {
       const colors = ['#2563EB', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6']
       const xData = buildXAxisData()
       trendOption.value = {
-        grid: { left: 56, right: 24, top: 50, bottom: isHourly ? 40 : 36 },
+        grid: { left: 56, right: 24, top: 50, bottom: gridBottom },
         tooltip: {
           trigger: 'axis',
           formatter: (params: unknown) => {
@@ -500,7 +519,7 @@ async function loadTrend() {
           type: 'category',
           data: xData,
           axisLine: { lineStyle: { color: '#CBD5E1' } },
-          axisLabel: { color: '#64748B', fontSize: 11, interval: isHourly ? 'auto' : 0 },
+          axisLabel: axisLabelCfg,
         },
         yAxis: {
           type: 'value',
