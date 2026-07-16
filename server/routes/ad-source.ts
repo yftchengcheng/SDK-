@@ -65,19 +65,27 @@ async function enrichAdSource(row: AdSourceRow | null) {
   if (!row) return row;
   // store_dim_params
   const sdp = row.store_dim_params ?? null;
-  // traffic_group_bindings（JOIN traffic_group 取 group_name）
+  // traffic_group_bindings（不用内嵌 join：FK 已 drop，traffic_group_id=0 时返 null；改用两次单独 query）
   const { data: bindings, error: be } = await db
     .from('ad_source_traffic_group')
-    .select('*, traffic_group:traffic_group_id ( id, group_name )')
+    .select('*')
     .eq('ad_source_id', row.id);
   if (be) {
-    // 静默失败：保留主行
     return { ...row, store_dim_params: sdp, traffic_group_bindings: [] };
   }
-  const list = ((bindings || []) as BindingRow[]).map((b) => {
-    const tg = Array.isArray(b.traffic_group) ? b.traffic_group[0] : b.traffic_group;
-    return { ...b, group_name: tg?.group_name || '' };
-  });
+  // 单独查 traffic_group 拿 group_name；id=0 视为"默认分组"
+  const tgIds = Array.from(new Set(((bindings || []) as BindingRow[]).map((b) => b.traffic_group_id).filter((v) => v != null))) as number[];
+  const tgMap = new Map<number, string>();
+  if (tgIds.length > 0) {
+    const { data: tgs } = await db.from('traffic_group').select('id, group_name').in('id', tgIds);
+    for (const t of (tgs || []) as Array<{ id: number; group_name: string }>) {
+      tgMap.set(t.id, t.group_name);
+    }
+  }
+  const list = ((bindings || []) as BindingRow[]).map((b) => ({
+    ...b,
+    group_name: b.traffic_group_id === 0 ? '默认分组' : (tgMap.get(b.traffic_group_id) || ''),
+  }));
   const [enriched] = await attachPlacementCodes([row]);
   return { ...enriched, store_dim_params: sdp, traffic_group_bindings: list };
 }
@@ -85,19 +93,31 @@ async function enrichAdSource(row: AdSourceRow | null) {
 async function enrichListWithBindings(items: AdSourceRow[]) {
   if (!items || items.length === 0) return [];
   const ids = items.map((r) => r.id);
+  // 不用内嵌 join：FK 已 drop，traffic_group_id=0 返 null；改用两次单独 query
   const { data: rows, error } = await db
     .from('ad_source_traffic_group')
-    .select('*, traffic_group:traffic_group_id ( id, group_name )')
+    .select('*')
     .in('ad_source_id', ids);
   let withBindings: Array<AdSourceRow & { traffic_group_bindings: Array<BindingRow & { group_name: string }> }>;
   if (error) {
     withBindings = items.map((r) => ({ ...r, traffic_group_bindings: [] }));
   } else {
+    // 单独查 traffic_group 拿 group_name
+    const tgIds = Array.from(new Set(((rows || []) as BindingRow[]).map((b) => b.traffic_group_id).filter((v) => v != null))) as number[];
+    const tgMap = new Map<number, string>();
+    if (tgIds.length > 0) {
+      const { data: tgs } = await db.from('traffic_group').select('id, group_name').in('id', tgIds);
+      for (const t of (tgs || []) as Array<{ id: number; group_name: string }>) {
+        tgMap.set(t.id, t.group_name);
+      }
+    }
     const bySource = new Map<number, Array<BindingRow & { group_name: string }>>();
     for (const b of (rows || []) as BindingRow[]) {
       const list = bySource.get(b.ad_source_id) || [];
-      const tg = Array.isArray(b.traffic_group) ? b.traffic_group[0] : b.traffic_group;
-      list.push({ ...b, group_name: tg?.group_name || '' });
+      list.push({
+        ...b,
+        group_name: b.traffic_group_id === 0 ? '默认分组' : (tgMap.get(b.traffic_group_id) || ''),
+      });
       bySource.set(b.ad_source_id, list);
     }
     withBindings = items.map((r) => ({
@@ -118,8 +138,9 @@ async function replaceTrafficGroupBindings(sourceId: number, bindings: BindingIn
   if (de) throw new Error(`Delete bindings failed: ${de.message}`);
   // 2) 插
   if (!bindings || bindings.length === 0) return;
+  // 注意：默认分组 traffic_group_id=0 是合法值（约定），不能 falsy 过滤
   const rows = bindings
-    .filter((b) => b && b.traffic_group_id)
+    .filter((b) => b && b.traffic_group_id != null)
     .map((b) => ({
       ad_source_id: sourceId,
       traffic_group_id: Number(b.traffic_group_id),
