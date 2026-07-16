@@ -106,8 +106,12 @@
       </div>
 
       <div class="funnel-layout">
+        <div class="funnel-legend">
+          <span class="funnel-legend-item"><span class="funnel-legend-dot" style="background: #fe9c2c"></span>次数</span>
+          <span class="funnel-legend-item"><span class="funnel-legend-dot" style="background: #3b82f6"></span>设备数</span>
+        </div>
         <div class="funnel-grid">
-          <!-- 左指标：对齐到对应 step 的 y 位置 -->
+          <!-- 左指标 -->
           <div
             v-for="m in LEFT_METRICS"
             :key="m.code"
@@ -122,25 +126,19 @@
             </el-tooltip>
           </div>
 
-          <!-- 中央 11 步漏斗 -->
-          <div class="funnel-col">
-            <div class="funnel-legend">
-              <span class="funnel-legend-item"><span class="funnel-legend-dot" style="background: #fe9c2c"></span>次数</span>
-              <span class="funnel-legend-item"><span class="funnel-legend-dot" style="background: #3b82f6"></span>设备数</span>
-            </div>
-            <div class="funnel-chart">
-              <div
-                v-for="(step, idx) in FUNNEL_STEPS"
-                :key="step.code"
-                :class="['funnel-block', `funnel-block-${idx}`]"
-                :title="step.name"
-              >
-                <span class="funnel-block-text">{{ step.name }}</span>
-              </div>
+          <!-- 中央 11 步漏斗 (row 1-11 col 2) -->
+          <div class="funnel-chart" style="grid-column: 2; grid-row: 1 / 12">
+            <div
+              v-for="(step, idx) in FUNNEL_STEPS"
+              :key="step.code"
+              :class="['funnel-block', `funnel-block-${idx}`]"
+              :title="step.name"
+            >
+              <span class="funnel-block-text">{{ step.name }}</span>
             </div>
           </div>
 
-          <!-- 右指标：对齐到对应 step 的 y 位置 -->
+          <!-- 右指标 -->
           <div
             v-for="m in RIGHT_METRICS"
             :key="m.code"
