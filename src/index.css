@@ -10422,3 +10422,19 @@ html, body, #app {
   font-size: 12px;
   border-radius: 6px;
 }
+
+/* DateRangePicker 浮动面板（受控 v-if + Teleport） */
+.date-range-picker {
+  display: inline-block;
+  position: relative;
+}
+.date-range-popover-floating {
+  background: #FFFFFF;
+  border: 1px solid #E2E8F0;
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.12);
+  overflow: hidden;
+  width: 552px;
+  max-width: calc(100vw - 24px);
+  font-family: inherit;
+}
