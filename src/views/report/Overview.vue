@@ -234,6 +234,7 @@
             <ReportTableView
               :board="effectiveBoard"
               :data="tableData"
+              @column-reorder="onColumnReorder"
             />
           </div>
         </template>
@@ -470,6 +471,31 @@ const openMetricPicker = () => {
 const onMetricsApply = (codes: string[]) => {
   pickedMetrics.value = [...codes];
   loadData();
+};
+// 拖拽表头调整列顺序后持久化到看版
+const onColumnReorder = async (payload: { dimensions: string[]; metrics: string[] }) => {
+  const board = currentBoard.value;
+  if (!board) return;
+  // 立即更新本地 pickedDimensions / pickedMetrics（影响后续 effectiveBoard）
+  pickedDimensions.value = [...payload.dimensions];
+  pickedMetrics.value = [...payload.metrics];
+  // PATCH 持久化
+  try {
+    const res: any = await request({
+      url: `/api/v1/console/report/board/update/${board.id}`,
+      method: 'PATCH',
+      data: { config: { ...board.config, dimensions: payload.dimensions, metrics: payload.metrics } },
+    });
+    if (res?.code === 0 || res?.code === 200 || res?.success) {
+      // 同步 board.config
+      board.config = { ...board.config, dimensions: payload.dimensions, metrics: payload.metrics };
+      ElMessage.success('列顺序已保存');
+    } else {
+      ElMessage.warning('列顺序已应用，但保存失败：' + (res?.message || 'unknown'));
+    }
+  } catch (e: any) {
+    ElMessage.warning('列顺序已应用，但保存失败：' + (e?.message || 'network error'));
+  }
 };
 const openDimensionPicker = () => {
   const seed = pickedDimensions.value.length > 0

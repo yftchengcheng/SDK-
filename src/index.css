@@ -10460,3 +10460,25 @@ html, body, #app {
   font-size: 12px;
 }
 
+
+/* ---------- Report Table: 拖拽列头 + 排序 ---------- */
+.page-table-wrap :deep(.el-table__header-wrapper th) {
+  cursor: grab;
+  user-select: none;
+}
+.page-table-wrap :deep(.el-table__header-wrapper th:active) {
+  cursor: grabbing;
+}
+.page-table-wrap :deep(.col-ghost) {
+  opacity: 0.4;
+  background: #e0edff !important;
+}
+.page-table-wrap :deep(.col-chosen) {
+  background: #f0f7ff !important;
+}
+.page-table-wrap :deep(.sort-caret.ascending) {
+  border-bottom-color: var(--color-primary-500, #2b6cb0);
+}
+.page-table-wrap :deep(.sort-caret.descending) {
+  border-top-color: var(--color-primary-500, #2b6cb0);
+}
