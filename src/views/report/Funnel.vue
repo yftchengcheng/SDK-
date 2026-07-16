@@ -210,7 +210,7 @@ const formulaType = ref<'div' | 'sub'>('div');
 const formulaValue = ref<number | null>(null);
 const formulaError = ref<string>('');
 
-const filter = ref<Filter>({ dateRange: '7d', appIds: [], placementIds: [], adSourceIds: [], formats: [], country: [], osList: [], platform: '' });
+const filter = ref<Filter>({ dateRange: '7d', appIds: [], placementIds: [], adSourceIds: [], formats: [], country: [], osList: [], platforms: [] });
 
 const firstStepValue = computed(() => stepRows.value[0]?.value || 0);
 const lastStepValue = computed(() => stepRows.value[stepRows.value.length - 1]?.value || 0);

@@ -268,7 +268,7 @@ const DURATION_METRICS = [
 
 const currentSubtype = ref<'frequency' | 'value' | 'duration'>('frequency');
 const loading = ref(false);
-const filter = ref<Filter>({ dateRange: '7d', appIds: [], placementIds: [], adSourceIds: [], formats: [], country: [], osList: [], platform: '' });
+const filter = ref<Filter>({ dateRange: '7d', appIds: [], placementIds: [], adSourceIds: [], formats: [], country: [], osList: [], platforms: [] });
 
 // 频次
 const frequencyRows = ref<FrequencyRow[]>([]);

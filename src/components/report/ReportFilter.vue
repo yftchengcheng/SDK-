@@ -47,7 +47,8 @@
       </el-form-item>
       <el-form-item label="平台">
         <el-select
-          v-model="local.platform" placeholder="全部" clearable style="width: 120px" @change="onPlatformChange"
+          v-model="local.platforms" multiple collapse-tags collapse-tags-tooltip
+          placeholder="全部平台" clearable filterable style="width: 150px" @change="emitChange"
         >
           <el-option v-for="p in platforms" :key="p.value" :label="p.label" :value="p.value" />
         </el-select>
@@ -108,7 +109,7 @@ export interface ReportFilter {
   formats: ('banner' | 'interstitial' | 'native' | 'rewarded' | 'splash')[];
   country: string[];
   osList: string[];
-  platform: string;
+  platforms: string[];   // ad_network_def.network_name 集合（多选）
   networks?: string[];
 }
 
@@ -125,7 +126,7 @@ const local = ref<ReportFilter>({
   formats: [...(props.modelValue.formats || [])],
   country: [...(props.modelValue.country || [])],
   osList: [...(props.modelValue.osList || [])],
-  platform: props.modelValue.platform || '',
+  platforms: [...(props.modelValue.platforms || [])],
 });
 
 // el-date-picker 用 [start, end] 数组作为 v-model
@@ -198,7 +199,7 @@ const reset = () => {
   local.value = {
     dateRange: '7d', customStart: undefined, customEnd: undefined,
     appIds: [], placementIds: [], adSourceIds: [],
-    formats: [], country: [], osList: [], platform: '',
+    formats: [], country: [], osList: [], platforms: [],
   };
   emitChange();
 };
@@ -218,7 +219,7 @@ watch(() => props.modelValue, (v) => {
     formats: [...(v.formats || [])],
     country: [...(v.country || [])],
     osList: [...(v.osList || [])],
-    platform: v.platform || '',
+    platforms: [...(v.platforms || [])],
   };
 }, { deep: true });
 </script>

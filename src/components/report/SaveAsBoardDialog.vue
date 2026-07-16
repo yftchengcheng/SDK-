@@ -124,7 +124,7 @@ const filterSummary = computed(() => {
   if (Array.isArray(f.formats) && f.formats.length) parts.push(`类型 ${f.formats.length} 个`);
   if (Array.isArray(f.country) && f.country.length) parts.push(`地区 ${f.country.length} 个`);
   if (Array.isArray(f.osList) && f.osList.length) parts.push(`系统 ${f.osList.length} 个`);
-  if (f.platform) parts.push(`平台 ${f.platform}`);
+  if (Array.isArray(f.platforms) && f.platforms.length) parts.push(`平台 ${f.platforms.join('、')}`);
   return parts.length ? parts.join(' · ') : '无';
 });
 

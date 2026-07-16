@@ -198,9 +198,9 @@ function metricValue(code: string, row: any): number {
 /**
  * 应用筛选器（级联）：app → placement → ad_source
  */
-function applyFilters(q: any, filters: any): any {
+async function applyFilters(q: any, filters: any): Promise<any> {
   if (!filters) return q;
-  const { appIds, placementIds, adSourceIds, countries, osList, formats, platform, adType } = filters;
+  const { appIds, placementIds, adSourceIds, countries, osList, formats, platforms, adType } = filters;
   if (Array.isArray(appIds) && appIds.length > 0) {
     q = q.in('app_key', appIds);
   }
@@ -219,8 +219,19 @@ function applyFilters(q: any, filters: any): any {
   if (Array.isArray(formats) && formats.length > 0) {
     q = q.in('ad_type', formats);
   }
-  if (platform) {
-    // platform 不在 report_daily 列中，留作未来扩展
+  if (Array.isArray(platforms) && platforms.length > 0) {
+    // platform = ad_network_def.network_name，需要先查 ad_source 拿到 network_code 集合
+    // report_daily 没有 platform/network_name 列，通过 ad_source_id 反查 network_code
+    // 这里用 in() 不可行（report_daily 没有 network_code 列），先取 ad_source.id 集合
+    // 注：这是一个优化 — 实际上 ad_source.id 范围通常不大，全取也无妨
+    const { data: srcList } = await db.from('ad_source').select('id, network_name').in('network_name', platforms);
+    const srcIds = (srcList || []).map((r: any) => r.id);
+    if (srcIds.length > 0) {
+      q = q.in('ad_source_id', srcIds);
+    } else {
+      // 选了 platform 但 ad_source 里找不到 → 强制无结果
+      q = q.eq('ad_source_id', -1);
+    }
   }
   if (adType) {
     q = q.eq('ad_type', adType);
@@ -244,7 +255,7 @@ async function aggregateOverview(
     .gte('stat_date', startDate)
     .lte('stat_date', endDate)
     .limit(20000);
-  q = applyFilters(q, filters);
+  q = await applyFilters(q, filters);
   const { data, error } = await q;
   if (error) throw error;
 
@@ -294,7 +305,7 @@ async function aggregateFunnel(
     .gte('stat_date', startDate)
     .lte('stat_date', endDate)
     .limit(50000);
-  q = applyFilters(q, filters);
+  q = await applyFilters(q, filters);
   const { data, error } = await q;
   if (error) {
     // 表不存在则降级到 mock 数据（保证前端有数据展示）
@@ -423,7 +434,7 @@ async function aggregateBehavior(
     .gte('stat_date', startDate)
     .lte('stat_date', endDate)
     .limit(20000);
-  q = applyFilters(q, filters);
+  q = await applyFilters(q, filters);
   const { data, error } = await q;
   if (error) {
     console.warn('behavior query failed, using mock:', error.message);
@@ -562,19 +573,12 @@ router.post('/aggregate/options', async (req: Request, res: Response) => {
         return ok(res, { options });
       }
       case 'platform': {
-        // platform 取自 ad_source.network_name（广告平台名）
-        const { data, error } = await db.from('ad_source').select('network_name').not('network_name', 'is', null).limit(5000);
+        // 平台 = 预置的 5 个广告平台（穿山甲/优量汇/快手/百度/Sigmob）
+        // 用硬编码 network_code 白名单，避免被用户注册的自定义平台污染
+        const PRESET_PLATFORMS = ['CSJ', 'YLH', 'KS', 'BD', 'SIGMOB'];
+        const { data, error } = await db.from('ad_network_def').select('network_name').in('network_code', PRESET_PLATFORMS).order('network_name');
         if (error) throw error;
-        const seen = new Set<string>();
-        const options: Array<{ value: string; label: string }> = [];
-        for (const r of data || []) {
-          const code = (r as any).network_name;
-          if (!code || seen.has(code)) continue;
-          seen.add(code);
-          options.push({ value: code, label: code });
-        }
-        options.sort((a, b) => a.label.localeCompare(b.label));
-        return ok(res, { options });
+        return ok(res, { options: (data || []).map((r: any) => ({ value: r.network_name, label: r.network_name })) });
       }
       default:
         return fail(res, 400, `不支持的选项类型：${type}`);
