@@ -430,34 +430,53 @@ function recomputeLinks() {
     return { x: r.left - gridRect.left + r.width / 2, y: r.top - gridRect.top + r.height / 2 };
   });
 
+  // 临时收集, 之后按 (stepIdx, side) 分组, 同组内箭头 y 错开避免重叠
+  const pendingArrows: { stepIdx: number; side: 'L' | 'R'; color: string; startX: number; startY: number }[] = [];
+
   function drawMetric(side: 'L' | 'R', code: string, linkIndices: number[], color: string) {
     const mel = metricRefs.value[side + ':' + code];
     if (!mel) return;
     const mr = mel.getBoundingClientRect();
     const startX = side === 'L' ? mr.right - gridRect.left : mr.left - gridRect.left;
-    const startY = mr.top - gridRect.top + mr.height / 2;
-
-    // 每个指标只画 1 根线 (取 linkIndices[0] = 分子 step)
-    const targetIdx = linkIndices[0];
-    const step = stepCenters[targetIdx];
-    if (!step) return;
-    // step 块宽度 90px, 中心 = step.x, 边缘 = step.x ± 45
-    const STEP_HALF_W = 45;
-    const stepEdgeX = side === 'L' ? step.x - STEP_HALF_W : step.x + STEP_HALF_W;
-    // 箭头尖端接在 step 边缘 (色块边内 6px), line 终止在箭头底边 (距尖端 12px)
-    const tipX = side === 'L' ? stepEdgeX + 6 : stepEdgeX - 6;
-    const lineEndX = side === 'L' ? tipX - 12 : tipX + 12;
-    const endY = step.y;
-    // 3 段折线: metric 边 → step 中心 (midX = step.x) → step y → 箭头底边
-    // 折点在 step 中心, 视觉上像示例图 (line 水平段从指标拉到 step 中点, 再垂直到 step y, 再水平到 step 边缘)
-    const midX = step.x;
-    const d = `M ${startX} ${startY} L ${midX} ${startY} L ${midX} ${endY} L ${lineEndX} ${endY}`;
-    newPaths.push({ d, color });
-    newDots.push({ cx: tipX, cy: endY, color, side });
+    // 多个 linkIndex 时, 每根线从 metric 卡不同 y 出发 (避免水平段重合)
+    // N=1 -> 中心; N=2 -> 1/3 + 2/3; N=3 -> 1/4 + 1/2 + 3/4
+    const N = linkIndices.length;
+    for (let i = 0; i < N; i++) {
+      const startY = mr.top - gridRect.top + ((i + 1) * mr.height) / (N + 1);
+      pendingArrows.push({ stepIdx: linkIndices[i], side, color, startX, startY });
+    }
   }
 
   for (const m of LEFT_METRICS) drawMetric('L', m.code, m.linkIndices, LEFT_COLOR);
   for (const m of RIGHT_METRICS) drawMetric('R', m.code, m.linkIndices, RIGHT_COLOR);
+
+  // 按 (stepIdx, side) 分组, 同组内箭头 y 错开避免重叠
+  const groups = new Map<string, typeof pendingArrows>();
+  for (const a of pendingArrows) {
+    const key = `${a.stepIdx}_${a.side}`;
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key)!.push(a);
+  }
+
+  const STEP_HALF_W = 45;
+  for (const [, arrows] of groups) {
+    const M = arrows.length;
+    const SPACING = 12;
+    arrows.forEach((a, i) => {
+      const step = stepCenters[a.stepIdx];
+      if (!step) return;
+      // M=1: yOffset=0; M=2: -6, +6; M=3: -12, 0, +12
+      const yOffset = M === 1 ? 0 : (i - (M - 1) / 2) * SPACING;
+      const endY = step.y + yOffset;
+      const stepEdgeX = a.side === 'L' ? step.x - STEP_HALF_W : step.x + STEP_HALF_W;
+      const tipX = a.side === 'L' ? stepEdgeX + 6 : stepEdgeX - 6;
+      const lineEndX = a.side === 'L' ? tipX - 12 : tipX + 12;
+      const midX = step.x;
+      const d = `M ${a.startX} ${a.startY} L ${midX} ${a.startY} L ${midX} ${endY} L ${lineEndX} ${endY}`;
+      newPaths.push({ d, color: a.color });
+      newDots.push({ cx: tipX, cy: endY, color: a.color, side: a.side });
+    });
+  }
 
   linkPaths.value = newPaths;
   linkDots.value = newDots;
