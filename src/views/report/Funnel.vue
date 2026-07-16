@@ -105,42 +105,8 @@
         </div>
       </div>
 
-      <div class="funnel-layout">
-        <div class="funnel-side funnel-side-left">
-          <div v-for="m in LEFT_METRICS" :key="m.code" class="funnel-side-item">
-            <div class="funnel-side-item-label">{{ m.name }}</div>
-            <el-input v-model="metricValues[m.code]" size="small" placeholder="-" style="width: 110px" />
-            <el-tooltip :content="m.tip" placement="top" :show-after="300">
-              <el-icon class="funnel-side-item-tip"><QuestionFilled /></el-icon>
-            </el-tooltip>
-          </div>
-        </div>
-
-        <div class="funnel-chart-wrap">
-          <div class="funnel-legend">
-            <span class="funnel-legend-item"><span class="funnel-legend-dot" style="background: #f97316"></span>次数</span>
-            <span class="funnel-legend-item"><span class="funnel-legend-dot" style="background: #3b82f6"></span>设备数</span>
-          </div>
-          <div class="funnel-chart">
-            <div
-              v-for="(step, idx) in FUNNEL_STEPS"
-              :key="step.code"
-              :class="['funnel-step', `funnel-step-${idx}`]"
-            >
-              <div class="funnel-step-text">{{ step.name }}</div>
-            </div>
-          </div>
-        </div>
-
-        <div class="funnel-side funnel-side-right">
-          <div v-for="m in RIGHT_METRICS" :key="m.code" class="funnel-side-item">
-            <div class="funnel-side-item-label">{{ m.name }}</div>
-            <el-input v-model="metricValues[m.code]" size="small" placeholder="-" style="width: 110px" />
-            <el-tooltip :content="m.tip" placement="top" :show-after="300">
-              <el-icon class="funnel-side-item-tip"><QuestionFilled /></el-icon>
-            </el-tooltip>
-          </div>
-        </div>
+      <div class="funnel-chart-wrap">
+        <img src="/funnel-chart.png" class="funnel-chart-img" alt="漏斗分析" />
       </div>
 
       <div class="funnel-table-wrap">

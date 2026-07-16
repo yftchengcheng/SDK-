@@ -9008,6 +9008,10 @@ html, body, #app {
 /* ============================================================================
    漏斗分析页 (Funnel.vue)
    ============================================================================ */
+.funnel-page {
+  flex: 1;
+  min-height: 0;
+}
 .funnel-page .funnel-master-detail {
   display: grid;
   grid-template-columns: 240px 1fr 280px;
@@ -10483,6 +10487,20 @@ html, body, #app {
   border-top-color: var(--color-primary-500, #2b6cb0);
 }
 
+
+.funnel-chart-wrap {
+  width: 100%;
+  text-align: center;
+  margin-bottom: 16px;
+}
+.funnel-chart-img {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  height: auto;
+  border-radius: 4px;
+  user-select: none;
+}
 /* ---------- 漏斗分析 Funnel ---------- */
 
 .funnel-filter-card { padding: 16px 20px; }
