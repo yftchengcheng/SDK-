@@ -218,19 +218,19 @@ const FUNNEL_STEPS = [
 ];
 
 const LEFT_METRICS = [
-  { code: 'arrive_rate', name: '广告场景到达率', tip: '到达广告场景 / 流量填充', alignIndex: 3 },
-  { code: 'trigger_rate', name: '广告触发率', tip: '触发展示 / 到达广告场景', alignIndex: 5 },
-  { code: 'show_success_rate', name: '触发展示成功率', tip: '触发展示成功 / 触发展示', alignIndex: 6 },
-  { code: 'show_rate', name: '展示成功率', tip: '展示 / 触发展示成功', alignIndex: 7 },
-  { code: 'click_rate', name: '点击率', tip: '点击 / 展示', alignIndex: 9 },
+  { code: 'arrive_rate', name: '广告场景到达率', tip: '应用启动 / 到达广告场景', alignIndex: 4 },
+  { code: 'trigger_rate', name: '广告触发率', tip: '到达广告场景 / 触发展示', alignIndex: 6 },
+  { code: 'show_success_rate', name: '触发展示成功率', tip: '触发展示 / 触发展示成功', alignIndex: 7 },
+  { code: 'show_rate', name: '展示成功率', tip: '触发展示成功 / 展示', alignIndex: 8 },
+  { code: 'click_rate', name: '点击率', tip: '展示 / 点击', alignIndex: 10 },
 ];
 
 const RIGHT_METRICS = [
-  { code: 'per_start', name: '人均启动', tip: '应用启动 / 设备数', alignIndex: 0 },
-  { code: 'fill_rate', name: '流量填充率', tip: '流量填充 / 流量请求', alignIndex: 3 },
-  { code: 'ready_rate', name: '广告Ready率', tip: '到达广告场景 / 流量填充', alignIndex: 4 },
-  { code: 'isready_rate', name: 'isReady成功率', tip: '查询isReady / 到达广告场景', alignIndex: 5 },
-  { code: 'show_gap', name: '展示Gap', tip: '展示API - 展示 差值', alignIndex: 8 },
+  { code: 'per_start', name: '人均启动', tip: '应用启动', alignIndex: 0 },
+  { code: 'fill_rate', name: '流量填充率', tip: '流量请求 / 流量填充', alignIndex: 3 },
+  { code: 'ready_rate', name: '广告Ready率', tip: '到达广告场景', alignIndex: 4 },
+  { code: 'isready_rate', name: 'isReady成功率', tip: '查询isReady', alignIndex: 5 },
+  { code: 'show_gap', name: '展示Gap', tip: '展示 / 展示API', alignIndex: 9 },
 ];
 
 const STAGE_ROWS = [
