@@ -349,10 +349,10 @@ async function main() {
 
   // === 阶段 12: 5 report_boards（保存的报表看板） ===
   const rbRows = [
-    { name: '日报看板',  report_type: 'overview', is_default: true,  is_hidden: false, sort_order: 1, config: { metrics: ['requests', 'impressions', 'revenue'], dimensions: ['app', 'ad_source', 'os'], dateRange: 'last7days' } },
-    { name: '周报看板',  report_type: 'overview', is_default: false, is_hidden: false, sort_order: 2, config: { metrics: ['requests', 'impressions', 'revenue'], dimensions: ['app', 'placement', 'region'], dateRange: 'last14days' } },
-    { name: '月报看板',  report_type: 'overview', is_default: false, is_hidden: false, sort_order: 3, config: { metrics: ['clicks', 'revenue', 'fill_rate'], dimensions: ['app', 'ad_source'], dateRange: 'last28days' } },
-    { name: '对比看板',  report_type: 'overview', is_default: false, is_hidden: false, sort_order: 4, config: { metrics: ['revenue'], dimensions: ['app', 'ad_source', 'os'], dateRange: 'last14days', compareWith: 'prev14days' } },
+    { name: '日报看板',  report_type: 'overview', is_default: true,  is_hidden: false, sort_order: 1, config: { metrics: ['requests', 'impressions', 'revenue_actual'], dimensions: ['app', 'ad_source', 'os'], dateRange: 'last7days' } },
+    { name: '周报看板',  report_type: 'overview', is_default: false, is_hidden: false, sort_order: 2, config: { metrics: ['requests', 'impressions', 'revenue_actual'], dimensions: ['app', 'placement', 'region'], dateRange: 'last14days' } },
+    { name: '月报看板',  report_type: 'overview', is_default: false, is_hidden: false, sort_order: 3, config: { metrics: ['clicks', 'revenue_actual', 'fill_rate'], dimensions: ['app', 'ad_source'], dateRange: 'last28days' } },
+    { name: '对比看板',  report_type: 'overview', is_default: false, is_hidden: false, sort_order: 4, config: { metrics: ['revenue_actual'], dimensions: ['app', 'ad_source', 'os'], dateRange: 'last14days', compareWith: 'prev14days' } },
     { name: '异常看板',  report_type: 'overview', is_default: false, is_hidden: false, sort_order: 5, config: { metrics: ['fill_rate', 'show_rate', 'click_rate'], dimensions: ['app', 'ad_source'], dateRange: 'last7days' } },
   ].map(r => ({ developer_id: devId, ...r }));
   const { data: rbs, error: rbErr } = await c.from('report_board').insert(rbRows).select();

@@ -363,6 +363,8 @@ const METRIC_LABELS: Record<string, string> = {
   impression_ratio: '展示占比',
   start_dau: '启动 DAU',
   estimated_revenue_ratio: '预估收益占比',
+  // 兜底：万一历史看版用了裸 'revenue' code，不要让 UI 显示英文 'revenue'
+  revenue: '收益',
   estimated_arpdeu: '预估 ARPDEU',
   dau: 'DAU',
   requests: '广告请求',

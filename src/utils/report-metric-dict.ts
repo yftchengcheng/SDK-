@@ -113,6 +113,9 @@ export const FALLBACK_METRIC_LABELS: Record<string, string> = {
   unique_users: '独立用户',
   session_count: '会话次数',
   duration_total: '总时长',
+  // 兜底：历史/legacy 看版可能用 'revenue' 这种裸 code（DB 当前没有，
+  // 但 metricNameOf 兜底链路 fallback 到 code 时会显示成英文 'revenue'，看起来像 bug）
+  revenue: '收益',
 };
 
 /** 兜底 format 表（与 FALLBACK_METRIC_LABELS 配合，覆盖历史看版用的旧 code） */
