@@ -497,7 +497,8 @@ router.post('/aggregate/options', async (req: Request, res: Response) => {
         if (app_id) pq = pq.eq('app_key', app_id);
         const { data, error } = await pq;
         if (error) throw error;
-        return ok(res, { options: (data || []).map((r: any) => ({ value: r.id, label: r.name, app_id: r.app_key })) });
+        // 用 placement_id（业务码如 pl_splash_001）作 value，与 report_daily.placement_id 对齐
+        return ok(res, { options: (data || []).map((r: any) => ({ value: r.placement_id, label: r.name, app_id: r.app_key })) });
       }
       case 'ad_source': {
         // 级联：选了 platform 或 ad_type 才拉对应的 ad_source
