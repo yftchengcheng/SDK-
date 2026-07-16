@@ -102,11 +102,34 @@
             </span>
           </div>
           <div class="funnel-layout">
-            <div class="funnel-grid">
+            <div class="funnel-grid" ref="funnelGridRef">
+              <!-- SVG 连接线层 (跨整个 grid) -->
+              <svg class="funnel-link-svg" :viewBox="linkViewBox" preserveAspectRatio="none">
+                <path
+                  v-for="(l, i) in linkPaths"
+                  :key="i"
+                  :d="l.d"
+                  :stroke="l.color"
+                  stroke-width="1.4"
+                  fill="none"
+                  stroke-dasharray="4 3"
+                  opacity="0.85"
+                />
+                <circle
+                  v-for="(d, i) in linkDots"
+                  :key="'dot-'+i"
+                  :cx="d.cx"
+                  :cy="d.cy"
+                  r="2.4"
+                  :fill="d.color"
+                />
+              </svg>
+
               <!-- 左指标 -->
               <div
                 v-for="m in LEFT_METRICS"
                 :key="m.code"
+                :ref="el => setMetricRef(el, 'L', m.code)"
                 class="funnel-metric funnel-metric-left"
                 :style="{ gridRow: m.alignIndex + 1 }"
               >
@@ -123,6 +146,7 @@
                 <div
                   v-for="(step, idx) in FUNNEL_STEPS"
                   :key="step.code"
+                  :ref="el => setStepRef(el, idx)"
                   :class="['funnel-block', `funnel-block-${idx}`]"
                   :title="step.name"
                 >
@@ -134,6 +158,7 @@
               <div
                 v-for="m in RIGHT_METRICS"
                 :key="m.code"
+                :ref="el => setMetricRef(el, 'R', m.code)"
                 class="funnel-metric funnel-metric-right"
                 :style="{ gridRow: m.alignIndex + 1 }"
               >
@@ -208,7 +233,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue';
+import { ref, computed, nextTick, onMounted, onBeforeUnmount, watch } from 'vue';
 import { Refresh, EditPen, Download, Warning, QuestionFilled, Filter, ArrowDown, ArrowUp } from '@element-plus/icons-vue';
 import dayjs from 'dayjs';
 import MetricPickerDialog from '@/components/report/MetricPickerDialog.vue';
@@ -228,19 +253,19 @@ const FUNNEL_STEPS = [
 ];
 
 const LEFT_METRICS = [
-  { code: 'arrive_rate', name: '广告场景到达率', tip: '应用启动 / 到达广告场景 × 100%', alignIndex: 4 },
-  { code: 'trigger_rate', name: '广告触发率', tip: '到达广告场景 / 触发展示 × 100%', alignIndex: 6 },
-  { code: 'show_success_rate', name: '触发展示成功率', tip: '触发展示 / 触发展示成功 × 100%', alignIndex: 7 },
-  { code: 'show_rate', name: '展示成功率', tip: '触发展示成功 / 展示 × 100%', alignIndex: 8 },
-  { code: 'click_rate', name: '点击率', tip: '展示 / 点击 × 100%', alignIndex: 10 },
+  { code: 'arrive_rate', name: '广告场景到达率', tip: '应用启动 / 到达广告场景 × 100%', alignIndex: 4, linkIndices: [0, 4] },
+  { code: 'trigger_rate', name: '广告触发率', tip: '到达广告场景 / 触发展示 × 100%', alignIndex: 6, linkIndices: [4, 6] },
+  { code: 'show_success_rate', name: '触发展示成功率', tip: '触发展示 / 触发展示成功 × 100%', alignIndex: 7, linkIndices: [6, 7] },
+  { code: 'show_rate', name: '展示成功率', tip: '触发展示成功 / 展示 × 100%', alignIndex: 8, linkIndices: [7, 8] },
+  { code: 'click_rate', name: '点击率', tip: '展示 / 点击 × 100%', alignIndex: 10, linkIndices: [8, 10] },
 ];
 
 const RIGHT_METRICS = [
-  { code: 'per_start', name: '人均启动', tip: '应用启动 / 设备数', alignIndex: 0 },
-  { code: 'fill_rate', name: '流量填充率', tip: '流量请求 / 流量填充 × 100%', alignIndex: 3 },
-  { code: 'ready_rate', name: '广告Ready率', tip: '广告ready / 到达广告场景 × 100%', alignIndex: 4 },
-  { code: 'isready_rate', name: 'isReady成功率', tip: 'isReady返回True / 调用isReady次数 × 100%', alignIndex: 5 },
-  { code: 'show_gap', name: '展示Gap', tip: '展示 / 展示API × 100%', alignIndex: 9 },
+  { code: 'per_start', name: '人均启动', tip: '应用启动 / 设备数', alignIndex: 0, linkIndices: [0] },
+  { code: 'fill_rate', name: '流量填充率', tip: '流量请求 / 流量填充 × 100%', alignIndex: 3, linkIndices: [2, 3] },
+  { code: 'ready_rate', name: '广告Ready率', tip: '广告ready / 到达广告场景 × 100%', alignIndex: 4, linkIndices: [4] },
+  { code: 'isready_rate', name: 'isReady成功率', tip: 'isReady返回True / 调用isReady次数 × 100%', alignIndex: 5, linkIndices: [5] },
+  { code: 'show_gap', name: '展示Gap', tip: '展示 / 展示API × 100%', alignIndex: 9, linkIndices: [8, 9] },
 ];
 
 const STAGE_ROWS = [
@@ -364,6 +389,84 @@ const deviceTypes = ref<{ value: string; label: string }[]>([
   { value: 'tv', label: '电视' },
 ]);
 
+// ====== 连接线 ======
+const funnelGridRef = ref<HTMLElement | null>(null);
+const metricRefs = ref<Record<string, HTMLElement>>({});
+const stepRefs = ref<HTMLElement[]>([]);
+const linkPaths = ref<{ d: string; color: string }[]>([]);
+const linkDots = ref<{ cx: number; cy: number; color: string }[]>([]);
+const linkViewBox = ref('0 0 1000 480');
+
+// 标记色: 左指标橙红, 右指标青蓝
+const LEFT_COLOR = '#f97316';
+const RIGHT_COLOR = '#06b6d4';
+
+function setMetricRef(el: Element | null, side: 'L' | 'R', code: string) {
+  if (el) metricRefs.value[side + ':' + code] = el as HTMLElement;
+}
+function setStepRef(el: Element | null, idx: number) {
+  if (el) stepRefs.value[idx] = el as HTMLElement;
+}
+
+function recomputeLinks() {
+  const grid = funnelGridRef.value;
+  if (!grid) return;
+  const gridRect = grid.getBoundingClientRect();
+  const w = gridRect.width;
+  const h = gridRect.height;
+  linkViewBox.value = `0 0 ${w} ${h}`;
+
+  const newPaths: { d: string; color: string }[] = [];
+  const newDots: { cx: number; cy: number; color: string }[] = [];
+
+  // 所有 step 中点
+  const stepCenters = stepRefs.value.map((el) => {
+    if (!el) return null;
+    const r = el.getBoundingClientRect();
+    return { x: r.left - gridRect.left + r.width / 2, y: r.top - gridRect.top + r.height / 2 };
+  });
+
+  function drawMetric(side: 'L' | 'R', code: string, linkIndices: number[], color: string) {
+    const mel = metricRefs.value[side + ':' + code];
+    if (!mel) return;
+    const mr = mel.getBoundingClientRect();
+    const startX = side === 'L' ? mr.right - gridRect.left : mr.left - gridRect.left;
+    const startY = mr.top - gridRect.top + mr.height / 2;
+
+    // 1) 主连线: 指标 -> 第一个对应项 (分子)
+    const first = stepCenters[linkIndices[0]];
+    if (first) {
+      const endX = first.x;
+      const endY = first.y;
+      // 用三段折线: 水平延伸到 step 列, 然后竖直到 step y
+      const midX = (startX + endX) / 2;
+      const d = `M ${startX} ${startY} L ${midX} ${startY} L ${midX} ${endY} L ${endX} ${endY}`;
+      newPaths.push({ d, color });
+      newDots.push({ cx: endX, cy: endY, color });
+    }
+
+    // 2) 副连线: 第一对应项 -> 第二对应项 (分母)  在中央列内画
+    if (linkIndices.length >= 2) {
+      const a = stepCenters[linkIndices[0]];
+      const b = stepCenters[linkIndices[1]];
+      if (a && b) {
+        // 在 step 列内画弧线/折线
+        const d = `M ${a.x + 6} ${a.y} L ${a.x + 18} ${a.y} L ${a.x + 18} ${b.y} L ${b.x} ${b.y}`;
+        newPaths.push({ d, color });
+        newDots.push({ cx: b.x, cy: b.y, color });
+      }
+    }
+  }
+
+  for (const m of LEFT_METRICS) drawMetric('L', m.code, m.linkIndices, LEFT_COLOR);
+  for (const m of RIGHT_METRICS) drawMetric('R', m.code, m.linkIndices, RIGHT_COLOR);
+
+  linkPaths.value = newPaths;
+  linkDots.value = newDots;
+}
+
+let resizeObserver: ResizeObserver | null = null;
+
 function loadData() {
   console.log('[funnel] loadData', { dateRange: dateRange.value, filter: filter.value, perCapita: perCapitaMode.value });
 }
@@ -373,7 +476,21 @@ function onMetricPickerConfirm(picked: string[]) {
   console.log('[funnel] picked metrics', picked);
 }
 
-onMounted(() => {});
+onMounted(() => {
+  nextTick(() => {
+    recomputeLinks();
+    if (funnelGridRef.value) {
+      resizeObserver = new ResizeObserver(() => recomputeLinks());
+      resizeObserver.observe(funnelGridRef.value);
+    }
+  });
+  window.addEventListener('resize', recomputeLinks);
+});
+
+onBeforeUnmount(() => {
+  resizeObserver?.disconnect();
+  window.removeEventListener('resize', recomputeLinks);
+});
 
 watch([perCapitaMode, bottomTab], () => {
   loadData();
