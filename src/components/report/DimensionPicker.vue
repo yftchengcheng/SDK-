@@ -71,7 +71,7 @@ import { ref, computed, watch } from 'vue';
 import { Search, Check, Grid } from '@element-plus/icons-vue';
 
 interface DimOption { value: string; label: string }
-interface DimGroup { label: string; options: DimOption[] }
+interface DimGroup { label: string; options: DimOption[]; single?: boolean }
 
 const props = defineProps<{
   modelValue: string[];
@@ -88,6 +88,7 @@ const searchText = ref('');
 const groups: DimGroup[] = [
   {
     label: '时间维度',
+    single: true,
     options: [
       { value: 'date', label: '按日' },
       { value: 'hour', label: '按小时' },
