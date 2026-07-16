@@ -230,7 +230,7 @@ const RIGHT_METRICS = [
   { code: 'fill_rate', name: '流量填充率', tip: '流量请求 / 流量填充 × 100%', alignIndex: 3 },
   { code: 'ready_rate', name: '广告Ready率', tip: '广告ready / 到达广告场景 × 100%', alignIndex: 4 },
   { code: 'isready_rate', name: 'isReady成功率', tip: 'isReady返回True / 调用isReady次数 × 100%', alignIndex: 5 },
-  { code: 'show_gap', name: '展示Gap', tip: '展示 / 展示API', alignIndex: 9 },
+  { code: 'show_gap', name: '展示Gap', tip: '展示 / 展示API × 100%', alignIndex: 9 },
 ];
 
 const STAGE_ROWS = [
