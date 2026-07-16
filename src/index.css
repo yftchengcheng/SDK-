@@ -10443,3 +10443,18 @@ html, body, #app {
 .enum-tag {
   font-weight: 500;
 }
+
+/* 广告源-列表-流量分组列 */
+.adsource-tg-chip {
+  margin-right: 4px;
+  margin-bottom: 2px;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.adsource-tg-chip:last-child { margin-right: 0; }
+.adsource-tg-empty {
+  color: #94a3b8;
+  font-size: 12px;
+}

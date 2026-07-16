@@ -7,7 +7,12 @@ const router = Router();
 
 // ============ helpers ============
 // 把 ad_source 行 enrich 上 trafficGroupBindings + storeDimParams
-type AdSourceRow = Record<string, unknown> & { id: number; store_dim_params?: unknown };
+// ad_source 行的最小字段契约（用 type intersection 让 placement_id 在 strict 模式下也被识别）
+type AdSourceRow = Record<string, unknown> & {
+  id: number;
+  placement_id?: number | null;
+  store_dim_params?: unknown;
+};
 type BindingRow = {
   id: number;
   ad_source_id: number;
@@ -28,6 +33,34 @@ type BindingInput = {
   interval_sec?: number | string | null;
 };
 
+// 把 ad_source 行的 placement_id (bigint = placement.id) 翻译成 placement.placement_id (text = pl_xxx)
+// 修复弹窗编辑时用 number 查不到 traffic_group 的 bug（traffic_group.placement_id 是 text 列）
+type WithPlacementId = { placement_id?: number | null };
+type WithPlacementCode = WithPlacementId & { placement_code?: string | null };
+
+async function attachPlacementCodes<T extends WithPlacementId>(items: T[]): Promise<Array<T & { placement_code?: string | null }>> {
+  if (!items || items.length === 0) return items as Array<T & { placement_code?: string | null }>;
+  const placementIds = Array.from(
+    new Set(items.map((r) => r.placement_id).filter((v): v is number => typeof v === 'number' && !Number.isNaN(v))),
+  );
+  if (placementIds.length === 0) {
+    return items.map((r) => ({ ...r, placement_code: null })) as Array<T & { placement_code?: string | null }>;
+  }
+  // placement.id (bigint) ↔ placement.placement_id (text)
+  const { data: placements } = await db
+    .from('placement')
+    .select('id, placement_id')
+    .in('id', placementIds);
+  const idToCode = new Map<number, string>();
+  for (const p of placements || []) {
+    idToCode.set(Number((p as { id: number }).id), String((p as { placement_id: string }).placement_id));
+  }
+  return items.map((r) => ({
+    ...r,
+    placement_code: r.placement_id != null ? idToCode.get(Number(r.placement_id)) ?? null : null,
+  })) as Array<T & { placement_code?: string | null }>;
+}
+
 async function enrichAdSource(row: AdSourceRow | null) {
   if (!row) return row;
   // store_dim_params
@@ -45,7 +78,8 @@ async function enrichAdSource(row: AdSourceRow | null) {
     const tg = Array.isArray(b.traffic_group) ? b.traffic_group[0] : b.traffic_group;
     return { ...b, group_name: tg?.group_name || '' };
   });
-  return { ...row, store_dim_params: sdp, traffic_group_bindings: list };
+  const [enriched] = await attachPlacementCodes([row]);
+  return { ...enriched, store_dim_params: sdp, traffic_group_bindings: list };
 }
 
 async function enrichListWithBindings(items: AdSourceRow[]) {
@@ -55,20 +89,23 @@ async function enrichListWithBindings(items: AdSourceRow[]) {
     .from('ad_source_traffic_group')
     .select('*, traffic_group:traffic_group_id ( id, group_name )')
     .in('ad_source_id', ids);
+  let withBindings: Array<AdSourceRow & { traffic_group_bindings: Array<BindingRow & { group_name: string }> }>;
   if (error) {
-    return items.map((r) => ({ ...r, traffic_group_bindings: [] }));
+    withBindings = items.map((r) => ({ ...r, traffic_group_bindings: [] }));
+  } else {
+    const bySource = new Map<number, Array<BindingRow & { group_name: string }>>();
+    for (const b of (rows || []) as BindingRow[]) {
+      const list = bySource.get(b.ad_source_id) || [];
+      const tg = Array.isArray(b.traffic_group) ? b.traffic_group[0] : b.traffic_group;
+      list.push({ ...b, group_name: tg?.group_name || '' });
+      bySource.set(b.ad_source_id, list);
+    }
+    withBindings = items.map((r) => ({
+      ...r,
+      traffic_group_bindings: bySource.get(r.id) || [],
+    }));
   }
-  const bySource = new Map<number, Array<BindingRow & { group_name: string }>>();
-  for (const b of (rows || []) as BindingRow[]) {
-    const list = bySource.get(b.ad_source_id) || [];
-    const tg = Array.isArray(b.traffic_group) ? b.traffic_group[0] : b.traffic_group;
-    list.push({ ...b, group_name: tg?.group_name || '' });
-    bySource.set(b.ad_source_id, list);
-  }
-  return items.map((r) => ({
-    ...r,
-    traffic_group_bindings: bySource.get(r.id) || [],
-  }));
+  return attachPlacementCodes(withBindings);
 }
 
 // 全删后插

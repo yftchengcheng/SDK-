@@ -132,6 +132,21 @@
           <el-table-column type="selection" width="48" />
           <el-table-column prop="id" label="广告源ID" min-width="100" />
           <el-table-column prop="source_name" label="广告源名称" min-width="160" />
+          <el-table-column label="流量分组" min-width="180">
+            <template #default="{ row }">
+              <template v-if="row.traffic_group_bindings && row.traffic_group_bindings.length">
+                <el-tag
+                  v-for="b in row.traffic_group_bindings"
+                  :key="b.traffic_group_id"
+                  size="small"
+                  type="primary"
+                  effect="light"
+                  class="adsource-tg-chip"
+                >{{ b.group_name || ('分组#' + b.traffic_group_id) }}</el-tag>
+              </template>
+              <span v-else class="adsource-tg-empty">—</span>
+            </template>
+          </el-table-column>
           <el-table-column label="参数" min-width="220">
             <template #default="{ row }">
               <code class="adsource-cell-json">{{ formatExtra(row) }}</code>
@@ -543,11 +558,16 @@ const trafficGroups = ref<any[]>([]);
 const trafficGroupsLoading = ref(false);
 const trafficGroupsLoaded = ref(false);
 
-const fetchTrafficGroups = async (placementId: number | null, force = false) => {
-  if (!placementId) { trafficGroups.value = []; return; }
+const fetchTrafficGroups = async (placementId: number | string | null, force = false) => {
+  if (placementId === null || placementId === undefined || placementId === '') {
+    trafficGroups.value = [];
+    return;
+  }
   if (trafficGroupsLoaded.value && !force) return;
   trafficGroupsLoading.value = true;
   try {
+    // traffic_group.placement_id 是 text(pl_xxx) 列；ad_source.placement_id 是 bigint(placement.id)
+    // 后端要求传 string 形式才能命中实际数据；编辑时 row.placement_code 是已翻译好的 string
     const res: any = await request.get('/api/v1/console/traffic-group/list', { params: { placementId, page: 1, pageSize: 200 } });
     trafficGroups.value = res.data?.list || [];
     trafficGroupsLoaded.value = true;
@@ -853,8 +873,10 @@ const handleEdit = async (row: any) => {
       selectedPlacementId.value = null;
     }
   }
-  // 加载流量分组
-  if (selectedPlacementId.value) await fetchTrafficGroups(selectedPlacementId.value, true);
+  // 加载流量分组：traffic_group.placement_id 是 text(pl_xxx)，ad_source.placement_id 是 bigint
+  // 优先用后端 enrich 出的 placement_code（string pl_xxx）查，能命中真实数据
+  const tgPlacementKey = row.placement_code || (selectedPlacementId.value as any);
+  if (tgPlacementKey) await fetchTrafficGroups(tgPlacementKey, true);
   // 回填 storeDimParams / trafficGroupBindings
   const rawDims = row.store_dim_params;
   if (Array.isArray(rawDims)) {
