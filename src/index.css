@@ -9618,6 +9618,56 @@ html, body, #app {
   color: #1E3A8A;
 }
 
+/* 使用时长对比表 */
+.duration-table {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid #E2E8F0;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #fff;
+}
+.duration-table-header {
+  padding: 0 0 12px;
+}
+.duration-row {
+  display: grid;
+  grid-template-columns: 1.4fr 1.2fr 1.2fr 1fr 1fr;
+  align-items: center;
+  border-bottom: 1px solid #F1F5F9;
+  min-height: 36px;
+}
+.duration-row:last-child { border-bottom: none; }
+.duration-row:hover:not(.duration-row--header) { background: #F8FAFC; }
+.duration-row--header {
+  background: #F8FAFC;
+  color: #334155;
+  font-weight: 600;
+  font-size: 12px;
+  min-height: 36px;
+}
+.duration-col {
+  padding: 8px 12px;
+  font-size: 12px;
+  color: #334155;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.duration-row--header .duration-col { color: #334155; }
+.duration-col--date { color: #475569; }
+.duration-col-unit {
+  margin-left: 4px;
+  font-size: 11px;
+  font-weight: 400;
+  color: #94A3B8;
+}
+.duration-up { color: #10B981; font-weight: 500; }
+.duration-down { color: #EF4444; font-weight: 500; }
+.duration-flat { color: #94A3B8; }
+
 /* 维度选择弹窗 */
 .value-dim-picker {
   padding: 4px 0 8px;

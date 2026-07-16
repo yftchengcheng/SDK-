@@ -286,6 +286,31 @@
             <v-chart v-if="primaryData.length > 0" class="duration-chart-canvas" :option="durationChartOption" autoresize />
             <div v-else class="frequency-empty">暂无数据</div>
           </div>
+          <div class="page-card page-table-wrap">
+            <div class="behavior-card-header duration-table-header">
+              <h3 class="behavior-card-title">{{ primaryMetricLabel }} vs {{ compareMetricLabel }} 每日对比</h3>
+            </div>
+            <div class="duration-table">
+              <div class="duration-row duration-row--header">
+                <div class="duration-col duration-col--date">日期</div>
+                <div class="duration-col duration-col--num">{{ primaryMetricLabel }}<span class="duration-col-unit">({{ primaryUnit }})</span></div>
+                <div class="duration-col duration-col--num">{{ compareMetricLabel }}<span class="duration-col-unit">({{ compareUnit }})</span></div>
+                <div class="duration-col duration-col--num">差异</div>
+                <div class="duration-col duration-col--num">差异%</div>
+              </div>
+              <div
+                v-for="(r, i) in durationTableRows"
+                :key="i"
+                class="duration-row"
+              >
+                <div class="duration-col duration-col--date">{{ r.date }}</div>
+                <div class="duration-col duration-col--num">{{ r.primary.toFixed(2) }}</div>
+                <div class="duration-col duration-col--num">{{ r.compare.toFixed(2) }}</div>
+                <div class="duration-col duration-col--num" :class="r.diffTone">{{ r.diffSign }}{{ r.diffAbs.toFixed(2) }}</div>
+                <div class="duration-col duration-col--num" :class="r.diffTone">{{ r.diffSign }}{{ Math.abs(r.diffPct).toFixed(2) }}%</div>
+              </div>
+            </div>
+          </div>
         </div>
       </main>
     </div>
@@ -773,6 +798,39 @@ const durationChartOption = computed(() => ({
     },
   ],
 }));
+
+const durationTableRows = computed(() => {
+  const rows: Array<{
+    date: string;
+    primary: number;
+    compare: number;
+    diff: number;
+    diffAbs: number;
+    diffPct: number;
+    diffSign: string;
+    diffTone: string;
+  }> = [];
+  const len = Math.min(primaryData.value.length, compareData.value.length);
+  for (let i = 0; i < len; i++) {
+    const p = primaryData.value[i].value;
+    const c = compareData.value[i].value;
+    const diff = p - c;
+    const diffPct = c === 0 ? 0 : (diff / c) * 100;
+    const sign = diff >= 0 ? '+' : '−';
+    const tone = diff > 0 ? 'duration-up' : diff < 0 ? 'duration-down' : 'duration-flat';
+    rows.push({
+      date: primaryData.value[i].date,
+      primary: p,
+      compare: c,
+      diff,
+      diffAbs: Math.abs(diff),
+      diffPct,
+      diffSign: sign,
+      diffTone: tone,
+    });
+  }
+  return rows;
+});
 
 const switchSubtype = (code: 'frequency' | 'value' | 'duration') => {
   currentSubtype.value = code;
