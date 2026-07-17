@@ -551,6 +551,8 @@
 
 ## 4. 数据看板
 
+![数据看板架构图](public/architecture/03_2__数据看板.png)
+
 ### 4.1 UI 说明
 
 #### 顶部 KPI 卡片（4 个）
@@ -630,6 +632,8 @@
 ---
 
 ## 5. 应用管理
+
+![应用管理架构图](public/architecture/04_3__应用管理.png)
 
 开发者管理的最基础实体，承载广告位、广告源、报表等所有业务的下游。
 
@@ -1149,6 +1153,8 @@
 
 ## 7. 流量分组
 
+![流量分组功能架构图](../public/architecture/06_5__流量分组.png?v=1.4)
+
 将同一广告位下的流量按规则切分（地域 / OS / 设备 / 版本 / 自定义标签），实现**精细化运营**和**A/B 测试**。
 
 ### 7.1 页面布局（单页 el-table）
@@ -1314,6 +1320,8 @@ Drawer 宽 720px，包含 2 段：
 ---
 
 ## 8. 广告源管理
+
+![广告源功能架构图](../public/architecture/07_6__广告源管理.png?v=1.4)
 
 将第三方广告平台（穿山甲 / 优量汇 / Sigmob / 快手 / 百度 / 自定义）封装成统一接口，供瀑布流调用。
 
@@ -1502,6 +1510,8 @@ Drawer 中**独立 section**，**不是 v1.0 PRD 描述的独立弹窗**：
 
 ---
 ## 9. 瀑布流配置
+
+![瀑布流功能架构图](../public/architecture/08_7__瀑布流配置.png?v=1.4)
 
 瀑布流是 SDK 端拉取广告的核心配置，决定了请求的优先级、超时、回退策略。
 
@@ -3923,6 +3933,7 @@ ALTER TABLE waterfall_config ADD COLUMN IF NOT EXISTS layers JSONB DEFAULT '[]':
 
 | 日期 | 版本 | 变更 |
 |------|------|------|
+| 2026-08-02 | **v1.4.1** | **5 张功能架构图重画**（覆盖 v1.2.0/v1.3.0/v1.4.0 整章重写内容）：① §4 数据看板 → 3 段式布局（4 时段收入卡 + 30 天趋势折线 + 6 维度排行 + 转化漏斗）；② §5 应用管理 → Master-Detail + AppDrawer 18 字段 3 段 + 独立 FrequencyDrawer + 双平台绑定弹窗；③ §7 流量分组 → 单页 el-table + Drawer + RuleEditor 18 维度 12 UI；④ §8 广告源 → 双列布局（左侧 320px 应用列表 + 右侧 7 列表格）+ entryMode + Drawer 内动态 schema + 流量分组 section；⑤ §9 瀑布流 → Master-Detail + 3 个独立 el-table（Bidding/瀑布/兜底）+ 历史版本 + 双写策略（waterfall_config.layers JSONB + waterfall_layer 关联表）。PNG 文件 `public/architecture/03_2__数据看板.png` / `04_3__应用管理.png` / `06_5__流量分组.png` / `07_6__广告源管理.png` / `08_7__瀑布流配置.png`。PRD 文档对应章节标题下新增 `![架构图]` 引用（之前完全脱钩）。`public/architecture/_render.html` mermaid 源码同步更新。mermaid-cli v11+ + chromium-1161 渲染。 |
 | 2026-08-01 | **v1.4.0** | **§7 流量分组 / §8 广告源 / §9 瀑布流 整章重写**（584 行）：① §7 改「单页 el-table + 顶部筛选 + Drawer 创建/编辑」非双列树布局；② RuleEditor 字段完整列出（18 维度，5 类型 12 UI：text-list / multi-select / single-select / number / number-unit / date-range / weekday-pick / hour-range / ecpm-range / region-china / region-global / custom-attr）；③ §8 改「双列布局（左侧 320px 应用列表 + 右侧表格）」+ entryMode 区分 standard/custom；④ 关联应用/广告位改为单选（非 v1.0 多选）；⑤ 平台字段改为动态 schema（4 预置 + 自定义 K-V），不是固定 4 字段；⑥ 关联流量分组改为 Drawer 内 section（不是独立弹窗），10 字段（id/ad_source_id/traffic_group_id/status/price/hour_limit/day_limit/interval_sec/created_at/updated_at）；⑦ §9 改「Master-Detail（左侧 320px 广告位列表 + 右侧详情 4 段）」非 3 列拖拽编辑器；⑧ 3 层配置改为 3 个独立 el-table（非拖拽）；⑨ 入参拼写 `placementId`/`trafficGroupId`（camelCase，不是 snake_case）；⑩ `/waterfall/simulate` 端点标注未上线（v1.2 已标 v1.4 删整行）；⑪ 库表字段长度 7 处修正：`traffic_group.placement_id` 50→32 / `group_name` 100→50 / `waterfall_config_id` NULL→NOT NULL / `developer_id` 50→32 / `waterfall_id` 50→64 / `ad_source.developer_id` 50→32 / `ad_source.network_code` 50→20 / `ad_source.network_name` 100→50 / `waterfall_config.placement_id` 200→50 / `waterfall_layer.network_code` 20→50 / `waterfall_layer.timeout_ms` 改 NULL 无默认；⑫ 库表新增字段：`waterfall_config.developer_id` / `name` / `is_default` / `created_at` / `updated_at`；⑬ §7.5 删 `/test-match` 端点（实际不存在）；⑭ §8.4 update/delete 双名端点说明（`/update`+`/:id` / `/delete`+`/:id`）；⑮ conditions JSONB 实际结构修正为 18 维度 + 含 `id/uuid/regionScope/installUnit/customAttrName/customAttrType/timezone` 9 字段；⑯ 「行点击 = 加载按钮」等价、「默认分组始终选中」、「编辑中蓝色脉冲 tag + 已加载 disabled 按钮」等微交互完整记录 |
 | 2026-08-01 | **v1.3.0** | **§5 应用管理整章重写**（220 → 360 行）：① 整体 UI 从「13 列表格」改为「Master-Detail（左侧主列表 + 右侧详情）」；② 顶部工具栏去掉「平台下拉/状态下拉」，保留「搜索 + 排序 + 创建」；③ 主列表为 `app-master-item` 卡片列表（每卡 4 字段：图标/名称+平台标签/app_key+复制/状态锁），无分页，一次性拉完（pageSize=200）；④ 右侧详情 3 段式 Card：数据预览（4 指标卡 + 7 日 sparkline + 较前日/7 日趋势）/ 广告平台关联（grid 卡片 + 关联按钮）/ 广告位管理（筛选+表格+分页）；⑤ AppDrawer 字段全部重写：3 段式（平台与上架/基础信息/高级设置），共 18 个字段，**频次配置从 AppDrawer 移出到独立 FrequencyDrawer**（频次规则是 4 模块 × 数组结构，含 impressionCapDay/Hour/Interval + requestCap 4 模块，每条规则有 count/unlimited/platforms/adTypes 字段）；⑥ AppDrawer 修正：超时默认 5000ms（不是 1000）/ 微信 Universal Link 是 accessType=1+platform=2 双条件（不是仅 iOS）/ 分类是 el-cascader 数组（不是 select 单选）/ orientation 枚举是 1/2/3 默认 2（不是 0/1/2 默认 1）/ COPPA/CCPA 是 radio（不是 switch）/ Drawer 宽 760px（不是 480px）；⑦ 平台绑定从「单弹窗」改为「双弹窗」：BindNetworkDrawer（动态 schema：CSJ/YLH/KS/BD 4 个预置 + 自定义平台 K-V，含 text/password/switch/currency/pub-key/key-value 6 种字段类型）+ ViewNetworkDrawer（只读查看基本信息 + 字段配置）；⑧ frequency 接口路径修正：`:id/frequency` → `:appKey/frequency`（注意是 appKey 不是 id，PUT 改为 POST）；⑨ 接口表新增 4 个：`/console/dashboard/overview` `/console/network/app/list` `/console/network/app/bind` `/console/network/app/unbind`；⑩ 库表字段长度 5 处修正：app_key 32（不是 50）/ category 20（不是 50）/ icon_url 255（不是 500）/ app_domain text（不是 200）/ auth_subaccount text（不是 100）/ developer_id 32（不是 50）/ 索引删「developer_id+status 联合索引」描述（实际不存在）；⑪ form key 是 camelCase（`appName`/`packageName`/`requestTimeout`/`wechatAppId` 等）已明确记录；⑫ 频次配置结构修正为「4 模块 × 规则数组」+ 完整 JSON 示例 |
 | 2026-08-01 | v1.2.0 | 文档与代码对齐修复：① §3.1/§3.2 图形验证码改为「前端 Canvas 本地校验」+ 移除「`send-captcha` / `reset-password` 未上线端点描述」+ 错误码改为 HTTP 4xx 实际语义（无业务 code 字段）；② §4.2 路径修复 `/api/v1/dashboard` → `/api/v1/console/dashboard`（5 处）；③ §7/§8/§10/§11/§12 标注「未上线端点」（`ad-source/bind-groups` / `waterfall/simulate` / `reconciliation/detail` / `network/account/credential-schema`）；④ §10.1.9 / §10.2.6 / §15.2.6 / §15.2.7 路径修复 `report-aggregate/*` → `report/aggregate/*` 与 `report/funnel/definition`（8 处）；⑤ §14.6 + 附录 A 删除不存在的 `console/profile/preset` 端点 + 补充 3 个实际端点（`PUT /info` / `PATCH /api-token/expire` / `GET /tokens` 已存在）+ 新增「双写端点说明」；⑥ 附录 A 路径前缀修复 `report-aggregate/*` → `report/aggregate/*` + 补全 22 个 network 端点 + 6 个 report/board 端点 + 22 个 sdk-cms/hal/sdk 端点 + 1 个 `/api/v1/report/daily`；总计从 75+ 扩到 110+；⑦ §15.1.3 / §15.1.4 标注「`admin/developers/:id/reset-password` / `admin/developers/invite` 当前未上线」 |
