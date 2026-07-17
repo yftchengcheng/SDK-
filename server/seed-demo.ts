@@ -66,19 +66,59 @@ async function main() {
 
   // === 阶段 1: 清 12 张表（保留 developer / ad_network_def / ad_network_account / app_network_binding / report_metric_definition / report_funnel_metric_definition / health_check / hal_*） ===
   // 清表顺序：依赖表先清
-  await c.from('report_daily').delete().neq('id', 0);
-  await c.from('report_board').delete().neq('id', 0);
-  await c.from('message').delete().neq('id', 0);
-  await c.from('custom_network_report').delete().neq('id', 0);
-  await c.from('custom_adapter_version').delete().neq('id', 0);
-  await c.from('ad_source_traffic_group').delete().neq('id', 0);
-  await c.from('traffic_group').delete().neq('id', 0);
-  await c.from('waterfall_layer').delete().neq('id', 0);
-  await c.from('waterfall_config').delete().neq('id', 0);
-  await c.from('ad_source').delete().neq('id', 0);
-  await c.from('placement').delete().neq('id', 0);
-  await c.from('app').delete().neq('id', 0);
-  console.log('1) 清空 12 张表完成');
+  // ⚠️ 关键修复: 必须限定 developer_id,否则会把其他 developer 的数据也清掉
+  // bug 历史: 之前用 .neq('id', 0) 相当于无 filter, 全表删除
+  // 影响: 每次跑 seed 都会清空 prd@prd.com 等所有其他 developer 的数据
+  const cleanByDev = (table: string) =>
+    c.from(table).delete().eq('developer_id', devId);
+  // 这些表没有 developer_id 列,只清本 dev 关联的
+  // waterfall_layer / waterfall_config / placement: 通过 placement_id/app_key 关联
+  // 为安全, 一次性查本 dev 的 app_key 和 placement_id
+  const { data: myApps } = await c.from('app').select('app_key').eq('developer_id', devId);
+  const myAppKeys = (myApps || []).map(a => a.app_key);
+  const { data: myPlacements } = myAppKeys.length
+    ? await c.from('placement').select('placement_id').in('app_key', myAppKeys)
+    : { data: [] as Array<{ placement_id: string }> };
+  const myPlIds = (myPlacements || []).map(p => p.placement_id);
+  // 先清依赖表
+  if (myAppKeys.length) {
+    await c.from('report_daily').delete().in('app_key', myAppKeys);
+    await c.from('message').delete().eq('developer_id', devId);
+    await c.from('custom_network_report').delete().eq('developer_id', devId);
+    await c.from('custom_adapter_version').delete().eq('developer_id', devId);
+    await c.from('ad_source_traffic_group').delete().eq('developer_id', devId);
+    await c.from('traffic_group').delete().in('placement_id', myPlIds.length ? myPlIds : ['__none__']);
+    await c.from('waterfall_layer').delete().in('config_id',
+      ([] as number[]).length ? [] : [0]
+    ); // placeholder; will filter via config
+  }
+  // 清有 developer_id 列的表 (按 dev)
+  await cleanByDev('report_daily');
+  await cleanByDev('message');
+  await cleanByDev('custom_network_report');
+  await cleanByDev('custom_adapter_version');
+  await cleanByDev('ad_source_traffic_group');
+  await cleanByDev('traffic_group');
+  // 清 waterfall_layer / waterfall_config: 通过 placement_id 关联
+  if (myPlIds.length) {
+    // 先找本 dev 的 config id
+    const { data: myConfigs } = await c.from('waterfall_config')
+      .select('id').in('placement_id', myPlIds);
+    const myConfigIds = (myConfigs || []).map(c => c.id);
+    if (myConfigIds.length) {
+      await c.from('waterfall_layer').delete().in('config_id', myConfigIds);
+      await c.from('waterfall_config').delete().in('id', myConfigIds);
+    }
+  }
+  // 清 ad_source (有 developer_id)
+  await cleanByDev('ad_source');
+  // 清 placement (通过 app_key 关联)
+  if (myAppKeys.length) {
+    await c.from('placement').delete().in('app_key', myAppKeys);
+  }
+  // 清 app
+  await cleanByDev('app');
+  console.log('1) 清空本 dev 数据完成（不影响其他 developer）');
 
   // === 阶段 2: 3 apps（覆盖 Android / iOS / Both，所有前端 form 必填项填齐） ===
   // 前端 form 必填：appName, packageName, platform, category(2级), storeListed, storeName(cond), storeUrl(cond), downloadUrl(cond), orientation
