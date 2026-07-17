@@ -633,121 +633,220 @@
 
 开发者管理的最基础实体，承载广告位、广告源、报表等所有业务的下游。
 
-### 5.1 列表页 UI 说明
+### 5.1 列表/详情页 UI 说明（Master-Detail 布局）
+
+整体布局：**左主列表 + 右侧详情面板**（非传统表格）。开发者从左侧选择应用后，右侧实时显示该应用的 3 段式详情。
 
 #### 5.1.1 顶部工具栏（从左到右）
 
-- **关键字搜索**（占位文案「搜索应用名称 / app_key / 包名」）
-  - 输入即时过滤，**不带回车触发**，500ms 防抖
-  - 匹配：`app_name` 模糊 OR `app_key` 精确 OR `package_name` 模糊
-  - 清除按钮：一键清空筛选
-- **平台下拉**（占位「全部平台」，单选）
-  - 选项：全部 / Android / iOS / 双端
-  - 切换后自动刷新表格
-- **状态下拉**（单选）
-  - 选项：全部 / 启用 / 禁用
-- **「+ 新建应用」按钮**（主色 primary，右上角）
-  - 点击后从右侧滑出「应用编辑抽屉」（480px 宽）
-  - 标题随场景切换：新建 / 编辑 ID
+- **搜索输入框**（占位文案「搜索应用名称 / app_key / 包名」）
+  - 输入即时过滤，**前端纯客户端过滤**（不带回车触发）
+  - 匹配规则：`app_name` 模糊 OR `app_id/id` 模糊 OR `package_name` 模糊（不区分大小写）
+  - 内置「清空」按钮
+- **排序下拉**（单选，3 选 1）
+  - 「按添加时间倒序」（默认）
+  - 「按添加时间正序」
+  - 「按名称 A→Z」
+- **「+ 创建应用」按钮**（主色 primary，右上角）
+  - 点击后从右侧滑出 `AppDrawer`（760px 宽）
+  - 默认进入「创建」模式，标题「创建应用」
 
-#### 5.1.2 表格列（13 列）
+> **注意**：本版本**没有**「平台下拉 / 状态下拉」顶部筛选，状态仅用于左侧主列表卡片上的状态锁展示；搜索 + 排序已覆盖 90% 检索需求。
 
-| 列 | 字段 | 宽度 | 渲染 | 排序 |
-|----|------|------|------|------|
-| 1. 应用图标 | `icon_url` | 64px | 圆形 40×40 缩略图，无图时首字母圆形占位 | — |
-| 2. 应用名 | `app_name` | 180px | 主文案 + 包名 11px `#94A3B8` 副文案 | ✅ `app_name` ASC |
-| 3. 平台 | `platform` | 80px | 标签：Android(蓝) / iOS(绿) / 双端(灰) | ✅ |
-| 4. App Key | `app_key` | 160px | monospace + 复制按钮（hover 显示） | — |
-| 5. 状态 | `status` | 80px | `el-switch` 直接切换（带二次确认弹窗） | ✅ |
-| 6. 接入方式 | `access_type` | 100px | 标签：SDK(蓝) / API(灰) | — |
-| 7. 应用分类 | `category` | 100px | 中文显示，未分类显示 `--` | — |
-| 8. 商店 URL | `store_url` | 100px | 有值显示链状图标 + hover 显示 URL | — |
-| 9. 频次配置 | `frequency_config` | 100px | 3 个开关的简写：100/20/10 → 「100·20·10」灰色 | — |
-| 10. 创建时间 | `created_at` | 170px | `yyyy-MM-dd HH:mm`，相对时间悬停可见 | ✅ |
-| 11. 操作 | — | 240px fixed | 4 个文字按钮：编辑 / 频次 / 启停 / 删除 | — |
+#### 5.1.2 左侧主列表（`app-master-item` 卡片列表）
 
-#### 5.1.3 表格交互细节
+每个应用一张卡片，按当前排序顺序展示，每张卡片含 4 段信息：
 
-- **行 hover**：背景 `#F8FAFC` + 左侧 3px 蓝条
-- **表头排序**：仅 `app_name` / `platform` / `status` / `created_at` 4 列可排序，点击切换 ASC / DESC
-- **空状态**：插画 + 「暂无应用，点击右上角新建第一个应用」+ 「+ 新建应用」按钮
-- **加载状态**：骨架屏（5 行），5 秒后超时提示「加载失败，请重试」
+| 段落 | 字段 | 渲染 | 交互 |
+|------|------|------|------|
+| ① 图标 | `icon_url` | 48×48 圆角方形缩略图 | 加载失败回退到首字母占位 |
+| ② 名称 + 平台标签 | `app_name` + `platform` | 主文案 14px + 平台 tag（Android 蓝 / iOS 绿） | — |
+| ③ App Key | `app_key` | monospace 13px，hover 显示「📋 复制」按钮 | 点击复制到剪贴板，ElMessage 提示「已复制」 |
+| ④ 状态锁 | `status` | 锁形图标 + 启/禁用色 | 仅展示，不可直接切换（需进入详情） |
 
-#### 5.1.4 分页
+**卡片交互**：
+- 点击整张卡片：选中后右侧详情面板刷新（高亮当前卡片，左侧 3px 蓝条）
+- 默认选中第一张卡片
+- 无分页：当前接口 `pageSize=200` 一次性拉完，前端做纯客户端过滤
+- 空状态：`el-empty` 描述「暂无应用」，下方「+ 创建应用」按钮
 
-- `el-pagination` 属性：`background small layout="total, sizes, prev, pager, next, jumper"`
-- 默认 pageSize=10，size 选项 [10, 20, 50]
-- 跳到第 X 页：输入框回车触发
+#### 5.1.3 右侧详情面板（3 段式 Card）
 
-### 5.2 新建 / 编辑抽屉（AppDrawer，右侧 480px 滑出）
+未选中任何应用时显示占位 `el-empty`「从左侧选择一个应用查看详情」+「+ 创建应用」按钮。
+
+选中应用后，详情面板自上而下 3 段 Card：
+
+**Card 1 — 数据预览（昨日关键指标）**
+
+头部：「数据预览」+ 副标「昨日关键指标」+ 右上「查看更多数据指标 →」链接（跳转 `/report`）。
+
+4 个指标卡（等宽 4 列 Grid），每个含：指标标签 + 问号 tooltip + 数值 + 单位 + 7 日 sparkline + 较前日/较 7 日 趋势文字。
+
+| 指标 | key | 说明 | 单位 |
+|------|-----|------|------|
+| 昨日 DAU | `dau` | 昨日活跃设备数 | — |
+| 昨日预估收益 | `revenue` | 昨日所有广告位预估总收益 | ¥ |
+| 昨日预估 ARPDAU | `arpdau` | 昨日每 DAU 平均收益 | ¥ |
+| 昨日展示/DAU | `impression_dau` | 昨日每 DAU 平均广告展示次数 | — |
+
+接口：`GET /api/v1/console/dashboard/overview?appKey=<appKey>`（接口不存在时全部值显示为「-」）。
+
+**Card 2 — 广告平台关联**
+
+头部：「广告平台关联」+ 副标「该应用已关联的广告平台与频次」+ 右上「关联广告平台」按钮（`BindNetworkDrawer`）。
+
+卡片网格：每张卡含
+- 平台头像（图标或首字母，按 `network_code` 哈希到 5 配色：CSJ 蓝/YLH 绿/KS 橙/BD 红/其他 slate）
+- 平台名称 + 「自定义」tag（仅 `is_preset=false`）
+- meta chip 显示 `network_code`
+- 操作按钮：「查看」（`ViewNetworkDrawer`） + 「解绑」
+
+空状态：「暂未关联广告平台」+ Link 图标。
+
+**Card 3 — 广告位管理**
+
+头部：「广告位管理」+ 副标「该应用下的广告位配置与数据」+ 右上「创建广告位」按钮（`PlacementDrawer`）。
+
+筛选条（4 控件）：
+- 广告位下拉（filterable + clearable）
+- 广告类型下拉（横幅/插屏/开屏/原生/视频）
+- 状态下拉（启用/禁用）
+- 日期范围（快捷选项：今天/昨天/近7天/近30天）
+
+表格（7 列，列宽如下）：
+
+| 列 | 字段 | 宽度 | 渲染 |
+|----|------|------|------|
+| 1. 广告位名称 | `name` + `placement_id` | min-width 240 | 名称 + 复制图标 + 广告位 TOKEN（点复制） |
+| 2. 广告类型 | `format` | 110 | tag：横幅/插屏/开屏/原生/视频 |
+| 3. 竞价类型 | `bidding_type` | 100 | 固价/竞价 |
+| 4. 屏幕方向 | `screen_orientation` | 110 | 图标 + 文字（横屏/竖屏/横竖兼容） |
+| 5. 状态 | `status` | 100 | `el-switch` 切换（直接调用 update） |
+| 6. 创建时间 | `created_at` | 180 | yyyy-MM-dd HH:mm |
+| 7. 操作 | — | 160 fixed | 编辑 + 删除 |
+
+表格底部：分页组件（`TablePagination`，`current-page` / `page-size` / `total`）。
+
+### 5.2 创建 / 编辑应用 Drawer（AppDrawer，右侧 760px 滑出）
 
 #### 5.2.1 抽屉状态
 
-- `drawerVisible` 控制显隐
-- 标题：`新建应用` / `编辑应用 #${id}`
-- 关闭：右上 X / 取消按钮 / 路由切换（提示「有未保存内容，确认离开？」）
+- `v-model:visible` 控制显隐（props: `visible`, `editApp`，emit: `update:visible` + `saved`）
+- 标题：`isEdit` ? '编辑应用' : '创建应用'
+- 关闭：右上 X / 取消按钮（无离开确认，本版本不做未保存提示）
 - 打开动画：300ms 缓入
+- 编辑模式：进入即调用 `GET /api/v1/console/app/detail?id=<id>` 加载详情
 
-#### 5.2.2 表单字段（从上到下）
+#### 5.2.2 表单字段（按 3 段式 section 组织）
+
+**Section 1：平台与上架**（必填项最多）
 
 | # | 字段 | key | 类型 | 必填 | 校验 | 默认值 | UI | 联动 / 提示 |
 |---|------|-----|------|------|------|--------|------|------|
-| 1 | **应用名称** | `app_name` | input | ✅ | 1-30 字符 | — | 普通 input | 超出显示计数器 `30/30` |
-| 2 | **包名** | `package_name` | input | ✅ | 1-100 字符，**全局唯一**，后端 30001 错误提示 | — | 普通 input | **创建后不可修改**，编辑时禁用 |
-| 3 | **应用图标** | `icon_url` | upload | ❌ | png/jpg/svg，≤ 2MB | — | 上传组件 | 限制 1 个，圆形裁切预览 |
-| 4 | **平台** | `platform` | radio | ✅ | 1/2/3 | 1 (Android) | 单选组 | 切换会清空依赖平台的字段 |
-| 5 | **接入方式** | `access_type` | radio | ✅ | 1/2 | 1 (SDK) | 单选组 | SDK 模式显示「下载 SDK」按钮 |
-| 6 | **应用分类** | `category` | select | ❌ | 枚举 | '工具' | 下拉 | 选项：游戏 / 工具 / 社交 / 电商 / 教育 / 阅读 / 影音 / 其他 |
-| 7 | **超时时间** | `timeout_ms` | inputNumber | ❌ | 500-10000 整数 | 1000 | 数字 + 单位 ms | 提示「建议 800-3000」 |
-| 8 | **商店 URL** | `store_url` | input | ❌ | URL 格式 | NULL | 普通 input | 用于 SDK 一键拉起商店 |
-| 9 | **微信 AppID** | `wechat_app_id` | input | ❌ | wx + 16 位 | NULL | 普通 input | 仅 iOS 平台需要 |
-| 10 | **微信 Universal Link** | `wechat_universal_link` | input | ❌ | https URL | NULL | 普通 input | 依赖 微信 AppID |
-| 11 | **商店已上架** | `store_listed` | switch | ❌ | bool | true | 开关 | 关闭时禁用 商店 URL / 商店名 |
-| 12 | **商店名** | `store_name` | input | ❌ | 1-50 字符 | NULL | 普通 input | 依赖 store_listed=true |
-| 13 | **下载 URL** | `download_url` | input | ❌ | URL 格式 | NULL | 普通 input | 仅 store_listed=false 时使用 |
-| 14 | **应用域名** | `app_domain` | input | ❌ | 域名格式 | NULL | 普通 input | — |
-| 15 | **副账号** | `auth_subaccount` | input | ❌ | 1-50 字符 | NULL | 普通 input | 鉴权副账号 |
-| 16 | **屏幕方向** | `orientation` | radio | ❌ | 0/1/2 | 1 (横屏) | 单选组 | 0=竖屏 / 1=横屏 / 2=自动 |
-| 17 | **COPPA 合规** | `coppa_compliant` | switch | ❌ | bool | false | 开关 | 启用后 SDK 端关闭行为广告 |
-| 18 | **CCPA 合规** | `ccpa_compliant` | switch | ❌ | bool | false | 开关 | 加州用户不出售数据 |
-| 19 | **频次配置** | `frequency_config` | sub-form | ❌ | JSON | `{}` | 子表单 | 见 5.2.3 |
+| 1 | **系统平台** | `platform` | radio-button | ✅ | 1=Android / 2=iOS | 1 | 单选组 | **编辑态禁用**（创建后不可改） |
+| 2 | **应用商店上架** | `storeListed` | radio-button | ✅ | true / false | true | 单选组 | 否 → 显示「下载链接」+ 警告 |
+| 3 | **应用商店** | `storeName` | select | 条件 | 7 个枚举 | NULL | 下拉 | **storeListed=true 才显示**；按 `platform` 过滤：Android→Google Play/华为/小米/OPPO/vivo/腾讯；iOS→App Store |
+| 4 | **应用商店链接** | `storeUrl` | input | 条件 | URL 格式 | NULL | input + 「搜索」按钮 | storeListed=true 才显示 |
+| 5 | **下载链接** | `downloadUrl` | input | 条件 | URL 格式 | NULL | input + 警告「未上架应用无法在应用商店搜索到，请通过下载链接分发」 | storeListed=false 才显示 |
 
-#### 5.2.3 频次配置子表单（点击「频次配置」展开）
+**Section 2：基础信息**
 
-| 子字段 | key | 必填 | 范围 | 默认 | 说明 |
-|--------|-----|------|------|------|------|
-| 单日展示上限 | `impression_per_day` | ❌ | 1-999 | NULL | NULL=不限 |
-| 单小时展示上限 | `impression_per_hour` | ❌ | 1-999 | NULL | 必须 ≤ per_day |
-| 单日点击上限 | `click_per_day` | ❌ | 1-999 | NULL | NULL=不限 |
-| 间隔秒数 | `interval_sec` | ❌ | 1-3600 | 0 | 0=不限 |
+头部右侧显示「已填 N / 共 4 项必填」进度提示（实时计算）。
 
-**联动规则**：
-- `impression_per_hour > impression_per_day` → 红字提示「小时上限不能大于日上限」
-- 任一字段填 0 → 后端转换为 NULL（即不限制）
+| # | 字段 | key | 类型 | 必填 | 校验 | 默认值 | UI | 联动 / 提示 |
+|---|------|-----|------|------|------|--------|------|------|
+| 6 | **App Icon** | `iconUrl` | upload | ❌ | png/jpg ≤ 1MB | NULL | 自定义上传块：预览 64×64 + 「点击上传」+ 「移除」 | 要求：PNG/JPG/JPEG / 512×512px / ≤1MB（3 个 chip 提示） |
+| 7 | 应用域名 | `appDomain` | input | ❌ | 域名 | NULL | input | 提示「与您的应用在应用商店所配置的开发者网站的域」 |
+| 8 | **应用名称** | `appName` | input | ✅ | 1-30 字符 | NULL | input maxlength=30 show-word-limit | — |
+| 9 | **应用分类** | `category` | cascader | ✅ | 两级 | `[]` | el-cascader 2 级 | 占位「请选择分类（先选大类，再选子类）」clearable；`{ value: 'key', label: 'name', children: 'list' }` |
+| 10 | 授权子账号 | `authSubaccount` | input | ❌ | 字符串 | NULL | input | 占位「可选」 |
+| 11 | **应用包名 / Bundle ID** | `packageName` | input | ✅ | 1-100 字符，全局唯一 | NULL | input | placeholder 随 platform 切换：iOS→`com.company.app` / Android→`com.example.app` |
+| 12 | 应用屏幕方向 | `orientation` | radio-button | ✅ | 1/2/3 | **2** | 单选组 | 1=横屏 / 2=竖屏 / **3=横竖兼容**（注意：实际枚举是 1/2/3，不是 PRD 旧版的 0/1/2） |
 
-#### 5.2.4 底部操作区
+**Section 3：高级设置**（默认折叠，section 头部点击展开/收起）
 
-- **取消**（左）：关闭抽屉，未保存时弹确认
-- **保存**（右，主色 primary）：触发 form validate，全部通过后调用 create/update 接口
-- 提交中：按钮 loading，文案「保存中…」
-- 成功：ElMessage 成功提示 + 关闭抽屉 + 刷新列表
-- 失败：ElMessage 错误提示（具体原因），字段级错误回填到对应表单项
+| # | 字段 | key | 类型 | 必填 | 校验 | 默认值 | UI | 联动 / 提示 |
+|---|------|-----|------|------|------|--------|------|------|
+| 13 | 对接方式 | `accessType` | radio-button | ❌ | 1/2 | 1 | 单选组 | 1=SDK 对接 / 2=API 对接；切到 1 才显示微信字段 |
+| 14 | 请求超时（毫秒） | `requestTimeout` | inputNumber | ❌ | 500-10000 | **5000** | 数字 | **step=500**；提示「建议 800-3000」（PRD 旧版的 1000ms 默认 + 800-3000 提示与实际代码不一致） |
+| 15 | 微信 App ID | `wechatAppId` | input | ❌ | 字符串 | NULL | input | **仅 accessType=1 才显示** |
+| 16 | 微信开放平台 Universal Link | `wechatUniversalLink` | input | ❌ | https URL | NULL | input | **仅 accessType=1 + platform=2 才显示**（PRD 旧版仅写「iOS 平台」实际是 accessType+platform 双条件） |
+| 17 | 遵守美国 COPPA | `coppaCompliant` | radio | ❌ | true/false | false | **radio 是/否**（不是 switch） | 启用后 SDK 端关闭行为广告 |
+| 18 | 遵守美国 CCPA | `ccpaCompliant` | radio | ❌ | true/false | false | **radio 是/否**（不是 switch） | 加州用户不出售数据 |
 
-### 5.3 功能架构
+> **重要纠正**：PRD 旧版将「频次配置」列为 AppDrawer 内的第 19 个字段——**错误**。频次配置在**独立 `FrequencyDrawer`** 中，通过主列表卡片「频次」按钮打开（详见 §5.3）。
+
+#### 5.2.3 底部操作区
+
+- **取消**（左）：关闭抽屉，**不弹未保存确认**（本版本未做）
+- **确定创建 / 保存**（右，主色 primary）：触发 form validate，全部通过后调用 create/update 接口
+  - 提交中：按钮 loading，文案「保存中…」
+  - 成功：ElMessage 成功 + emit('saved') + 父组件刷新列表
+  - 失败：ElMessage 错误（后端 error message），字段级错误回填到对应表单项
+
+### 5.3 频次设置 Drawer（FrequencyDrawer，Adtalos SDK v6.1.0+）
+
+#### 5.3.1 入口与状态
+
+- 入口：主列表卡片「频次」按钮 / 应用详情页面其他入口（按 `appKey` 加载）
+- 尺寸：560px 右侧抽屉，`:destroy-on-close="true"`
+- 顶部提示：「Adtalos SDK v6.1.0 及以上版本，支持在 APP 维度设置每台设备上的广告平台或广告样式频次」
+- 接口：`GET /api/v1/console/app/${appKey}/frequency`（注意是 **appKey 不是 id**）+ `POST`（保存）
+  - **PRD 旧版写的是 `/api/v1/console/app/:id/frequency`，实际是 appKey**
+
+#### 5.3.2 4 个模块（每模块独立 1+ 条规则）
+
+| 模块 | key | 单位 | 额外字段 | 描述（describeModule 自动生成） |
+|------|-----|------|---------|-------------------------------|
+| 展示上限（天） | `impressionCapDay` | 次 | — | 「广告展示上限为 X 次」 |
+| 展示上限（小时） | `impressionCapHour` | 次 | — | 「广告展示上限为 X 次」 |
+| 展示间隔（秒） | `impressionInterval` | 秒 | — | 「广告展示间隔最小为 X 秒」 |
+| 请求上限 | `requestCap` | 次 | `timeWindow`（1-86400 秒，默认 60） | 「广告请求上限为每 X 秒 N 次」 |
+
+每模块默认 1 条规则（`emptyRule()` 初始），可「添加规则」追加，「清空」按钮（仅当 ≥2 条时显示）。
+
+#### 5.3.3 每条规则字段
+
+| 字段 | key | 类型 | 必填 | 校验 | 默认 | UI | 联动 |
+|------|-----|------|------|------|------|------|------|
+| 数值 | `count` | inputNumber | 视 unlimited | 0-9999 step 1 | null | 数字 + 右侧单位 | **unlimited=true 时禁用** |
+| 限频模式 | `unlimited` | select | ✅ | true/false | true | 下拉「不限/指定」 | 控制 count 是否禁用 |
+| 时间窗口（仅 requestCap） | `timeWindow` | inputNumber | ✅ | 1-86400 | 60 | 数字 + 右侧「秒」 | 仅 requestCap 显示，标题「每 N 秒」 |
+| 广告平台 | `platforms` | select-multiple | ❌ | 5 枚举 | `['all']` | 多选 + collapse-tags + tooltip | 5 选项：全部（`all`）/ 穿山甲（`pangaea`）/ 优量汇（`gdt`）/ 快手（`kuaishou`）/ 百度（`baidu`）/ 自定义平台（`custom`） |
+| 广告类型 | `adTypes` | select-multiple | ❌ | 6 枚举 | `['all']` | 多选 + collapse-tags + tooltip | 6 选项：全部 / 横幅（`banner`）/ 插屏（`interstitial`）/ 开屏（`splash`）/ 原生（`native`）/ 视频（`video`）/ 激励视频（`rewarded`） |
+
+#### 5.3.4 数据结构（app.frequency_config JSONB）
+
+```json
+{
+  "impressionCapDay":    [{ "count": 100, "unlimited": false, "platforms": ["all"], "adTypes": ["all"] }],
+  "impressionCapHour":   [{ "count": 20,  "unlimited": false, "platforms": ["all"], "adTypes": ["all"] }],
+  "impressionInterval":  [{ "count": 60,  "unlimited": false, "platforms": ["all"], "adTypes": ["all"] }],
+  "requestCap":          [{ "count": 10,  "unlimited": false, "platforms": ["all"], "adTypes": ["all"], "timeWindow": 60 }]
+}
+```
+
+每模块必须是**规则数组**（即使只有 1 条规则也要包成数组）；后端落库时所有模块都必须有 1 条默认规则（默认全 unlimited=true）。
+
+### 5.4 接口表
 
 | 接口 | 方法 | 请求 | 响应 | 鉴权 |
 |------|------|------|------|------|
-| `/api/v1/console/app/list` | GET | Query: `keyword?`、`platform?`、`status?`、`page`、`pageSize` | `{ list, total, page, pageSize }` | ✅ |
-| `/api/v1/console/app/create` | POST | AppDrawer 表单完整 JSON | `{ id, app_key }` | ✅ |
-| `/api/v1/console/app/update` | PUT | `{ id, ...editableFields }`（**不可修改 app_key/package_name**） | `{ success: true }` | ✅ |
+| `/api/v1/console/app/list` | GET | Query: `keyword?`（注意：实际未使用 `platform/status` 入参，前端纯客户端过滤；后端一次性返回 `pageSize=200`） | `{ list, total, page, pageSize }` | ✅ |
+| `/api/v1/console/app/create` | POST | AppDrawer 表单完整 JSON（**注意：实际入参 key 是 camelCase `appName`/`packageName`/`appDomain`/`storeName`/`storeUrl`/`downloadUrl`/`requestTimeout`/`wechatAppId`/`wechatUniversalLink`/`storeListed`/`authSubaccount`/`accessType`/`coppaCompliant`/`ccpaCompliant`/`iconUrl`/`orientation`/`category`**） | `{ id, app_key }` | ✅ |
+| `/api/v1/console/app/update` | PUT | `{ id, ...editableFields }`（**不可修改 app_key/package_name/platform**） | `{ success: true }` | ✅ |
 | `/api/v1/console/app/toggle-status` | PUT | `{ id, status }` | `{ success: true }` | ✅ |
 | `/api/v1/console/app/delete` | DELETE | Query: `id` | `{ success: true }` | ✅ |
 | `/api/v1/console/app/detail` | GET | Query: `id` | `{ ...app完整数据 }` | ✅ |
 | `/api/v1/console/app/upload-icon` | POST | FormData: `file` | `{ url: OSS_URL }` | ✅ |
-| `/api/v1/console/app/:id/frequency` | GET | — | `{ frequency_config }` | ✅ |
-| `/api/v1/console/app/:id/frequency` | PUT | `{ frequency_config }` | `{ success: true }` | ✅ |
+| `/api/v1/console/app/:appKey/frequency` | GET | — | `{ frequency_config }`（**注意：路径用 appKey 不是 id**） | ✅ |
+| `/api/v1/console/app/:appKey/frequency` | POST | `{ frequency_config }` | `{ success: true }` | ✅ |
+| `/api/v1/console/dashboard/overview` | GET | Query: `appKey` | 4 指标卡（dau / revenue / arpdau / impression_dau + 7 日 sparkline） | ✅ |
+| `/api/v1/console/network/app/list` | GET | Query: `appKey` | 已绑定平台列表 | ✅ |
+| `/api/v1/console/network/app/bind` | POST | BindNetworkDrawer 表单 | `{ success: true }` | ✅ |
+| `/api/v1/console/network/app/unbind` | POST | `{ bindingId }` | `{ success: true }` | ✅ |
 
-#### 5.3.1 业务规则
+#### 5.4.1 业务规则
 
 1. **app_key 生成**：`ak_<16位base36随机> + 2位校验位`，保证全局唯一
 2. **package_name 唯一**：创建时 `SELECT * FROM app WHERE package_name = ?` 预检；后端 `UNIQUE` 约束兜底
@@ -759,23 +858,24 @@
    - 前端先压缩到 ≤ 500KB（用 canvas）
    - 后端校验真实 MIME（不止 Content-Type）
    - 上传到 OSS，返回 URL 写入 form
+6. **频次配置存储**：`POST /frequency` 全量覆盖 `app.frequency_config` JSONB 字段；任一模块未传则后端填空数组 `[]`
 
-### 5.4 关键库表字段详情
+### 5.5 关键库表字段详情
 
-#### 5.4.1 `app` 表（核心）
+#### 5.5.1 `app` 表（核心，25 个字段）
 
 | 字段 | 类型 | 必填 | 默认 | 业务规则 |
 |------|------|------|------|----------|
 | `id` | bigint PK | ✅ | seq | 自增 |
-| `developer_id` | varchar(50) | ✅ | — | FK→`developer.developer_id`（逻辑外键，无 DB 约束） |
-| `app_key` | varchar(50) | ✅ | — | **UNIQUE**，创建时生成，不可修改 |
+| `developer_id` | varchar(32) | ✅ | — | FK→`developer.developer_id`（**长度 32 不是 50**） |
+| `app_key` | varchar(32) | ✅ | — | **UNIQUE**，创建时生成，不可修改（**长度 32 不是 50**） |
 | `app_name` | varchar(100) | ✅ | — | 1-30 字符 |
 | `package_name` | varchar(200) | ✅ | — | **UNIQUE**，全局唯一 |
 | `platform` | smallint | ✅ | — | 枚举：1=Android, 2=iOS, 3=双端 |
-| `category` | varchar(50) | ❌ | NULL | 枚举：游戏/工具/社交/电商/教育/阅读/影音/其他 |
-| `icon_url` | varchar(500) | ❌ | NULL | OSS URL |
+| `category` | varchar(20) | ❌ | NULL | el-cascader 存 `["1","1.1"]` 格式（**长度 20 不是 50**） |
+| `icon_url` | varchar(255) | ❌ | NULL | OSS URL（**长度 255 不是 500**） |
 | `status` | smallint | ❌ | 1 | 枚举：0=禁用, 1=启用 |
-| `timeout_ms` | smallint | ❌ | 1000 | 500-10000 |
+| `timeout_ms` | smallint | ❌ | 1000 | 500-10000（**前端传 requestTimeout**） |
 | `store_url` | varchar(500) | ❌ | NULL | 商店 URL |
 | `wechat_app_id` | varchar(50) | ❌ | NULL | 微信 AppID |
 | `wechat_universal_link` | varchar(500) | ❌ | NULL | 微信 Universal Link |
@@ -783,75 +883,107 @@
 | `store_listed` | bool | ❌ | true | 是否上架 |
 | `store_name` | text | ❌ | NULL | 商店名 |
 | `download_url` | text | ❌ | NULL | 下载 URL |
-| `app_domain` | varchar(200) | ❌ | NULL | 应用域名 |
-| `auth_subaccount` | varchar(100) | ❌ | NULL | 副账号 |
-| `orientation` | smallint | ❌ | 1 | 枚举：0=竖, 1=横, 2=自动 |
+| `app_domain` | text | ❌ | NULL | 应用域名（**text 不是 varchar(200)**） |
+| `auth_subaccount` | text | ❌ | NULL | 副账号（**text 不是 varchar(100)**） |
+| `orientation` | smallint | ❌ | 2 | **实际默认 2=竖屏**（注意：枚举是 1=横屏 / 2=竖屏 / 3=横竖兼容，**不是** 0/1/2 旧版） |
 | `coppa_compliant` | bool | ❌ | false | COPPA 合规 |
 | `ccpa_compliant` | bool | ❌ | false | CCPA 合规 |
-| `frequency_config` | jsonb | ❌ | `{}` | 频次配置 JSON |
+| `frequency_config` | jsonb | ❌ | `{}` | 频次配置（**结构是 4 模块 + 规则数组**，不是单层 4 字段） |
+| `created_at` | timestamp | ❌ | CURRENT_TIMESTAMP | — |
+| `updated_at` | timestamp | ❌ | CURRENT_TIMESTAMP | — |
 
-**索引**：`app_key`(UNIQUE), `package_name`(UNIQUE), `developer_id`, `status`
+**索引（实际）**：`app_key`(UNIQUE) / `package_name`(UNIQUE)；**没有** `developer_id+status` 联合索引（**PRD 旧版第 5.4.1 末尾说的「按 developer_id + status 联合索引」与实际不符**）。
 
-#### 5.4.2 `placement` 表（外键引用）
+#### 5.5.2 `placement` 表（外键引用）
 
 - `app_key` → `app.app_key`（**逻辑外键**，删除 app 时级联删除 placement）
 
-#### 5.4.3 `app_network_binding` 表
+#### 5.5.3 `app_network_binding` 表（应用-广告平台绑定表）
 
-| 字段 | 业务说明 |
-|------|----------|
-| `app_key` | 关联应用 |
-| `network_def_id` | 关联广告平台 |
-| `adapter_version_id` | 使用的 Adapter 版本 |
-| `network_app_id` | 该应用在第三方平台的 ID |
-| `extra_params` | JSONB 扩展参数 |
-| `status` | 1=绑定 / 0=解绑 |
-| `account_id` | 关联 `ad_network_account` |
+| 字段 | 类型 | 必填 | 默认 | 业务规则 |
+|------|------|------|------|----------|
+| `id` | bigint PK | ✅ | seq | 自增 |
+| `app_key` | varchar(32) | ✅ | — | FK→`app.app_key` |
+| `network_def_id` | bigint | ✅ | — | FK→`ad_network_def.id` |
+| `adapter_version_id` | bigint | ✅ | 0 | FK→`custom_adapter_version.id`（0=未关联） |
+| `network_app_id` | varchar(100) | ✅ | — | 该应用在第三方平台的 ID |
+| `extra_params` | jsonb | ❌ | NULL | 平台特定配置 K-V |
+| `status` | smallint | ❌ | 1 | 1=绑定 / 0=解绑（软删） |
+| `account_id` | bigint | ❌ | NULL | FK→`ad_network_account.id`（自定义网络用） |
+| `created_at` | timestamp | ❌ | CURRENT_TIMESTAMP | — |
+| `updated_at` | timestamp | ❌ | CURRENT_TIMESTAMP | — |
 
-### 5.5 平台绑定子弹窗（应用详情 / 应用列表「平台」按钮）
+### 5.6 平台绑定（双弹窗）
 
-#### 5.5.1 弹窗结构
+应用详情 Card 2「广告平台关联」由 2 个弹窗配合：**BindNetworkDrawer**（绑定）+ **ViewNetworkDrawer**（只读查看）。
 
-- 标题：「应用 [app_name] 的平台绑定」
-- 主体：已绑定平台列表（卡片网格）
-- 底部：「+ 绑定新平台」按钮
+#### 5.6.1 BindNetworkDrawer（绑定新平台）
 
-#### 5.5.2 绑定新平台弹窗
+- 尺寸：640px 右侧抽屉
+- 顶部：`app.app_name` 主标 + 「关联广告平台」副标
+- 卡片 1：选择广告平台
+  - 字段：`networkDefId`（filterable select，必填）
+  - 数据源：`GET /api/v1/console/network/options` 拉 `is_preset=true` + 自定义网络
+  - 选中后回填 network_code + 加载对应 schema
+- 卡片 2：账号与字段配置
+  - 字段根据 `network_code` 从 `src/shared/network-schemas.ts` 动态加载
+  - 字段类型：text / password / switch / currency（货币，锁死）/ select / pub-key（公钥，点击生成）/ key-value（多对 K-V）
+  - 预置平台 4 个 schema：
 
-字段：
+    | 平台 | 字段 |
+    |------|------|
+    | 穿山甲 CSJ | appId(text) + secret(text, password) + 多媒体开关(switch) |
+    | 优量汇 YLH | appId(text) |
+    | 快手 KS | appId(text) + secret(text, password) |
+    | 百度 BD | appId(text) + pubKey(pub-key) + 是否多媒体开屏(switch) |
 
-| # | 字段 | 必填 | 校验 | 说明 |
-|---|------|------|------|------|
-| 1 | 选择平台 | ✅ | 从 `ad_network_def` 拉 | is_preset=true + 自定义网络 |
-| 2 | 选择账号 | ✅ | 从 `ad_network_account` 拉 | 过滤当前 platform |
-| 3 | 第三方 App ID | ✅ | 1-100 字符 | 在该平台注册时获得的 ID |
-| 4 | Adapter 版本 | ✅ | 默认选最新已审核通过的 | 从 `custom_adapter_version` 拉 |
-| 5 | 扩展参数 | ❌ | JSON | 用于平台特殊配置 |
+  - 自定义平台：`accountId`(select，从 `ad_network_account` 拉) + `app_dim_params`(key-value 多对)
+- 提交：`POST /api/v1/console/network/app/bind`，body 含 `appKey + networkDefId + 动态字段`；成功 emit('saved') + 父组件刷新
 
-#### 5.5.3 解除绑定
+#### 5.6.2 ViewNetworkDrawer（只读查看）
 
-- 软删：`status = 0` 而非物理删除
-- 解除前弹确认：「解除后该应用将不再请求该平台广告，确认？」
-- 解除后报表数据保留
+- 尺寸：560px 右侧抽屉
+- 顶部：网络名称 + 「平台配置」副标
+- 卡片 1：基本信息
+  - 广告平台（`network_code` + `network_name`）
+  - 网络类型 tag（预置/自定义）
+  - 账号 ID（预置：`network_app_id` / 自定义：`account_name`）
+  - 状态（启用/禁用 tag）
+  - 关联时间（`created_at`）
+- 卡片 2：字段配置
+  - **自定义网络**：展示 `app_dim_params` 全部 K-V（key + value + 复制按钮）
+  - **预置网络**：按 `src/shared/network-schemas.ts` 的 schema 平铺，缺失值显示 `——`
 
-### 5.6 注意事项
+#### 5.6.3 解绑流程
+
+- 触发：Card 2 卡片「解绑」按钮
+- 弹窗确认：「解除后该应用将不再请求该平台广告，确认？」
+- 取消：保留；确认：调 `POST /api/v1/console/network/app/unbind { bindingId }`（**软删**：status=0）
+- 解绑后报表数据保留（历史追溯）
+
+### 5.7 注意事项
 
 1. **app_key 一旦生成不可修改**（SDK 用作拉取 key）
 2. **package_name 全局唯一**（不区分开发者）
-3. **删除应用会级联清理**：
+3. **platform 一旦创建不可修改**（仅 app_key / package_name 之外，platform 也是 immutable）
+4. **删除应用会级联清理**：
    - `placement` 全部
    - `app_network_binding` 全部
    - `waterfall_config` + `waterfall_layer` 全部
    - `report_daily` 报表数据**保留**（历史追溯）
-4. **频次配置**：
+5. **频次配置**：
+   - **结构是 4 模块 × 规则数组**（impressionCapDay / impressionCapHour / impressionInterval / requestCap），不是 4 字段单层结构
+   - `requestCap` 额外带 `timeWindow`（1-86400 秒）
+   - 每条规则：`{ count, unlimited, platforms: [...], adTypes: [...] }`
    - JSONB 字段，前端读写需 `JSON.stringify/parse`
-   - 任一字段为 0 表示「不限」
-   - SDK 端按 `impression_per_hour` 优先于 `per_day` 判断
-5. **应用图标**：上传走 OSS（详见 18 章），DB 只存 URL
-6. **状态禁用**：
+   - SDK 端按 `unlimited=true` 跳过该规则；多条规则以「任一命中即生效」语义执行
+6. **应用图标**：上传走 OSS（详见 18 章），DB 只存 URL
+7. **状态禁用**：
    - SDK 拉取配置时返回 `status=0`
    - SDK 端应跳过该 app_key
    - 顶栏铃铛**不发**「应用禁用」消息（避免打扰）
+8. **Master-Detail 不做未保存检测**：AppDrawer 关闭无确认弹窗（**PRD 旧版第 5.2.1 写的「有未保存内容，确认离开？」与实际不符**）
+9. **平台绑定表单 key 是 camelCase**（`appName`/`packageName`/`appDomain`/`storeName`/`storeUrl`/`downloadUrl`/`requestTimeout`/`wechatAppId`/`wechatUniversalLink`/`storeListed`/`authSubaccount`/`accessType`/`coppaCompliant`/`ccpaCompliant`/`iconUrl`/`orientation`/`category`），后端自动转 snake_case 落库
 
 ---
 
@@ -3887,6 +4019,7 @@ ALTER TABLE waterfall_config ADD COLUMN IF NOT EXISTS layers JSONB DEFAULT '[]':
 
 | 日期 | 版本 | 变更 |
 |------|------|------|
+| 2026-08-01 | **v1.3.0** | **§5 应用管理整章重写**（220 → 360 行）：① 整体 UI 从「13 列表格」改为「Master-Detail（左侧主列表 + 右侧详情）」；② 顶部工具栏去掉「平台下拉/状态下拉」，保留「搜索 + 排序 + 创建」；③ 主列表为 `app-master-item` 卡片列表（每卡 4 字段：图标/名称+平台标签/app_key+复制/状态锁），无分页，一次性拉完（pageSize=200）；④ 右侧详情 3 段式 Card：数据预览（4 指标卡 + 7 日 sparkline + 较前日/7 日趋势）/ 广告平台关联（grid 卡片 + 关联按钮）/ 广告位管理（筛选+表格+分页）；⑤ AppDrawer 字段全部重写：3 段式（平台与上架/基础信息/高级设置），共 18 个字段，**频次配置从 AppDrawer 移出到独立 FrequencyDrawer**（频次规则是 4 模块 × 数组结构，含 impressionCapDay/Hour/Interval + requestCap 4 模块，每条规则有 count/unlimited/platforms/adTypes 字段）；⑥ AppDrawer 修正：超时默认 5000ms（不是 1000）/ 微信 Universal Link 是 accessType=1+platform=2 双条件（不是仅 iOS）/ 分类是 el-cascader 数组（不是 select 单选）/ orientation 枚举是 1/2/3 默认 2（不是 0/1/2 默认 1）/ COPPA/CCPA 是 radio（不是 switch）/ Drawer 宽 760px（不是 480px）；⑦ 平台绑定从「单弹窗」改为「双弹窗」：BindNetworkDrawer（动态 schema：CSJ/YLH/KS/BD 4 个预置 + 自定义平台 K-V，含 text/password/switch/currency/pub-key/key-value 6 种字段类型）+ ViewNetworkDrawer（只读查看基本信息 + 字段配置）；⑧ frequency 接口路径修正：`:id/frequency` → `:appKey/frequency`（注意是 appKey 不是 id，PUT 改为 POST）；⑨ 接口表新增 4 个：`/console/dashboard/overview` `/console/network/app/list` `/console/network/app/bind` `/console/network/app/unbind`；⑩ 库表字段长度 5 处修正：app_key 32（不是 50）/ category 20（不是 50）/ icon_url 255（不是 500）/ app_domain text（不是 200）/ auth_subaccount text（不是 100）/ developer_id 32（不是 50）/ 索引删「developer_id+status 联合索引」描述（实际不存在）；⑪ form key 是 camelCase（`appName`/`packageName`/`requestTimeout`/`wechatAppId` 等）已明确记录；⑫ 频次配置结构修正为「4 模块 × 规则数组」+ 完整 JSON 示例 |
 | 2026-08-01 | v1.2.0 | 文档与代码对齐修复：① §3.1/§3.2 图形验证码改为「前端 Canvas 本地校验」+ 移除「`send-captcha` / `reset-password` 未上线端点描述」+ 错误码改为 HTTP 4xx 实际语义（无业务 code 字段）；② §4.2 路径修复 `/api/v1/dashboard` → `/api/v1/console/dashboard`（5 处）；③ §7/§8/§10/§11/§12 标注「未上线端点」（`ad-source/bind-groups` / `waterfall/simulate` / `reconciliation/detail` / `network/account/credential-schema`）；④ §10.1.9 / §10.2.6 / §15.2.6 / §15.2.7 路径修复 `report-aggregate/*` → `report/aggregate/*` 与 `report/funnel/definition`（8 处）；⑤ §14.6 + 附录 A 删除不存在的 `console/profile/preset` 端点 + 补充 3 个实际端点（`PUT /info` / `PATCH /api-token/expire` / `GET /tokens` 已存在）+ 新增「双写端点说明」；⑥ 附录 A 路径前缀修复 `report-aggregate/*` → `report/aggregate/*` + 补全 22 个 network 端点 + 6 个 report/board 端点 + 22 个 sdk-cms/hal/sdk 端点 + 1 个 `/api/v1/report/daily`；总计从 75+ 扩到 110+；⑦ §15.1.3 / §15.1.4 标注「`admin/developers/:id/reset-password` / `admin/developers/invite` 当前未上线」 |
 | 2026-07-31 | v1.0.0 | 初版 PRD，覆盖 13 个业务模块 + 鉴权 + 22 张表 + 75+ 接口 |
 | 2026-07-18 | v1.1.0 | 增量更新：① §2.4 新增「表格整体居中」全平台规范；② §10.1.6 明细表对齐规则修正（原"表头左/数据右"错误描述）；③ §10.1.8 新增「指标弹窗」子节（6 列 × 12 分类 / 1100×578 / 已选列固定高+滚动）；④ §10.3 指标选择弹窗描述修正（实为 12 分类 6 列布局，非 7 个 checkbox）；⑤ **§20 SDK 中心** 新章（4 开发者端页面：Index / Docs / Privacy / History）；⑥ **§21 admin SDK 管理** 新章（3 页面 + 隐私政策外链模式 source_url）；⑦ 隐私政策 `content_format=3` 新增枚举值「外链」；⑧ API 参考下 `YTAdRequest 参数说明` → `Request 参数说明`（保留 SDK 类名 `YTAdRequest` 作为技术标识）|
