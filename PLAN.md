@@ -454,63 +454,382 @@
 
 ---
 
-## 四、关键交互模式（页面级）
+## 四、功能架构
 
-### 4.1 登录页
+### 4.1 模块依赖图
 
-- 标题「欢迎回来」+ 副标题「使用邮箱和密码登录到广告平台管理后台」
-- 邮箱 + 密码 + 记住我 + 忘记密码链接（暂未实现）
-- 底部「还没有账号？立即注册」
+```
+┌─────────────────────────────────────────────────────────────┐
+│              前端 (Vue 3 SPA + Element Plus)                 │
+│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐    │
+│  │ 应用/广告位 │  │ 瀑布流/分组│  │ 报表/对账 │  │ SDK/平台 │    │
+│  └─────┬────┘  └─────┬────┘  └─────┬────┘  └─────┬────┘    │
+│        └──────┬───────┴────────────┴────────────┘           │
+│           axios (auth_token cookie + Bearer fallback)        │
+└────────────────────────┬────────────────────────────────────┘
+                         │ HTTP /api/v1/*
+┌────────────────────────┴────────────────────────────────────┐
+│               后端 (Express + tsx watch)                     │
+│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐    │
+│  │  auth/   │  │  app/    │  │ waterfall│  │ report/  │    │
+│  │  developer│  │ placement │  │ /network │  │ recon    │    │
+│  └─────┬────┘  └─────┬────┘  └─────┬────┘  └─────┬────┘    │
+│        └──────┬───────┴────────────┴────────────┘           │
+│              @supabase/supabase-js (service_role 直连)        │
+└────────────────────────┬────────────────────────────────────┘
+                         │ SQL via service_role (RLS off)
+┌────────────────────────┴────────────────────────────────────┐
+│            Supabase (PostgreSQL 14)                          │
+│  13 业务核心表 + 5 SDK 模块表 + 4 报表表 + 5 辅助表 = 27 张    │
+└──────────────────────────────────────────────────────────────┘
+                         ▲
+                         │ 数据上报（SDK 集成后）
+┌────────────────────────┴────────────────────────────────────┐
+│           客户端 SDK (Android / iOS / Web)                  │
+│  /api/v1/sdk/*  ←  拉取瀑布流 / 上报曝光/点击/请求             │
+└──────────────────────────────────────────────────────────────┘
+```
 
-### 4.2 应用管理
+### 4.2 角色权限矩阵
 
-- 列表：图标 + 名称 + AppKey + 平台 tag + 状态 + 操作
-- 创建/编辑 Drawer：基本 + 商店 + 法规 + 微信 + 频次 5 个分组
-- 频次：单独 FrequencyDrawer 弹窗（每 X 分钟最多 Y 次）
-- 关联广告位/网络：单独 Drawer，多选 + 列表
+| 模块 | 开发者 (developer) | 管理员 (admin) | SDK 端 (无 token) |
+|------|------------------|---------------|-----------------|
+| 应用 / 广告位 / 广告源 | CRUD（仅自己 developer_id）| 全部读写 | ✗ |
+| 瀑布流 / 流量分组 | CRUD（仅自己）| 全部读写 | ✗ |
+| 报表 / 对账 | 只读（仅自己）| 全部读写 | ✗ |
+| 广告平台 | 只读 + 账号管理（仅自己）| 全部读写 + 自定义网络 + Adapter 审核 | ✗ |
+| SDK 下载 / 文档 / 隐私 | 只读 | **写**（CMS）| **只读**（无需 token，公开）|
+| 开发者管理 | ✗ | 全部读写 | ✗ |
+| 指标字典 | 只读 | 全部读写 | ✗ |
+| SDK 上报接口 | ✗ | ✗ | **读写**（API Key 鉴权）|
 
-### 4.3 瀑布流配置
+> 当前实现：除 `/auth/login` `/auth/register` `/auth/send-captcha` `/sdk/*` 公开外，所有接口统一过 `authMiddleware`，role 区分在路由内部 `req.user.role === 'admin'` 判定。
 
-- 顶部：广告位下拉 + 流量分组下拉 + 当前 version 标签
-- 中部：3 个 Tab（Bidding / 瀑布 / 兜底），每层多 ad_source 拖拽排序
-- 底部：保存按钮 + 历史 version 列表（每行可「加载」回显到编辑面板）
-- 关键修复：placement_id 双入参兼容（数字 ID + 业务码 pl_xxx）
-- 「已加载」按钮：避免误把 `[]` 当作"无配置"
+### 4.3 核心数据流
 
-### 4.4 综合报表
+**A. 报表数据流（每日聚合）**
+```
+客户端 SDK 实时上报
+   → POST /api/v1/sdk/track  → 写 report_daily（按小时聚合）
+                                      ↓
+                              GET /report/daily?start=&end=&group=
+                                      ↓
+                              前端表格 / ECharts
+```
 
-- 顶部：指标选择 + 维度选择 + 时间范围 + 平台/系统/应用/广告位/广告源 筛选 + 查询
-- 中部：4 个核心指标卡片
-- 下部：ECharts 趋势图 + 表格
-- **关键修复**：表头/数据整体居中（不再错位）
-- 指标弹窗：6 列并行，1100 宽，已选列等高 + 超出可滚动
+**B. 瀑布流下发流**
+```
+开发者配置瀑布流（双写 waterfall_config.layers + waterfall_layer 表）
+   → 客户端 SDK 拉取 GET /sdk/waterfall?app_key=&placement_id=
+       → SDK 按 Bidding → 瀑布 → 兜底 顺序请求 ad_source
+            → 各 ad_source 返回填充 / 出价
+                 → SDK 上报曝光 / 点击 → 回到 A
+```
 
-### 4.5 广告平台 / 自定义网络
+**C. 自定义网络 6 步对接流**
+```
+① 广告平台定义（ad_network_def is_preset=false）
+② 账号管理（ad_network_account）
+③ Adapter 上传（custom_adapter_version）
+④ Adapter 审核（admin：PASS/REJECT + 备注）
+⑤ 应用关联（app_network_binding）
+⑥ 数据接入（custom_network_report）
+```
 
-- 4 个 Tab：自定义网络 / Adapter / 账号 / 数据上报
-- 自定义网络 Tab：列表 + 创建弹窗（基本 + 图标 + 状态）
-- Adapter Tab：版本列表 + 上传 + 审核（PASS/REJECT + 备注）
-- 账号 Tab：账号列表 + 创建/编辑（凭证字段 schema-driven 动态渲染 + 凭证查看 drawer + JSON 脱敏）
-- 数据上报 Tab：CSV 导入 + 查询
+### 4.4 鉴权体系
 
-### 4.6 SDK 下载中心
-
-- **下载首页**：hero + 平台 Tab（Android/iOS） + 最新版本卡片 + Changelog 折叠 + 下载按钮
-- **技术文档**：左侧分类（入门/集成/API 参考/高级/FAQ）+ 右侧 markdown 渲染 + 相关文章
-- **版本历史**：时间线（按版本倒序 + 平台 Tag + 强制更新 Tag）
-- **隐私政策**：检测 `source_url` 存在 → iframe 嵌入 + "前往官方原文"按钮（外链模式）；否则按 content_format 渲染
-
-### 4.7 管理后台
-
-- **开发者管理**：列表 + 角色 / 状态切换
-- **指标字典**：分类树 + 列表 + 创建 / 编辑（公式编辑器 + 必填字段 + 类型）
-- **SDK 版本管理**：列表 + 创建 / 编辑（平台 + 版本号 + Changelog + 下载 URL + MD5 + 强制更新）
-- **SDK 文档管理**：分类筛选 + 列表 + 富文本/Markdown 编辑
-- **SDK 隐私政策管理**：列表 + 创建 / 编辑（**内容来源切换：内部内容/外部链接** + 外链 URL 校验）
+- **HttpOnly Cookie `auth_token`**：浏览器登录态（dev 不带 Secure，prod 带 Secure；SameSite=Strict）
+- **`Authorization: Bearer <token>`**：SDK 集成 / 移动端直连场景
+- **`authMiddleware` 优先级**：先读 cookie，回退到 Authorization 头
+- **JWT 载荷**：`{ developerId, email, role, iat, exp }`，HS256，7 天过期
+- **公开接口白名单**：`/api/v1/auth/*`、`/api/v1/sdk-cms/releases/docs/categories/privacy/policy`、`/api/v1/sdk-cms/public/privacy-consent`
 
 ---
 
-## 五、下一步规划（待办）
+## 五、关键交互模式（页面级 PRD）
+
+> 每个模块按 **UI 说明 · 业务逻辑 · 关键库表 · 注意事项** 四个维度展开。
+
+### 5.1 登录页
+
+**UI 说明**
+- **顶部 hero 区**：左半屏（640px 宽）品牌侧 — Logo + 大字标题「欢迎回来」+ 副标题「使用邮箱和密码登录到广告平台管理后台」+ 3 条产品特性
+- **右半屏表单卡**：480px 宽，圆角 12px，白底
+  - 邮箱输入框（带 `@` 前缀图标）+ 密码框（带显示/隐藏切换眼睛图标）
+  - 「记住我」复选框（仅 7 天内免重新登录）
+  - 主按钮「登录」+ 「还没有账号？立即注册」副链接
+- **错误提示**：输入框下方红字 + Toast 顶栏提示
+
+**业务逻辑**
+- 登录：POST `/auth/login` → 成功 setHttpCookie + 返回 userInfo → Pinia.userStore 注入
+- 失败：错误码映射到 UI（密码错 = 通用提示，账号锁定 = 倒计时）
+- 验证码：POST `/auth/send-captcha`（开发环境直接返回 token 到 console，60s 有效，存 node-cache）
+
+**关键库表**
+- `developer`（`email` / `password_hash` / `status` / `role` / `last_login_at`）
+
+**注意事项**
+- 登录失败次数不锁（待补）
+- 忘记密码流程未实现（链接占位）
+- 注册时需邮箱验证码（`node-cache` 60s 过期）
+
+### 5.2 应用管理
+
+**UI 说明**
+- **列表页**：表格列 = 图标 / 应用名 / AppKey / 平台 Tag / 状态 / 创建时间 / 操作
+  - 顶部：搜索框 + 「创建应用」主按钮
+  - 分页：每页 20 条
+- **创建/编辑 Drawer**：右侧 720px 宽抽屉
+  - **5 个分组**（el-collapse）：① 基本（应用名 / 包名 / 平台 / 接入类型）② 应用商店（URLs）③ 法规（隐私政策 URL / 用户协议 URL）④ 微信（AppID 等）⑤ 频次（FrequencyDrawer 弹窗二级嵌套）
+- **关联广告位/网络 Drawer**：单独抽屉，标签页切换「广告位」/「广告网络」，每页多选 + 已关联列表
+- **频次抽屉**：每 X 分钟最多 Y 次（单广告位粒度）
+
+**业务逻辑**
+- 创建：POST `/app`，`app_key` 后端自动生成（`ak_` + uuid 8 位）
+- 平台枚举：1=Android / 2=iOS / 3=双端
+- 接入类型枚举：1=自有 / 2=联运 / 3=合作
+- 关联：POST `/app/:id/placements` / `/app/:id/networks`（多对多通过 `app_network_binding`）
+- 频次规则：存在 `app.frequency_config` JSONB 字段，每广告位独立规则
+
+**关键库表**
+- `app`（`developer_id` / `app_key` / `app_name` / `package_name` / `platform` / `access_type` / `status` / `frequency_config`）
+- `app_network_binding`（`app_key` / `network_def_id`）
+- `placement`（外键通过 `app_key` 关联）
+
+**注意事项**
+- `app_key` 唯一（不区分 developer）
+- 删除前必须先解除所有 placement / network 绑定（前端禁用按钮）
+- iOS 必填字段：`bundle_id`（包名校验格式）
+
+### 5.3 瀑布流配置
+
+**UI 说明**
+- **顶部工具栏**：广告位下拉（必选，触发加载） + 流量分组下拉（按 group 粒度） + 「新建配置」按钮 + 当前 version 标签
+- **中部 3 Tab 拖拽区**：
+  - **Bidding**（头客层）：多 ad_source 卡片，可拖拽排序
+  - **瀑布**（瀑布层）：多 ad_source 卡片
+  - **兜底**：单选 ad_source 卡片
+  - 每卡片：平台 Logo + 广告源名 + eCPM 估值 + 拖拽手柄 + 删除
+- **底部**：保存按钮 + 历史 version 表格（version / 创建时间 / 操作）
+  - 每行可「加载」或整行点击 = 载入到编辑面板
+  - 编辑中行：蓝色脉冲「编辑中」tag + 「已加载」按钮（disabled）
+
+**业务逻辑**
+- 保存：POST `/waterfall`，双写 `waterfall_config.layers`（JSONB）+ `waterfall_layer` 关联表
+- 加载：GET `/waterfall?placement_id=&traffic_group_id=` 返回 `{ config: { layers: JSONB }, layers: rows }`
+- 优先用 `config.layers`，为空时回退 `waterfall_layer`（避免误把 `[]` 当"无配置"）
+- 历史 version：每次保存递增 `version`（同 placement_id + traffic_group_id 唯一）
+
+**关键库表**
+- `waterfall_config`（`placement_id` / `traffic_group_id` / `version` / `is_default_config` / `layers` JSONB / `status`）
+- `waterfall_layer`（关联行：每条 layer 一个 row：id / config_id / layer_type / order / ad_source_id / ecpm）
+- `ad_source`（作为可选项源）
+
+**注意事项**
+- ⚠️ `waterfall_config.placement_id` 实际存为 number-as-string（如 `"58"`），但 placement 表的 `placement_id` 列存为 `"pl_xxx"` — list 端用 `.in('placement_id', [pidStr, placementIdStr])` 兼容两种入参
+- ⚠️ 新环境必须 ALTER TABLE 加 `layers JSONB` 列（已通过 `exec_sql` 修复）
+- 默认分组（`is_default_config=true`）始终被选中
+- 编辑中判断走 `traffic_group_id=0` 分支
+
+### 5.4 综合报表
+
+**UI 说明**
+- **顶部筛选区**（一行 6 元素）：
+  - 指标选择 chip（多选，点击打开 MetricPicker 弹窗）
+  - 维度 chip（应用 / 广告位 / 广告源 / 国家 / 系统 / 广告类型 / 时间）
+  - 时间范围（近 7/30/90 天 + 自定义）
+  - 平台 / 系统 / 应用 / 广告位 / 广告源 下拉（级联）
+  - 「查询」主按钮
+- **中部 4 个核心卡片**：请求数 / 展示数 / 点击数 / eCPM（每个含环比 %）
+- **下部**：左 60% 趋势图（ECharts 折线/柱图切换） + 右 40% Top 列表
+- **底部**：综合报表表格（**整体居中对齐** — 2026-07-18 修复）
+
+**指标弹窗（MetricPicker）**
+- 弹窗 1100×578，左 880px 6 列指标分类（5 大类 × 6 项），右 220px「已选」列
+- 每项 11px 字号 + 10px 提示 + 12px checkbox
+- 「已选」列高度 = 弹窗主体高度（不撑大），超出可滚动
+- 底部「确认」/「重置」/「取消」
+
+**业务逻辑**
+- 查询：GET `/report/daily` 支持多维度 groupBy + 时间范围 + 指标列表
+- 聚合：后端按 (developer_id, app_key, placement_id, ad_source_id, stat_date, hour) 复合唯一约束去重
+- 趋势图数据 = 同指标按时间展开；表格数据 = 按选中维度展开
+- 指标字典：表 `report_metric_definition`（含公式 / 单位 / 类型 / 分类）
+- 漏斗指标：`report_funnel_metric_definition`
+
+**关键库表**
+- `report_daily`（6 字段复合唯一 + `request` / `impression` / `click` / `revenue` / `region` / `os` / `ad_type`）
+- `report_metric_definition`（`code` / `name` / `category` / `formula` / `unit` / `data_type` / `required_fields`）
+- `report_funnel_metric_definition`（漏斗专用）
+- `report_board`（看板保存的配置）
+
+**注意事项**
+- ⚠️ 表格表头 / 数据**整体居中**（headerAlign: 'center' + align: 'center'，CSS `display: flex; justify-content: center`）
+- ⚠️ 维度列与指标列都要居中（不能用 `text-align: right` 单独对齐数字列，会破坏维度）
+- ⚠️ `report_daily` 唯一约束：循环里 region/os 随机会导致重复键（造数据严禁）
+- 指标 chip 最多 6 个（性能边界）
+
+### 5.5 广告平台 / 自定义网络
+
+**UI 说明**
+- **4 个 Tab**：
+  1. **自定义网络**：表格 + 创建弹窗（基本 + 图标上传 + 状态）
+  2. **Adapter**：版本列表 + 上传（zip + md5 + 适配平台 + changelog） + 审核弹窗（PASS/REJECT + 备注 + 生效时间）
+  3. **账号**：账号列表 + 创建/编辑弹窗（**凭证字段 schema-driven 动态渲染** + 凭证查看 drawer + JSON 脱敏）+ 单账号详情
+  4. **数据上报**：CSV 导入 + 上报记录查询
+
+**业务逻辑**
+- ① 平台定义：POST `/network/ad-def`（`is_preset=false` 区分自定义）
+- ② 账号管理：POST `/network/account`（凭证存 `credential JSONB`，查询时脱敏）
+- ③ Adapter 上传：POST `/network/adapter`（file_url + version + platform + md5）
+- ④ 审核：POST `/network/adapter/audit`（status: pass/reject + remark + effective_at）
+- ⑤ 应用关联：POST `/app/:id/bind-network`（写 `app_network_binding`）
+- ⑥ 数据接入：客户端拉取走 `/sdk/fetch-config` + 上报走 `/sdk/track`
+
+**关键库表**
+- `ad_network_def`（`network_code` / `network_name` / `is_preset` / `system_type` / `network_type`）— 必填 6 字段
+- `ad_network_account`（`network_def_id` / `account_name` / `credential` JSONB / `status`）
+- `custom_adapter_version`（`network_def_id` / `version` / `file_url` / `md5` / `changelog` / `audit_status` / `audit_remark` / `effective_at`）
+- `app_network_binding`（`app_key` / `network_def_id`）
+- `custom_network_report`（自定义网络的数据上报独立表）
+
+**注意事项**
+- ⚠️ `is_preset` 是「预置 vs 自定义」唯一可靠字段，`network_type` 字段被滥用（不要用它做预置过滤）
+- ⚠️ 凭证字段 `credential` JSONB：返回给前端时必须脱敏（只显示前 4 + 后 4，中间 `*`）
+- 审核流程：草稿 → 待审核 → 通过/拒绝 → 拒绝后可重新提交
+- Adapter 文件：当前实现是 URL + md5，**未实现**文件直传（占位）
+
+### 5.6 SDK 下载中心
+
+**UI 说明**
+- **下载首页**（`/sdk`）：
+  - hero 区（左侧大字「下载新义 聚合 SDK」+ 副标 + 主按钮 + 3 个特性） + 右侧 2 个平台卡（Android / iOS）
+  - 平台 Tab 切换（Android 6.0.9 / iOS 1.1.0）
+  - 最新版本卡片：版本号 + 发布时间 + 文件大小 + md5 + 「下载」按钮 + 「复制下载链接」按钮
+  - Changelog 折叠面板（按版本号倒序）
+- **技术文档**（`/sdk/docs`）：
+  - 左侧分类树（5 类：入门指南 / 集成步骤 / API 参考 / 高级特性 / FAQ）
+  - 右侧文章列表（按分类过滤）+ 选中文章 markdown 渲染（markdown-it）
+  - 文章底部「相关文章」
+- **版本历史**（`/sdk/history`）：
+  - 时间线（按 version 倒序），每条：版本号 + 平台 Tag + 发布时间 + 「强制更新」Tag + Changelog 摘要 + 「下载」按钮
+- **隐私政策**（`/sdk/privacy`）：
+  - 标题 + 生效日期 + 「外链」tag（如果 source_url 存在）
+  - 内容区：检测 `source_url` → iframe 嵌入（720px 高，sandbox 沙箱化）+ 「前往官方原文」按钮
+  - 否则按 `content_format` 渲染（HTML 原始 / Markdown 转换）
+
+**业务逻辑**
+- 列表：GET `/sdk-cms/releases?platform=1` 返回按版本号倒序
+- 详情：GET `/sdk-cms/releases/:id`
+- 文档：GET `/sdk-cms/docs?category_id=&doc_id=`（含目录树）
+- 隐私：GET `/sdk-cms/privacy/policy?platform=`
+- 隐私政策支持 3 种内容格式：1=HTML / 2=Markdown / 3=外链（source_url 优先）
+
+**关键库表**
+- `sdk_release`（`platform` / `version` / `changelog` / `download_url` / `md5` / `file_size` / `is_force_update` / `release_date` / `status`）
+- `sdk_doc`（`category_id` / `title` / `content` / `order_num`）
+- `sdk_doc_category`（`name` / `parent_id` / `order_num`）
+- `sdk_privacy_policy`（`version` / `title` / `content` / `content_format` / `source_url` / `effective_date` / `status`）
+- `sdk_privacy_consent`（用户同意记录：`user_id` / `policy_id` / `consent_at` / `ip`）
+
+**注意事项**
+- ⚠️ v1.1 生效政策 `source_url` = `https://docs.mobrtb.com/sdk_privacy.html`（HTML 嵌入），`content` 为空
+- ⚠️ 文档标题里不能出现品牌前缀（如 "YTAd..."），SDK 类名（如 `YTAdRequest`）是技术标识，**保留**不动
+- 品牌名统一「**新义**」（不要再加副词）
+- iOS 包名格式：`新义-iOS-{version}.zip`（实际下载文件名）
+
+### 5.7 管理后台
+
+**UI 说明**
+- **开发者管理**：表格 + 角色 / 状态切换弹窗（禁用/启用 / 角色变更）
+- **指标字典**（`/admin/metric-def`）：分类树 + 列表 + 创建/编辑弹窗（**公式编辑器** + 必填字段 + 数据类型 + 单位）
+- **SDK 版本管理**（`/admin/sdk-releases`）：列表 + 创建/编辑弹窗（平台 / 版本号 / Changelog / 下载 URL / MD5 / 强制更新 / 状态）
+- **SDK 文档管理**（`/admin/sdk-docs`）：分类筛选 + 列表 + 创建/编辑弹窗（**富文本或 Markdown 编辑** + 分类选择 + 排序）
+- **SDK 隐私政策管理**（`/admin/sdk-privacy`）：
+  - 列表：版本 / 平台 / 来源 Tag（内部/外链）/ 生效日期 / 状态
+  - 创建/编辑：顶部「内容来源」单选（内部内容 / 外部链接）
+    - 内部：HTML/Markdown 单选 + content textarea
+    - 外链：URL 输入 + 摘要 + 「预览」按钮
+
+**业务逻辑**
+- 所有管理后台接口走 `/api/v1/sdk-cms/admin/*`（必须 admin role）
+- 公开接口走 `/api/v1/sdk-cms/*`（无需 token）
+- 创建 / 更新：标准 CRUD，返回 `id` 让前端跳详情
+- 删除：软删除（`status=0`），保留历史
+
+**关键库表**
+- 同 5.6 节 + `developer`（管理后台有写权限）
+
+**注意事项**
+- ⚠️ 隐私政策「外链」模式：`source_url` 必填 + `http(s)://` 开头 + `content_format=3` + `content=''`
+- ⚠️ 公式字段（指标）：保存前用示例数据 dry-run 校验（避免运行时 500）
+- 删除前检查关联（如文档被引用 / 隐私政策被 SDK 端拉取）— 软删除 + 关联检查
+
+---
+
+## 六、注意事项汇总（边界 / 踩坑清单）
+
+> 跨页面的高优先级边界问题与已踩过的坑，出 PRD / 改代码前必读。
+
+### 6.1 数据层（DB）
+
+| # | 问题 | 现状 | 修复方向 |
+|---|------|------|---------|
+| 1 | `waterfall_config.layers` JSONB 列 | 已 ALTER TABLE 修复 | 新环境必须同步建表带上此列 |
+| 2 | `waterfall_config.placement_id` 存 number-as-string，但 `placement.placement_id` 存 `"pl_xxx"` | list 端 `.in()` 兼容两种 | 统一为 number，新环境必须保持一致 |
+| 3 | `report_daily` 6 字段复合唯一 | 造数据时 region/os 循环会重复 | seed 必须先选维度再循环 |
+| 4 | `ad_network_def` 6 字段 NOT NULL | 易漏 `is_preset` / `system_type` | seed 脚本统一 `INSERT` 前置 SET |
+| 5 | `ad_source` 易漏 `third_app_id` / `third_placement_id` 必填 | 已有踩坑 | seed 模板需校验 |
+| 6 | `ad_network_account` 表 | ✅ 已建（6 步对接步骤二需要）| — |
+| 7 | `developer` 表 `status` 字段 | 暂未启用禁用 | 软删除前禁用 |
+
+### 6.2 后端（API）
+
+| # | 问题 | 现状 | 修复方向 |
+|---|------|------|---------|
+| 1 | Supabase RLS 未启用 | service_role 直连 | 启用 RLS + 角色策略 |
+| 2 | Adapter 文件当前存 URL 字段 | 未接入对象存储 | 接入 S3 兼容对象存储 |
+| 3 | 凭证字段 `credential` JSONB 脱敏 | 已脱敏（前 4 + 后 4） | 完整审计日志 |
+| 4 | `authMiddleware` 优先 cookie，回退 Bearer | 已实现 | — |
+| 5 | 登录失败次数不锁 | 未限流 | 加 IP 限流 + 失败计数 |
+| 6 | JWT 7 天过期，无 refresh token | 暂未实现 | 加 refresh token 机制 |
+| 7 | `reconciliation` 表字段 | 部分字段缺失 | schema 审计补全 |
+
+### 6.3 前端（UI / 交互）
+
+| # | 问题 | 现状 | 修复方向 |
+|---|------|------|---------|
+| 1 | Element Plus CSS 必须从 `index.css` 顶部 `@import` | 已规避（火山引擎 CDN 拦截）| ⚠️ 禁止在 main.ts 直接 import |
+| 2 | `.vue` 文件禁用 `<style scoped>` | 已规避 | ⚠️ 统一写 `index.css` |
+| 3 | 综合报表表头/数据错位 | **2026-07-18 已修复：整体居中** | 不要单独用 `text-align: right` 对齐数字列 |
+| 4 | 指标弹窗「已选列」高度不融洽 | **2026-07-18 已修复：mp-main 固定 420 + flex min-height:0** | 不要再用 `min-height` 让它被内容撑大 |
+| 5 | 指标弹窗宽度 1100，6 列 118px | 已优化 | — |
+| 6 | 瀑布流 placement_id 双入参兼容 | **已修复** | 新环境 DB 字段必须保持一致 |
+| 7 | Hydration 错误防范 | 不在 `<template>` 用 `Date.now()` / `Math.random()` | 动态内容用 `ref` + `onMounted` |
+| 8 | 品牌名统一「新义」 | 已统一（隐私政策 / SDK 下载首页） | 不要再加副词 / 自己起名字 |
+| 9 | SDK 类名（如 `YTAdRequest`） | 保留为技术标识 | ⚠️ 不要替换为中文 |
+| 10 | 文档标题禁出现品牌前缀（如 "YTAd..."） | 2026-07-18 已清理 | 新文档遵守 |
+| 11 | 隐私政策外链模式 iframe sandbox | 已加 `sandbox="allow-same-origin allow-scripts allow-popups allow-forms"` | — |
+
+### 6.4 鉴权 / 权限
+
+| # | 问题 | 现状 | 修复方向 |
+|---|------|------|---------|
+| 1 | 公开接口白名单 | `/auth/*` + `/sdk-cms/*` 公开 + `/sdk-cms/admin/*` 必须 admin | — |
+| 2 | SDK 上报接口 | API Key 鉴权（暂未启用，鉴权 TODO） | 加 device_id + app_key 校验 |
+| 3 | 路由级权限 | 仅 role 判定 | 按模块细化权限（developer / admin / agent） |
+
+### 6.5 性能
+
+| # | 问题 | 现状 | 修复方向 |
+|---|------|------|---------|
+| 1 | 报表查询未走索引 | `report_daily` 已建索引 | 复杂查询 EXPLAIN 验证 |
+| 2 | 指标 chip 最多 6 个 | 性能边界 | 超出报错 |
+| 3 | 长任务拆分 | 同步接口 | 加进度条 + 取消 |
+
+---
+
+## 七、下一步规划（待办）
 
 ### 5.1 短期（功能补完）
 
@@ -543,7 +862,7 @@
 
 ---
 
-## 六、变更记录
+## 八、变更记录
 
 ### 2026-07-18：PLAN.md 整体重构
 
@@ -554,6 +873,13 @@
 - 新增：6 步对接流程落地状态
 - 新增：关键 UI 修复记录（表头居中 / 指标弹窗 6 列 / 已选列等高 / 品牌名替换）
 - 废弃：旧的"阶段 + ⬜ 待办"格式
+
+### 2026-07-18：PLAN 升级为完整 PRD
+
+- 新增第四章「**功能架构**」：模块依赖图（前端 / 后端 / Supabase / 客户端 SDK 四层）+ 角色权限矩阵（developer/admin/SDK 端 三角色 × 8 模块）+ 3 条核心数据流（报表 / 瀑布流下发 / 6 步对接）+ 鉴权体系
+- 升级第五章「**关键交互模式**」为页面级 PRD 模板，每页按 **UI 说明 · 业务逻辑 · 关键库表 · 注意事项** 四维度展开（7 个核心模块：登录 / 应用 / 瀑布流 / 综合报表 / 广告平台 / SDK 下载中心 / 管理后台）
+- 新增第六章「**注意事项汇总**」：跨页面高优先级边界问题与已踩过的坑（5 大类：数据层 7 项 + 后端 7 项 + 前端 11 项 + 鉴权 3 项 + 性能 3 项 = 31 条）
+- 重新编号：六/七/八（原五/六）
 
 ### 历史变更（摘要）
 
