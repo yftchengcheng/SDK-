@@ -147,9 +147,9 @@ const baseMenuItems: MenuItem[] = [
       { path: '/report/overview', label: '综合报表', icon: DataAnalysis },
       { path: '/report/funnel', label: '漏斗分析', icon: Filter },
       { path: '/report/behavior', label: '用户行为', icon: User },
+      { path: '/reconciliation', label: '对账管理', icon: DocumentChecked },
     ],
   },
-  { path: '/reconciliation', label: '对账管理', icon: DocumentChecked },
   { path: '/network', label: '广告平台', icon: Share },
   { path: '/message', label: '消息中心', icon: Bell },
   {
@@ -222,7 +222,7 @@ watch(
     if (newPath.startsWith('/aggregation')) {
       expandedGroups.value['聚合管理'] = true;
     }
-    if (newPath.startsWith('/report')) {
+    if (newPath.startsWith('/report') || newPath === '/reconciliation') {
       expandedGroups.value['数据报表'] = true;
     }
     if (newPath === '/sdk' || newPath.startsWith('/sdk/')) {
