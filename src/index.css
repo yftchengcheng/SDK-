@@ -3629,7 +3629,7 @@ html, body, #app {
 .el-dialog .dialog-form-row--split > :first-child {
   flex: 1;
 }
-.el-dialog .el-form-item {
+.el-dialog .dialog-form-row .el-form-item {
   margin-bottom: 0;
 }
 .el-dialog .el-form-item__label {
