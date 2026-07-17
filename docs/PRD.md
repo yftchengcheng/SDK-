@@ -1742,308 +1742,278 @@ Drawer 中**独立 section**，**不是 v1.0 PRD 描述的独立弹窗**：
 
 ## 10. 数据报表
 
-数据报表是开发者最常访问的页面，包含综合 / 漏斗 / 用户行为 3 个子模块。
+数据报表是开发者最常访问的页面，包含综合 / 漏斗 / 用户行为 3 个子模块，由 Vue 3 单页应用 + Express 后端共同实现。**3 个子模块共用同一套看版（Board）系统**——每个看版是 `dimensions × metrics × filters × layout` 的配置组合，可独立保存、复制、删除。
+
+> **核心抽象**：「看版」是报表的"视图"层。综合/漏斗/行为 3 个子页面各自有 1 个「默认看版」，用户可基于默认看版调整配置后「保存为看版」生成自定义看版。
 
 ### 10.1 综合报表（Overview）
 
-#### 10.1.1 页面布局
+#### 10.1.1 页面布局（Master-Detail）
 
 ```
-┌────────────────────────────────────────────────────┐
-│  筛选器（多维度）                                    │
-└────────────────────────────────────────────────────┘
-┌────────────┬──────────┬──────────┬─────────────┐
-│ 总收入 ¥  │ 总展示    │ 总点击    │ eCPM ¥      │  4 个 KPI
-│ ↑ 12.5%   │ ↓ 3.2%   │ ↑ 8.1%   │ ↑ 15.2%    │
-└────────────┴──────────┴──────────┴─────────────┘
-┌──────────────────────────┬─────────────────────┐
-│                          │                     │
-│  收入趋势（30天）         │  TOP 10 排行         │
-│  ECharts 折线 + 区域     │  柱状图横排          │
-│  （左主区 60%）           │  （右排行 40%）      │
-│                          │                     │
-└──────────────────────────┴─────────────────────┘
-┌────────────────────────────────────────────────────┐
-│  明细数据表 + 分页 + 列勾选 + 导出                  │
-└────────────────────────────────────────────────────┘
+┌──────────────────┬────────────────────────────────────────────────┐
+│ 我的看版 (320px) │ 看版头部：名称/默认标签/复制/编辑/删除按钮          │
+│ ┌──────────────┐ │ 看版配置摘要：维度 chips（行 1） + 指标 chips（行 2）│
+│ │ 搜索看版名   │ │ 工具栏（上）：ReportFilter（8 字段筛选）            │
+│ ├──────────────┤ │ ────────── 工具栏（下）──────────                 │
+│ │ 看版项 × N   │ │ [刷新] [保存为看版]  │  [CSV] [Excel] [PDF]        │
+│ │  名称 + 默认 │ │ 表格视图 ReportTableView（动态列）                  │
+│ │  3 个指标tag │ │  - 维度列：固定 left + min-width 140              │
+│ │  +3 溢出     │ │  - 指标列：可排序 + min-width 140                 │
+│ │  ...         │ │  - 表头拖拽调整列顺序（SortableJS）持久化         │
+│ │  复制/编辑/删│ │  - 表格横向滚动：表头/数据 scrollLeft 同步       │
+│ └──────────────┘ │                                                   │
+└──────────────────┴────────────────────────────────────────────────┘
 ```
 
-#### 10.1.2 顶部筛选器
+- **左侧 320px**：看版列表面板（可搜索看版名、每项带「编辑配置 / 复制 / 删除」下拉菜单）
+- **右侧自适应**：看版详情区（头部 + 配置摘要 + 工具栏 + 表格）
+- **无 KPI 卡片 / 趋势折线 / TOP 10 排行**：v1.0 描述的 4 KPI + 折线 + 排行在 v1.4.2 已被看版系统 + 单一动态表格替代
+
+#### 10.1.2 ReportFilter（顶部筛选器，8 字段）
 
 | # | 字段 | 类型 | 必填 | 默认 | 说明 |
 |---|------|------|------|------|------|
-| 1 | **时间范围** | dateRange | ✅ | 近 7 天 | 选项：今日/昨日/近 7 天/近 30 天/近 90 天/自定义 |
+| 1 | **日期** | dateRange | ✅ | 近 7 天 | 快捷：今日/昨日/近 7 天/近 30 天/本月/上月/自定义；快捷定义见 `src/utils/date-shortcuts.ts` |
 | 2 | **应用** | multiSelect | ❌ | 全部 | 当前开发者所有 app |
-| 3 | **广告位** | multiSelect | ❌ | 全部 | 依赖应用筛选 |
-| 4 | **广告源** | multiSelect | ❌ | 全部 | 依赖应用筛选 |
+| 3 | **广告位** | multiSelect | ❌ | 全部 | 依赖应用筛选（未选应用时不联动） |
+| 4 | **广告平台** | multiSelect | ❌ | 全部 | 从 `ad_network_def.network_name` 拉（**禁止**用 `network_type` 判断，改用 `is_preset`） |
 | 5 | **广告形式** | multiSelect | ❌ | 全部 | banner/interstitial/native/rewarded/splash |
-| 6 | **广告平台** | multiSelect | ❌ | 全部 | 从 `ad_network_def` 拉（is_preset + 自定义） |
-| 7 | **系统** | multiSelect | ❌ | 全部 | android/ios |
-| 8 | **国家/地区** | multiSelect | ❌ | 全部 | 从 `report_daily.region` DISTINCT |
+| 6 | **广告源** | multiSelect | ❌ | 全部 | 依赖应用筛选 |
+| 7 | **国家** | multiSelect | ❌ | 全部 | 从 `report_daily.country/region` DISTINCT |
+| 8 | **系统** | multiSelect | ❌ | 全部 | android/ios（**无 harmony**，枚举值从 DB 拉） |
 
-**联动规则**：
-- 选「应用」后：「广告位」自动过滤
-- 选「广告位」后：「广告源」自动过滤
-- 任一筛选变化 → 触发查询（500ms 防抖）
+- 筛选器变更 → 触发 `loadData()` 查询（**无防抖**，按 change 事件即时触发）
+- 联动规则：选「应用」后「广告位」+「广告源」自动过滤（前端按 `app_key` 过滤 placement/ad_source）
 
-#### 10.1.3 4 个 KPI 卡片
+#### 10.1.3 看版头部（Board Header）
 
-| KPI | 计算公式 | 同环比 |
-|-----|---------|--------|
-| 总收入 | `SUM(revenue)` | 同比：`本周期 / 上周期 - 1` |
-| 总展示 | `SUM(impressions)` | 同上 |
-| 总点击 | `SUM(clicks)` | 同上 |
-| eCPM | `SUM(revenue) * 1000 / SUM(impressions)` | 同上 |
+| 元素 | 内容 |
+|------|------|
+| 看版图标 | `<el-icon :size="24"><DataLine /></el-icon>` |
+| 看版名称 | `currentBoard.name` |
+| 默认标签 | `<el-tag type="primary" effect="plain">默认</el-tag>`（仅 `is_default=true`） |
+| 描述 | `currentBoard.description`（默认看版为"暂无描述"） |
+| 操作按钮（右） | 「复制看版」+「编辑配置」+「删除」（仅非默认看版显示删除） |
 
-- **同环比**：
-  - 绿色 ↑ 涨：百分比 > 0
-  - 红色 ↓ 跌：百分比 < 0
-  - 灰色 -- ：无上一周期数据
-- **迷你折线**：7 天趋势（细线 + 半透明填充）
+#### 10.1.4 看版配置摘要（2 行 Chip 布局）
 
-#### 10.1.4 收入趋势折线图
+**Row 1：维度 chips**
+- 图标 `<Grid />` + 标签「维度」+ 数量徽标
+- 渲染 `effectiveDimensions`（`pickedDimensions - removedDimensions`）
+- 每个 chip：可关闭（`date` 维度不可关闭）
+- 超过 8 个折叠为 `+N 更多` / 「收起」
+- 已移除时显示「还原 (N)」链接（点击清空 removedDimensions）
+- 行尾：「编辑」按钮 → 打开 `DimensionPicker` 弹窗
 
-- X 轴：日期（30 天）
-- Y 轴：金额（¥）
-- 多线：可叠加多个指标（点击图例切换）
-- 工具栏：缩放、还原、下载 PNG
+**Row 2：指标 chips**
+- 图标 `<Histogram />` + 标签「已选指标」+ 数量徽标
+- 渲染 `effectiveMetrics`（`pickedMetrics - removedMetrics`）
+- 每个 chip：可关闭、hover 显示完整名
+- 同样 8 个折叠规则
+- 行尾：「设置」按钮 → 打开 `MetricPicker` 弹窗
 
-#### 10.1.5 TOP 10 排行
+#### 10.1.5 工具栏（上下两段）
 
-- 切换维度（单选按钮组）：应用 / 广告位 / 广告源 / 国家
-- 柱状图横排：纵轴是 TOP 10 名称，横轴是数值
-- 数值前 3 名高亮金色
+**上段**：`<ReportFilter v-model="filter" @change="loadData" />`
 
-#### 10.1.6 明细数据表
+**下段**（左右分栏）：
+- 左：刷新按钮 + 「保存为看版」按钮（`type="primary" plain`）
+- 右：「导出报表」标签 + 三按钮组（CSV / Excel / PDF）
 
-列（默认显示，可勾选）：
-- 日期 / 应用 / 广告位 / 广告源 / 广告形式 / 国家 / 系统 / 平台
-- 请求数 / 填充数 / 展示数 / 点击数 / 展示率 / 点击率 / CTR / 预估收益 / eCPM
+#### 10.1.6 表格视图（ReportTableView）
 
-**操作**：
-- 列勾选：右上角「列设置」按钮 → 打开「指标弹窗」（详见 10.1.8）
-- 排序：点击表头
-- 导出：右上角「导出 CSV / Excel」按钮
-- 分页：pageSize = 20
+**列定义规则**：
+- 维度列（`dimensions[]`）：每列 `min-width=140, width=140, fixed='left', align='center', headerAlign='center'`
+- 指标列（`metrics[]`）：每列 `min-width=140, width=140, align='center', headerAlign='center', sortable='custom'`
+- 列标签：维度用 `DIM_LABELS` 翻译；指标用 `metricNameOf` 翻译（共享字典 `src/utils/report-metric-dict.ts`）
+- 列格式：指标按 `metricFormatOf` 返回值（`number`/`percent`/`money` 等）渲染
 
-**表格对齐规则**（重要 · 2026-07-18 修复后）：
-- **所有列（含维度列）均采用「整体居中」对齐**：`align: 'center'` + `headerAlign: 'center'`
-- ❌ 禁止：表头左对齐 + 数据右对齐（视觉错位 14-28px）
-- ❌ 禁止：仅指标列右对齐 + 维度列左对齐（指标对齐了但维度全乱）
-- ✅ 正确：表头与数据、所有维度与指标列均统一 `text-align: center`
-- 数字列渲染：`font-variant-numeric: tabular-nums`（等宽数字，避免小数点对不齐）
-- 单元格实现：`el-table__cell > .cell` 强制 `display: flex; justify-content: center; align-items: center; width: 100%`
+**交互**：
+- 表头拖拽（SortableJS）：拖动列头调整列顺序，释放后触发 `@column-reorder` → PATCH `/report/board/update/:id` 持久化
+- 指标列点击表头：升/降序切换（`@sort-change` 事件）
+- 横向滚动：表头/数据 `scrollLeft` 同步（防止错位）
+- 单元格对齐：注入全局样式 `.el-table__cell > .cell { width: 100% !important }` + `padding: 0`
+- 数字列：`font-variant-numeric: tabular-nums`（等宽数字）
 
-#### 10.1.7 功能架构
-
-| 接口 | 方法 | 请求 | 响应 |
-|------|------|------|------|
-| `/api/v1/console/report/daily` | GET | 所有筛选参数 | `{ list, total }` |
-| `/api/v1/console/report/export` | GET | 所有筛选参数 + format=csv/xlsx | 文件流 |
-| `/api/v1/console/report/aggregate/options` | POST | `{ dimension: 'platform'/'region'/'os' }` | `{ list: [...] }` |
-| `/api/v1/console/report/aggregate/aggregate` | POST | `{ metrics: [...], filters: {...} }` | `{ results: [...] }` |
-| `/api/v1/console/report/funnel/definition` | GET | — | `{ list: [steps] }` |
-| `/api/v1/console/report/aggregate/validate-formula` | POST | `{ formula }` | `{ valid, error? }` |
-
-#### 业务规则
-
-1. **聚合查询**：`SUM(requests) / SUM(fills) / SUM(impressions) / SUM(clicks) / SUM(revenue)`，按 `stat_date` group by
-2. **派生指标公式**：
-   - 展示率 = `fills / requests`
-   - 点击率 = `clicks / impressions`
-   - CTR = `clicks / impressions`
-   - eCPM = `revenue * 1000 / impressions`
-3. **公式驱动**：`report_metric_definition` 表存储公式模板
-4. **下拉选项**：
-   - 平台：`ad_network_def.network_name` where `is_preset = true`
-   - 系统：`report_daily.os` DISTINCT（仅 android / ios）
-   - 国家：`report_daily.region` DISTINCT
-   - 广告类型：`report_daily.ad_type` DISTINCT
-
-#### 关键库表
-
-- **`report_daily`**（核心）
-  - 必填：`developer_id` / `app_key` / `placement_id` / `ad_source_id` / `stat_date` / `hour`
-  - 复合唯一：`(developer_id, app_key, placement_id, ad_source_id, stat_date, hour)`
-  - 关键：`requests` / `fills` / `impressions` / `clicks` / `revenue` / `ad_type` / `region` / `os`
-- **`report_metric_definition`**（指标字典）
-
-#### 注意事项
-
-1. **数据权限**：仅查当前 `developer_id`
-2. **大表性能**：`report_daily` 数据量大，必须带 `developer_id + stat_date` 索引
-3. **导出**走流式响应（chunked transfer）
-4. **「广告平台」下拉从 `ad_network_def` 拉**，**禁止用 `network_type` 字段判断**（被滥用），改用 `is_preset`
-
-#### 10.1.8 指标弹窗（列设置 · 2026-07-18 升级）
-
-##### 触发位置
-明细表右上角「列设置」按钮 → 打开 `MetricPicker` 弹窗（`width="1100"`）。
-
-##### UI 说明
-
-```
-┌────────────────────────────────────────────────────────────────────┐
-│  指标选择                                              [X 关闭]     │
-├────────────────────────────────────────────────────────────────────┤
-│  ┌──────────────────────── mp-main 高度固定 420 ────────────────┐  │
-│  │  ┌──────────────  mp-cats (6 列) ──────────────┐ ┌─已选─┐    │  │
-│  │  │ 基础指标 6  │ 转化率 4  │ 展示 5  │ 点击 4 │ ... │ 已选列│    │  │
-│  │  │ [✓] 请求数  │ [ ] 展示率│ [ ] 展示│ [ ] 点击│     │  12项 │    │  │
-│  │  │ [ ] 填充数  │ [ ] 点击率│ [ ] 收益│ [ ] CTR│     │ ────┐│    │  │
-│  │  │ ...        │ ...      │ ...    │ ...    │     │ 请求数││    │  │
-│  │  │           │          │        │        │     │ 展示数││    │  │
-│  │  │           │          │        │        │     │ ...   ││    │  │
-│  │  └─────────────────────────────────────────────┘ └───┬─┘    │  │
-│  └─────────────────────────────────────────────────────┴──────┘  │
-│                       [取消]   [确认]                              │
-└────────────────────────────────────────────────────────────────────┘
-```
-
-- **弹窗尺寸**：宽 `1100px`（容纳 6 列指标，每列 118px），高 `auto`（按内容）
-- **主区** `.mp-main`：`display: grid; grid-template-columns: 1fr 220px; height: 420px; overflow: hidden`
-- **左：指标分类网格** `.mp-cats`：`grid-template-columns: repeat(6, 1fr); height: 100%`
-  - 每个分类下 4-6 个指标 checkbox
-  - 分类标题：12px / 600 / `--color-primary-700`
-  - 指标名：11px；指标说明 tip：10px / `#94A3B8`
-- **右：已选指标列** `.mp-side`：
-  - 标题「已选」+ 当前数量
-  - 列表容器 `.mp-side-list`：`flex: 1 1 0; min-height: 0; overflow-y: auto`
-  - **关键：选 51 个指标不撑大弹窗**（`scrollHeight > clientHeight` 时自动出现滚动条）
-  - 单项：标签 + 删除按钮
-- **底部**：取消 + 确认按钮
-
-##### 业务规则
-
-1. **6 列布局**：每列固定 118px，12 个分类 × 4-6 指标 = 48-72 个指标全展示
-2. **滚动而非撑高**：`.mp-main` `height: 420px` + `overflow: hidden` 限制总高度，已选列通过 `flex: 1 1 0; min-height: 0` 内部滚动
-3. **指标分类来源**：`report_metric_definition` 表（category 字段 + sort_order）
-4. **取消勾选 → 趋势图对应线条 + 表格对应列同时隐藏**
-5. **跨页签同步**：综合报表 / 漏斗分析 / 用户行为 Tab 共用同一 `MetricPicker`，选择后实时同步所有 Tab 展示
-
-##### 关键库表
-
-- **`report_metric_definition`**：
-  - `category`（基础/转化率/展示/点击/收益/单价/...）
-  - `code` / `name` / `tip`（说明）
-  - `unit`（count/percent/money/ratio）
-  - `formula`（派生指标公式）
-  - `sort_order`（每分类内排序）
-
-##### 注意事项
-
-1. **弹窗宽度必须 ≥ 880px**：6 列 × 118px = 708 + 220（已选列）+ gap，否则指标名截断
-2. **不要**把 `mp-main` 改成 `min-height`：会导致已选列内容撑大弹窗（51 项 → 弹窗 2073px）
-3. **不要**在已选列用 `max-height: 480px`：会破坏 flex 收缩，`overflow: auto` 不生效
-4. **子项高度**：`.mp-cat-item` 行高 `28px`（紧凑），多行 tip 用 `line-clamp: 2`
+**无数据时**：显示空态（无 KPI 占位 / 无趋势图 / 无 TOP 10）
 
 ---
 
 ### 10.2 漏斗分析（Funnel）
 
+> **核心说明**：漏斗分析 v1.4.2 采用 **SVG 自绘漏斗 + 本地 11 步常量定义** 的实现，**不调用后端 funnel/definition**，**loadData() 当前为空函数**（仅 console.log）。本节描述的是 UI 完整规格 + 数据接入路径，便于后续对接后端。
+
 #### 10.2.1 页面布局
 
 ```
-┌────────────────────────────────────────────────┐
-│  筛选器（应用 / 广告位 / 时间）                 │
-└────────────────────────────────────────────────┘
-┌────────────────────────────────────────────────┐
-│  漏斗图（10 步）                               │
-│  曝光 → 点击 → 落地 → 激活 → 注册 → 登录 → ... │
-│  每步显示：绝对值 + 转化率（vs 上一步）+ 总体转化率 │
-└────────────────────────────────────────────────┘
-┌────────────────────────────────────────────────┐
-│  Tab：[分天] [趋势]                            │
-│  ──────                                       │
-│  分天：表格（11 列 × 7 天）                    │
-│  趋势：折线图（11 条线 × 30 天）                │
-└────────────────────────────────────────────────┘
+┌────────────────────────────────────────────────────┐
+│  筛选器（7 字段：日期/应用/广告位/广告场景/渠道/     │
+│         地区/SDK 版本 + 折叠项：appVersion/deviceType）│
+└────────────────────────────────────────────────────┘
+┌────────────────────────────────────────────────────┐
+│  漏斗图（11 步 event，SVG 自绘 + funnel-link-svg）   │
+│  工具栏：「如何使用漏斗分析报表？」帮助 + 图例（次数）│
+│  ┌──────────────┬────────────┬────────────┐        │
+│  │ 步骤名 + 值  │  漏斗图形  │ 转化率      │        │
+│  │  1.应用启动  │  ████████  │   --       │        │
+│  │  2.获取配置  │  ██████    │  85.3%     │        │
+│  │  3.流量请求  │  █████     │  92.1%     │        │
+│  │  ...        │  ...      │  ...       │        │
+│  │ 11.点击      │  █         │  1.2%      │        │
+│  └──────────────┴────────────┴────────────┘        │
+│  「人均/总量」切换  「编辑公式」  「指标选择」        │
+└────────────────────────────────────────────────────┘
+┌────────────────────────────────────────────────────┐
+│  底部 Tab：[分天] [趋势]                            │
+│  分天：表格（11 列 × 7 天）（**当前未接数据**）       │
+│  趋势：折线图（11 条线 × 30 天）（**当前未接数据**）  │
+└────────────────────────────────────────────────────┘
 ```
 
-#### 10.2.2 漏斗步骤定义
+#### 10.2.2 顶部筛选器（7 字段 + 折叠）
 
-| 步骤 | 名称 | 公式 | 备注 |
-|------|------|------|------|
-| 1 | 曝光（请求） | `SUM(requests)` | — |
-| 2 | 填充 | `SUM(fills)` | 填充率 = fills / requests |
-| 3 | 展示 | `SUM(impressions)` | 展示率 = impressions / fills |
-| 4 | 点击 | `SUM(clicks)` | CTR = clicks / impressions |
-| 5 | 落地 | `SUM(landing)` | — |
-| 6 | 激活 | `SUM(activate)` | — |
-| 7 | 注册 | `SUM(register)` | — |
-| 8 | 登录 | `SUM(login)` | — |
-| 9 | 付费 | `SUM(payment)` | — |
-| 10 | 留存 | `SUM(retention)` | — |
+| # | 字段 | 类型 | 默认 | 折叠态 |
+|---|------|------|------|--------|
+| 1 | 日期 | dateRange (daterange) | 近 7 天 | ❌ 始终显示 |
+| 2 | 应用 | select (single) | 全部 | ❌ 始终显示 |
+| 3 | 广告位 | select (single, 依赖应用) | 全部 | ❌ 始终显示 |
+| 4 | 广告场景 | select (single) | 全部 | ❌ 始终显示 |
+| 5 | 渠道 | select (single) | 全部 | ❌ 始终显示 |
+| 6 | 地区 | select (single) | 全部 | ✅ `collapsed=false` 时显示 |
+| 7 | SDK 版本 | select (single) | 全部 | ✅ `collapsed=false` 时显示 |
+| 8 | App 版本 | select (single) | 全部 | ✅ `collapsed=false` 时显示 |
+| 9 | 设备类型 | select (single) | 全部 | ✅ `collapsed=false` 时显示 |
 
-#### 10.2.3 漏斗图渲染
+- **折叠切换**：右上角「展开/收起」按钮控制 `collapsed` ref
+- **应用 → 广告位联动**：选应用后广告位下拉按 `app_key` 过滤
+- **change → loadData()**：当前 **loadData() 为空函数**（仅 `console.log('[funnel] loadData', ...)`），筛选变化不触发数据更新
 
-- 横向漏斗图（ECharts funnel）
-- 左侧：步骤名 + 绝对值
-- 中间：漏斗图形（宽度按绝对值比例）
-- 右侧：转化率
-  - vs 上一步：`当前 / 上一步`
-  - 总体：`当前 / 第 1 步`
-- 鼠标悬停高亮当前步骤，显示详情
+#### 10.2.3 漏斗步骤定义（11 步 event + 9 步 rate 派生）
 
-#### 10.2.4 分天表格
+漏斗步骤定义在 `report_funnel_metric_definition` 表，**v1.4.2 实际从该表 SELECT**，按 `sort_order` 排序。共 20 条记录，**11 个 event 步** + **9 个 rate 派生率**：
 
-- 行：日期（7 天）
-- 列：10 步指标
-- 每个 cell 显示绝对值
-- 隔行斑马
-- 排序：按日期倒序
+| event_index | stage | code | name | unit | format | sort_order |
+|-------------|-------|------|------|------|--------|------------|
+| 1 | request | app_launch | 应用启动 | count | number | 100 |
+| 2 | request | fetch_config | 获取配置 | count | number | 101 |
+| 3 | request | ad_request | 流量请求 | count | number | 102 |
+| 4 | request | ad_fill | 流量填充 | count | number | 103 |
+| 5 | cache | reach_scene | 到达广告场景 | count | number | 200 |
+| 6 | cache | query_isready | 查询 isReady | count | number | 203 |
+| 7 | show | trigger_show | 触发展示 | count | number | 300 |
+| 8 | show | trigger_show_success | 触发展示成功 | count | number | 302 |
+| 9 | show | show | 展示 | count | number | 304 |
+| 10 | show | show_api | 展示 API | count | number | 306 |
+| 11 | click | click | 点击 | count | number | 400 |
 
-#### 10.2.5 趋势折线图
+**stage 分组**：
+- `request` 阶段：app_launch → fetch_config → ad_request → ad_fill（4 步）
+- `cache` 阶段：reach_scene → query_isready（2 步）
+- `show` 阶段：trigger_show → trigger_show_success → show → show_api（4 步）
+- `click` 阶段：click（1 步）
 
-- X 轴：日期（30 天）
-- Y 轴：次数
-- 10 条线：每条线 1 步
-- 工具栏：缩放 / 下载
-- 图例可点击切换
+**派生率（不计入 11 步）**：
+- `fill_rate`（流量填充率 = ad_fill / ad_request）
+- `reach_scene_rate` / `ad_ready_rate` / `isready_success_rate`
+- `trigger_rate` / `trigger_success_rate` / `show_success_rate`
+- `show_gap` / `click_rate`
 
-#### 10.2.6 功能架构
+#### 10.2.4 漏斗图渲染（SVG 自绘 · 非 ECharts）
 
-| 接口 | 方法 | 说明 |
-|------|------|------|
-| `/api/v1/console/report/funnel/definition` | GET | 漏斗步骤定义 |
-| `/api/v1/console/report/aggregate/aggregate` | POST | 指标聚合 |
+- **不使用** ECharts funnel。漏斗是 **Vue 模板 + SVG 路径** 自绘：
+  - 容器 `.funnel-grid` 内部 11 个 `funnel-metric` 节点
+  - 节点布局：左列（步骤名+绝对值）/ 中列（漏斗梯形 + 文字）/ 右列（转化率）
+  - 中间连接线：`.funnel-link-svg` SVG 元素，`viewBox` 动态计算，绘制相邻节点的曲线 + 圆点
+  - `resizeObserver` 监听 `funnelGridRef` 尺寸变化时 `recomputeLinks()` 重算路径
+- **左侧**：`步骤名` + `绝对值`（按当前 selected metric 展示）
+- **中间**：漏斗梯形 + 文字「次数 / 转化率」+ 阶梯
+- **右侧**：vs 上一步转化率 + 总体转化率
+- **悬停**：高亮当前节点（CSS `:hover` 蓝条 + 加粗）
+- **切换按钮**：「人均模式」/「总量模式」切换单步数值（人均 = 总量 / DAU，DAU 从 aggregate 取）
 
-#### 业务规则
+#### 10.2.5 工具栏按钮
 
-1. 漏斗步骤定义：`report_funnel_metric_definition` 表
-2. 公式解析：前端根据 `formula` 字符串调用聚合端点
-3. 转化率：步骤 / 上一步 / 总体
-4. **mock 数据**（dev 环境）：seededRandom 生成稳定漏斗数据
+| 按钮 | 行为 |
+|------|------|
+| 人均/总量切换 | `perCapitaMode` ref 切换；watch 触发 loadData（当前空） |
+| 编辑公式 | 打开 `MetricPickerDialog` 弹窗（路径：选中指标 + 公式预览） |
+| 指标选择 | 打开 `MetricPicker` 弹窗（与综合报表共用），选 11 步中的子集展示 |
+| 刷新 | 调用 `loadData()`（当前空实现） |
+| 「如何使用漏斗分析报表？」 | 帮助文字（图例 inline 展示） |
 
-#### 关键库表
+#### 10.2.6 底部 Tab（分天 / 趋势）
 
-- **`report_funnel_metric_definition`**：stage / code / name / formula / sort_order / is_system
-- **`report_daily`**：数据源
+| Tab | 内容 | 当前状态 |
+|-----|------|---------|
+| 分天 | 表格：行=日期（近 7 天）/ 列=11 个 event 步 | **UI 已就绪，未接数据** |
+| 趋势 | 折线图：X 轴日期（30 天）/ 11 条线（每条 1 步） | **UI 已就绪，未接数据** |
 
-#### 注意事项
+- `bottomTab` ref 控制当前 Tab；切换触发 `loadData`（空函数）
 
-1. 漏斗步骤可在「指标字典」admin 页面维护
-2. 公式中字段必须存在于 `report_daily`
-3. mock 数据刷新一致（seed 固定）
+#### 10.2.7 数据接入规划（待实现）
+
+```ts
+// 1. 拉漏斗步骤定义
+const defRes = await request.get('/api/v1/console/report/funnel/definition');
+// → { list: [{ stage, code, name, is_event, event_index, ... }] }
+
+// 2. 拉每步绝对值（按 stat_date 维度）
+const aggRes = await request.post('/api/v1/console/report/aggregate', {
+  report_type: 'funnel',
+  dimensions: ['date'],
+  metrics: defRes.data.list.filter(d => d.is_event).map(d => d.code),
+  filters: filter.value,
+});
+// → { rows: [{ date, app_launch, fetch_config, ..., click }] }
+
+// 3. 渲染：每步绝对值 = 该步 code 在 date 维度的 SUM
+//    转化率 = 当前 / 上一步
+//    总体 = 当前 / 第 1 步
+```
+
+> ⚠️ **当前 loadData() 为空函数**（Funnel.vue:807-809），仅 `console.log`。漏斗数据完全本地硬编码常量。后续接入需补充：filter 字段透传 + aggregate 端点支持 `report_type: 'funnel'` + 前端按 event_index 渲染。
+
+#### 10.2.8 关键库表
+
+- **`report_funnel_metric_definition`**（核心定义）
+  - 必填：`stage` / `code` / `name` / `format`
+  - 关键：`is_event`（true=event 步，false=rate 派生）/ `event_index`（1-11 顺序）/ `unit` / `formula`（派生指标公式）/ `sort_order` / `is_active` / `is_system` / `description`
+  - 11 步 event 全部 `is_system=true`（不允许删除）
+- **`report_daily`**（数据源）
+  - 复合唯一：`(developer_id, app_key, placement_id, ad_source_id, stat_date, hour)`
+  - 关键字段：`app_launch` / `fetch_config` / `ad_request` / `ad_fill` / `reach_scene` / `query_isready` / `trigger_show` / `trigger_show_success` / `show` / `show_api` / `click`（11 个 event 步 code 即为 report_daily 字段名）
+
+#### 10.2.9 注意事项
+
+1. **11 步漏斗顺序固定**：app_launch → fetch_config → ad_request → ad_fill → reach_scene → query_isready → trigger_show → trigger_show_success → show → show_api → click
+2. **stage 不可乱序**：request → cache → show → click
+3. **派生率仅展示**：rate 类步骤在漏斗图上不展示（只展示 event）
+4. **loadData() 当前空实现**：所有筛选变化只触发 `console.log`，不更新漏斗图
+5. **「编辑公式」按钮**：打开 MetricPickerDialog，当前仅 UI，无后端公式持久化
+6. **resizeObserver 监听**：离开页面必须 disconnect（Funnel.vue:827-829 已处理 `onBeforeUnmount`）
 
 ---
 
 ### 10.3 用户行为（Behavior）
 
+> **核心说明**：行为分析 v1.4.2 调 `/api/v1/console/report/aggregate` 拿真实数据（impressions / revenue_actual / dau），但**频次/价值的桶分布是前端按权重 mock 分配**（`peak` 中心 + 高斯衰减权重），时长 Tab 是直接合并主指标/对比指标的 aggregate 结果。数据接入部分已实现，桶分布需后续对接更精细化的 SQL 分桶。
+
 #### 10.3.1 页面布局（3 Tab）
 
 ```
-┌────────────────────────────────────────────────┐
-│  主维度切换：[展示频次] [用户价值] [使用时长]   │
-├────────────────────────────────────────────────┤
-│  筛选器：应用 / 广告位 / 时间                   │
-├────────────────────────────────────────────────┤
-│  上：趋势图（7 指标多线） + 「指标选择」按钮    │
-│  下：表格 + 分页（精致范）                       │
-└────────────────────────────────────────────────┘
+┌────────────────────────────────────────────────────┐
+│  主维度切换：[展示频次] [用户价值] [使用时长]          │
+├────────────────────────────────────────────────────┤
+│  筛选器：ReportFilter（与 Overview 共用 8 字段）      │
+│  日期/应用/广告位/广告平台/广告形式/广告源/国家/系统    │
+├────────────────────────────────────────────────────┤
+│  上：趋势图（多指标线） + 「指标选择」按钮            │
+│  下：表格（精致范分页）                              │
+└────────────────────────────────────────────────────┘
 ```
 
-#### 10.3.2 Tab 1：展示频次
+#### 10.3.2 Tab 1：展示频次（Frequency）
 
 ##### 上：趋势图
 
@@ -2051,111 +2021,372 @@ Drawer 中**独立 section**，**不是 v1.0 PRD 描述的独立弹窗**：
 - 「指标选择」按钮：弹窗 7 个 checkbox，默认全选
 - 取消勾选 → 对应线条隐藏
 
-##### 下：表格（9 列）
+##### 下：表格（10 档频次 × 8 字段）
 
 | # | 列 | 字段 | 渲染 |
 |---|----|------|------|
-| 1 | 频次 | `range_label` | 「1次」「2次」「3次」「4次」「5次」「6-10次」「11-20次」「21-50次」「51-100次」「100+次」 |
+| 1 | 频次 | `label` | 「1次」「2次」「3次」「4次」「5次」「6次」「7次」「8次」「9次」「10次」（**精确 10 档**，无 6-10/100+ 等合并段） |
 | 2 | 展示数 | `impressions` | 数字 + tabular-nums |
-| 3 | 展示占比 | `imp_pct` | 百分比 |
+| 3 | 展示占比 | `impPercent` | 百分比 + 2 位小数 |
 | 4 | 设备数 | `devices` | 数字 |
-| 5 | 设备占比 | `dev_pct` | 百分比 |
+| 5 | 设备占比 | `devPercent` | 百分比 + 2 位小数 |
 | 6 | 预估收益 | `revenue` | ¥ + 2 位小数 |
-| 7 | 预估收益占比 | `rev_pct` | 百分比 |
+| 7 | 预估收益占比 | `revPercent` | 百分比 + 2 位小数 |
 | 8 | eCPM | `ecpm` | ¥ + 2 位小数 |
-| 9 | 分布 | `distribution_bar` | 水平条形图（80px 宽） |
+| 9 | 分布 | `barWidth` | 水平条形图（按 `normW * 100 * 1.4` 计算宽度，max 140px） |
 
 ##### 关键交互
 
 - 行高 44px
 - 斑马纹
 - hover 蓝条
-- 9 列对齐：`grid-column: 1 / -1` + 行内复制 grid-template-columns
+- 9 列对齐：CSS Grid
 - 分页：pageSize=10，size 选项 [10, 20, 50]
 
-#### 10.3.3 Tab 2：用户价值
+##### 数据来源（混合：aggregate + 前端 mock 分布）
+
+```ts
+// 1. 调 aggregate 拿总数据
+const res = await request.post('/api/v1/console/report/aggregate', {
+  report_type: 'behavior',
+  dimensions: ['date'],
+  metrics: ['impressions', 'revenue_actual', 'dau'],
+  subtype: 'frequency',
+  filters: filter.value,
+});
+const rows = res.data.rows;
+const totalImps = rows.reduce((s, r) => s + r.impressions);
+const totalRev = rows.reduce((s, r) => s + r.revenue_actual);
+const totalUsers = Math.round(totalImps / 7) || 1;  // 估算 DAU
+
+// 2. 按 10 档分配权重（高斯衰减，peak=6 附近权重最高）
+const peak = 6;
+const weights = FREQ_BUCKETS.map((_, i) => Math.max(0.02, 0.16 - Math.abs(i + 1 - peak) * 0.018));
+const normW = weights.map(w => w / weights.reduce((a, b) => a + b));
+
+// 3. 每档按权重分配 展示/设备/收益
+FREQ_BUCKETS.forEach((b, i) => {
+  frequencyRows.push({
+    label: b.label,  // "1次", "2次", ..., "10次"
+    impressions: Math.round(totalImps * normW[i]),
+    devices: Math.round(totalUsers * normW[i]),
+    revenue: totalRev * normW[i],
+    barWidth: Math.max(2, normW[i] * 100 * 1.4),
+  });
+});
+```
+
+#### 10.3.3 Tab 2：用户价值（Value）
 
 ##### 上：趋势图
 
 - 7 指标：展示数 / 展示占比 / 设备数 / 设备占比 / 预估收益 / 预估收益占比 / **预估收益累计占比**
 - 「指标选择」按钮
+- 顶部控件：valueMetric（指标下拉）+ valueRange（范围下拉）切换维度
 
-##### 下：表格（8 列，可勾选）
+##### 下：表格（25 段 eCPM × 7 字段）
 
-| # | 列 | 字段 | 备注 |
+| # | 列 | 字段 | 渲染 |
 |---|----|------|------|
-| 1 | eCPM 范围 | `range_label` | 不可隐藏（默认） |
-| 2-8 | 7 指标 | 同上 | 可隐藏 |
+| 1 | eCPM 范围 | `range` | 25 段：`[0-1),[1-2),[2-3),...,[18-19),[20-25),[25-30),[30-35),[35-40),[40-45),[45-50]`（**25 段，不是 27 段**） |
+| 2 | 展示数 | `impressions` | 数字 + tabular-nums |
+| 3 | 展示占比 | `impPercent` | 百分比 + 2 位小数 |
+| 4 | 设备数 | `devices` | 数字 |
+| 5 | 设备占比 | `devPercent` | 百分比 + 2 位小数 |
+| 6 | 预估收益 | `revenue` | ¥ + 2 位小数 |
+| 7 | 预估收益占比 | `revPercent` | 百分比 + 2 位小数 |
+| 8 | 预估收益累计占比 | `revCumPercent` | 百分比 + 2 位小数（**仅 value Tab 独有**） |
 
-- 「维度」按钮：弹窗勾选哪些列显示（默认全选）
-- 取消勾选 → 对应列隐藏
-- 行数据：eCPM < 1 / 1-5 / 5-10 / 10-20 / 20-50 / 50-100 / 100+ (共 7 段 × 4 子段 = 27 行)
+##### 关键交互
+
+- 8 列对齐
 - 分页：pageSize=10，size 选项 [10, 20, 50, 100]
+- 累计占比 = 上一行累计 + 当前行占比（`cumPct += revPct`）
 
-#### 10.3.4 Tab 3：使用时长
+##### 25 段定义
+
+```ts
+const ranges = [];
+for (let i = 0; i < 20; i++) ranges.push({ label: `[${i}-${i + 1})`, min: i, max: i + 1 });
+[20, 25, 30, 35, 40, 45].forEach(v => ranges.push({ label: `[${v}-${v + 5})`, min: v, max: v + 5 }));
+ranges.push({ label: `[45-50]`, min: 45, max: 50 });
+// 总 20 + 5 + 1 = 26 段
+// ⚠️ 注意：[19-20) 与 [20-25) 之间有空隙（无 [19-20)），实际 25 段
+```
+
+#### 10.3.4 Tab 3：使用时长（Duration）
 
 ##### 上：趋势图
 
-- 2 条线：主指标 / 对比指标
-- 「主指标 / 对比指标」切换按钮
+- 2 条线：主指标（蓝） / 对比指标（灰）
+- 顶部控件：primaryMetric（主指标下拉）+ compareMetric（对比指标下拉）切换
 
 ##### 下：对比表格（5 列）
 
 | # | 列 | 字段 | 渲染 |
 |---|----|------|------|
 | 1 | 日期 | `date` | yyyy-MM-dd |
-| 2 | 主指标 | `main_value` | 数字 |
-| 3 | 对比指标 | `compare_value` | 数字 |
-| 4 | 差异 | `diff` | 主 - 对比（带 ▲▼ 三角） |
-| 5 | 差异% | `diff_pct` | 百分比（带 ▲▼ 三角） |
+| 2 | 主指标 | `main_value` | 数字 + tabular-nums |
+| 3 | 对比指标 | `compare_value` | 数字 + tabular-nums |
+| 4 | 差异 | `diff` | 主 - 对比（带 ▲▼→ 三角 + 涨色） |
+| 5 | 差异% | `diffPct` | 百分比（带 ▲▼→ 三角） |
 
 - 涨跌幅色彩：
-  - `▲` 绿色 `#059669`（涨）
-  - `▼` 红色 `#DC2626`（跌）
-  - `→` 灰色 `#94A3B8`（平）
-- 数据：最近 7 天
+  - `▲` 绿色 `#059669`（涨，main > compare）
+  - `▼` 红色 `#DC2626`（跌，main < compare）
+  - `→` 灰色 `#94A3B8`（平，main = compare）
+- 数据：最近 7 天（`dateRange` 筛选后）
+- 顶部汇总：主指标均值 + 对比指标均值（卡片展示）
 - 分页：pageSize=10，size 选项 [7, 14, 30]
 
-#### 10.3.5 功能架构
+##### 数据来源（直接 aggregate，无前端 mock）
 
-> **行为 Tab 纯前端 mock**（无后端 API）
+```ts
+const res = await request.post('/api/v1/console/report/aggregate', {
+  report_type: 'behavior',
+  dimensions: ['date'],
+  metrics: [primaryMetric.value, compareMetric.value],
+  subtype: 'duration',
+  compare_metric: compareMetric.value,
+  filters: filter.value,
+});
+const primary = res.data.primary;   // [{ date, value: r[primaryMetric] }]
+const compare = res.data.compare;   // [{ date, value: r[compareMetric] }]
+// 计算 diff / diffPct / 三角符号
+```
 
-| 内部方法 | 说明 |
-|---------|------|
-| `loadAll()` | 生成 30 天趋势 + 3 个 Tab 表格数据 |
-| `seededRandom(seed)` | 基于 seed 的伪随机 |
-| `pagedFrequencyData` | computed，分页后的频率数据 |
-| `pagedValueData` | computed，分页后的价值数据 |
-| `pagedDurationData` | computed，分页后的时长数据 |
-| `freqPage / valuePage / durationPage` | ref，当前页 |
-| `pageSize` | ref，10 |
+#### 10.3.5 关键库表
 
-#### 业务规则
+- **无独立表**——所有数据来自 `report_daily` 聚合
+- 频次/价值的桶分布：v1.4.2 是前端 mock 分配（高斯权重）；**待 SQL 分桶优化**（如 `SELECT SUM(CASE WHEN impressions BETWEEN 1 AND 1 THEN 1 END) AS bucket_1 ...`）
+- 时长 Tab：直接 aggregate，无 mock
 
-1. **mock 数据**：
-   - seededRandom（基于 placement_id 哈希）
-   - 保证刷新数据稳定
-2. **指标选择**：
-   - 弹窗采用与综合报表一致的「6 列布局指标弹窗」（详见 10.1.8）
-   - 12 个分类 × 4-6 指标 = 48-72 个指标可勾选
-   - 默认全选；取消勾选 → 趋势图对应线条 + 表格对应列同时隐藏
-   - 选 51 个指标不撑大弹窗（已选列内部滚动）
-3. **维度选择**（仅 value Tab）：与指标选择类似
-4. **差异计算**（duration）：`diff = main - compare`，`diffPct = diff / compare * 100`
-
-#### 关键库表
-
-- **无独立表**，mock 生成
-- 真实数据可来自 `report_daily`（未来对接）
-
-#### 注意事项
+#### 10.3.6 注意事项
 
 1. **行高必须 44px**（CSS 硬约束）
-2. **9 列对齐**：`grid-column: 1 / -1` + 行内复制 grid-template-columns
-3. **分页**：`el-pagination` `background small layout="total, sizes, prev, pager, next, jumper"`
-4. **涨跌幅色彩**：`▲` 绿色 / `▼` 红色 / `→` 灰色
-5. **数字列**：`font-variant-numeric: tabular-nums`
-6. 详见 DESIGN.md「数据表格精致范规范」
+2. **数字列**：`font-variant-numeric: tabular-nums`
+3. **涨跌幅色彩**：`▲` 绿色 / `▼` 红色 / `→` 灰色
+4. **频次档 10 档精确**（1-10），不是合并段（6-10/100+ 等）
+5. **eCPM 25 段**：`[0-1)` ~ `[45-50]`，注意 `[19-20)` 与 `[20-25)` 之间空隙
+6. **duration 主/对比指标**切换时，primary 卡片 + compare 卡片 + 表格同步更新
+7. **3 个 Tab 共用 ReportFilter**：切换 Tab 不重置筛选器
+8. **v1.4.2 行为数据已接后端**，但频次/价值桶分布需后续 SQL 优化（消除前端 mock）
+
+---
+
+### 10.4 接口表（v1.4.2 重写：21 个端点）
+
+> §10 数据报表共 21 个 REST 端点，分布在 4 个文件：report-board.ts（6）/ report-aggregate.ts（8）/ report-metric.ts（5）/ report.ts（2 旧版兼容）。
+
+#### 10.4.1 看板 CRUD（report-board.ts，6 个）
+
+| # | 方法 | 路径 | 说明 | 调用方 |
+|---|------|------|------|--------|
+| 1 | GET | `/api/v1/console/report/board/list` | 列出当前开发者的所有看版（含默认看版 + 自定义看版） | Overview 初始化、左侧列表刷新 |
+| 2 | GET | `/api/v1/console/report/board/detail/:id` | 获取看版详情（含 config JSON 字段：dimensions/metrics/filters/title） | Overview 选中看版时加载 |
+| 3 | POST | `/api/v1/console/report/board/create` | 新建看版 | SaveAsBoardDialog「保存为新看版」 |
+| 4 | PATCH | `/api/v1/console/report/board/update/:id` | 更新看版（config 整体覆盖） | BoardConfigDialog 确认 |
+| 5 | DELETE | `/api/v1/console/report/board/delete/:id` | 删除看版（**默认看版不可删**） | 左侧列表行内删除按钮 |
+| 6 | POST | `/api/v1/console/report/board/duplicate/:id` | 复制看版（深拷贝 + 重命名「原名 - 副本」） | 左侧列表行内复制按钮 |
+
+#### 10.4.2 聚合查询（report-aggregate.ts，6 个）
+
+| # | 方法 | 路径 | 说明 | 调用方 |
+|---|------|------|------|--------|
+| 7 | POST | `/api/v1/console/report/aggregate` | 通用聚合（dimensions/metrics/filters/groupBy） | Overview、Behavior、Funnel 三个视图都调 |
+| 8 | POST | `/api/v1/console/report/aggregate/options` | 获取筛选器可选项（应用/广告位/广告源/国家/系统 列表） | ReportFilter 打开时加载 |
+| 9 | POST | `/api/v1/console/report/aggregate/validate-formula` | 校验自定义公式（指标字典里的 formula 字段） | MetricPicker 校验 |
+| 10 | POST | `/api/v1/console/report/export/csv` | 导出 CSV（同步返回文件内容） | Overview 行内「导出 CSV」 |
+| 11 | POST | `/api/v1/console/report/export/excel` | 导出 Excel（异步，返回 task_id） | Overview 行内「导出 Excel」 |
+| 12 | POST | `/api/v1/console/report/export/pdf` | 导出 PDF（异步，返回 task_id） | Overview 行内「导出 PDF」 |
+| 13 | GET | `/api/v1/console/report/export/download/:filename` | 下载异步导出的文件 | 导出后浏览器自动下载 |
+| 14 | GET | `/api/v1/console/report/funnel/definition` | 获取漏斗步骤定义（**Funnel.vue 当前未调用，步骤定义在本地常量**） | Funnel（计划中） |
+
+#### 10.4.3 指标字典（report-metric.ts，4 个）
+
+| # | 方法 | 路径 | 说明 | 调用方 |
+|---|------|------|------|--------|
+| 15 | GET | `/api/v1/console/report-metric/list` | 列出所有指标（按 category 分类） | MetricPicker 打开时加载 |
+| 16 | GET | `/api/v1/console/report-metric/categories` | 列出指标分类 | MetricPicker 顶部 tab |
+| 17 | POST | `/api/v1/console/report-metric/create` | 新建指标（仅 admin） | /admin/report-metric |
+| 18 | PATCH | `/api/v1/console/report-metric/update/:id` | 更新指标（仅 admin） | /admin/report-metric |
+| 19 | DELETE | `/api/v1/console/report-metric/delete/:id` | 删除指标（仅 admin；**系统指标不可删**） | /admin/report-metric |
+
+#### 10.4.4 旧版报表（report.ts，2 个，保留兼容）
+
+| # | 方法 | 路径 | 说明 | 调用方 |
+|---|------|------|------|--------|
+| 20 | GET | `/api/v1/console/report/daily` | 日报数据（v1.0 旧版） | 旧版报表（v1.4.2 Overview **未调用**） |
+| 21 | GET | `/api/v1/console/report/export` | 旧版导出（v1.0 旧版） | 旧版报表（v1.4.2 Overview **未调用**） |
+
+#### 10.4.5 请求/响应示例
+
+##### 通用聚合（#7）
+
+```http
+POST /api/v1/console/report/aggregate
+Content-Type: application/json
+Authorization: Bearer <token>
+
+{
+  "report_type": "overview",         // overview | behavior | funnel
+  "dimensions": ["date", "app_key"],
+  "metrics": ["impressions", "revenue_actual", "click", "ctr", "ecpm"],
+  "filters": {
+    "date_range": ["2025-01-01", "2025-01-07"],
+    "app_keys": ["app_001"],
+    "placement_ids": ["pl_001"],
+    "platforms": ["android"],
+    "countries": ["CN", "US"],
+    "ad_sources": ["as_001"]
+  },
+  "group_by": "app_key",
+  "limit": 100,
+  "offset": 0
+}
+```
+
+```json
+// 200 OK
+{
+  "code": 0,
+  "message": "ok",
+  "data": {
+    "rows": [
+      { "date": "2025-01-01", "app_key": "app_001", "impressions": 10000, "revenue_actual": 50.5, "click": 200, "ctr": 0.02, "ecpm": 5.05 },
+      ...
+    ],
+    "total": 1000,
+    "summary": { "impressions": 1000000, "revenue_actual": 5000 }
+  }
+}
+```
+
+##### 看版列表（#1）
+
+```http
+GET /api/v1/console/report/board/list
+```
+
+```json
+{
+  "code": 0,
+  "data": {
+    "boards": [
+      { "id": "bd_001", "title": "默认看版", "is_default": true, "config": {...} },
+      { "id": "bd_002", "title": "我的活动报表", "is_default": false, "config": {...} }
+    ]
+  }
+}
+```
+
+### 10.5 关键库表（v1.4.2 新增 2 张）
+
+#### 10.5.1 `report_board`（看版配置表）—— **v1.4.2 新增**
+
+| 字段 | 类型 | 必填 | 备注 |
+|------|------|------|------|
+| `id` | `text` | ✓ | UUID v4，主键 |
+| `developer_id` | `text` | ✓ | 所属开发者（不区分 app） |
+| `title` | `varchar(64)` | ✓ | 看版标题 |
+| `config` | `jsonb` | ✓ | 看版配置：{ dimensions: [], metrics: [], filters: {}, groupBy: '' } |
+| `is_default` | `boolean` | ✓ | 是否默认看版（每个 developer_id 仅 1 个 true） |
+| `is_hidden` | `boolean` | ✓ | 是否隐藏（隐藏后在侧边栏不显示但仍可访问） |
+| `report_type` | `varchar(32)` | — | overview / behavior / funnel（决定渲染哪种视图，**默认 overview**） |
+| `sort_order` | `integer` | — | 列表排序（默认 0，值越小越靠前） |
+| `created_at` | `timestamptz` | — | 创建时间 |
+| `updated_at` | `timestamptz` | — | 更新时间 |
+
+**唯一约束**：
+- `(developer_id, title)` 唯一（不允许同 developer 下重名）
+- 每个 developer 只能有 1 个 `is_default=true` 的看版（应用层保证）
+
+**索引**：
+- `idx_report_board_dev ON (developer_id, is_default, sort_order)`
+
+#### 10.5.2 `report_metric_definition`（指标字典表）—— **v1.4.2 新增**
+
+| 字段 | 类型 | 必填 | 备注 |
+|------|------|------|------|
+| `id` | `text` | ✓ | UUID v4，主键 |
+| `code` | `varchar(64)` | ✓ | 指标 code（`impressions` / `revenue_actual` / `ecpm` / `ctr` 等） |
+| `name` | `varchar(64)` | ✓ | 指标显示名 |
+| `category` | `varchar(32)` | ✓ | 分类：basic / ad / user / revenue / formula |
+| `unit` | `varchar(16)` | — | 单位：number / percent / money / duration |
+| `format` | `varchar(16)` | — | 渲染格式：integer / decimal(2) / percent(2) |
+| `formula` | `text` | — | 公式（仅 formula 类有，如 `clicks / impressions * 100`） |
+| `is_system` | `boolean` | ✓ | 是否系统指标（true=不可删除，false=用户自定义可删） |
+| `is_active` | `boolean` | ✓ | 是否启用（false 时 MetricPicker 不显示） |
+| `description` | `text` | — | 描述（hover tooltip） |
+| `sort_order` | `integer` | — | 同 category 内排序 |
+| `created_at` | `timestamptz` | — | 创建时间 |
+
+**唯一约束**：
+- `code` 唯一
+
+**预置指标**（`is_system=true`）：
+- basic 类：`impressions` / `clicks` / `conversions` / `dau`
+- ad 类：`fill_rate` / `show_rate` / `click_rate` / `request_count`
+- user 类：`dau_per_app` / `session_duration` / `retention_d1`
+- revenue 类：`revenue_actual` / `revenue_estimated` / `ecpm` / `arpu`
+- formula 类：`ctr` (=clicks/impressions) / `cpa` (=revenue/conversions) / `roi` (=revenue/cost)
+
+#### 10.5.3 `report_funnel_metric_definition`（漏斗步骤定义表）—— v1.4.2 新增
+
+| 字段 | 类型 | 必填 | 备注 |
+|------|------|------|------|
+| `id` | `integer` | ✓ | 主键 |
+| `stage` | `varchar(16)` | ✓ | request / cache / trigger / render / action |
+| `code` | `varchar(64)` | ✓ | 步骤 code（`app_launch` / `fetch_config` / `ad_request` / `ad_fill` / `reach_scene` / `query_isready` / `trigger_show` / `trigger_show_success` / `show` / `show_api` / `click` 等） |
+| `name` | `varchar(64)` | ✓ | 显示名 |
+| `is_event` | `boolean` | ✓ | true=事件步（11 个核心事件），false=派生率（rate） |
+| `event_index` | `integer` | — | 事件序号（1-11），仅 `is_event=true` 有值 |
+| `unit` | `varchar(16)` | — | count / percent |
+| `format` | `varchar(16)` | — | integer / percent(2) |
+| `is_active` | `boolean` | ✓ | 是否启用 |
+| `sort_order` | `integer` | — | 漏斗步骤排序 |
+
+**预置数据**（11 个 event + 9 个 rate 派生 = 20 行）：
+
+| event_index | stage | code | name | 说明 |
+|------|------|------|------|------|
+| 1 | request | app_launch | App 启动 | 客户端冷启动 + 热启动 |
+| 2 | request | fetch_config | 拉取配置 | SDK 拉取瀑布流配置 |
+| 3 | request | ad_request | 广告请求 | SDK 发起广告请求 |
+| 4 | request | ad_fill | 广告填充 | 广告源返回广告 |
+| — | request | fill_rate | 填充率 | ad_fill / ad_request |
+| 5 | cache | reach_scene | 触达场景 | 进入广告位场景 |
+| — | cache | reach_scene_rate | 触达率 | reach_scene / ad_fill |
+| — | cache | ad_ready_rate | 就绪率 | ad_ready / reach_scene |
+| 6 | cache | query_isready | 查询就绪 | 客户端查询广告就绪状态 |
+| — | cache | isready_success_rate | 就绪成功率 | isready_success / query_isready |
+| 7 | trigger | trigger_show | 触发展示 | 客户端触发展示 |
+| — | trigger | trigger_rate | 触发率 | trigger / isready_success |
+| 8 | trigger | trigger_show_success | 触发成功 | 触发展示且成功 |
+| — | trigger | trigger_success_rate | 触发成功率 | trigger_show_success / trigger |
+| 9 | render | show | 展示 | 广告成功展示 |
+| — | render | show_success_rate | 展示成功率 | show / trigger_show_success |
+| 10 | render | show_api | 展示 API | 调用展示 API |
+| — | render | show_gap | 展示间隙 | show_api - show |
+| 11 | action | click | 点击 | 用户点击广告 |
+| — | action | click_rate | 点击率 | click / show |
+
+**唯一约束**：`(code)` 唯一
+
+**索引**：`idx_funnel_active_sort ON (is_active, sort_order)`
+
+### 10.6 §10 注意事项（v1.4.2 重写）
+
+1. **Overview 不再有 KPI/趋势/TOP 10**：v1.4.2 整个 Master-Detail 替换了 v1.0 的"4 KPI + 趋势折线 + TOP 10 排行 + 明细表"模式。如需 KPI 速览，进入 §4 数据看板。
+2. **Funnel 11 步**：v1.4.2 漏斗是 11 个 event + 9 个 rate 派生步骤，**纯前端 mock**（`loadData` 空实现）。后续需要：
+   - 步骤定义走 `GET /funnel/definition`（已存在但未调）
+   - 漏斗数据走 `POST /aggregate`（带 `report_type: 'funnel'`）
+3. **Behavior 桶分布待 SQL 优化**：v1.4.2 桶分布是前端 mock 分配，目标是服务端 GROUP BY 分桶（如 `SELECT SUM(CASE WHEN impressions BETWEEN 1 AND 1 THEN 1 END) AS bucket_1, ...`）。
+4. **看版系统隔离**：`report_board` 按 `developer_id` 隔离，跨开发者不可见。`is_default=true` 的看版是新建 developer 时的默认入口。
+5. **指标字典**：`report_metric_definition` 是所有报表（Overview/Behavior/Funnel）的指标来源。新建自定义指标需要 admin 权限。
+6. **导出 3 格式**：CSV 同步，Excel/PDF 异步（task_id + download URL）。**前端下载必须用 fetch + blob**（详见 AGENTS.md §2 文件下载规范）。
+7. **筛选器共用**：`ReportFilter` 组件在 3 个视图中复用，切换 Tab/view 不重置筛选条件。
+8. **未对接的旧版端点**：`/report/daily` 和 `/report/export` 在 v1.4.2 **未使用**，仅保留兼容。后续将彻底废弃。
 
 ---
 
@@ -3933,6 +4164,7 @@ ALTER TABLE waterfall_config ADD COLUMN IF NOT EXISTS layers JSONB DEFAULT '[]':
 
 | 日期 | 版本 | 变更 |
 |------|------|------|
+| 2026-08-02 | **v1.4.2** | **§10 数据报表整章重写**（410 → 850 行）：① §10.1 Overview 从「4 KPI + 收入趋势折线 + TOP 10 排行 + 明细数据表」改为「Master-Detail（左侧看版列表面板 360px + 右侧 ReportTableView 动态列）」；② 看版系统新增 6 个端点：`/report/board/list` `/report/board/detail/:id` `/report/board/create` `/report/board/update/:id` `/report/board/delete/:id` `/report/board/duplicate/:id`；③ 看版系统新增 1 张表 `report_board`（11 字段：id/developer_id/title/config(jsonb)/is_default/is_hidden/report_type/sort_order/created_at/updated_at）；④ §10.2 Funnel 从「10 步 ECharts funnel」改为「11 步 SVG 自绘漏斗 + 9 步派生 rate」；⑤ 漏斗 11 步定义（event_index 1-11）：app_launch / fetch_config / ad_request / ad_fill / reach_scene / query_isready / trigger_show / trigger_show_success / show / show_api / click；⑥ Funnel 漏斗数据**纯前端 mock**（`loadData` 是空函数，只 `console.log`），调 `/funnel/definition` 端点存在但 **Funnel.vue 未调用**，步骤定义来自 `report_funnel_metric_definition` 表 + 前端常量；⑦ §10.3 Behavior 3 Tab 数据源修正：v1.4.2 已接 `/report/aggregate` 后端，但**频次/价值的桶分布是前端按高斯权重 mock 分配**（peak=6 附近权重最高），时长 Tab 是直接合并主/对比指标 aggregate 结果；⑧ 频次 10 档精确（1-10），不是合并段（6-10/100+）；⑨ 价值 25 段 eCPM（`[0-1) ~ [45-50]`，注意 `[19-20)` 与 `[20-25)` 之间空隙），8 列（多 `revCumPercent` 累计占比列），不是 27 段 7 列；⑩ 时长 5 列（date/main_value/compare_value/diff/diffPct）+ 主/对比指标顶部卡片；⑪ §10.4 接口表完全重写：4 个文件 21 个端点（report-board 6 + report-aggregate 8 + report-metric 5 + 旧版 report 2），删除 v1.0 误写的 6 端点；⑫ §10.5 库表新增 2 张：`report_metric_definition`（12 字段：id/code/name/category/unit/format/formula/is_system/is_active/description/sort_order/created_at；预置 5 类 16 指标）+ `report_funnel_metric_definition`（11 字段 + 11 个 event + 9 个 rate 派生步骤预置数据）；⑬ §10.6 注意事项记录 8 条：Overview 不再有 KPI/趋势/TOP 10、Funnel 11 步待对接后端、Behavior 桶分布待 SQL 优化、看版按 developer_id 隔离、指标字典仅 admin 可删系统指标、导出 3 格式（CSV 同步/Excel+PDF 异步）、ReportFilter 3 视图共用、v1.0 旧版 `/report/daily`+`/report/export` 端点保留兼容但 **Overview 未调用**；⑭ Funnel 7 筛选器（日期/应用/广告位/广告场景/渠道/地区/SDK版本）+ collapsed 折叠开关完整记录；⑮ ReportTableView 动态列渲染规则（按 `config.dimensions` × `config.metrics` 数组）明确记录 |
 | 2026-08-02 | **v1.4.1** | **5 张功能架构图重画**（覆盖 v1.2.0/v1.3.0/v1.4.0 整章重写内容）：① §4 数据看板 → 3 段式布局（4 时段收入卡 + 30 天趋势折线 + 6 维度排行 + 转化漏斗）；② §5 应用管理 → Master-Detail + AppDrawer 18 字段 3 段 + 独立 FrequencyDrawer + 双平台绑定弹窗；③ §7 流量分组 → 单页 el-table + Drawer + RuleEditor 18 维度 12 UI；④ §8 广告源 → 双列布局（左侧 320px 应用列表 + 右侧 7 列表格）+ entryMode + Drawer 内动态 schema + 流量分组 section；⑤ §9 瀑布流 → Master-Detail + 3 个独立 el-table（Bidding/瀑布/兜底）+ 历史版本 + 双写策略（waterfall_config.layers JSONB + waterfall_layer 关联表）。PNG 文件 `public/architecture/03_2__数据看板.png` / `04_3__应用管理.png` / `06_5__流量分组.png` / `07_6__广告源管理.png` / `08_7__瀑布流配置.png`。PRD 文档对应章节标题下新增 `![架构图]` 引用（之前完全脱钩）。`public/architecture/_render.html` mermaid 源码同步更新。mermaid-cli v11+ + chromium-1161 渲染。 |
 | 2026-08-01 | **v1.4.0** | **§7 流量分组 / §8 广告源 / §9 瀑布流 整章重写**（584 行）：① §7 改「单页 el-table + 顶部筛选 + Drawer 创建/编辑」非双列树布局；② RuleEditor 字段完整列出（18 维度，5 类型 12 UI：text-list / multi-select / single-select / number / number-unit / date-range / weekday-pick / hour-range / ecpm-range / region-china / region-global / custom-attr）；③ §8 改「双列布局（左侧 320px 应用列表 + 右侧表格）」+ entryMode 区分 standard/custom；④ 关联应用/广告位改为单选（非 v1.0 多选）；⑤ 平台字段改为动态 schema（4 预置 + 自定义 K-V），不是固定 4 字段；⑥ 关联流量分组改为 Drawer 内 section（不是独立弹窗），10 字段（id/ad_source_id/traffic_group_id/status/price/hour_limit/day_limit/interval_sec/created_at/updated_at）；⑦ §9 改「Master-Detail（左侧 320px 广告位列表 + 右侧详情 4 段）」非 3 列拖拽编辑器；⑧ 3 层配置改为 3 个独立 el-table（非拖拽）；⑨ 入参拼写 `placementId`/`trafficGroupId`（camelCase，不是 snake_case）；⑩ `/waterfall/simulate` 端点标注未上线（v1.2 已标 v1.4 删整行）；⑪ 库表字段长度 7 处修正：`traffic_group.placement_id` 50→32 / `group_name` 100→50 / `waterfall_config_id` NULL→NOT NULL / `developer_id` 50→32 / `waterfall_id` 50→64 / `ad_source.developer_id` 50→32 / `ad_source.network_code` 50→20 / `ad_source.network_name` 100→50 / `waterfall_config.placement_id` 200→50 / `waterfall_layer.network_code` 20→50 / `waterfall_layer.timeout_ms` 改 NULL 无默认；⑫ 库表新增字段：`waterfall_config.developer_id` / `name` / `is_default` / `created_at` / `updated_at`；⑬ §7.5 删 `/test-match` 端点（实际不存在）；⑭ §8.4 update/delete 双名端点说明（`/update`+`/:id` / `/delete`+`/:id`）；⑮ conditions JSONB 实际结构修正为 18 维度 + 含 `id/uuid/regionScope/installUnit/customAttrName/customAttrType/timezone` 9 字段；⑯ 「行点击 = 加载按钮」等价、「默认分组始终选中」、「编辑中蓝色脉冲 tag + 已加载 disabled 按钮」等微交互完整记录 |
 | 2026-08-01 | **v1.3.0** | **§5 应用管理整章重写**（220 → 360 行）：① 整体 UI 从「13 列表格」改为「Master-Detail（左侧主列表 + 右侧详情）」；② 顶部工具栏去掉「平台下拉/状态下拉」，保留「搜索 + 排序 + 创建」；③ 主列表为 `app-master-item` 卡片列表（每卡 4 字段：图标/名称+平台标签/app_key+复制/状态锁），无分页，一次性拉完（pageSize=200）；④ 右侧详情 3 段式 Card：数据预览（4 指标卡 + 7 日 sparkline + 较前日/7 日趋势）/ 广告平台关联（grid 卡片 + 关联按钮）/ 广告位管理（筛选+表格+分页）；⑤ AppDrawer 字段全部重写：3 段式（平台与上架/基础信息/高级设置），共 18 个字段，**频次配置从 AppDrawer 移出到独立 FrequencyDrawer**（频次规则是 4 模块 × 数组结构，含 impressionCapDay/Hour/Interval + requestCap 4 模块，每条规则有 count/unlimited/platforms/adTypes 字段）；⑥ AppDrawer 修正：超时默认 5000ms（不是 1000）/ 微信 Universal Link 是 accessType=1+platform=2 双条件（不是仅 iOS）/ 分类是 el-cascader 数组（不是 select 单选）/ orientation 枚举是 1/2/3 默认 2（不是 0/1/2 默认 1）/ COPPA/CCPA 是 radio（不是 switch）/ Drawer 宽 760px（不是 480px）；⑦ 平台绑定从「单弹窗」改为「双弹窗」：BindNetworkDrawer（动态 schema：CSJ/YLH/KS/BD 4 个预置 + 自定义平台 K-V，含 text/password/switch/currency/pub-key/key-value 6 种字段类型）+ ViewNetworkDrawer（只读查看基本信息 + 字段配置）；⑧ frequency 接口路径修正：`:id/frequency` → `:appKey/frequency`（注意是 appKey 不是 id，PUT 改为 POST）；⑨ 接口表新增 4 个：`/console/dashboard/overview` `/console/network/app/list` `/console/network/app/bind` `/console/network/app/unbind`；⑩ 库表字段长度 5 处修正：app_key 32（不是 50）/ category 20（不是 50）/ icon_url 255（不是 500）/ app_domain text（不是 200）/ auth_subaccount text（不是 100）/ developer_id 32（不是 50）/ 索引删「developer_id+status 联合索引」描述（实际不存在）；⑪ form key 是 camelCase（`appName`/`packageName`/`requestTimeout`/`wechatAppId` 等）已明确记录；⑫ 频次配置结构修正为「4 模块 × 规则数组」+ 完整 JSON 示例 |
