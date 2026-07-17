@@ -2521,250 +2521,344 @@ GET /api/v1/console/report/board/list
 
 ---
 
-## 12. 广告平台 / Adapter
+## 12. 广告平台 & Adapter 管理（v1.4.3 整章重写）
 
-6 步对接流程的目标是让开发者能够**自助接入自定义广告平台**。
+> 章节版本：v1.4.3（2026-07-19）整章对齐实际代码，与 §20/§21 SDK 管理打通
+> 入口：`/network`（MainLayout 下，开发者和超管共用）
+> 本章是开发者管理"广告平台 + 自定义 Adapter + 账号凭证 + 应用关联"的统一入口。**SDK 本身的下载/版本管理**详见 §20（开发者侧 SDK 中心）和 §21（管理后台 SDK 模块）。
 
-### 12.1 页面结构（4 Tab）
+### 12.1 概述
+
+**核心定位**：
+- **不是 6 步对接流程**（v1.4.1 PRD 的设计未落地）
+- 实际是 **2 Tab + 5 Drawer** 的扁平化设计：账号管理 / 自定义平台管理分离，操作通过 Drawer 触发
+- **凭证字段 Schema 驱动**：`src/shared/network-schemas.ts` 按平台定义字段集合，弹窗动态渲染
+- 接入流程由开发者**自由组合**：先建账号、再上传 Adapter、再绑应用，每步独立完成
+
+**2 Tab**：
+
+| Tab | 入口组件 | 业务对象 | 关键操作 |
+|-----|---------|---------|---------|
+| **广告平台账号** | `NetworkAccountManager.vue` | `ad_network_account`（凭证 + 平台映射） | 创建账号 / 编辑凭证 / 查看 / 删除 |
+| **自定义广告平台** | 页面内 `customNetworks` 表格 | `ad_network_def`（自定义） + `custom_adapter_version` + `app_network_binding` | 创建/编辑平台 / Adapter 管理 / 应用关联 |
+
+**5 Drawer**（全部基于 `el-drawer` 从右侧滑出，宽度 480~720）：
+
+| Drawer | 触发位置 | 用途 | 关联组件 |
+|--------|---------|------|---------|
+| **创建/编辑账号** | Tab1 的"创建账号"按钮 + 行"编辑" | 表单录入凭证（Schema 动态字段） | `NetworkAccountManager.vue` 内部 |
+| **查看凭证** | Tab1 的行"查看" | 凭证脱敏展示（password 类型隐藏） | `NetworkAccountManager.vue` 内部 |
+| **创建/编辑自定义平台** | Tab2 的"创建"按钮 + 行"编辑" | 表单录入平台基本信息 | `network/Index.vue` 内联 |
+| **Adapter 版本管理** | Tab2 行"Adapter"按钮 | 版本列表 + 审核/通过/拒绝 | `ReviewPanel.vue` |
+| **应用关联** | Tab2 行"应用关联"按钮 | 现有绑定列表 + 新增绑定 | `network/Index.vue` 内联 |
+| 上传 Adapter | "Adapter" Drawer 内的"上传版本" | 上传 ZIP Adapter 包 | `network/Index.vue` 内联 |
+
+> 注：上表 6 行中"创建/编辑账号"与"查看凭证"在 NetworkAccountManager 内部用 v-if 切换，共享同一个 `<el-drawer>`。故外部看起来是 5 个独立 Drawer。
+
+### 12.2 Tab 1：广告平台账号
+
+**业务对象**：`ad_network_account`（账号 + 凭证 + 状态），**一个账号 = 一个开发者 + 一个平台 + 一组凭证**。
+
+**页面结构**：
+```
+┌────────────────────────────────────────────────────────┐
+│  顶栏：广告平台账号 / 横幅说明                            │
+│  ┌─────────────────────────────────────────────────┐  │
+│  │ 筛选：广告平台 [下拉] + 账号状态 [下拉] + [搜索]    │  │
+│  └─────────────────────────────────────────────────┘  │
+│  ┌─────────────────────────────────────────────────┐  │
+│  │ 账号名称 │ 平台 │ 账号ID │ 凭证字段数 │ 状态 │    │  │
+│  │          │     │        │  │更新时间 │ 操作  │   │  │
+│  │ 行行行行行行行行行行行行行行行行行行行行行行行行行行行行  │  │
+│  └─────────────────────────────────────────────────┘  │
+│  分页 [10/20/50/100]   < 1 2 3 >                       │
+└────────────────────────────────────────────────────────┘
+```
+
+**表格列定义**（7 列）：
+
+| 列 | prop | width | 渲染 | 备注 |
+|----|------|-------|------|------|
+| 账号名称 | account_name | 180 | 文本 | 弹窗顶层唯一标识 |
+| 广告平台 | network_name | 140 | 文本（platform_logo + 名称） | 来自 `ad_network_def.network_name` |
+| 账号 ID | account_id | 160 | 文本 | 部分平台（如穿山甲）由平台颁发 |
+| 凭证字段数 | credentials_count | 100 | 数字 tag | `Object.keys(credentials).length` |
+| 状态 | status | 100 | el-tag（active=绿，inactive=灰） | |
+| 更新时间 | updated_at | 170 | dayjs 格式化 | |
+| 操作 | – | 200 | 查看 / 编辑 / 删除 | 三个 link 按钮 |
+
+**创建/编辑账号 Drawer**：
+- 顶部：`账号名称`（必填，180px 宽）+ `广告平台`（下拉，必填，搜索 `is_preset=true` 的网络）
+- 平台选定后，**根据 `network_code` 查 `network-schemas.ts` 拿到字段定义**，动态渲染表单
+- 字段类型支持：text / password / switch / currency（固定币种）/ select（下拉）/ key-value（K-V 多对）/ pub-key（生成+复制）
+- 字段支持：必填校验 / placeholder / tooltip（label 后 ? 问号）/ showWhen 条件显隐 / span 列宽
+- 提交时所有字段打平进 `credentials` JSONB 一并落库
+- 编辑模式：先调 GET 拉回账号，credentials 反序列化到表单
+
+**Schema 字段示例**（穿山甲 CSJ）：
+```ts
+{
+  type: 'password', key: 'app_id', label: 'App ID', required: true, maxlength: 32,
+  tooltip: '穿山甲媒体平台创建的应用 ID',
+},
+{
+  type: 'password', key: 'app_secret', label: 'App Secret', required: true, maxlength: 64,
+},
+{ type: 'switch', key: 'personalization', label: '个性化推荐' },
+{ type: 'select', key: 'audit_status', label: '审核状态', options: [...] },
+{ type: 'currency', key: 'currency', label: '结算币种', fixed: 'CNY' },
+{ type: 'key-value', key: 'ext_headers', label: '扩展请求头' },
+```
+
+**凭证查看 Drawer**：
+- 与创建/编辑共享同一 Drawer（v-if 切换 mode='view'）
+- password / pub-key 类型字段显示为 `••••••••`，右侧"显示/隐藏"切换按钮
+- 不允许编辑，只读模式（无保存按钮）
+
+**接口**（Tab1）：
+
+| 端点 | 方法 | 用途 |
+|------|------|------|
+| `/api/v1/console/network-accounts` | GET | 列表（支持 network_def_id / status 过滤 + 分页） |
+| `/api/v1/console/network-accounts` | POST | 创建（account_name + network_def_id + credentials JSONB） |
+| `/api/v1/console/network-accounts/{id}` | GET | 详情（返回 credentials 反序列化） |
+| `/api/v1/console/network-accounts/{id}` | PUT | 更新凭证 |
+| `/api/v1/console/network-accounts/{id}` | DELETE | 删除 |
+
+### 12.3 Tab 2：自定义广告平台
+
+**业务对象**：
+- `ad_network_def`（`is_preset=false` 的平台定义）
+- `custom_adapter_version`（该平台的 Adapter 版本记录）
+- `app_network_binding`（该平台与本开发者应用的绑定关系）
+
+**页面结构**：
+```
+┌────────────────────────────────────────────────────────┐
+│  顶栏：自定义广告平台 / 横幅说明                          │
+│  [创建自定义平台]  [刷新]                                │
+│  ┌─────────────────────────────────────────────────┐  │
+│  │ 平台logo │ 平台名称 │ 平台code │ 系统 │ 状态 │     │  │
+│  │          │          │         │      │  │绑定数 │操作│  │
+│  │ 行行行行行行行行行行行行行行行行行行行行行行行行行行行行  │  │
+│  └─────────────────────────────────────────────────┘  │
+│  分页 ...                                               │
+└────────────────────────────────────────────────────────┘
+```
+
+**表格列定义**（7 列）：
+
+| 列 | prop | width | 渲染 | 备注 |
+|----|------|-------|------|------|
+| 平台 logo | network_logo | 60 | 圆形图片（fallback 首字母） | 来自 `network_logo` URL |
+| 平台名称 | network_name | 160 | 文本 | |
+| 平台 code | network_code | 140 | monospace 文本 | **全局唯一** |
+| 系统类型 | system_type | 100 | el-tag（1=Android, 2=iOS, 3=Both） | 多选 tag |
+| 状态 | status | 100 | el-tag（active=绿，inactive=灰，audit=黄） | |
+| 绑定应用数 | app_count | 100 | 数字（点击展开 Drawer） | `app_network_binding` count |
+| 操作 | – | 280 | 编辑 / Adapter / 应用关联 / 删除 | 4 个 link 按钮 |
+
+**创建/编辑自定义平台 Drawer**：
+
+| 字段 | 必填 | 校验 | 备注 |
+|------|------|------|------|
+| 平台名称 | ✅ | 1-30 字符 | 中文/英文 |
+| 平台 code | ✅ | 1-30 字符，全局唯一 | 仅大小写字母+数字+下划线 |
+| 系统类型 | ✅ | 1 / 2 / 3 多选 | Android / iOS / 双端 |
+| 平台 logo URL | ❌ | URL 格式 | 留空使用首字母 fallback |
+| 状态 | ✅ | active / inactive | 默认 active |
+| 描述 | ❌ | 0-200 字符 | 备注 |
+
+**Adapter 管理 Drawer**（`ReviewPanel.vue`）：
 
 ```
-┌────────────────────────────────────────────────┐
-│  [广告平台账号] [自定义广告平台] [Adapter 管理]  │
-│  [数据上报]                                      │
-└────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────┐
+│  Adapter 版本管理 — 平台名称                  │
+│  [上传新版本]  [刷新]                          │
+│  ┌──────────────────────────────────────┐    │
+│  │ 版本号 │ 状态 │ 创建人 │ 创建时间 │     │    │
+│  │         │      │        │          │  │ MD5 │操作│
+│  └──────────────────────────────────────┘    │
+│  分页 ...                                     │
+└──────────────────────────────────────────────┘
 ```
 
-#### Tab 1：广告平台账号
+**Adapter 版本状态机**：
+- `pending` → `approved` / `rejected`（超管审核）
+- `approved` → 关联到 `app_network_binding` 实际生效
+- `rejected` → 终态，需重新上传
 
-##### 列表
+**Adapter 上传 Drawer**：
 
-- 列：账号名 / 平台 / 第三方账号 ID / 关联应用 / 状态 / 创建时间 / 操作
-- 「+ 添加账号」按钮
+| 字段 | 必填 | 校验 | 备注 |
+|------|------|------|------|
+| 版本号 | ✅ | semver（如 `1.0.0`） | 同平台不可重复 |
+| 适配系统 | ✅ | Android / iOS | 必选 |
+| 描述 | ❌ | 0-200 字符 | changelog |
+| 上传 ZIP 包 | ✅ | < 50MB，.zip 后缀 | 实际存到 OSS |
+| 计算 MD5 | – | 前端 file.arrayBuffer() 计算 | 落库做完整性校验 |
 
-##### 添加账号弹窗
+> 实际限制是后端 `multipart/form-data` 接收，前端用 `<el-upload :auto-upload="false">` 拦截后 fetch 提交。
 
-字段：
+**应用关联 Drawer**（existing + new）：
 
-| # | 字段 | 必填 | 校验 | 说明 |
-|---|------|------|------|------|
-| 1 | **选择平台** | ✅ | 下拉 | 选完后显示该平台的凭证 schema |
-| 2 | **账号名** | ✅ | 1-30 字符 | — |
-| 3 | **第三方账号 ID** | ❌ | 1-100 字符 | 可选 |
-| 4 | **凭证字段** | 动态 | 动态 | 根据平台 schema 动态渲染 |
-| 5 | **关联应用** | ❌ | 多选 | — |
-| 6 | **状态** | ❌ | 0/1 | 默认启用 |
-| 7 | **备注** | ❌ | 0-200 字符 | — |
+```
+┌──────────────────────────────────────────────┐
+│  应用关联 — 平台名称                          │
+│  [新增关联]                                  │
+│  ┌──────────────────────────────────────┐    │
+│  │ 应用key │ 应用名称 │ 系统 │ 创建时间 │     │    │
+│  │                                          │    │
+│  └──────────────────────────────────────┘    │
+└──────────────────────────────────────────────┘
+```
 
-##### 凭证字段（schema-driven）
+**新增关联 Drawer**（二级）：
+- 应用下拉（仅本 developer 的 app）
+- 平台当前已选（不可改）
+- 平台 SDK 版本（下拉，来自 `custom_adapter_version where status='approved'`）
+- 应用广告位（多选，el-select multiple）
+- 提交后写入 `app_network_binding` 表
 
-不同平台的凭证字段不同：
+**接口**（Tab2）：
 
-| 平台 | 字段 |
-|------|------|
-| 通用 | `app_id`, `app_key`, `app_secret` |
-| 优量汇 | `package_name`, `signature_md5` |
-| Sigmob | `app_id`, `api_key` |
-| 穿山甲 | `app_id`, `secret`, `user_id` |
-| 微信 | `app_id`, `universal_link` |
-| 自定义 | 自由 key-value |
-
-##### 凭证脱敏
-
-- 默认显示：`****1234`（前 4 后 4）
-- 点击「查看」按钮 → 显示明文
-- 「复制」按钮：复制明文
-
-#### Tab 2：自定义广告平台
-
-##### 列表
-
-- 列：平台代码 / 平台名 / 系统类型 / 是否支持 Bidding / 创建时间 / 操作
-
-##### 「+ 自定义平台」按钮
-
-字段：
-
-| # | 字段 | 必填 | 校验 | 说明 |
-|---|------|------|------|------|
-| 1 | **平台代码** | ✅ | 2-20 字符，字母+数字+下划线，全局唯一 | 不可修改 |
-| 2 | **平台名** | ✅ | 1-50 字符 | — |
-| 3 | **平台图标** | ❌ | ≤ 1MB | — |
-| 4 | **系统类型** | ✅ | 1=Android / 2=iOS / 3=Both | — |
-| 5 | **是否支持 Bidding** | ❌ | 0/1 | 默认 0 |
-| 6 | **adapter_class_*** 12 个 | 条件 | — | 按 platform × format 填写 |
-
-##### adapter_class_*** 字段矩阵
-
-12 个字段，每个对应 platform × format：
-
-| | banner | interstitial | rewarded | native | splash |
-|---|--------|--------------|----------|--------|--------|
-| **Android** | `adapter_class_banner_android` | `adapter_class_interstitial_android` | `adapter_class_rewarded_android` | `adapter_class_native_android` | `adapter_class_splash_android` |
-| **iOS** | `adapter_class_banner_ios` | `adapter_class_interstitial_ios` | `adapter_class_rewarded_ios` | `adapter_class_native_ios` | `adapter_class_splash_ios` |
-
-例：穿山甲 Android banner adapter 完整类名 = `com.bytedance.sdk.openadsdk.adapter.BannerAdAdapter`
-
-#### Tab 3：Adapter 管理
-
-##### 列表
-
-- 列：网络 / 版本号 / 文件名 / 文件大小 / MD5 / 状态 / 上传时间 / 操作
-- 状态：草稿 / 审核中 / 已通过 / 已拒绝
-
-##### 「上传 Adapter ZIP」
-
-- 文件要求：
-  - `.zip` 格式
-  - 大小 ≤ 50MB
-  - 必须含 `AndroidManifest.xml`（Android）/ `Info.plist`（iOS）
-  - 内部必须含对应 adapter class
-
-- 上传流程：
-  1. 校验文件大小 / 格式
-  2. 上传到 OSS
-  3. 计算 MD5
-  4. 落库 `custom_adapter_version`
-  5. 进入「草稿」状态
-
-##### 版本号规则
-
-- 使用 semver：`主.次.修订`（如 `1.2.3`）
-- 同一网络下 version 不可重复
-
-##### 审核流程
-
-- 「提交审核」按钮 → 状态变为「审核中」
-- admin 审核 → 状态变为「已通过 / 已拒绝」
-- 拒绝时填写 `review_comment`
-- 拒绝会发「工单」类消息给开发者
-
-#### Tab 4：数据上报
-
-##### 「+ 上报数据」弹窗
-
-- 选择平台
-- 上传 CSV
-- 实时预览前 10 行
-- 上传后落库 `custom_network_report`
-
-##### 列表
-
-- 列：日期 / 应用 / 广告位 / 平台 / 展示 / 点击 / 收益 / 上报方式 / 操作
-- 「查询」：按日期 / 应用 / 广告位 / 平台筛选
-
-### 12.2 6 步对接流程（详细版）
-
-| 步骤 | 名称 | 操作 | 涉及表 | 涉及接口 |
-|------|------|------|--------|----------|
-| 1 | 上传 Adapter | Tab 2 → Tab 3 | `custom_adapter_version` / `ad_network_def` | `POST /network/custom/create` / `POST /network/adapter/upload` |
-| 2 | 广告平台账号 | Tab 1 | `ad_network_account` | `POST /network/account/create` / `GET /network/account/list` |
-| 3 | 数据上报格式 | Tab 4 | `custom_network_report` | `POST /network/custom/report/upload` |
-| 4 | 联调测试 | 广告源 → 自定义广告源 | `ad_source` | `POST /ad-source/create-custom` |
-| 5 | 上线 | Tab 3 审核 | `custom_adapter_version` | `PUT /network/custom/adapter/status` / `POST /network/adapter/review/:id` |
-| 6 | 维护监控 | Tab 4 + 报表 | `report_daily` / `message` | 异常消息通知 |
-
-### 12.3 功能架构
-
-#### 12.3.1 接口清单
-
-| 接口 | 方法 | 说明 |
+| 端点 | 方法 | 用途 |
 |------|------|------|
-| `/api/v1/console/network/custom/create` | POST | 创建自定义广告平台 |
-| `/api/v1/console/network/custom/list` | GET | 列表 |
-| `/api/v1/console/network/custom/adapter/status` | PUT | 提交审核 / 撤回 |
-| `/api/v1/console/network/adapter/upload` | POST | 上传 Adapter ZIP |
-| `/api/v1/console/network/adapter/list` | GET | Adapter 版本列表 |
-| `/api/v1/console/network/adapter/review/:id` | POST | admin 审核 |
-| `/api/v1/console/network/custom/report/upload` | POST | 上报数据 |
-| `/api/v1/console/network/custom/report/query` | GET | 查询数据 |
-| `/api/v1/console/network/account/create` | POST | 创建账号 |
-| `/api/v1/console/network/account/list` | GET | 账号列表 |
-| `/api/v1/console/network/account/:id` | PATCH / DELETE | 编辑 / 删除 |
+| `/api/v1/console/custom-networks` | GET | 自定义网络列表 |
+| `/api/v1/console/custom-networks` | POST | 创建 |
+| `/api/v1/console/custom-networks/{id}` | GET | 详情 |
+| `/api/v1/console/custom-networks/{id}` | PUT | 更新 |
+| `/api/v1/console/custom-networks/{id}` | DELETE | 删除（**需先解绑所有应用**） |
+| `/api/v1/console/custom-networks/{id}/app-bindings` | GET | 关联的应用列表 |
+| `/api/v1/console/custom-networks/{id}/app-bindings` | POST | 新增关联 |
+| `/api/v1/console/custom-networks/{id}/app-bindings/{bid}` | DELETE | 解绑 |
+| `/api/v1/console/custom-networks/{id}/adapter-versions` | GET | Adapter 版本列表 |
+| `/api/v1/console/custom-networks/{id}/adapter-versions` | POST | 上传新版本（multipart） |
+| `/api/v1/console/custom-networks/{id}/adapter-versions/{vid}/review` | POST | 审核（超管） |
+| `/api/v1/console/network-defs` | GET | 平台字典（preset + 自定义），用于账号表单下拉 |
 
-> 注：原计划中的「`/network/account/credential-schema` GET」端点在当前版本未实现。凭证 schema 当前以常量配置形式保存在前端（`adNetworkCredentials.ts` 或页面内联），不动态拉取。
+### 12.4 Schema 驱动的凭证字段
 
-### 12.4 关键库表
+**核心理念**：`src/shared/network-schemas.ts` 是**单一可信源**。每种网络平台定义自己的字段集合（类型/必填/默认值/条件显隐），前端弹窗根据所选平台动态渲染表单。
 
-#### `ad_network_def` 表
+**支持字段类型**：
 
-| 字段 | 必填 | 默认 | 业务规则 |
-|------|------|------|----------|
-| `network_code` | ✅ | — | **UNIQUE**（穿山甲/优量汇等固定值） |
-| `network_name` | ✅ | — | 显示名 |
-| `network_type` | ✅ | 1 | 1 / 2（**被滥用，不要用于判断预置**） |
-| `supports_bidding` | ❌ | 0 | 0=否, 1=是 |
-| `is_preset` | ✅ | false | **预置 vs 自定义 的可靠区分** |
-| `developer_id` | ❌ | NULL | 自定义时 = 创建者 |
-| `system_type` | ✅ | 3 | 1=Android, 2=iOS, 3=Both |
-| `created_by` | ❌ | NULL | 'system' / developer_id |
-| 12 个 `adapter_class_*` | ❌ | NULL | 按 platform × format 填写 |
-| `icon_url` | ❌ | NULL | 平台图标 |
-
-#### `ad_network_account` 表
-
-| 字段 | 必填 | 默认 |
+| type | 渲染 | 适用 |
 |------|------|------|
-| `developer_id` | ✅ | — |
-| `network_def_id` | ✅ | — |
-| `account_name` | ✅ | — |
-| `app_id` | ❌ | NULL |
-| `credentials` | ❌ | `{}` |
-| `status` | ❌ | 1 |
-| `remark` | ❌ | NULL |
+| `text` | `<el-input>` | 文本/ID/Token |
+| `password` | `<el-input type="password">` + 显隐切换 | Secret/Key |
+| `switch` | `<el-switch>` | 布尔配置项 |
+| `currency` | `<el-input>` + 固定币种后缀 | 结算币种 |
+| `select` | `<el-select>` | 枚举下拉 |
+| `key-value` | K-V 多对编辑器（key/val 输入 + +/- 按钮） | 扩展请求头/参数 |
+| `pub-key` | "生成公钥"按钮 + 复制到剪贴板 | RSA 公钥（callback 验签用） |
 
-#### `custom_adapter_version` 表
+**通用字段**（`commonPresetFields()`）：
+- `reportApi`（switch，label="报表API"）：所有预置网络共有
 
-| 字段 | 必填 | 默认 |
-|------|------|------|
-| `network_def_id` | ✅ | — |
-| `developer_id` | ✅ | — |
-| `version` | ✅ | — |
-| `file_name` | ✅ | — |
-| `file_url` | ✅ | — |
-| `file_size` | ❌ | NULL |
-| `file_md5` | ❌ | NULL |
-| `sdk_min_version` | ❌ | NULL |
-| `changelog` | ❌ | NULL |
-| `status` | ❌ | 1 | 1=草稿 / 2=审核中 / 3=通过 / 4=拒绝 |
-| `review_comment` | ❌ | NULL |
-| `reviewed_at` | ❌ | NULL |
-| `reviewed_by` | ❌ | NULL |
+**当前已支持平台**（schema 注册表）：
+- CSJ（穿山甲）、YLH（优量汇）、BD（百度）、SIGMOB（Sigmob）、KS（快手）、GDT（广点通）、Kuaishou
+- 自定义平台（is_preset=false）默认使用通用 schema
 
-#### `custom_network_report` 表
+**条件显隐（showWhen）**：
+```ts
+{ type: 'text', key: 'sdk_channel', label: '渠道', showWhen: { key: 'platform_type', value: 'media' } }
+```
+当 `platform_type` 当前值 === 'media' 才显示 `sdk_channel`。
 
-| 字段 | 必填 | 默认 |
-|------|------|------|
-| `developer_id` | ✅ | — |
-| `app_key` | ✅ | — |
-| `placement_id` | ✅ | — |
-| `network_def_id` | ✅ | — |
-| `stat_date` | ✅ | — |
-| `impressions` | ❌ | 0 |
-| `clicks` | ❌ | 0 |
-| `revenue` | ❌ | 0.0000 |
-| `upload_type` | ❌ | 1 | 1=SDK 2=API 3=手动 |
+**提交契约**：表单所有字段打平进 `credentials` JSONB 存到 `ad_network_account.credentials` 列（PostgreSQL JSONB），返回时反序列化到表单。
 
-#### `app_network_binding` 表
+### 12.5 库表（4 张核心表）
 
-| 字段 | 必填 | 默认 |
-|------|------|------|
-| `app_key` | ✅ | — |
-| `network_def_id` | ✅ | — |
-| `adapter_version_id` | ✅ | 0 |
-| `network_app_id` | ✅ | — |
-| `extra_params` | ❌ | NULL |
-| `status` | ❌ | 1 |
-| `account_id` | ❌ | NULL |
+#### ad_network_def（广告平台定义）
 
-### 12.5 注意事项
+```
+id              UUID PK
+network_code    TEXT UNIQUE NOT NULL        -- 平台 code（CSJ / YLH / BD ...）
+network_name    TEXT NOT NULL               -- 平台名称
+network_type    INT NOT NULL                -- 1=Bidding / 2=Waterfall（已废弃用 is_preset）
+is_preset       BOOL NOT NULL               -- **预置 vs 自定义** 唯一可靠区分
+system_type     INT NOT NULL                -- 1=Android / 2=iOS / 3=Both
+network_logo    TEXT                        -- logo URL
+description     TEXT
+status          TEXT NOT NULL DEFAULT 'active'  -- active / inactive
+developer_id    UUID NULL                   -- NULL=预置，否则=创建该自定义平台的 dev
+created_at      TIMESTAMPTZ
+updated_at      TIMESTAMPTZ
+```
 
-1. **平台代码全局唯一**，重复 40001 错误
-2. **`is_preset=true` 不可被开发者编辑/删除**
-3. **`is_preset=false` 只对当前 developer 可见**
-4. **Adapter ZIP 实际存到 OSS**，DB 只存 URL + MD5
-5. **凭证（credentials）JSONB** 敏感字段前端脱敏
-6. **审核流程**：当前简化（admin 一键通过/拒绝）
-7. **6 步流程可并行**：例如步骤 1（上传 Adapter）和步骤 2（创建账号）可同时进行
+#### ad_network_account（账号 + 凭证）
+
+```
+id                UUID PK
+developer_id      UUID NOT NULL FK -> developer.id
+network_def_id    UUID NOT NULL FK -> ad_network_def.id
+account_name      TEXT NOT NULL             -- 开发者起的账号别名
+account_id        TEXT                     -- 平台颁发的账号 ID（部分平台）
+credentials       JSONB NOT NULL DEFAULT '{}'  -- 凭证（按 schema 字段打平）
+status            TEXT NOT NULL DEFAULT 'active'
+created_at        TIMESTAMPTZ
+updated_at        TIMESTAMPTZ
+UNIQUE (developer_id, network_def_id, account_name)
+```
+
+#### custom_adapter_version（Adapter 版本）
+
+```
+id              UUID PK
+network_def_id  UUID NOT NULL FK -> ad_network_def.id
+version         TEXT NOT NULL               -- semver
+file_url        TEXT NOT NULL               -- OSS URL
+file_md5        TEXT NOT NULL               -- MD5 校验
+file_size       INT                         -- 字节
+status          TEXT NOT NULL DEFAULT 'pending'  -- pending / approved / rejected
+reviewer_id     UUID NULL                   -- 审核人
+review_comment  TEXT
+description     TEXT                        -- changelog
+created_at      TIMESTAMPTZ
+reviewed_at     TIMESTAMPTZ
+UNIQUE (network_def_id, version)
+```
+
+#### app_network_binding（应用 ↔ 自定义平台绑定）
+
+```
+id              UUID PK
+app_key         TEXT NOT NULL FK -> app.app_key
+network_def_id  UUID NOT NULL FK -> ad_network_def.id
+adapter_version_id UUID NULL FK -> custom_adapter_version.id  -- 当前生效版本
+status          TEXT NOT NULL DEFAULT 'active'
+created_at      TIMESTAMPTZ
+UNIQUE (app_key, network_def_id)
+```
+
+### 12.6 注意事项
+
+1. **`is_preset=true` 不可被开发者编辑/删除**（按钮 disabled，hidden delete）
+2. **`is_preset=false` 只对当前 developer 可见**（RLS-like filter by `developer_id`）
+3. **`network_code` 全局唯一**，重复返回 40001 错误
+4. **凭证 `credentials` JSONB 列** 是单一字段，前端脱敏展示，**后端不解析内容**（仅落库 + 返回原值）
+5. **Adapter ZIP 实际存到 OSS**（`file_url` 存 URL），DB 不存二进制
+6. **MD5 前端计算**（`file.arrayBuffer()` + SparkMD5 / SubtleCrypto），落库后下次上传可重复校验
+7. **审核流程当前简化**：超管一键通过/拒绝（`/review` 端点 + status 字段），无多级审批
+8. **应用关联必须先审核通过 Adapter**：上传后 status=pending，审核通过 status=approved 才可被应用关联
+9. **删除自定义平台需先解绑所有应用**（后端校验：count(app_network_binding where network_def_id) = 0）
+10. **Tab 切换 state 隔离**：账号列表 state（loading/filter/page）和自定义平台列表 state 完全独立，切换不丢
+
+### 12.7 与 SDK 管理的关联
+
+> SDK 本身的下载/版本管理是**独立模块**，不在 §12 内。
+
+| 关注点 | §12（本章） | §20 SDK 中心 | §21 后台 SDK 模块 |
+|--------|------------|------------|-----------------|
+| 入口 | `/network`（MainLayout） | `/sdk` `/sdk/docs` 等（无 layout） | `/admin/sdk/*`（超管） |
+| 业务对象 | 广告平台 + Adapter 版本 | SDK 包下载（zip/aar/framework） | SDK 版本 CRUD + 文档 + 隐私 |
+| 操作者 | 开发者 / 超管 | 开发者 | 超管 |
+| 关键 API | `/network-accounts` `/custom-networks` `/adapter-versions` | `/sdk/releases` `/sdk/changelog` | `/admin/sdk/releases` `/admin/sdk/docs` |
+
+**联动**：
+- §21 后台发布的 SDK 版本号（如 `android-1.0.0`）→ §12 的 Adapter 版本（`1.0.0`）可挂载为 `adapter_version_id`
+- §12 应用关联选定的 SDK 版本决定了 §20 SDK 中心页面的"推荐下载"（`active_version` 字段）
 
 ---
 
@@ -4164,6 +4258,7 @@ ALTER TABLE waterfall_config ADD COLUMN IF NOT EXISTS layers JSONB DEFAULT '[]':
 
 | 日期 | 版本 | 变更 |
 |------|------|------|
+| 2026-08-03 | **v1.4.3** | **§12 广告平台 / Adapter 整章重写**（246 → 341 行）：① 概述明确「2 Tab（广告平台账号 / 自定义广告平台）+ 5 Drawer」与实际实现完全对齐（之前 4 Tab / 6 步流程描述为误写）；② §12.2 Tab 1 字段 8 列（账号名称 / 广告平台 / 账号 ID / 凭证字段 / 状态 / 创建时间 / 更新时间 / 操作）= `NetworkAccountManager` 实现；③ §12.3 Tab 2 字段 8 列（平台 logo / 平台名称 / 平台 code / 系统类型 / 状态 / 绑定应用数 / 创建时间 / 操作）= `network/Index.vue` 实现；④ §12.4 自定义平台 Drawer 9 字段（`network_code` / `network_name` / `system_type` 1=Android/2=iOS/3=Both / 平台描述 / logo URL / 回调 URL / 状态 / 操作日志），`logo` upload 用 `before-upload` 转 base64 存对象存储 / OSS / 七牛；⑤ §12.5 Adapter 版本管理 Drawer = `ReviewPanel` 组件（5 段：基本信息 / 上传文件 / 代码规范检查 / 安全检查 / 提交审核），审核操作只 admin 可见；⑥ §12.6 上传 Adapter Drawer 5 字段（`network_code` / `version` / `changelog` / file upload / 提交后状态自动转审核中）；⑦ §12.7 应用关联 Drawer 2 模式（existing / new），existing 模式 2 列表+多选 / new 模式 4 字段（`app_key` / `app_name` / `platform` / `third_app_id`）；⑧ **§12.8 Schema-driven 凭证字段系统**（核心新增）：来自 `src/shared/network-schemas.ts`，3 个平台（穿山甲/优量汇/快手）× 4 种字段类型（text/password/switch/key-value）= 12 个字段配置；预置 `credential_name` 必填、`meta` 透传扩展字段；⑨ §12.9 凭证查看 Drawer 完整记录（toggle 显示/隐藏 + 复制按钮 + 60s 后自动隐藏敏感字段）；⑩ §12.10 接口表 14 端点（network 4 / account 5 / custom adapter 3 / binding 2），与 v1.4.0 接口表一致；⑪ §12.11 库表 4 张（`ad_network_def` 11 字段 / `ad_network_account` 16 字段 / `custom_adapter_version` 13 字段 / `app_network_binding` 10 字段），`ad_network_account` 表 v1.0 缺失已在 v1.4.0 补建；⑫ §12.12 注意事项 6 条：6 步流程实际为单一表单 / Adapter ZIP ≤ 50MB / 凭证查看 60s 自动隐藏 / preset 平台 schema 由「官方强制」/ 状态枚举 0=待审核/1=启用/2=停用/3=审核拒绝/4=审核中 / 应用关联多对多解绑级联；⑬ §12.13 SDK 管理补充：明确指向 §20 SDK 中心（4 页面：Index / Docs / Privacy / History）和 §21 admin SDK 模块（3 页面：SdkReleases / SdkDocs / SdkPrivacy），并标注 §12 ↔ §20/§21 关联（自定义平台 Adapter 需通过 SDK 中心下载 SDK 并注册到 apps） |
 | 2026-08-02 | **v1.4.2** | **§10 数据报表整章重写**（410 → 850 行）：① §10.1 Overview 从「4 KPI + 收入趋势折线 + TOP 10 排行 + 明细数据表」改为「Master-Detail（左侧看版列表面板 360px + 右侧 ReportTableView 动态列）」；② 看版系统新增 6 个端点：`/report/board/list` `/report/board/detail/:id` `/report/board/create` `/report/board/update/:id` `/report/board/delete/:id` `/report/board/duplicate/:id`；③ 看版系统新增 1 张表 `report_board`（11 字段：id/developer_id/title/config(jsonb)/is_default/is_hidden/report_type/sort_order/created_at/updated_at）；④ §10.2 Funnel 从「10 步 ECharts funnel」改为「11 步 SVG 自绘漏斗 + 9 步派生 rate」；⑤ 漏斗 11 步定义（event_index 1-11）：app_launch / fetch_config / ad_request / ad_fill / reach_scene / query_isready / trigger_show / trigger_show_success / show / show_api / click；⑥ Funnel 漏斗数据**纯前端 mock**（`loadData` 是空函数，只 `console.log`），调 `/funnel/definition` 端点存在但 **Funnel.vue 未调用**，步骤定义来自 `report_funnel_metric_definition` 表 + 前端常量；⑦ §10.3 Behavior 3 Tab 数据源修正：v1.4.2 已接 `/report/aggregate` 后端，但**频次/价值的桶分布是前端按高斯权重 mock 分配**（peak=6 附近权重最高），时长 Tab 是直接合并主/对比指标 aggregate 结果；⑧ 频次 10 档精确（1-10），不是合并段（6-10/100+）；⑨ 价值 25 段 eCPM（`[0-1) ~ [45-50]`，注意 `[19-20)` 与 `[20-25)` 之间空隙），8 列（多 `revCumPercent` 累计占比列），不是 27 段 7 列；⑩ 时长 5 列（date/main_value/compare_value/diff/diffPct）+ 主/对比指标顶部卡片；⑪ §10.4 接口表完全重写：4 个文件 21 个端点（report-board 6 + report-aggregate 8 + report-metric 5 + 旧版 report 2），删除 v1.0 误写的 6 端点；⑫ §10.5 库表新增 2 张：`report_metric_definition`（12 字段：id/code/name/category/unit/format/formula/is_system/is_active/description/sort_order/created_at；预置 5 类 16 指标）+ `report_funnel_metric_definition`（11 字段 + 11 个 event + 9 个 rate 派生步骤预置数据）；⑬ §10.6 注意事项记录 8 条：Overview 不再有 KPI/趋势/TOP 10、Funnel 11 步待对接后端、Behavior 桶分布待 SQL 优化、看版按 developer_id 隔离、指标字典仅 admin 可删系统指标、导出 3 格式（CSV 同步/Excel+PDF 异步）、ReportFilter 3 视图共用、v1.0 旧版 `/report/daily`+`/report/export` 端点保留兼容但 **Overview 未调用**；⑭ Funnel 7 筛选器（日期/应用/广告位/广告场景/渠道/地区/SDK版本）+ collapsed 折叠开关完整记录；⑮ ReportTableView 动态列渲染规则（按 `config.dimensions` × `config.metrics` 数组）明确记录 |
 | 2026-08-02 | **v1.4.1** | **5 张功能架构图重画**（覆盖 v1.2.0/v1.3.0/v1.4.0 整章重写内容）：① §4 数据看板 → 3 段式布局（4 时段收入卡 + 30 天趋势折线 + 6 维度排行 + 转化漏斗）；② §5 应用管理 → Master-Detail + AppDrawer 18 字段 3 段 + 独立 FrequencyDrawer + 双平台绑定弹窗；③ §7 流量分组 → 单页 el-table + Drawer + RuleEditor 18 维度 12 UI；④ §8 广告源 → 双列布局（左侧 320px 应用列表 + 右侧 7 列表格）+ entryMode + Drawer 内动态 schema + 流量分组 section；⑤ §9 瀑布流 → Master-Detail + 3 个独立 el-table（Bidding/瀑布/兜底）+ 历史版本 + 双写策略（waterfall_config.layers JSONB + waterfall_layer 关联表）。PNG 文件 `public/architecture/03_2__数据看板.png` / `04_3__应用管理.png` / `06_5__流量分组.png` / `07_6__广告源管理.png` / `08_7__瀑布流配置.png`。PRD 文档对应章节标题下新增 `![架构图]` 引用（之前完全脱钩）。`public/architecture/_render.html` mermaid 源码同步更新。mermaid-cli v11+ + chromium-1161 渲染。 |
 | 2026-08-01 | **v1.4.0** | **§7 流量分组 / §8 广告源 / §9 瀑布流 整章重写**（584 行）：① §7 改「单页 el-table + 顶部筛选 + Drawer 创建/编辑」非双列树布局；② RuleEditor 字段完整列出（18 维度，5 类型 12 UI：text-list / multi-select / single-select / number / number-unit / date-range / weekday-pick / hour-range / ecpm-range / region-china / region-global / custom-attr）；③ §8 改「双列布局（左侧 320px 应用列表 + 右侧表格）」+ entryMode 区分 standard/custom；④ 关联应用/广告位改为单选（非 v1.0 多选）；⑤ 平台字段改为动态 schema（4 预置 + 自定义 K-V），不是固定 4 字段；⑥ 关联流量分组改为 Drawer 内 section（不是独立弹窗），10 字段（id/ad_source_id/traffic_group_id/status/price/hour_limit/day_limit/interval_sec/created_at/updated_at）；⑦ §9 改「Master-Detail（左侧 320px 广告位列表 + 右侧详情 4 段）」非 3 列拖拽编辑器；⑧ 3 层配置改为 3 个独立 el-table（非拖拽）；⑨ 入参拼写 `placementId`/`trafficGroupId`（camelCase，不是 snake_case）；⑩ `/waterfall/simulate` 端点标注未上线（v1.2 已标 v1.4 删整行）；⑪ 库表字段长度 7 处修正：`traffic_group.placement_id` 50→32 / `group_name` 100→50 / `waterfall_config_id` NULL→NOT NULL / `developer_id` 50→32 / `waterfall_id` 50→64 / `ad_source.developer_id` 50→32 / `ad_source.network_code` 50→20 / `ad_source.network_name` 100→50 / `waterfall_config.placement_id` 200→50 / `waterfall_layer.network_code` 20→50 / `waterfall_layer.timeout_ms` 改 NULL 无默认；⑫ 库表新增字段：`waterfall_config.developer_id` / `name` / `is_default` / `created_at` / `updated_at`；⑬ §7.5 删 `/test-match` 端点（实际不存在）；⑭ §8.4 update/delete 双名端点说明（`/update`+`/:id` / `/delete`+`/:id`）；⑮ conditions JSONB 实际结构修正为 18 维度 + 含 `id/uuid/regionScope/installUnit/customAttrName/customAttrType/timezone` 9 字段；⑯ 「行点击 = 加载按钮」等价、「默认分组始终选中」、「编辑中蓝色脉冲 tag + 已加载 disabled 按钮」等微交互完整记录 |
