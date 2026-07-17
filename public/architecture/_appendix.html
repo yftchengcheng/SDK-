@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8">
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<style>body{margin:0;padding:24px;background:#fff;font-family:-apple-system,BlinkMacSystemFont,sans-serif}
+.mermaid{background:#FAFBFC;padding:16px;border-radius:4px}
+.mermaid svg{max-width:100%!important;height:auto!important}</style>
+</head><body>
+<div class="mermaid">graph TB
+    A[登录注册] --> D[应用管理]
+    A --> L[个人中心]
+    A --> M[消息中心]
+
+    D --> P[广告位管理]
+    D --> APPSRC[广告源管理]
+    D --> NET[广告平台]
+    D --> R[数据报表]
+    D --> REC[对账管理]
+
+    P --> TG[流量分组]
+    TG --> WF[瀑布流配置]
+    APPSRC --> WF
+    NET --> APPSRC
+
+    R --> DB[(report_daily)]
+    REC --> DB
+    REC --> API_DB[(custom_network_report)]
+
+    A --> ADM[超级管理员]
+    ADM --> D
+    ADM --> R
+    ADM --> M
+
+    NET --> ADM</div>
+<script>mermaid.initialize({startOnLoad:true,theme:'default',flowchart:{useMaxWidth:true,htmlLabels:true,curve:'basis'},themeVariables:{primaryColor:'#DBEAFE',primaryTextColor:'#0F172A',primaryBorderColor:'#3B82F6',lineColor:'#64748B',secondaryColor:'#F1F5F9',fontFamily:'-apple-system,BlinkMacSystemFont,sans-serif',fontSize:'13px'},securityLevel:'loose'});</script>
+</body></html>
