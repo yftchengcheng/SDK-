@@ -3,7 +3,7 @@
     <!-- 顶部 Hero -->
     <div class="sdk-hero">
       <div class="hero-left">
-        <div class="hero-eyebrow">YTads 聚合 SDK</div>
+        <div class="hero-eyebrow">新义 聚合 SDK</div>
         <h1 class="hero-title">高性能 · 易集成 · 多平台</h1>
         <p class="hero-desc">
           一套 SDK 接入主流广告平台，标准化的瀑布流配置和流量分组策略，<br />
