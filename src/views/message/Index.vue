@@ -120,7 +120,13 @@ const fetchList = async () => {
     const res: any = await request.get('/api/v1/console/message/list', { params });
     tableData.value = res.data?.list || [];
     total.value = res.data?.total || 0;
-  } catch { /* ignore */ } finally { loading.value = false; }
+  } catch (err: any) {
+    // 不再静默吞错：清空列表 + 提示错误（避免页面"没了"却无任何反馈）
+    tableData.value = [];
+    total.value = 0;
+    // axios 拦截器已经弹过 ElMessage；这里只在拦截器没弹（silent 模式）时再补一次
+    console.error('[message] fetchList failed:', err?.message || err);
+  } finally { loading.value = false; }
 };
 
 const handleRead = async (row: any) => {

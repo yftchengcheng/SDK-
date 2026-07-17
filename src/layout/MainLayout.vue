@@ -265,7 +265,7 @@ const handleCommand = (command: string) => {
 const fetchUnreadCount = async () => {
   try {
     const res: any = await request.get('/api/v1/console/message/unread-count');
-    unreadCount.value = res.data.count;
+    unreadCount.value = res.data?.unreadCount ?? res.data?.count ?? 0;
   } catch { /* ignore */ }
 };
 

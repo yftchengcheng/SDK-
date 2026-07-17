@@ -9,16 +9,31 @@ const router = Router();
 router.get('/list', authMiddleware, async (req: express.Request, res: express.Response) => {
   try {
     const { developerId } = getDeveloper(req);
-    const { type, isRead, page = 1, pageSize = 20 } = req.query as Record<string, string>;
+    const { type, isRead, page, pageSize } = req.query as Record<string, string>;
+
+    // 健壮解析 page / pageSize：NaN/负数/0 fallback 到默认
+    const p = (() => {
+      const n = parseInt(String(page ?? '1'), 10);
+      return Number.isFinite(n) && n >= 1 ? n : 1;
+    })();
+    const ps = (() => {
+      const n = parseInt(String(pageSize ?? '20'), 10);
+      if (!Number.isFinite(n) || n < 1) return 20;
+      if (n > 100) return 100;
+      return n;
+    })();
 
     let query = db.from('message').select('*', { count: 'exact' }).eq('developer_id', developerId);
 
-    if (type) query = query.eq('type', Number(type));
-    if (isRead !== undefined) query = query.eq('is_read', Number(isRead));
+    // 健壮解析 type / isRead：非数字忽略过滤（避免 NaN 触发 Supabase 报错）
+    const typeNum = type !== undefined && type !== '' ? parseInt(type, 10) : NaN;
+    if (Number.isFinite(typeNum)) query = query.eq('type', typeNum);
+    const isReadNum = isRead !== undefined && isRead !== '' ? parseInt(isRead, 10) : NaN;
+    if (Number.isFinite(isReadNum)) query = query.eq('is_read', isReadNum);
 
-    const p = Number(page);
-    const ps = Number(pageSize);
-    const { data, count, error } = await query.order('created_at', { ascending: false }).range((p - 1) * ps, p * ps - 1);
+    const { data, count, error } = await query
+      .order('created_at', { ascending: false })
+      .range((p - 1) * ps, p * ps - 1);
     if (error) throw new Error(`Query failed: ${error.message}`);
 
     success(res, { list: data, total: count, page: p, pageSize: ps });
