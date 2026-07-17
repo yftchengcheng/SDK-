@@ -1,0 +1,33 @@
+import puppeteer from 'puppeteer';
+import { readFileSync } from 'fs';
+const ADM = readFileSync('/tmp/prd-admin-token', 'utf-8').trim();
+
+const browser = await puppeteer.launch({
+  headless: 'new',
+  executablePath: '/root/.cache/ms-playwright/chromium-1161/chrome-linux/chrome',
+  args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
+});
+const page = await browser.newPage();
+await page.setViewport({ width: 1920, height: 1080 });
+await page.goto('http://localhost:5000/login', { waitUntil: 'networkidle2' });
+await page.evaluate(t => {
+  localStorage.setItem('token', t);
+  localStorage.setItem('userInfo', JSON.stringify({ role: 'admin', email: 'admin@prd.com' }));
+  localStorage.setItem('userRole', 'admin');
+}, ADM);
+await page.goto('http://localhost:5000/admin/developers', { waitUntil: 'networkidle0' });
+await new Promise(r => setTimeout(r, 2500));
+const info = await page.evaluate(() => ({
+  url: location.href,
+  title: document.title,
+  bodyText: document.body.textContent.slice(0, 300),
+}));
+console.log(JSON.stringify(info, null, 2));
+await page.screenshot({ path: 'public/prd/16-admin-developers.png', fullPage: false });
+console.log('✓ 16-admin-developers');
+
+await page.goto('http://localhost:5000/admin/report-metric', { waitUntil: 'networkidle0' });
+await new Promise(r => setTimeout(r, 2500));
+await page.screenshot({ path: 'public/prd/17-admin-report-metric.png', fullPage: false });
+console.log('✓ 17-admin-report-metric');
+await browser.close();
