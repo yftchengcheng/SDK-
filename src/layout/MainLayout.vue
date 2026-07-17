@@ -195,8 +195,23 @@ const unreadCount = ref(0);
 
 // 父级菜单展开状态（聚合管理）
 const expandedGroups = ref<Record<string, boolean>>({});
+// 已知的父级菜单 label 列表（用于点击时收拢其他 group）
+const allGroupLabels = ['聚合管理', '数据报表', 'SDK 管理', 'SDK 后台'];
+const expandOnly = (label: string) => {
+  // Accordion 模式：仅展开 label，其他全部合拢
+  for (const key of allGroupLabels) {
+    expandedGroups.value[key] = key === label;
+  }
+};
 const toggleGroup = (label: string) => {
-  expandedGroups.value[label] = !expandedGroups.value[label];
+  if (expandedGroups.value[label]) {
+    // 当前已展开 → 全部合拢
+    for (const key of allGroupLabels) {
+      expandedGroups.value[key] = false;
+    }
+  } else {
+    expandOnly(label);
+  }
 };
 // 判断父级菜单是否在当前路由下激活（精确匹配或前缀匹配）
 const isGroupActive = (children: MenuItem[]): boolean => {
@@ -215,21 +230,24 @@ const avatarLetter = computed(() => {
   return email.charAt(0).toUpperCase();
 });
 
-// 路由变化时自动展开父级菜单（聚合管理 / 数据报表 / SDK 管理 / SDK 后台）
+// 路由变化时自动展开当前路由对应的父级菜单（accordion：只展开一个）
 watch(
   () => route.path,
   (newPath) => {
+    let targetLabel: string | null = null;
     if (newPath.startsWith('/aggregation')) {
-      expandedGroups.value['聚合管理'] = true;
+      targetLabel = '聚合管理';
+    } else if (newPath.startsWith('/report') || newPath === '/reconciliation') {
+      targetLabel = '数据报表';
+    } else if (newPath === '/sdk' || newPath.startsWith('/sdk/')) {
+      targetLabel = 'SDK 管理';
+    } else if (newPath.startsWith('/admin/sdk')) {
+      targetLabel = 'SDK 后台';
     }
-    if (newPath.startsWith('/report') || newPath === '/reconciliation') {
-      expandedGroups.value['数据报表'] = true;
-    }
-    if (newPath === '/sdk' || newPath.startsWith('/sdk/')) {
-      expandedGroups.value['SDK 管理'] = true;
-    }
-    if (newPath.startsWith('/admin/sdk')) {
-      expandedGroups.value['SDK 后台'] = true;
+    if (targetLabel) {
+      for (const key of allGroupLabels) {
+        expandedGroups.value[key] = key === targetLabel;
+      }
     }
   },
   { immediate: true },
