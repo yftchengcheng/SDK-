@@ -26,7 +26,7 @@
           :min-width="col.minWidth"
           :width="col.width"
           :align="col.align || 'left'"
-          :header-align="col.align || 'left'"
+          :header-align="col.headerAlign || col.align || 'left'"
           :fixed="col.fixed"
           :sortable="col.sortable"
           :header-cell-style="headerCellStyle"
@@ -227,6 +227,7 @@ const buildColumnsFromBoard = (): Column[] => {
       label: name,
       minWidth: 140, width: 140,
       align: 'right',
+      headerAlign: 'right',
       format: metricFormatOf(m) || 'number',
       sortable: 'custom',
       kind: 'metric',
