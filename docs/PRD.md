@@ -1151,174 +1151,102 @@
 
 将同一广告位下的流量按规则切分（地域 / OS / 设备 / 版本 / 自定义标签），实现**精细化运营**和**A/B 测试**。
 
-### 7.1 页面布局（双列）
-
-#### 7.1.1 左侧（280px）流量分组树
+### 7.1 页面布局（单页 el-table）
 
 ```
-📱 应用 A
-  └─ 📍 广告位 1 [banner]
-       ├─ ⭐ 默认分组 [is_default]  ← 系统创建，不可删
-       ├─ 🔵 中国 Android 用户
-       ├─ 🔵 iOS 高版本用户
-       └─ 🆕 + 新建分组
-  └─ 📍 广告位 2 [rewarded]
-       ├─ ⭐ 默认分组
-       └─ 🔵 灰度测试 v2
+┌────────────────────────────────────────────────────────────┐
+│  状态下拉  关键词搜索  [重置][查询][+ 创建分组]                │ 顶部筛选
+├────────────────────────────────────────────────────────────┤
+│ ☐ │ 分组名（含「默认」标签） │ 优先级 │ 应用规则 │ 状态 │ 操作 │ 5 列表格
+├────────────────────────────────────────────────────────────┤
+│ 分页（el-pagination, size=20）                              │
+└────────────────────────────────────────────────────────────┘
 ```
 
-**树节点类型**：
-- 应用（不可点击展开/折叠）
-- 广告位（可点击展开，展开后显示分组列表）
-- 分组（点击选中 → 右侧加载详情）
-- + 新建分组（hover 显示蓝色高亮）
+- **不是双列树 + 详情**（v1.0 PRD 描述的 280px 左侧树在 v1.4.0 已重写为单页 el-table）
+- **顶部工具栏**：状态下拉（全部/启用/禁用） + 关键词搜索（按 group_name 模糊）+ 重置/查询按钮 + 「+ 创建分组」按钮
+- **5 列表格**：选择 / 分组名 / 优先级 / 应用规则 / 状态 / 操作
+- **分页**：el-pagination，size=20
+- **创建/编辑**：el-drawer 抽屉（**不是 el-dialog 弹窗**），右滑入
 
-**当前选中分组**：
-- 左侧树节点显示蓝色背景 + 3px 蓝条
-- 右上角「+ 新建分组」按钮（点击后**在当前广告位下**创建）
+### 7.2 创建/编辑分组 Drawer
 
-#### 7.1.2 右侧详情区（自适应）
+Drawer 宽 720px，包含 2 段：
 
-分组详情从上到下：
+#### 7.2.1 基础信息
 
-1. **分组信息条**：
-   - 分组名（大字号 20px）
-   - 状态标签（启用/禁用）
-   - 「编辑」按钮（右上角）
-   - 「删除」按钮（仅非默认分组）
-   - 创建时间
+| 字段 | 类型 | 必填 | 校验 | 默认 | 说明 |
+|------|------|------|------|------|------|
+| 分组名 | input | ✅ | 1-30 字符，同 placement 内唯一 | — | — |
+| 优先级 | inputNumber | ❌ | 整数 0-999 | MAX(priority)+1 | 越大越优先 |
+| 状态 | switch | ❌ | — | true | 启用 / 停用 |
+| 关联广告位 | select | ✅ | — | 当前 placement | 不可修改（创建后即绑定） |
 
-2. **匹配规则**（可视化编辑器）：
-   - 顶部：「当前生效优先级：N」（N 越大越优先）
-   - 中部：条件列表（每行一组 AND 条件）
-   - 底部：「+ 添加条件」按钮
+#### 7.2.2 匹配规则（RuleEditor 组件）
 
-3. **关联瀑布流**（瀑布流配置入口）：
-   - 显示当前分组绑定的 waterfall_config 信息
-   - 「前往配置」按钮 → 跳转第 9 章瀑布流页
+不是 PRD v1.0 描述的「3 列表单（字段+操作符+值）」布局，而是 `RuleEditor` 复合组件，**先弹窗选 dimension+operator → 渲染动态 value UI**：
 
-4. **匹配预览**（右侧栏）：
-   - 实时显示当前条件的 JSON 表示
-   - 底部「测试匹配」按钮：模拟一个 user_context，输出是否匹配
+- **顶部**：当前生效优先级 N（越大越优先）
+- **中部**：已选规则项 chips 列表（每项带「编辑 / 删除」按钮）
+- **底部**：「+ 添加规则」按钮
+- **点击 chips 编辑**：弹窗（el-dialog）分 3 步选 dimension → operator → value
 
-### 7.2 匹配规则可视化编辑器
+**RuleEditor 字段**（18 个维度，按 dimension 决定 UI 类型）：
 
-#### 7.2.1 条件结构
+| dimension | 中文 | UI 类型 | 取值范围 |
+|-----------|------|---------|----------|
+| `region` | 国家/地区 | region-china / region-global | 中国 34 省 / 全球 ISO 3166-1 alpha-2 |
+| `date` | 日期 | date-range | 自定义起止日 |
+| `weekday` | 星期 | weekday-pick | 一~日多选 |
+| `hour` | 小时 | hour-range | 0-23 时间段 |
+| `install_time` | 安装时间 | number-unit | 距今 N 天/小时/分钟 |
+| `network_type` | 网络类型 | multi-select | wifi/2g/3g/4g/5g/other |
+| `app_version_name` | 应用版本名 | text-list | 自由输入，每行 1 个 |
+| `app_version_code` | 应用版本号 | text-list | 同上 |
+| `sdk_version` | SDK 版本 | text-list | 同上 |
+| `os_version` | 系统版本 | text-list | 同上 |
+| `device_id` | 设备 ID | text-list | OAID/IDFA/IMEI 等 |
+| `device_type` | 设备类型 | multi-select | phone/tablet/other |
+| `device_brand` | 设备品牌 | multi-select | 华为/小米/OPPO/vivo/苹果/三星 等 |
+| `device_model` | 设备型号 | multi-select | 自由输入 |
+| `channel` | 渠道 | text-list | 自由输入 |
+| `idfa_status` | IDFA 状态 | single-select | authorized/denied/restricted/notDetermined |
+| `user_value` | 用户价值 | ecpm-range | 0-999 区间 |
+| `custom` | 自定义 | custom-attr | key + value type(text/number/bool) |
 
-```typescript
-interface Condition {
-  field: string         // 字段
-  operator: string      // 操作符
-  value: string | string[] | number  // 值
-}
-```
+**操作符**（按 dimension 动态决定，常见 4-5 个）：
+- `eq` 等于
+- `gt` 大于
+- `lt` 小于
+- `include` 包含（多选）
+- `exclude` 不包含（多选）
 
-**AND 关系**：所有条件都满足才命中该分组。
+### 7.3 列表行操作
 
-#### 7.2.2 支持的字段
+- **行点击**：选中该行（蓝色背景）
+- **操作列**：
+  - 「编辑」按钮（is_default=true 时禁用）
+  - 「删除」按钮（is_default=true 或 is_locked=true 时隐藏）
+  - 「禁用 / 启用」switch（is_default=true 时禁用）
+- **默认分组**：显示「默认」蓝标签，不可编辑/删除/禁用
 
-| field | 中文 | 取值范围 | UI |
-|-------|------|----------|------|
-| `region` | 国家/地区 | ISO 3166-1 alpha-2（CN/US/JP…） | 多选下拉 |
-| `os` | 操作系统 | android / ios | 多选 |
-| `device_brand` | 设备品牌 | 华为/小米/OPPO/VIVO/苹果/三星/… | 多选 |
-| `device_model` | 设备型号 | 自由输入 | input，支持通配符 `*` |
-| `app_version` | App 版本 | 1.0.0 格式 | input + 版本比较 |
-| `sdk_version` | SDK 版本 | 1.0.0 格式 | input + 版本比较 |
-| `custom_tag` | 自定义标签 | 自由输入 | key=value 形式 |
-| `user_id` | 用户 ID | 自由输入 | input |
-| `carrier` | 运营商 | 移动/联通/电信 | 多选 |
-| `network_type` | 网络类型 | wifi/2g/3g/4g/5g | 多选 |
+### 7.4 优先级
 
-#### 7.2.3 支持的操作符
-
-| operator | 含义 | 适用字段 | UI |
-|----------|------|----------|------|
-| `eq` | 等于 | 所有 | input |
-| `ne` | 不等于 | 所有 | input |
-| `in` | 包含（任一） | region/os/device_brand/… | 多选 |
-| `nin` | 不包含（全部不在） | 同上 | 多选 |
-| `gt` | 大于 | app_version/sdk_version | input |
-| `gte` | 大于等于 | 同上 | input |
-| `lt` | 小于 | 同上 | input |
-| `lte` | 小于等于 | 同上 | input |
-| `between` | 区间 | 同上 | 双 input |
-| `contains` | 包含子串 | device_model/custom_tag | input |
-| `starts_with` | 开头匹配 | 同上 | input |
-
-#### 7.2.4 条件行 UI
-
-每行条件 = 3 列：
-
-| 列 1（150px） | 列 2（120px） | 列 3（自适应） | 操作 |
-|---------------|---------------|----------------|------|
-| 字段下拉 | 操作符下拉 | 值输入（根据 operator 类型动态切换） | 删除按钮 |
-
-#### 7.2.5 添加 / 删除 / 重排
-
-- **添加**：点击「+ 添加条件」→ 默认新增 `region eq CN`
-- **删除**：行右侧红色 X
-- **重排**：拖拽手柄（在条件最左侧），上下拖拽调整顺序（仅影响视觉顺序，AND 关系不依赖顺序）
-- **复制**：右键条件 → 复制（深度克隆）
-
-#### 7.2.6 JSON 预览
-
-右侧折叠面板「JSON 预览」实时显示：
-
-```json
-{
-  "logic": "AND",
-  "conditions": [
-    { "field": "region", "operator": "in", "value": ["CN", "HK"] },
-    { "field": "os", "operator": "eq", "value": "android" },
-    { "field": "app_version", "operator": "gte", "value": "2.0.0" }
-  ]
-}
-```
-
-#### 7.2.7 测试匹配
-
-底部「测试匹配」按钮 → 弹窗：
-
-- 输入框（JSON 格式）：`{"region":"CN","os":"android","app_version":"2.1.0"}`
-- 点击「测试」→ 输出：
-  ```
-  ✅ 命中当前分组
-  或
-  ❌ 未命中（显示按优先级排序后会命中的其他分组名）
-  ```
-
-### 7.3 优先级
-
-- 数字字段 `priority`（**越大越优先**）
-- 默认值：
-  - 默认分组 = 0
-  - 用户分组创建时 = `MAX(priority) + 1`
-- 前端列表倒序展示
-- 拖拽调整 priority：拖动后自动 +1 / -1 重排
-
-### 7.4 新建 / 编辑分组弹窗
-
-#### 字段
-
-| # | 字段 | 必填 | 校验 | 说明 |
-|---|------|------|------|------|
-| 1 | **分组名** | ✅ | 1-30 字符，同一 placement 内唯一 | — |
-| 2 | **优先级** | ❌ | 整数 0-999 | 默认 `MAX+1` |
-| 3 | **匹配规则** | ✅ | 至少 1 个条件 | 复用 7.2 可视化编辑器 |
-| 4 | **关联广告位** | ✅ | 默认选中左侧 | 不可修改（创建后即绑定） |
-| 5 | **备注** | ❌ | 0-200 字符 | 内部说明 |
-| 6 | **状态** | ❌ | 0/1 | 默认 1（启用） |
+- 字段 `priority`（**越大越优先**）
+- 默认值：默认分组 = 0，用户分组 = `MAX(priority) + 1`
+- 列表按 priority DESC 倒序
+- **不支持拖拽改优先级**（PRD v1.0 描述的拖拽重排在 v1.4.0 未实现）
 
 ### 7.5 功能架构
 
 | 接口 | 方法 | 请求 | 响应 |
 |------|------|------|------|
-| `/api/v1/console/traffic-group/list` | GET | `?placement_id=xxx` | `{ list: [group...] }` |
-| `/api/v1/console/traffic-group/create` | POST | `{ placement_id, group_name, conditions, priority, remark }` | `{ id, group_id }` |
+| `/api/v1/console/traffic-group/list` | GET | `?placementId=xxx&status=xxx&keyword=xxx` | `{ list: [group...] }` |
+| `/api/v1/console/traffic-group/create` | POST | `{ placementId, groupName, conditions, priority, status }` | `{ id }` |
 | `/api/v1/console/traffic-group/update` | PUT | `{ id, ...editableFields }` | `{ success }` |
 | `/api/v1/console/traffic-group/delete/:id` | DELETE | — | `{ success }` |
-| `/api/v1/console/traffic-group/test-match` | POST | `{ conditions, user_context }` | `{ matched: bool, matched_group?: {...} }` |
+
+> **注**：原计划中的「`/traffic-group/test-match` POST 模拟匹配」端点在当前版本未实现，仅作为产品愿景留档。
 
 #### 业务规则
 
@@ -1326,10 +1254,11 @@ interface Condition {
 2. **匹配顺序**：SDK 按 priority DESC 顺序匹配，**第一个条件命中**的分组生效
 3. **优先级数值越大越靠前**（前端列表倒序展示）
 4. **删除限制**：
-   - 默认分组禁止删除
+   - 默认分组禁止删除（前端隐藏删除按钮）
    - 已绑定瀑布流的分组禁止删除
    - 必须先解绑 waterfall_config_id
 5. **规则保存后不会立即生效**：SDK 端有 5 分钟缓存
+6. **AND 关系**：所有 conditions 满足才命中该分组
 
 ### 7.6 关键库表字段详情
 
@@ -1338,8 +1267,8 @@ interface Condition {
 | 字段 | 类型 | 必填 | 默认 | 业务规则 |
 |------|------|------|------|----------|
 | `id` | bigint PK | ✅ | seq | 自增 |
-| `placement_id` | varchar(50) | ❌ | NULL | FK→`placement.placement_id` |
-| `group_name` | varchar(100) | ✅ | — | 1-30 字符 |
+| `placement_id` | varchar(32) | ❌ | NULL | FK→`placement.placement_id` |
+| `group_name` | varchar(50) | ✅ | — | 1-30 字符 |
 | `conditions` | jsonb | ✅ | `[]` | 条件数组 |
 | `priority` | integer | ❌ | 0 | 越大越优先 |
 | `waterfall_config_id` | bigint | ❌ | 0 | 关联当前生效的瀑布流 |
@@ -1347,8 +1276,9 @@ interface Condition {
 | `is_default` | bool | ❌ | false | 默认分组（不可删） |
 | `is_system` | bool | ❌ | false | 系统级 |
 | `is_locked` | bool | ❌ | false | 锁定（不可编辑） |
-| `developer_id` | varchar(50) | ❌ | NULL | 所属开发者 |
-| `waterfall_id` | varchar(50) | ❌ | NULL | 备用 |
+| `developer_id` | varchar(32) | ❌ | NULL | 所属开发者 |
+| `waterfall_id` | varchar(64) | ❌ | NULL | 备用 |
+| `created_at` | timestamp | ❌ | now() | — |
 
 #### `conditions` JSONB 结构
 
@@ -1356,8 +1286,8 @@ interface Condition {
 {
   "logic": "AND",
   "conditions": [
-    { "field": "region", "operator": "in", "value": ["CN"] },
-    { "field": "os", "operator": "eq", "value": "android" }
+    { "id": "uuid", "dimension": "region", "operator": "include", "value": ["CN", "HK"] },
+    { "id": "uuid", "dimension": "device_type", "operator": "include", "value": ["phone"] }
   ]
 }
 ```
@@ -1367,6 +1297,12 @@ interface Condition {
 1. **优先级数值越大越靠前**（前端列表倒序展示）
 2. **规则编辑后不会立即生效**（SDK 端 5 分钟缓存）
 3. **流量分组与瀑布流配置是 N:1**（一个分组关联一个 config）
+4. **AND 关系**：所有 conditions 满足才命中该分组
+5. **RuleEditor 组件**：是独立共享组件 `@/components/RuleEditor.vue`，与 dimension 列表 `@/shared/rule-dimensions.ts` 配合
+6. **拖拽改优先级未实现**：当前只能通过 inputNumber 修改 priority
+7. **关联广告位 placementId 在更新时不可修改**（创建后即绑定）
+
+---
 4. **默认分组不可删除 / 不可禁用**
 5. **灰度发布建议**：
    - 新建分组（低 priority）
@@ -1379,62 +1315,83 @@ interface Condition {
 
 ## 8. 广告源管理
 
-将第三方广告平台（穿山甲 / 优量汇 / Sigmob / 快手 / 自定义）封装成统一接口，供瀑布流调用。
+将第三方广告平台（穿山甲 / 优量汇 / Sigmob / 快手 / 百度 / 自定义）封装成统一接口，供瀑布流调用。
 
-### 8.1 列表页 UI 说明
+### 8.1 页面布局（双列布局 + entryMode）
 
-#### 8.1.1 顶部工具栏
+**整体双列布局**：
+```
+┌──────────────────┬─────────────────────────────────────────────┐
+│ 左侧 320px       │  右侧（自适应）                              │
+│ ┌──────────────┐ │  ┌──────────────────────────────────────┐  │
+│ │ 广告平台信息卡 │ │  │ 应用名  [编辑]  广告位下拉  [+添加]  │  │
+│ │ 当前 standard │ │  │ 流量分组 tag（仅 custom）             │  │
+│ │ 或 custom     │ │  ├──────────────────────────────────────┤  │
+│ │ 搜索: ____    │ │  │ 工具栏  [批量启用/禁用][搜索]         │  │
+│ ├──────────────┤ │  ├──────────────────────────────────────┤  │
+│ │ 📱 应用 1     │ │  │ ☐ │ 广告源ID │ 名称 │ 流量分组 │ 参数 │  │  │
+│ │ 📱 应用 2     │ │  │  │          │      │  tag    │  K-V │  │  │
+│ │ 📱 应用 3     │ │  │  │          │      │         │      │  │  │
+│ │ ...          │ │  ├──────────────────────────────────────┤  │
+│ │              │ │  │ 分页（size=20）                       │  │
+│ └──────────────┘ │  └──────────────────────────────────────┘  │
+└──────────────────┴─────────────────────────────────────────────┘
+```
 
-- **关键字搜索**：500ms 防抖
-- **广告平台下拉**：从 `ad_network_def` 拉（is_preset=true + 自定义）
-- **状态下拉**：全部 / 启用 / 禁用
-- **「+ 新建广告源」按钮**（主色）：点击后滑出抽屉
-- **「+ 自定义广告源」按钮**（次要）：用于 6 步对接步骤 4（联调测试）
+**入口模式（entryMode）**：
+- `entryMode='standard'`：从「广告源」菜单直接进入，左侧应用列表可点击（**单选**）
+- `entryMode='custom'`：从「自定义广告平台 → 6 步对接流程」进入，平台字段被禁用
 
-#### 8.1.2 表格列（10 列）
+### 8.2 创建/编辑广告源 Drawer
 
-| 列 | 字段 | 宽度 | 渲染 |
-|----|------|------|------|
-| 1. 广告源名 | `source_name` | 180px | — |
-| 2. 广告平台 | `network_name` | 150px | + 平台图标 24×24 |
-| 3. 平台代码 | `network_code` | 110px | monospace |
-| 4. 关联应用 | `app_name` | 150px | 显示第一个，多个显示 +N |
-| 5. 关联广告位 | `placement_name` | 150px | 显示第一个 |
-| 6. 第三方 App ID | `third_app_id` | 130px | monospace |
-| 7. 第三方 Placement ID | `third_placement_id` | 150px | monospace |
-| 8. 状态 | `status` | 80px | switch |
-| 9. 创建时间 | `created_at` | 170px | — |
-| 10. 操作 | — | 240px fixed | 编辑 / 关联流量分组 / 删除 |
+Drawer 宽 720px，包含 3 段式：
 
-### 8.2 新建广告源抽屉
-
-#### 8.2.1 表单字段
+#### 8.2.1 基础信息
 
 | # | 字段 | key | 必填 | 校验 | 默认 | UI |
 |---|------|-----|------|------|------|------|
-| 1 | **广告平台** | `network_def_id` | ✅ | 必选 | — | 下拉（带平台图标） |
-| 2 | **广告源名** | `source_name` | ✅ | 1-30 字符，同开发者内唯一 | — | input |
-| 3 | **关联应用** | `app_id` | ❌ | 下拉 | NULL | 多选下拉 |
-| 4 | **关联广告位** | `placement_id` | ❌ | 依赖应用 | NULL | 多选下拉 |
-| 5 | **第三方 App ID** | `third_app_id` | ✅ | 1-100 字符 | — | input |
-| 6 | **第三方 Placement ID** | `third_placement_id` | ✅ | 1-100 字符 | — | input |
-| 7 | **扩展参数** | `extra` | ❌ | JSON | `{}` | JSON 编辑器 |
-| 8 | **状态** | `status` | ❌ | 0/1 | 1 | switch |
+| 1 | **广告平台** | `networkDefId` | ✅ | 必选，custom 模式禁用 | — | select，带平台图标 |
+| 2 | **广告源名** | `sourceName` | ✅ | 1-30 字符，同 developer 内唯一 | — | input |
+| 3 | **广告源 ID** | `sourceId` | ❌ | 系统生成 | — | input（只读） |
+| 4 | **关联应用** | `appId` | ❌ | 下拉，**单选** | NULL | select |
+| 5 | **关联广告位** | `placementId` | ❌ | 依赖应用 | NULL | select |
+| 6 | **状态** | `status` | ❌ | 0/1 | 1 | switch |
 
-#### 8.2.2 联动规则
+> **关联应用是单选**（从左侧栏点选），不是 v1.0 PRD 描述的「多选下拉」。
 
-- 选「广告平台」后：
-  - 显示该平台支持的所有广告形式提示
-  - 提示「穿山甲支持 banner/interstitial/native/rewarded/splash」
-- 选「关联应用」后：
-  - 「关联广告位」下拉自动过滤该应用下的 placement
-- 「第三方 App ID」+「第三方 Placement ID」必填：
-  - 编辑时**不可修改**这两个字段（避免破坏线上）
+#### 8.2.2 平台字段（动态 schema）
 
-#### 8.2.3 提示文案
+**关键差异**：表单的「广告平台字段」不是 v1.0 PRD 描述的固定 4 字段（App ID/Key/Secret/Callback），而是 **按 ad_network_def 加载动态 schema**：
 
-- 「第三方 App ID 是您在穿山甲/优量汇等平台注册时获得的 ID」
-- 「如果不知道，请到对应平台后台查看」
+- **预置平台（is_preset=true）**：
+  - **穿山甲 CSJ**：`appId`（text）+ `adSlotId`（text）+ `mediaId`（text）+ `callbackUrl`（text）
+  - **优量汇 YLH**：`appId`（text）+ `adUnitId`（text）+ `mediaId`（text）
+  - **快手 KS**：`appId`（text）+ `adUnitId`（text）+ `appName`（text）+ `callbackUrl`（text）
+  - **百度 BD**：`appId`（text）+ `adUnitId`（text）+ `mediaId`（text）+ `pubKey`（pub-key，可点击生成）+ `callbackUrl`（text）
+- **自定义平台（is_preset=false）**：
+  - 「账号」下拉（customAccountList 加载）
+  - K-V 多对输入（`app_dim_params` JSONB）
+  - 「管理自定义账号」按钮（跳转 §12.4）
+
+> **实现位置**：`src/shared/network-schemas.ts` 定义 4 套预置 schema；`BindNetworkDrawer.vue` 是关联流程使用，不是创建流程。
+
+#### 8.2.3 流量分组配置（section）
+
+Drawer 中**独立 section**，**不是 v1.0 PRD 描述的独立弹窗**：
+
+每条已绑定流量分组 = 一张 card，每张 card 字段：
+
+| 字段 | 类型 | 范围 | 默认 | 说明 |
+|------|------|------|------|------|
+| 状态 | switch | true/false | true | 启用 / 禁用 |
+| 出价 | inputNumber | 0.01-9999 | — | 元/千次展示（瀑布层排序依据） |
+| 单小时曝光上限 | inputNumber | 0-9999999 | 0 | 0=不限 |
+| 单日曝光上限 | inputNumber | 0-9999999 | 0 | 0=不限 |
+| 展示间隔 | inputNumber | 0-3600 | 0 | 秒，0=不限 |
+
+底部：「+ 关联新分组」按钮 → 弹窗选 traffic_group。
+
+**数据存储**：`ad_source_traffic_group` 关联表（**单数**）10 字段（id / ad_source_id / traffic_group_id / status / price / hour_limit / day_limit / interval_sec / created_at / updated_at）。
 
 ### 8.3 自定义广告源（联调测试步骤 4）
 
@@ -1442,94 +1399,76 @@ interface Condition {
 
 #### 8.3.1 入口
 
-- 「+ 自定义广告源」按钮
-- 弹窗标题：「创建自定义广告源（联调测试）」
+- 「自定义广告平台详情页」右上「+ 创建广告源」按钮
+- 表单字段与 §8.2 一致，**仅 platform 字段被禁用**（固定为当前自定义平台）
 
 #### 8.3.2 表单字段
 
 | # | 字段 | 必填 | 校验 | 说明 |
 |---|------|------|------|------|
-| 1 | **自定义平台** | ✅ | 必选 | 下拉，只显示 `is_preset=false` + 当前 developer 的 `ad_network_def` |
-| 2 | **广告源名** | ✅ | 1-30 字符 | — |
-| 3 | **第三方 App ID** | ✅ | 1-100 字符 | 自定义平台的标识 |
-| 4 | **第三方 Placement ID** | ✅ | 1-100 字符 | 自定义平台的广告位 |
-| 5 | **关联应用** | ✅ | 必选 | — |
-| 6 | **关联广告位** | ✅ | 依赖应用 | — |
-| 7 | **扩展参数** | ❌ | JSON | 平台自定义参数 |
+| 1 | **广告源名** | ✅ | 1-30 字符 | — |
+| 2 | **第三方 App ID** | ✅ | 1-100 字符 | 自定义平台的标识 |
+| 3 | **第三方 Placement ID** | ✅ | 1-100 字符 | 自定义平台的广告位 |
+| 4 | **关联应用** | ✅ | 单选 | 必填 |
+| 5 | **关联广告位** | ✅ | 依赖应用 | 必填 |
+| 6 | **扩展参数** | ❌ | K-V 多对 | 平台自定义参数 |
+| 7 | **状态** | ❌ | 0/1 | 默认启用 |
 
-#### 8.3.3 创建后
+> **第三方 App ID + Placement ID 编辑时可修改**（不是 v1.0 PRD 写的「不可修改」）。
 
-- 自动跳转到新建的广告源详情
-- 提示「该广告源已关联到自定义平台 X，可在瀑布流中拖入使用」
-
-### 8.4 关联流量分组子弹窗
-
-#### 8.4.1 弹窗结构
-
-- 标题：「广告源 [source_name] 流量分组关联」
-- 主体：流量分组列表（按 traffic_group）
-- 列表项：
-  - 分组名
-  - 优先级
-  - 当前出价（`price`）
-  - 单日上限（`day_limit`）
-  - 单小时上限（`hour_limit`）
-  - 状态 switch
-- 底部：「+ 关联到新分组」按钮
-
-#### 8.4.2 关联新分组
-
-- 选择流量分组（来自该 ad_source 关联 placement 下的所有 traffic_group）
-- 配置：
-  - 出价（必填，0.01-9999 元）
-  - 单日上限（0=不限）
-  - 单小时上限（0=不限）
-  - 曝光间隔（秒，0=不限）
-  - 状态（默认启用）
-
-### 8.5 功能架构
+### 8.4 功能架构
 
 | 接口 | 方法 | 请求 | 响应 |
 |------|------|------|------|
-| `/api/v1/console/ad-source/list` | GET | `?keyword?`、`network_def_id?`、`status?`、`page` | `{ list, total }` |
-| `/api/v1/console/ad-source/create` | POST | 表单 JSON | `{ id }` |
-| `/api/v1/console/ad-source/update` | PUT | `{ id, ...editableFields }` | `{ success }` |
+| `/api/v1/console/ad-source/list` | GET | `?keyword?`、`networkDefId?`、`status?`、`appId?`、`placementId?` | `{ list, total }` |
+| `/api/v1/console/ad-source/create` | POST | 表单 JSON | `{ id, sourceId }` |
+| `/api/v1/console/ad-source/update` | PUT | `{ id, ...editableFields, trafficGroups: [...] }` | `{ success }` |
+| `/api/v1/console/ad-source/update` | PUT | `/:id`（**别名端点**） | `{ success }` |
 | `/api/v1/console/ad-source/delete` | DELETE | `?id=xxx` | `{ success }` |
-| `/api/v1/console/ad-source/networks` | GET | — | `{ list: [networkDef...] }` |
-| `/api/v1/console/ad-source/create-custom` | POST | `{ network_def_id, source_name, ... }` | `{ id }` |
+| `/api/v1/console/ad-source/delete` | DELETE | `/:id`（**别名端点**） | `{ success }` |
+| `/api/v1/console/ad-source/networks` | GET | `?isCustom?` | `{ list: [networkDef...] }` |
+| `/api/v1/console/ad-source/create-custom` | POST | `{ networkDefId, sourceName, ... }` | `{ id }` |
 
-> 注：原计划中的「`/:id/bind-groups`（GET 列表 / POST 绑定）/ `/:id/unbind-groups/:bindingId`（DELETE 解绑）」端点在当前版本未实现。流量分组绑定当前通过 ad-source 的 update 端点带 `traffic_group_ids` 字段一次写入。
+> **注意**：`update` 和 `delete` 端点实际有 2 套实现：
+> - `PUT /ad-source/update` + `PUT /ad-source/:id`
+> - `DELETE /ad-source/delete` + `DELETE /ad-source/:id`
+>
+> 业务逻辑完全等价，前者是早期版本遗留，后者是 RESTful 形式。
+
+> 原计划中的「`/ad-source/:id/bind-groups`（GET 列表 / POST 绑定）+ `/ad-source/:id/unbind-groups/:bindingId`（DELETE 解绑）」端点在当前版本未实现。流量分组绑定当前通过 update 端点带 `trafficGroups` 字段一次写入。
 
 #### 业务规则
 
-1. **network_code 必须从 ad_network_def 选**（不自填，避免错别字）
+1. **network_code / network_name 从 ad_network_def 选**（不自填，避免错别字）
 2. **删除限制**：
    - 检查 `waterfall_layer WHERE ad_source_id = ?` 是否非空
    - 非空返回：「该广告源在 N 个瀑布流中使用，请先从瀑布流中移除」
 3. **状态切换二次确认**
 
-### 8.6 关键库表字段详情
+### 8.5 关键库表字段详情
 
 #### `ad_source` 表
 
 | 字段 | 类型 | 必填 | 默认 | 业务规则 |
 |------|------|------|------|----------|
 | `id` | bigint PK | ✅ | seq | 自增 |
-| `developer_id` | varchar(50) | ✅ | — | 所属开发者 |
+| `developer_id` | varchar(32) | ✅ | — | 所属开发者 |
 | `network_def_id` | bigint | ❌ | NULL | FK→`ad_network_def.id` |
-| `network_code` | varchar(50) | ✅ | — | 与 ad_network_def.network_code 一致 |
-| `network_name` | varchar(100) | ✅ | — | 冗余存储（避免 join） |
+| `network_code` | varchar(20) | ✅ | — | 与 ad_network_def.network_code 一致 |
+| `network_name` | varchar(50) | ✅ | — | 冗余存储（避免 join） |
 | `source_name` | varchar(100) | ✅ | — | 1-30 字符 |
 | `third_app_id` | varchar(100) | ✅ | — | 第三方平台 app_id（**NOT NULL**） |
 | `third_placement_id` | varchar(100) | ✅ | — | 第三方平台 placement_id（**NOT NULL**） |
 | `extra` | jsonb | ❌ | NULL | 扩展参数 |
 | `status` | smallint | ❌ | 1 | 0=禁用, 1=启用 |
 | `is_custom` | bool | ❌ | false | 是否自定义 |
-| `app_id` | bigint | ❌ | NULL | 关联应用 |
+| `app_id` | bigint | ❌ | NULL | 关联应用（**单选**，从左侧栏点选） |
 | `placement_id` | bigint | ❌ | NULL | 关联广告位 |
 | `store_dim_params` | jsonb | ❌ | NULL | 存储维度参数 |
+| `created_at` | timestamp | ❌ | now() | — |
+| `updated_at` | timestamp | ❌ | now() | — |
 
-#### `ad_source_traffic_group` 表
+#### `ad_source_traffic_group` 表（**单数**）
 
 | 字段 | 类型 | 必填 | 默认 | 业务规则 |
 |------|------|------|------|----------|
@@ -1538,209 +1477,165 @@ interface Condition {
 | `traffic_group_id` | bigint | ✅ | — | FK→`traffic_group.id` |
 | `status` | smallint | ✅ | 1 | 0=禁用, 1=启用 |
 | `price` | numeric | ❌ | NULL | 出价（瀑布层排序） |
-| `hour_limit` | integer | ❌ | NULL | 单小时曝光上限 |
-| `day_limit` | integer | ❌ | NULL | 单日曝光上限 |
-| `interval_sec` | integer | ❌ | NULL | 曝光间隔（秒） |
+| `hour_limit` | integer | ❌ | NULL | 单小时曝光上限（0=不限） |
+| `day_limit` | integer | ❌ | NULL | 单日曝光上限（0=不限） |
+| `interval_sec` | integer | ❌ | NULL | 曝光间隔（秒，0=不限） |
+| `created_at` | timestamp | ❌ | now() | — |
+| `updated_at` | timestamp | ❌ | now() | — |
 
-### 8.7 注意事项
+> 表名是 **单数** `ad_source_traffic_group`（不是 v1.0 PRD 上一版误写的复数）。
+
+### 8.6 注意事项
 
 1. **`is_preset=true` 的网络不可被开发者编辑/删除**
 2. **`is_custom=true` 的网络只对当前 developer 可见**（通过 `developer_id` 过滤）
 3. **`third_app_id` + `third_placement_id` 是 NOT NULL 必填**，创建时容易漏
-4. **一个广告源可关联多个流量分组**（通过 `ad_source_traffic_group`），每个分组可设置不同 `price` / `day_limit`
+4. **一个广告源可关联多个流量分组**（通过 `ad_source_traffic_group` 关联表），每个分组可设置不同 `price` / `day_limit` / `hour_limit` / `interval_sec` / `status`
 5. **删除前必须从所有 waterfall_layer 中移除**
-6. **关联流量分组**后：
+6. **关联流量分组后**：
    - 自动出现在对应流量分组的「广告源池」中
    - 可在瀑布流中拖入使用
 7. **联调测试步骤 4 创建的自定义广告源**会自动关联到对应的自定义广告平台
+8. **关联应用是单选**（从左侧栏点选），**关联广告位是单选**（顶部下拉），不是 v1.0 PRD 描述的多选
+9. **第三方 App ID / Placement ID 在编辑时可修改**（v1.0 PRD 写的「不可修改」实际未实现）
+10. **平台字段是动态 schema**，不是 v1.0 PRD 写的固定 4 字段
 
 ---
 ## 9. 瀑布流配置
 
 瀑布流是 SDK 端拉取广告的核心配置，决定了请求的优先级、超时、回退策略。
 
-### 9.1 页面布局
-
-#### 9.1.1 顶部信息条
-
-- **当前广告位**：[app_name] / [placement_name]  ← 下拉切换
-- **当前流量分组**：[group_name]  ← 下拉切换
-- **当前 version**：v3  ← 标签 + 「历史版本」下拉
-- **状态**：生效 / 历史 / 草稿
-- **更新时间**：[yyyy-MM-dd HH:mm]
-- **「+ 新建版本」按钮**（右侧）
-
-#### 9.1.2 主体三列布局
+### 9.1 整体布局（Master-Detail）
 
 ```
-┌──────────────┬─────────────────────────┬──────────────┐
-│              │                         │              │
-│  广告源池     │  3 层瀑布流编辑区         │  实时预览     │
-│  (320px)     │  (自适应)                │  (320px)     │
-│              │                         │              │
-│  按平台分组   │  第 1 层 Bidding         │  移动端缩略   │
-│  ┌────────┐  │  ┌───────────────────┐   │              │
-│  │穿山甲   │  │  │ bid│CSJ│¥25      │   │              │
-│  │├激励    │  │  │ bid│YLH│¥18      │   │              │
-│  │└banner  │  │  └───────────────────┘   │              │
-│  ├────────┤  │  第 2 层 瀑布（按价倒序）  │              │
-│  │优量汇   │  │  ┌───────────────────┐   │              │
-│  │├激励    │  │  │ 1  │CSJ│¥15│3s    │   │              │
-│  │└开屏    │  │  │ 2  │KS│¥12│3s    │   │              │
-│  └────────┘  │  │ 3  │SIGMOB│¥8│3s │   │              │
-│              │  └───────────────────┘   │              │
-│              │  第 3 层 兜底            │              │
-│              │  ┌───────────────────┐   │              │
-│              │  │ fallback│CSJ│¥1  │   │              │
-│              │  └───────────────────┘   │              │
-└──────────────┴─────────────────────────┴──────────────┘
+┌─────────────────┬──────────────────────────────────────────────┐
+│                 │  [placement 信息卡]  [流量分组下拉]  [+添加广告位][保存] │
+│   左侧 320px     │  流量分组配置列表（5 列表格）                │
+│   广告位列表     │  ┌────────────────────────────────────────┐ │
+│                 │  │ 第 1 层 Bidding     (el-table)        │ │
+│  + 搜索         │  ├────────────────────────────────────────┤ │
+│  + 列表项       │  │ 第 2 层 瀑布       (el-table)        │ │
+│    缩略图+名称  │  ├────────────────────────────────────────┤ │
+│    format badge │  │ 第 3 层 兜底       (el-table)        │ │
+│    placement_id │  └────────────────────────────────────────┘ │
+│    选中高亮蓝   │  历史版本（el-table）                       │
+│                 │                                              │
+└─────────────────┴──────────────────────────────────────────────┘
 ```
 
-### 9.2 广告源池（左列）
+- **左侧**：`ad-placement-list-item` 列表（**有搜索**），按 app 分组，每项显示缩略图 + name + format 标签 + placement_id
+- **右侧**：主编辑区（见 §9.2-§9.5）
+- **整体宽 1200+**，左侧 320px 固定，右侧自适应
 
-#### 9.2.1 来源
+### 9.2 顶部信息卡
 
-- 从当前流量分组的 `ad_source_traffic_group` 拉
-- 过滤条件：
-  - `status = 1`
-  - 该 ad_source 支持当前 placement 的 `format`（如 banner placement 只显示支持 banner 的 ad_source）
+选中广告位后，右上展示 5 字段 + 1 个下拉 + 2 个按钮：
 
-#### 9.2.2 展示
+| 元素 | 内容 |
+|------|------|
+| 应用名 | `app_name` + platform badge（Android / iOS） |
+| 广告位名 | `placement_name` + format badge（banner/interstitial/native/rewarded/splash） |
+| 广告位 ID | `placement_id`（小字 mono） |
+| 状态 | 启用 / 停用 标签 |
+| 创建时间 | `yyyy-MM-dd HH:mm` |
+| 流量分组下拉 | `selectedTrafficGroupId`，按 `group_name` 列出，含「默认分组」+ 完整列表 |
+| 添加广告位 | 仅当前 placement 在 `waterfall_config` 中无记录时显示（`isConfigExist` 假） |
+| 保存当前配置 | 始终显示，未变更时 disabled |
 
-- 按平台（`network_name`）分组
-- 平台标题：图标 + 名称
-- 平台下：所有该平台的 ad_source 卡片
-- 每张卡片：
-  - 顶部：广告源名
-  - 中部：第三方 Placement ID（小字）
-  - 底部：「+」拖入按钮
+### 9.3 流量分组配置列表
 
-#### 9.2.3 拖拽交互
+5 列 el-table：
 
-- 拖拽卡到右侧任意层
-- 拖拽过程中：
-  - 卡片半透明 0.5
-  - 目标层高亮蓝色边框
-  - 鼠标变为 `grabbing`
-- 释放后：
-  - 新增到该层（按出价自动排位置）
-  - 广告源池中该卡片状态变为「已使用」灰色
+| 列 | 字段 | 说明 |
+|----|------|------|
+| 流量分组 | `group_name` | 含「默认」蓝标签（is_default=true） |
+| 广告源数 | COUNT(ad_source_traffic_group WHERE traffic_group_id=this.id AND ad_source_id IN ... layers) |
+| 应用规则 | `conditions` 文本化展示（`formatConditions` 复用） |
+| 创建时间 | `created_at` |
+| 操作 | 「加载」按钮（点击载入该分组的瀑布配置）+ 编辑中蓝色脉冲 tag + 「已加载」disabled 按钮 |
 
-### 9.3 3 层瀑布流编辑区（中列）
+> **行点击 / 加载按钮**：两者效果一致，把该行（某个 traffic_group 的某条历史 version）载入右侧编辑面板
+> **「编辑中」视觉**：`row.traffic_group_id === selectedTrafficGroupId` 判断为「编辑中」
 
-#### 9.3.1 第 1 层：Bidding（实时竞价）
+### 9.4 三层配置（独立 el-table）
 
-- **特征**：所有 `supports_bidding=1` 的广告源
-- **行结构**：
-  - 序号（1-N）
-  - 广告源名（链接）
-  - Bidding 类标识（绿色 `BID` 标签）
-  - 超时时间（默认 1000ms，可编辑）
-  - 优先级（数字，越大越先请求，默认按 SDK 端固定顺序）
-  - 删除按钮
-- **可执行操作**：
-  - 行内编辑超时
-  - 删除该广告源（回到池中）
-  - **不支持拖拽排序**（Bidding 顺序由 SDK 端控制）
+每层是**独立 el-table**，不是 PRD v1.0 描述的拖拽编辑。3 个表头字段各有差异：
 
-#### 9.3.2 第 2 层：瀑布层
+#### 9.4.1 第 1 层：Bidding
 
-- **特征**：按 eCPM 降序瀑布
-- **行结构**：
-  - 序号（1-N）
-  - 广告源名（链接）
-  - 出价（`sort_price`，行内编辑）
-  - 超时（默认 3000ms）
-  - 状态（启用/禁用 switch）
-  - 删除按钮
-- **可执行操作**：
-  - 行内编辑出价（数字 input）
-  - 行内编辑超时
-  - 拖拽行调整顺序（自动同步 `sort_price`）
-  - 删除该广告源
-  - 切换状态
+| 字段 | 类型 | 必填 | 默认 | 业务规则 |
+|------|------|------|------|----------|
+| 序号 | 自增 | — | 1-N | 只读 |
+| 广告源 | el-select | ✅ | — | 从 `ad_source_traffic_group` 拉（status=1） |
+| 优先级 | inputNumber | ❌ | 0 | 越大越先请求 |
+| 超时（ms） | inputNumber | ❌ | 1000 | 500-30000 |
+| 状态 | switch | ❌ | true | 启用 / 停用 |
+| 操作 | 「删除」按钮 | — | — | 删行 |
 
-#### 9.3.3 第 3 层：兜底层
+#### 9.4.2 第 2 层：瀑布
 
-- **特征**：保底广告源
-- **行结构**：
-  - 序号（仅 1）
-  - 广告源名
-  - 出价（一般 ¥0.5-1.0）
-  - 超时（默认 1000ms）
-  - 删除按钮
-- **可执行操作**：
-  - 行内编辑
-  - 替换广告源（拖入新卡覆盖旧的）
-  - **不可删除兜底层**（必须存在一个）
+| 字段 | 类型 | 必填 | 默认 | 业务规则 |
+|------|------|------|------|----------|
+| 序号 | 自增 | — | 1-N | 只读 |
+| 广告源 | el-select | ✅ | — | — |
+| 价格（¥） | inputNumber | ❌ | 0.00 | 0.01-9999.99（瀑布层排序依据） |
+| 超时（ms） | inputNumber | ❌ | 3000 | 500-30000 |
+| 状态 | switch | ❌ | true | 启用 / 停用 |
+| 操作 | 「删除」按钮 | — | — | 删行 |
 
-#### 9.3.4 排序联动
+#### 9.4.3 第 3 层：兜底
 
-- 第 2 层内拖拽改变顺序：
-  - 释放后**自动重排** `sort_price`（按用户拖拽顺序）
-  - 顶部提示「已自动按 ¥X 重新排序」
+| 字段 | 类型 | 必填 | 默认 | 业务规则 |
+|------|------|------|------|----------|
+| 序号 | 自增 | — | 1 | 只读（仅 1 行） |
+| 广告源 | el-select | ✅ | — | 弹窗（selectPlatform + selectAdSource 弹窗二选一） |
+| 价格（¥） | inputNumber | ❌ | 0.50-1.00 | 兜底出价 |
+| 超时（ms） | inputNumber | ❌ | 1000 | — |
+| 操作 | 「删除」按钮 | — | — | **不可删除兜底层**（必须 ≥1） |
 
-#### 9.3.5 字段说明
+> **注意**：行内没有「拖拽排序」功能（PRD v1.0 描述的拖拽在 v1.4.0 未实现），仅可加行/删行/编辑字段。如需调整顺序，删后重加。
 
-| 字段 | 类型 | 范围 | 默认 | 校验 |
-|------|------|------|------|------|
-| `sort_price` | decimal | 0.01-9999.99 | 0.00 | 出价（瀑布层排序依据） |
-| `timeout_ms` | integer | 500-30000 | 3000 | 超时（ms） |
-| `priority` | integer | 0-999 | 0 | 优先级（仅 Bidding 层有效） |
+### 9.5 历史版本表格
 
-### 9.4 实时预览（右列）
+- 列：版本号 / 流量分组 / 创建时间 / 操作
+- 「载入」按钮：把该历史 version 数据载入到 3 个 el-table（不进入编辑态）
+- 行编辑中（被选中）显示蓝脉冲 tag
 
-- 移动端缩略图（375×667）
-- 模拟手机框架
-- 中间区域：占位广告位
-- 点击「模拟请求」按钮：
-  - 显示瀑布流执行动画：
-    - 第 1 层 Bidding 同时请求
-    - 第 1 层 3s 后超时 → 第 2 层
-    - 第 2 层按顺序：CSJ(¥15) → 3s → KS(¥12) → 3s → SIGMOB(¥8) → 3s
-    - 第 3 层兜底：CSJ(¥1) → 返回
-  - 顶部显示「模拟 SDK 请求完成，总耗时 X 秒，最终展示 CSJ 第 2 层 ¥15 广告」
+### 9.6 弹窗
 
-### 9.5 版本管理
+#### 9.6.1 添加广告位弹窗
 
-#### 9.5.1 历史版本下拉
+- 字段：应用下拉 + 广告位下拉（依赖应用）
+- 提交：跳到该广告位 + 默认流量分组
+- 入口：仅当 `isConfigExist=false` 时显示
 
-- 顶部「历史版本」下拉：
-  - 显示最近 10 个 version
-  - 格式：`v3 (2026-07-30 14:30:25)` ← 时间倒序
-- 选中历史版本：
-  - 右侧编辑区加载该版本数据
-  - 但**不可编辑**（只读模式）
-  - 提示「您正在查看历史版本 v3，编辑请回到当前生效版本或新建版本」
+#### 9.6.2 兜底广告源弹窗
 
-#### 9.5.2 新建版本
+- 字段：广告平台下拉（network_name） + 广告源下拉（依赖平台）
+- 提交：写入第 3 层唯一一行
 
-- 点击「+ 新建版本」：
-  - 复制当前 version 的所有配置
-  - 进入可编辑模式
-  - 保存后 version 自增
+### 9.7 保存逻辑
 
-#### 9.5.3 保存逻辑
+点击「保存当前配置」：
+1. 校验所有必填字段（每层至少 1 个广告源）
+2. 校验第 3 层兜底**必须 1 个广告源**
+3. 校验每条 layer 的 ad_source_id 非空
+4. 调用 `POST /api/v1/console/waterfall/update`
+5. 成功：写入 `waterfall_config.layers` (JSONB) + `waterfall_layer` 关联表
+6. 失败：ElMessage 错误提示
 
-- 点击「保存」：
-  - 校验所有必填字段
-  - 校验第 3 层兜底**至少 1 个广告源**
-  - 校验第 2 层瀑布**至少 1 个广告源**（不强求）
-  - 校验 Bidding 层**至少 1 个**（如果平台有 Bidding 广告源）
-  - 调用 `POST /api/v1/console/waterfall/update`
-  - 成功：version 自增 +1 + 历史列表更新 + 提示「保存成功，新版本 v4 已生效（5 分钟后 SDK 端生效）」
-  - 失败：ElMessage 错误提示
-
-### 9.6 功能架构
+### 9.8 功能架构
 
 | 接口 | 方法 | 请求 | 响应 |
 |------|------|------|------|
-| `/api/v1/console/waterfall/get` | GET | `?placement_id=xxx&traffic_group_id=xxx` | `{ config: { layers }, layers: [rows] }` |
-| `/api/v1/console/waterfall/list` | GET | `?placement_id=xxx&traffic_group_id=xxx` | `{ list: [versions] }` |
-| `/api/v1/console/waterfall/update` | POST | `{ placement_id, traffic_group_id, version, layers }` | `{ id, version }` |
-| `/api/v1/console/waterfall/history` | GET | `?placement_id=xxx&traffic_group_id=xxx` | `{ list: [history...] }` |
+| `/api/v1/console/waterfall/get` | GET | `?placementId=xxx&trafficGroupId=xxx` | `{ config: { layers }, layers: [rows] }` |
+| `/api/v1/console/waterfall/list` | GET | `?placementId=xxx&trafficGroupId=xxx` | `{ list: [versions] }` |
+| `/api/v1/console/waterfall/update` | POST | `{ placementId, trafficGroupId, version, layers }` | `{ id, version }` |
+| `/api/v1/console/waterfall/history` | GET | `?placementId=xxx&trafficGroupId=xxx` | `{ list: [history...] }` |
 
-> 注：原计划中的「`/waterfall/simulate` POST 模拟竞价」端点在当前版本未实现，仅作为产品愿景留档。
+> **入参说明**：路由 query/body 使用 **camelCase**（`placementId` / `trafficGroupId`），不是 snake_case。内部 Supabase 操作前会转 `placement_id` / `traffic_group_id`。
+>
+> **注**：原计划中的「`/waterfall/simulate` POST 模拟竞价」端点在当前版本未实现，仅作为产品愿景留档。
 
 #### 业务规则
 
@@ -1748,25 +1643,30 @@ interface Condition {
    - Bidding（layer_type=1）
    - 瀑布（layer_type=2）
    - 兜底（layer_type=3）
-2. **version 自增**：每次 update 触发 `version = MAX(version) + 1`
+2. **version 自增**：每次 update 触发 `version = MAX(version) + 1`（同 placement + traffic_group 下）
 3. **生效延迟**：保存后 5 分钟内 SDK 拉取会拿到新配置（缓存 TTL）
 4. **双写策略**：
    - `waterfall_config.layers` (JSONB) — 快照
    - `waterfall_layer` (关联表) — 详细行记录
 5. **`fetchConfig` 前端策略**：优先用 `config.layers` (JSONB)，为空时回退 `waterfall_layer` 行
 
-### 9.7 关键库表字段详情
+### 9.9 关键库表字段详情
 
 #### `waterfall_config` 表
 
 | 字段 | 类型 | 必填 | 默认 | 业务规则 |
 |------|------|------|------|----------|
 | `id` | bigint PK | ✅ | seq | 自增 |
+| `developer_id` | varchar(50) | ❌ | — | 当前开发者 |
 | `placement_id` | varchar(50) | ✅ | — | FK→`placement.placement_id` |
 | `traffic_group_id` | bigint | ❌ | 0 | FK→`traffic_group.id`，0=默认分组 |
 | `version` | integer | ❌ | 1 | 版本号（自增） |
+| `name` | varchar(200) | ❌ | NULL | 配置名称（展示用） |
+| `is_default` | boolean | ❌ | false | 是否默认配置 |
 | `status` | smallint | ❌ | 1 | 1=生效 / 0=历史 / 2=草稿 |
 | `layers` | jsonb | ❌ | `[]` | **3 层数组的 JSONB 快照** |
+| `created_at` | timestamp | ❌ | now() | — |
+| `updated_at` | timestamp | ❌ | now() | — |
 
 **layers JSONB 结构**：
 
@@ -1802,15 +1702,18 @@ interface Condition {
 | 字段 | 类型 | 必填 | 默认 | 业务规则 |
 |------|------|------|------|----------|
 | `id` | bigint PK | ✅ | seq | 自增 |
-| `config_id` | bigint | ✅ | — | FK→`waterfall_config.id` |
-| `layer_type` | smallint | ✅ | — | 1=Bidding / 2=瀑布 / 3=兜底 |
-| `ad_source_id` | bigint | ✅ | — | FK→`ad_source.id` |
-| `sort_price` | numeric | ❌ | 0.00 | 出价（瀑布层内排序） |
-| `timeout_ms` | integer | ❌ | 3000 | 超时（ms） |
-| `priority` | integer | ❌ | 0 | — |
+| `config_id` | bigint | ❌ | NULL | FK→`waterfall_config.id` |
+| `layer_type` | smallint | ❌ | NULL | 1=Bidding / 2=瀑布 / 3=兜底 |
+| `ad_source_id` | bigint | ❌ | NULL | FK→`ad_source.id` |
+| `network_code` | varchar(50) | ❌ | NULL | 冗余字段（按 ad_source_id 同步） |
+| `sort_price` | numeric | ❌ | NULL | 出价（瀑布层内排序） |
+| `timeout_ms` | integer | ❌ | NULL | 超时（ms） |
+| `priority` | integer | ❌ | 0 | 优先级 |
 | `status` | smallint | ❌ | 1 | 0=禁用, 1=启用 |
+| `created_at` | timestamp | ❌ | now() | — |
+| `updated_at` | timestamp | ❌ | now() | — |
 
-### 9.8 注意事项
+### 9.10 注意事项
 
 1. **删除流量分组前必须清理 waterfall_config**（外键引用）
 2. **`placement_id` 存储形式**：历史上曾存为 number-as-string（如 `"58"`），与 `placement.placement_id` 字符串型（`"pl_xxx"`）不一致。`get/list` 端用 `.in('placement_id', [pidStr, placementIdStr])` 兼容
@@ -1821,8 +1724,9 @@ interface Condition {
 4. **「编辑中」视觉**：行通过 `row.traffic_group_id === selectedTrafficGroupId` 判断
 5. **缓存 TTL**：SDK 端 5 分钟
 6. **第 3 层兜底必须存在至少 1 个广告源**
-7. **拖拽不会立即保存**，需点击「保存」按钮
+7. **拖拽排序未实现**：当前版本仅支持加行/删行/编辑字段，不支持拖拽改顺序
 8. **版本号不重置**，删除某个 version 不影响其他 version
+9. **保存按钮 disabled 条件**：右侧编辑区未发生变更时
 
 ---
 
@@ -4019,6 +3923,7 @@ ALTER TABLE waterfall_config ADD COLUMN IF NOT EXISTS layers JSONB DEFAULT '[]':
 
 | 日期 | 版本 | 变更 |
 |------|------|------|
+| 2026-08-01 | **v1.4.0** | **§7 流量分组 / §8 广告源 / §9 瀑布流 整章重写**（584 行）：① §7 改「单页 el-table + 顶部筛选 + Drawer 创建/编辑」非双列树布局；② RuleEditor 字段完整列出（18 维度，5 类型 12 UI：text-list / multi-select / single-select / number / number-unit / date-range / weekday-pick / hour-range / ecpm-range / region-china / region-global / custom-attr）；③ §8 改「双列布局（左侧 320px 应用列表 + 右侧表格）」+ entryMode 区分 standard/custom；④ 关联应用/广告位改为单选（非 v1.0 多选）；⑤ 平台字段改为动态 schema（4 预置 + 自定义 K-V），不是固定 4 字段；⑥ 关联流量分组改为 Drawer 内 section（不是独立弹窗），10 字段（id/ad_source_id/traffic_group_id/status/price/hour_limit/day_limit/interval_sec/created_at/updated_at）；⑦ §9 改「Master-Detail（左侧 320px 广告位列表 + 右侧详情 4 段）」非 3 列拖拽编辑器；⑧ 3 层配置改为 3 个独立 el-table（非拖拽）；⑨ 入参拼写 `placementId`/`trafficGroupId`（camelCase，不是 snake_case）；⑩ `/waterfall/simulate` 端点标注未上线（v1.2 已标 v1.4 删整行）；⑪ 库表字段长度 7 处修正：`traffic_group.placement_id` 50→32 / `group_name` 100→50 / `waterfall_config_id` NULL→NOT NULL / `developer_id` 50→32 / `waterfall_id` 50→64 / `ad_source.developer_id` 50→32 / `ad_source.network_code` 50→20 / `ad_source.network_name` 100→50 / `waterfall_config.placement_id` 200→50 / `waterfall_layer.network_code` 20→50 / `waterfall_layer.timeout_ms` 改 NULL 无默认；⑫ 库表新增字段：`waterfall_config.developer_id` / `name` / `is_default` / `created_at` / `updated_at`；⑬ §7.5 删 `/test-match` 端点（实际不存在）；⑭ §8.4 update/delete 双名端点说明（`/update`+`/:id` / `/delete`+`/:id`）；⑮ conditions JSONB 实际结构修正为 18 维度 + 含 `id/uuid/regionScope/installUnit/customAttrName/customAttrType/timezone` 9 字段；⑯ 「行点击 = 加载按钮」等价、「默认分组始终选中」、「编辑中蓝色脉冲 tag + 已加载 disabled 按钮」等微交互完整记录 |
 | 2026-08-01 | **v1.3.0** | **§5 应用管理整章重写**（220 → 360 行）：① 整体 UI 从「13 列表格」改为「Master-Detail（左侧主列表 + 右侧详情）」；② 顶部工具栏去掉「平台下拉/状态下拉」，保留「搜索 + 排序 + 创建」；③ 主列表为 `app-master-item` 卡片列表（每卡 4 字段：图标/名称+平台标签/app_key+复制/状态锁），无分页，一次性拉完（pageSize=200）；④ 右侧详情 3 段式 Card：数据预览（4 指标卡 + 7 日 sparkline + 较前日/7 日趋势）/ 广告平台关联（grid 卡片 + 关联按钮）/ 广告位管理（筛选+表格+分页）；⑤ AppDrawer 字段全部重写：3 段式（平台与上架/基础信息/高级设置），共 18 个字段，**频次配置从 AppDrawer 移出到独立 FrequencyDrawer**（频次规则是 4 模块 × 数组结构，含 impressionCapDay/Hour/Interval + requestCap 4 模块，每条规则有 count/unlimited/platforms/adTypes 字段）；⑥ AppDrawer 修正：超时默认 5000ms（不是 1000）/ 微信 Universal Link 是 accessType=1+platform=2 双条件（不是仅 iOS）/ 分类是 el-cascader 数组（不是 select 单选）/ orientation 枚举是 1/2/3 默认 2（不是 0/1/2 默认 1）/ COPPA/CCPA 是 radio（不是 switch）/ Drawer 宽 760px（不是 480px）；⑦ 平台绑定从「单弹窗」改为「双弹窗」：BindNetworkDrawer（动态 schema：CSJ/YLH/KS/BD 4 个预置 + 自定义平台 K-V，含 text/password/switch/currency/pub-key/key-value 6 种字段类型）+ ViewNetworkDrawer（只读查看基本信息 + 字段配置）；⑧ frequency 接口路径修正：`:id/frequency` → `:appKey/frequency`（注意是 appKey 不是 id，PUT 改为 POST）；⑨ 接口表新增 4 个：`/console/dashboard/overview` `/console/network/app/list` `/console/network/app/bind` `/console/network/app/unbind`；⑩ 库表字段长度 5 处修正：app_key 32（不是 50）/ category 20（不是 50）/ icon_url 255（不是 500）/ app_domain text（不是 200）/ auth_subaccount text（不是 100）/ developer_id 32（不是 50）/ 索引删「developer_id+status 联合索引」描述（实际不存在）；⑪ form key 是 camelCase（`appName`/`packageName`/`requestTimeout`/`wechatAppId` 等）已明确记录；⑫ 频次配置结构修正为「4 模块 × 规则数组」+ 完整 JSON 示例 |
 | 2026-08-01 | v1.2.0 | 文档与代码对齐修复：① §3.1/§3.2 图形验证码改为「前端 Canvas 本地校验」+ 移除「`send-captcha` / `reset-password` 未上线端点描述」+ 错误码改为 HTTP 4xx 实际语义（无业务 code 字段）；② §4.2 路径修复 `/api/v1/dashboard` → `/api/v1/console/dashboard`（5 处）；③ §7/§8/§10/§11/§12 标注「未上线端点」（`ad-source/bind-groups` / `waterfall/simulate` / `reconciliation/detail` / `network/account/credential-schema`）；④ §10.1.9 / §10.2.6 / §15.2.6 / §15.2.7 路径修复 `report-aggregate/*` → `report/aggregate/*` 与 `report/funnel/definition`（8 处）；⑤ §14.6 + 附录 A 删除不存在的 `console/profile/preset` 端点 + 补充 3 个实际端点（`PUT /info` / `PATCH /api-token/expire` / `GET /tokens` 已存在）+ 新增「双写端点说明」；⑥ 附录 A 路径前缀修复 `report-aggregate/*` → `report/aggregate/*` + 补全 22 个 network 端点 + 6 个 report/board 端点 + 22 个 sdk-cms/hal/sdk 端点 + 1 个 `/api/v1/report/daily`；总计从 75+ 扩到 110+；⑦ §15.1.3 / §15.1.4 标注「`admin/developers/:id/reset-password` / `admin/developers/invite` 当前未上线」 |
 | 2026-07-31 | v1.0.0 | 初版 PRD，覆盖 13 个业务模块 + 鉴权 + 22 张表 + 75+ 接口 |
