@@ -1,7 +1,7 @@
 import puppeteer from 'puppeteer';
 import jwt from 'jsonwebtoken';
 const TOKEN = jwt.sign(
-  { developerId: 'dev_6NkEhLUUWZpHkmH8', email: 'admin@prd.com', role: 'admin' },
+  { developerId: 'dev_rqoDvlTij9RfZjtT', email: 'admin@prd.com', role: 'admin' },
   'ad-sdk-aggregation-secret-key-2024',
   { expiresIn: '7d' }
 );
@@ -21,24 +21,18 @@ const result = await page.evaluate(() => {
     return { left: Math.round(b.left), w: Math.round(b.width), right: Math.round(b.right) };
   }
   const head = Array.from(document.querySelectorAll('.page-table-wrap .el-table__header-wrapper .el-table__cell')).map(r);
+  // 取所有 body row，扁平化 cells
   const rows = Array.from(document.querySelectorAll('.page-table-wrap .el-table__body-wrapper tr.el-table__row'));
   const body = rows.slice(0, 3).map(tr => Array.from(tr.querySelectorAll('td.el-table__cell')).map(r));
+  // 检查每列 header 与第 0 行对应 cell 的 left 是否对齐
   const diffs = [];
   if (body[0]) {
     for (let i = 0; i < Math.min(head.length, body[0].length); i++) {
       const d = Math.abs(head[i].left - body[0][i].left);
-      if (d > 0) diffs.push({ i, headerLeft: head[i].left, bodyLeft: body[0][i].left, d });
+      if (d > 0) diffs.push({ i, headerLeft: head[i].left, bodyLeft: body[0][i].left, d, headerW: head[i].w, bodyW: body[0][i].w });
     }
   }
-  const wrap = document.querySelector('.page-table-wrap');
-  const wrapR = wrap.getBoundingClientRect();
-  return {
-    headerCount: head.length,
-    bodyRowCount: rows.length,
-    diffs,
-    wrap: { left: Math.round(wrapR.left), w: Math.round(wrapR.width), scrollW: wrap.scrollWidth, clientW: wrap.clientWidth }
-  };
+  return { headerCount: head.length, bodyRowCount: rows.length, bodyFirstRowLength: body[0]?.length || 0, diffs };
 });
 console.log(JSON.stringify(result, null, 2));
-await page.screenshot({ path: '/workspace/projects/scripts/reconciliation-align.png', fullPage: false });
 await browser.close();
