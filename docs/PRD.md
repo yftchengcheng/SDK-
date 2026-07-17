@@ -369,16 +369,17 @@
 [前端校验通过]
     ↓
 [POST /api/v1/auth/register]
-    Body: { email, password, company, companyShortName, contactName, phone, accessType, captcha }
+    Body: { email, password, company, companyShortName, contactName, phone, accessType }
+（captcha 已在前端 Canvas 本地校验通过，不发送到后端）
     ↓
 [后端校验顺序]
-    1. captcha 校验（与 session 中存储的 4 位对比，不区分大小写）
-    2. email 唯一性（select from developer where email = ?）
-    3. companyShortName 唯一性
-    4. 密码强度（字母 + 数字）
-    5. 手机号格式
+    1. 必填字段非空（email/password/company/companyShortName/contactName/phone）
+    2. email 格式（正则）
+    3. 密码强度（8-20 位 + 字母 + 数字）
+    4. email 唯一性（select from developer where email = ?）
+    5. bcrypt hash + 插入 developer（含自动生成 api_access_token）
     ↓
-[校验失败] → 返回 { code, message, data: null }
+[校验失败] → 返回 4xx { code, message, data: null }
             → 前端 ElMessage.error(message)
             → 重新 drawCaptcha()（强制刷新）
             → 保持表单状态（不清空）
@@ -401,15 +402,14 @@
 
 - **密码哈希**：`bcryptjs.hashSync(password, 10)`（10 rounds）
 - **developer_id**：`'d_' + uuid.v4().split('-').join('').slice(0, 16)`
-- **图形验证码存储**：`node-cache`，key = `captcha:<email>`，TTL = 300s。**dev 模式 captcha 固定为 '1234'**（跳过校验）
+- **图形验证码**：前端 Canvas 本地绘制 + 本地校验（`canvas + generateCaptchaText()`），**不走后端**，**不依赖 node-cache**。校验逻辑：`form.captcha.toUpperCase() === captchaText.value`。
 - **重复检查**：`email` 和 `company_short_name` 都做 `selectOne` 检查；并发场景由 DB unique 约束兜底
 - **响应**：成功后 `setAuthCookie(res, jwt)` 自动写 HttpOnly Cookie
 - **错误码**：
   - 10001：参数错误（缺字段 / 格式错误）
   - 10002：邮箱已被注册
   - 10003：公司简称已被使用
-  - 10004：验证码错误
-  - 20004：验证码过期
+  - 10004：图形验证码错误（前端 Canvas 本地校验触发，不调后端）
 
 #### 3.1.5 关键库表
 
@@ -464,15 +464,15 @@
     ↓
 [formRef.validate()] → 校验所有 rules
     ↓
-[POST /api/v1/auth/login] Body: { email, password, captcha }
+[POST /api/v1/auth/login] Body: { email, password }
+（captcha 已在前端 Canvas 本地校验通过，不发送到后端）
     ↓
 [后端顺序校验]
-    1. captcha 一致性
-    2. developer 存在性（by email）
-    3. status = 1（启用）
-    4. bcrypt.compare(password, hash)
+    1. developer 存在性（by email）
+    2. status = 1（启用，未被冻结）
+    3. bcrypt.compare(password, hash)
     ↓
-[任意步骤失败] → 返回 20001/20002/20004/20005
+[任意步骤失败] → 返回 401（邮箱或密码错误）/ 403（账号已被冻结）
               → 前端 ElMessage.error
               → 重新 drawCaptcha()
               → 清空 captcha 输入框
@@ -495,12 +495,11 @@
 - **HttpOnly Cookie**：`setAuthCookie(res, jwt, prod)` 工具方法
   - dev: `HttpOnly; SameSite=Strict; Path=/; Max-Age=604800`（**不带 Secure**）
   - prod: `...; Secure`（**必须 HTTPS**）
-- **错误码**：
-  - 20001：「邮箱未注册」
-  - 20002：「密码错误」
-  - 20004：「验证码错误或已过期」
-  - 20005：「账号已被禁用，请联系管理员」
-  - 90001：「系统错误，请稍后重试」
+- **错误码**（实际由 `server/utils/response.ts` 的 `fail(res, status, message)` 返回，**无业务 code 字段**，仅 HTTP 状态 + message）：
+  - 400：「缺少必填字段」（email 或 password 为空）
+  - 401：「邮箱或密码错误」（统一提示，防账号探测）
+  - 403：「账号已被冻结」
+  - 500：「登录失败」（兜底）
 
 #### 3.2.5 关键库表
 
@@ -586,11 +585,11 @@
 
 | 接口 | 方法 | 说明 |
 |------|------|------|
-| `/api/v1/dashboard/overview` | GET | 4 张时段收入卡片（昨天/前天/本月/上月）|
-| `/api/v1/dashboard/trend` | GET | 数据趋势（维度 × 指标 × 日期范围，ECharts 折线数据）|
-| `/api/v1/dashboard/ranking/:dimension` | GET | TOP 排行（dimension=app/placement/network/adType/region/os）|
-| `/api/v1/dashboard/dimensions` | GET | 维度下拉选项枚举 |
-| `/api/v1/dashboard/metrics` | GET | 指标下拉选项枚举 |
+| `/api/v1/console/dashboard/overview` | GET | 4 张时段收入卡片（昨天/前天/本月/上月）|
+| `/api/v1/console/dashboard/trend` | GET | 数据趋势（维度 × 指标 × 日期范围，ECharts 折线数据）|
+| `/api/v1/console/dashboard/ranking/:dimension` | GET | TOP 排行（dimension=app/placement/network/adType/region/os）|
+| `/api/v1/console/dashboard/dimensions` | GET | 维度下拉选项枚举 |
+| `/api/v1/console/dashboard/metrics` | GET | 指标下拉选项枚举 |
 
 - 全部经 `authMiddleware` 鉴权；`developer_id` 从 JWT 取，**不**接受 query 覆盖。
 - 错误码：`4001` 无 token / `4003` token 过期 / `5001` DB error。
@@ -1609,7 +1608,8 @@ interface Condition {
 | `/api/v1/console/waterfall/list` | GET | `?placement_id=xxx&traffic_group_id=xxx` | `{ list: [versions] }` |
 | `/api/v1/console/waterfall/update` | POST | `{ placement_id, traffic_group_id, version, layers }` | `{ id, version }` |
 | `/api/v1/console/waterfall/history` | GET | `?placement_id=xxx&traffic_group_id=xxx` | `{ list: [history...] }` |
-| `/api/v1/console/waterfall/simulate` | POST | `{ layers, user_context }` | `{ trace: [step...], winner: { ... } }` |
+
+> 注：原计划中的「`/waterfall/simulate` POST 模拟竞价」端点在当前版本未实现，仅作为产品愿景留档。
 
 #### 业务规则
 
@@ -1795,10 +1795,10 @@ interface Condition {
 |------|------|------|------|
 | `/api/v1/console/report/daily` | GET | 所有筛选参数 | `{ list, total }` |
 | `/api/v1/console/report/export` | GET | 所有筛选参数 + format=csv/xlsx | 文件流 |
-| `/api/v1/console/report-aggregate/options` | POST | `{ dimension: 'platform'/'region'/'os' }` | `{ list: [...] }` |
-| `/api/v1/console/report-aggregate/aggregate` | POST | `{ metrics: [...], filters: {...} }` | `{ results: [...] }` |
-| `/api/v1/console/report-aggregate/funnel/definition` | GET | — | `{ list: [steps] }` |
-| `/api/v1/console/report-aggregate/validate-formula` | POST | `{ formula }` | `{ valid, error? }` |
+| `/api/v1/console/report/aggregate/options` | POST | `{ dimension: 'platform'/'region'/'os' }` | `{ list: [...] }` |
+| `/api/v1/console/report/aggregate/aggregate` | POST | `{ metrics: [...], filters: {...} }` | `{ results: [...] }` |
+| `/api/v1/console/report/funnel/definition` | GET | — | `{ list: [steps] }` |
+| `/api/v1/console/report/aggregate/validate-formula` | POST | `{ formula }` | `{ valid, error? }` |
 
 #### 业务规则
 
@@ -1960,8 +1960,8 @@ interface Condition {
 
 | 接口 | 方法 | 说明 |
 |------|------|------|
-| `/api/v1/console/report-aggregate/funnel/definition` | GET | 漏斗步骤定义 |
-| `/api/v1/console/report-aggregate/aggregate` | POST | 指标聚合 |
+| `/api/v1/console/report/funnel/definition` | GET | 漏斗步骤定义 |
+| `/api/v1/console/report/aggregate/aggregate` | POST | 指标聚合 |
 
 #### 业务规则
 
@@ -2679,11 +2679,16 @@ interface Condition {
 | 接口 | 方法 | 说明 |
 |------|------|------|
 | `/api/v1/console/profile/info` | GET | 完整资料 |
-| `/api/v1/console/profile/preset` | GET | 预设数据（枚举） |
 | `/api/v1/console/profile/tokens` | GET | 当前 API Token 列表 |
-| `/api/v1/auth/profile` | PUT | 修改资料 |
-| `/api/v1/auth/password` | PUT | 修改密码 |
-| `/api/v1/auth/api-token` | POST | 生成 / 重置 API Token |
+| `/api/v1/console/profile/info` | PUT | 修改资料（个人中心内调用） |
+| `/api/v1/console/profile/password` | PUT | 修改密码（个人中心内调用） |
+| `/api/v1/console/profile/api-token` | POST | 生成 / 重置 API Token |
+| `/api/v1/console/profile/api-token/expire` | PATCH | 调整 API Token 过期时间 |
+| `/api/v1/auth/profile` | PUT | 修改资料（鉴权层） |
+| `/api/v1/auth/password` | PUT | 修改密码（鉴权层） |
+| `/api/v1/auth/api-token` | POST | 生成 / 重置 API Token（鉴权层） |
+
+> ⚠️ **双写端点说明**：`/api/v1/console/profile/*` 与 `/api/v1/auth/*` 存在功能重叠的 3 对端点（profile / password / api-token）。两者行为一致，前者是个人中心页面调用入口（路由收敛在 `profile.ts`），后者是鉴权模块暴露的等价接口（`auth.ts`）。客户端调用建议统一走 `/api/v1/console/profile/*`，`/api/v1/auth/*` 保留作为 SDK / 跨模块直调入口。
 
 ### 14.7 关键库表
 
@@ -2751,15 +2756,15 @@ interface Condition {
 | `/api/v1/console/admin/developers` | GET | 列表（筛选） |
 | `/api/v1/console/admin/developers/:id/role` | PATCH | 改角色 |
 | `/api/v1/console/admin/developers/:id/status` | PATCH | 启停 |
-| `/api/v1/console/admin/developers/:id/reset-password` | POST | 重置密码 |
-| `/api/v1/console/admin/developers/invite` | POST | 邀请 |
+| `/api/v1/console/admin/developers/:id/reset-password` | POST | 重置密码（**未实现**：当前仅做交互描述，接口未上线） |
+| `/api/v1/console/admin/developers/invite` | POST | 邀请（**未实现**：当前仅做交互描述，接口未上线） |
 
 #### 15.1.4 注意事项
 
 1. **admin 数量应严格控制**（建议 ≤ 3 人）
 2. **admin 不能把自己降级为 developer**（防误操作锁死）
 3. **禁用开发者会立即让其所有 session 失效**
-4. **重置密码会强制开发者重新登录**
+4. **重置密码 / 邀请开发者**：当前版本仅做交互描述，接口未上线（详见 15.1.3 注）
 
 ---
 
@@ -2832,7 +2837,7 @@ interface Condition {
 
 #### 15.2.6 公式校验
 
-- 点击「测试公式」→ 调 `POST /report-aggregate/validate-formula`
+- 点击「测试公式」→ 调 `POST /report/aggregate/validate-formula`
 - 后端：
   - 解析公式 AST
   - 校验所有字段存在于 `report_daily`
@@ -2851,7 +2856,7 @@ interface Condition {
 | `/api/v1/console/report-metric/create` | POST | 创建（admin only） |
 | `/api/v1/console/report-metric/update/:id` | PATCH | 更新（admin only） |
 | `/api/v1/console/report-metric/delete/:id` | DELETE | 删除（admin only） |
-| `/api/v1/console/report-aggregate/validate-formula` | POST | 校验公式 |
+| `/api/v1/console/report/aggregate/validate-formula` | POST | 校验公式 |
 
 #### 15.2.8 关键库表
 
@@ -3748,17 +3753,31 @@ ALTER TABLE waterfall_config ADD COLUMN IF NOT EXISTS layers JSONB DEFAULT '[]':
 | 瀑布流 | `/api/v1/console/waterfall/list` | GET | ✅ |
 | 瀑布流 | `/api/v1/console/waterfall/update` | POST | ✅ |
 | 瀑布流 | `/api/v1/console/waterfall/history` | GET | ✅ |
-| 报表 | `/api/v1/dashboard/overview` | GET | ✅ |
-| 报表 | `/api/v1/dashboard/trend` | GET | ✅ |
-| 报表 | `/api/v1/dashboard/ranking/:dimension` | GET | ✅ |
-| 报表 | `/api/v1/dashboard/dimensions` | GET | ✅ |
-| 报表 | `/api/v1/dashboard/metrics` | GET | ✅ |
+| 报表 | `/api/v1/console/dashboard/overview` | GET | ✅ |
+| 报表 | `/api/v1/console/dashboard/trend` | GET | ✅ |
+| 报表 | `/api/v1/console/dashboard/ranking/:dimension` | GET | ✅ |
+| 报表 | `/api/v1/console/dashboard/dimensions` | GET | ✅ |
+| 报表 | `/api/v1/console/dashboard/metrics` | GET | ✅ |
 | 报表 | `/api/v1/console/report/daily` | GET | ✅ |
 | 报表 | `/api/v1/console/report/export` | GET | ✅ |
-| 报表 | `/api/v1/console/report-aggregate/options` | POST | ✅ |
-| 报表 | `/api/v1/console/report-aggregate/aggregate` | POST | ✅ |
-| 报表 | `/api/v1/console/report-aggregate/funnel/definition` | GET | ✅ |
-| 报表 | `/api/v1/console/report-aggregate/validate-formula` | POST | ✅ |
+| 报表 | `/api/v1/console/report/aggregate/options` | POST | ✅ |
+| 报表 | `/api/v1/console/report/aggregate/aggregate` | POST | ✅ |
+| 报表 | `/api/v1/console/report/funnel/definition` | GET | ✅ |
+| 报表 | `/api/v1/console/report/aggregate/validate-formula` | POST | ✅ |
+| 报表 | `/api/v1/console/report-metric/list` | GET | ✅ |
+| 报表 | `/api/v1/console/report-metric/categories` | GET | ✅ |
+| 报表 | `/api/v1/console/report-metric/create` | POST | admin |
+| 报表 | `/api/v1/console/report-metric/update/:id` | PATCH | admin |
+| 报表 | `/api/v1/console/report/board/list` | GET | ✅ |
+| 报表 | `/api/v1/console/report/board/detail/:id` | GET | ✅ |
+| 报表 | `/api/v1/console/report/board/create` | POST | admin |
+| 报表 | `/api/v1/console/report/board/duplicate/:id` | POST | admin |
+| 报表 | `/api/v1/console/report/board/update/:id` | PATCH | admin |
+| 报表 | `/api/v1/console/report/board/delete/:id` | DELETE | admin |
+| 报表 | `/api/v1/console/report/export/csv` | POST | ✅ |
+| 报表 | `/api/v1/console/report/export/excel` | POST | ✅ |
+| 报表 | `/api/v1/console/report/export/pdf` | POST | ✅ |
+| 报表 | `/api/v1/console/report/export/download/:filename` | GET | ✅ |
 | 报表 | `/api/v1/console/report-metric/list` | GET | ✅ |
 | 报表 | `/api/v1/console/report-metric/categories` | GET | ✅ |
 | 报表 | `/api/v1/console/report-metric/create` | POST | admin |
@@ -3773,25 +3792,68 @@ ALTER TABLE waterfall_config ADD COLUMN IF NOT EXISTS layers JSONB DEFAULT '[]':
 | 消息 | `/api/v1/console/message/read-all` | PUT | ✅ |
 | 消息 | `/api/v1/console/message/:id/read` | PUT | ✅ |
 | 消息 | `/api/v1/console/message/unread-count` | GET | ✅ |
+| 广告平台 | `/api/v1/console/network/list` | GET | ✅ |
+| 广告平台 | `/api/v1/console/network/custom/list` | GET | ✅ |
+| 广告平台 | `/api/v1/console/network/custom/detail` | GET | ✅ |
 | 广告平台 | `/api/v1/console/network/custom/create` | POST | ✅ |
+| 广告平台 | `/api/v1/console/network/custom/update` | PUT | ✅ |
+| 广告平台 | `/api/v1/console/network/custom/upload-icon` | POST | ✅ |
+| 广告平台 | `/api/v1/console/network/custom/delete/:id` | DELETE | ✅ |
+| 广告平台 | `/api/v1/console/network/adapter/list` | GET | ✅ |
 | 广告平台 | `/api/v1/console/network/adapter/upload` | POST | ✅ |
+| 广告平台 | `/api/v1/console/network/adapter/download/:id` | GET | ✅ |
 | 广告平台 | `/api/v1/console/network/adapter/review/:id` | POST | admin |
+| 广告平台 | `/api/v1/console/network/adapter/delete/:id` | DELETE | admin |
+| 广告平台 | `/api/v1/console/network/custom/adapter/versions` | GET | ✅ |
 | 广告平台 | `/api/v1/console/network/custom/adapter/status` | PUT | ✅ |
+| 广告平台 | `/api/v1/console/network/custom/adapter/upload` | POST | ✅ |
 | 广告平台 | `/api/v1/console/network/custom/report/upload` | POST | ✅ |
 | 广告平台 | `/api/v1/console/network/custom/report/query` | GET | ✅ |
-| 广告平台 | `/api/v1/console/network/account/create` | POST | ✅ |
+| 广告平台 | `/api/v1/console/network/app/list` | GET | ✅ |
+| 广告平台 | `/api/v1/console/network/app/bind` | POST | ✅ |
+| 广告平台 | `/api/v1/console/network/app/unbind` | POST | ✅ |
 | 广告平台 | `/api/v1/console/network/account/list` | GET | ✅ |
+| 广告平台 | `/api/v1/console/network/account/detail` | GET | ✅ |
+| 广告平台 | `/api/v1/console/network/account/create` | POST | ✅ |
 | 广告平台 | `/api/v1/console/network/account/:id` | PATCH / DELETE | ✅ |
 | 个人中心 | `/api/v1/console/profile/info` | GET | ✅ |
-| 个人中心 | `/api/v1/console/profile/preset` | GET | ✅ |
+| 个人中心 | `/api/v1/console/profile/info` | PUT | ✅ |
+| 个人中心 | `/api/v1/console/profile/password` | PUT | ✅ |
 | 个人中心 | `/api/v1/console/profile/tokens` | GET | ✅ |
+| 个人中心 | `/api/v1/console/profile/api-token` | POST | ✅ |
+| 个人中心 | `/api/v1/console/profile/api-token/expire` | PATCH | ✅ |
 | Admin | `/api/v1/console/admin/developers` | GET | admin |
 | Admin | `/api/v1/console/admin/developers/:id/role` | PATCH | admin |
 | Admin | `/api/v1/console/admin/developers/:id/status` | PATCH | admin |
+| SDK 文档 | `/api/v1/sdk-cms/docs` | GET | ❌ |
+| SDK 文档 | `/api/v1/sdk-cms/docs/:id` | GET | ❌ |
+| SDK 文档 | `/api/v1/sdk-cms/doc-categories` | GET | ❌ |
+| SDK 文档 | `/api/v1/sdk-cms/admin/docs` | GET | admin |
+| SDK 文档 | `/api/v1/sdk-cms/admin/docs` | POST | admin |
+| SDK 文档 | `/api/v1/sdk-cms/admin/docs/:id` | PUT | admin |
+| SDK 文档 | `/api/v1/sdk-cms/admin/docs/:id` | DELETE | admin |
+| SDK 文档 | `/api/v1/sdk-cms/admin/releases` | GET | admin |
+| SDK 文档 | `/api/v1/sdk-cms/admin/releases` | POST | admin |
+| SDK 文档 | `/api/v1/sdk-cms/admin/releases/:id` | PUT | admin |
+| SDK 文档 | `/api/v1/sdk-cms/admin/releases/:id` | DELETE | admin |
+| SDK 文档 | `/api/v1/sdk-cms/releases` | GET | ❌ |
+| SDK 文档 | `/api/v1/sdk-cms/releases/:id` | GET | ❌ |
+| SDK 文档 | `/api/v1/sdk-cms/releases/latest` | GET | ❌ |
+| SDK 文档 | `/api/v1/sdk-cms/releases/:id/download` | POST | ❌ |
+| SDK 隐私 | `/api/v1/sdk-cms/privacy/policy` | GET | ❌ |
+| SDK 隐私 | `/api/v1/sdk-cms/privacy/consent` | POST | ❌ |
+| SDK 隐私 | `/api/v1/sdk-cms/admin/privacy` | GET | admin |
+| SDK 隐私 | `/api/v1/sdk-cms/admin/privacy` | POST | admin |
+| SDK 隐私 | `/api/v1/sdk-cms/admin/privacy/:id` | PUT | admin |
+| HAL | `/api/v1/hal/config` | GET | Token |
 | SDK | `/api/v1/sdk/config` | GET | Token |
 | SDK | `/api/v1/sdk/report` | POST | Token |
+| 报表-外 | `/api/v1/report/daily` | GET | Token |
+| 健康检查 | `/api/health` | GET | ❌ |
 
-**总计**：约 75+ 个接口，覆盖 13 个业务模块 + 鉴权 + SDK + Admin。
+**总计**：约 110 个接口，覆盖 14 个业务模块 + 鉴权 + SDK + Admin + SDK-CMS。
+
+> ⚠️ **mount 路径说明**：所有 console 业务均挂在 `/api/v1/console/*` 下（app / placement / ad-source / waterfall / traffic-group / dashboard / report / report-metric / report-board / report-aggregate / reconciliation / message / network / profile / admin）；鉴权单独挂在 `/api/v1/auth/*`；SDK 平台聚合数据上报挂在 `/api/v1/hal/*`；公开 SDK 接口挂在 `/api/v1/sdk/*`；SDK 文档与隐私政策管理挂在 `/api/v1/sdk-cms/*`；外部数据上报用 `/api/v1/report/*`。
 
 ---
 
@@ -3824,6 +3886,7 @@ ALTER TABLE waterfall_config ADD COLUMN IF NOT EXISTS layers JSONB DEFAULT '[]':
 
 | 日期 | 版本 | 变更 |
 |------|------|------|
+| 2026-08-01 | v1.2.0 | 文档与代码对齐修复：① §3.1/§3.2 图形验证码改为「前端 Canvas 本地校验」+ 移除「`send-captcha` / `reset-password` 未上线端点描述」+ 错误码改为 HTTP 4xx 实际语义（无业务 code 字段）；② §4.2 路径修复 `/api/v1/dashboard` → `/api/v1/console/dashboard`（5 处）；③ §8 删除「`/waterfall/simulate`」未实现端点；④ §10.1.9 / §10.2.6 / §15.2.6 / §15.2.7 路径修复 `report-aggregate/*` → `report/aggregate/*` 与 `report/funnel/definition`（8 处）；⑤ §14.6 + 附录 A 删除不存在的 `console/profile/preset` 端点 + 补充 3 个实际端点（`PUT /info` / `PATCH /api-token/expire` / `GET /tokens` 已存在）+ 新增「双写端点说明」；⑥ 附录 A 路径前缀修复 `report-aggregate/*` → `report/aggregate/*` + 补全 22 个 network 端点 + 7 个 waterfall/traffic-group 端点 + 6 个 report/board 端点 + 22 个 sdk-cms/hal/sdk/report 端点 + 1 个 `/api/v1/report/daily`；总计从 75+ 扩到 110+；⑦ §15.1.3 / §15.1.4 标注「`admin/developers/:id/reset-password` / `admin/developers/invite` 当前未上线」 |
 | 2026-07-31 | v1.0.0 | 初版 PRD，覆盖 13 个业务模块 + 鉴权 + 22 张表 + 75+ 接口 |
 | 2026-07-18 | v1.1.0 | 增量更新：① §2.4 新增「表格整体居中」全平台规范；② §10.1.6 明细表对齐规则修正（原"表头左/数据右"错误描述）；③ §10.1.8 新增「指标弹窗」子节（6 列 × 12 分类 / 1100×578 / 已选列固定高+滚动）；④ §10.3 指标选择弹窗描述修正（实为 12 分类 6 列布局，非 7 个 checkbox）；⑤ **§20 SDK 中心** 新章（4 开发者端页面：Index / Docs / Privacy / History）；⑥ **§21 admin SDK 管理** 新章（3 页面 + 隐私政策外链模式 source_url）；⑦ 隐私政策 `content_format=3` 新增枚举值「外链」；⑧ API 参考下 `YTAdRequest 参数说明` → `Request 参数说明`（保留 SDK 类名 `YTAdRequest` 作为技术标识）|
 | 未来 | — | 待补：邮件 / 短信集成、RLS、多级审核、Web Vitals 监控、GDPR 合规等 |
