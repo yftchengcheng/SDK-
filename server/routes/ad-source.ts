@@ -36,7 +36,6 @@ type BindingInput = {
 // 把 ad_source 行的 placement_id (bigint = placement.id) 翻译成 placement.placement_id (text = pl_xxx)
 // 修复弹窗编辑时用 number 查不到 traffic_group 的 bug（traffic_group.placement_id 是 text 列）
 type WithPlacementId = { placement_id?: number | null };
-type WithPlacementCode = WithPlacementId & { placement_code?: string | null };
 
 async function attachPlacementCodes<T extends WithPlacementId>(items: T[]): Promise<Array<T & { placement_code?: string | null }>> {
   if (!items || items.length === 0) return items as Array<T & { placement_code?: string | null }>;
@@ -158,7 +157,6 @@ async function replaceTrafficGroupBindings(sourceId: number, bindings: BindingIn
 // ============ List ad sources ============
 router.get('/list', authMiddleware, async (req: express.Request, res: express.Response) => {
   try {
-    const { developerId } = getDeveloper(req);
     const { networkCode, networkDefId, appId, placementId, status, page = 1, pageSize = 20 } = req.query as Record<string, string>;
 
     // List 阶段不过滤 developer_id：demo 数据全平台共享；create/update/delete 仍按 dev 校验

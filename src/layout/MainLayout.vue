@@ -114,7 +114,7 @@ import {
   DataAnalysis, Cellphone, PictureFilled, Connection, SetUp, Filter,
   TrendCharts, DocumentChecked, Share, Bell, User, ArrowDown, ArrowRight,
   ChatLineSquare, SwitchButton, Refresh, Close, Operation,
-  DArrowLeft, DArrowRight, OfficeBuilding, DataLine,
+  DArrowLeft, DArrowRight, OfficeBuilding, DataLine, Box, Reading, Histogram, Lock,
 } from '@element-plus/icons-vue';
 import HalWidget from '@/components/HalWidget.vue';
 
@@ -152,6 +152,17 @@ const baseMenuItems: MenuItem[] = [
   { path: '/reconciliation', label: '对账管理', icon: DocumentChecked },
   { path: '/network', label: '广告平台', icon: Share },
   { path: '/message', label: '消息中心', icon: Bell },
+  {
+    path: '/sdk',
+    label: 'SDK 管理',
+    icon: Box,
+    children: [
+      { path: '/sdk', label: 'SDK 下载', icon: Box },
+      { path: '/sdk/docs', label: '技术文档', icon: Reading },
+      { path: '/sdk/history', label: '版本历史', icon: Histogram },
+      { path: '/sdk/privacy', label: '隐私政策', icon: Lock },
+    ],
+  },
   { path: '/profile', label: '个人中心', icon: User },
 ];
 
@@ -165,6 +176,16 @@ const menuItems = computed<MenuItem[]>(() => {
       ...baseMenuItems,
       { path: '/admin/developers', label: '开发者管理', icon: OfficeBuilding },
       { path: '/admin/report-metric', label: '指标字典', icon: DataLine },
+      {
+        path: '/admin/sdk',
+        label: 'SDK 后台',
+        icon: Operation,
+        children: [
+          { path: '/admin/sdk/releases', label: '版本管理', icon: Box },
+          { path: '/admin/sdk/docs', label: '文档管理', icon: Reading },
+          { path: '/admin/sdk/privacy', label: '隐私政策', icon: Lock },
+        ],
+      },
     ];
   }
   return baseMenuItems;
@@ -177,9 +198,14 @@ const expandedGroups = ref<Record<string, boolean>>({});
 const toggleGroup = (label: string) => {
   expandedGroups.value[label] = !expandedGroups.value[label];
 };
-// 判断父级菜单是否在当前路由下激活
+// 判断父级菜单是否在当前路由下激活（精确匹配或前缀匹配）
 const isGroupActive = (children: MenuItem[]): boolean => {
-  return children.some((c) => c.path === route.path);
+  return children.some((c) => {
+    if (c.path === route.path) return true;
+    // 父级路径（如 /sdk, /admin/sdk）下所有子项都视作激活
+    if (c.path && c.path !== '/sdk' && c.path !== '/admin/sdk' && route.path.startsWith(c.path)) return true;
+    return false;
+  });
 };
 
 const currentRoute = computed(() => route.path);
@@ -189,7 +215,7 @@ const avatarLetter = computed(() => {
   return email.charAt(0).toUpperCase();
 });
 
-// 路由变化时自动展开父级菜单（聚合管理 / 数据报表）
+// 路由变化时自动展开父级菜单（聚合管理 / 数据报表 / SDK 管理 / SDK 后台）
 watch(
   () => route.path,
   (newPath) => {
@@ -198,6 +224,12 @@ watch(
     }
     if (newPath.startsWith('/report')) {
       expandedGroups.value['数据报表'] = true;
+    }
+    if (newPath === '/sdk' || newPath.startsWith('/sdk/')) {
+      expandedGroups.value['SDK 管理'] = true;
+    }
+    if (newPath.startsWith('/admin/sdk')) {
+      expandedGroups.value['SDK 后台'] = true;
     }
   },
   { immediate: true },

@@ -20,8 +20,15 @@ import Reconciliation from '../views/reconciliation/Index.vue';
 import NetworkManage from '../views/network/Index.vue';
 import MessageCenter from '../views/message/Index.vue';
 import Profile from '../views/profile/Index.vue';
+import SdkHome from '../views/sdk/Index.vue';
+import SdkDocs from '../views/sdk/Docs.vue';
+import SdkPrivacy from '../views/sdk/Privacy.vue';
+import SdkHistory from '../views/sdk/History.vue';
 import AdminDevelopers from '../views/admin/Developers.vue';
 import AdminReportMetric from '../views/admin/ReportMetric.vue';
+import AdminSdkReleases from '../views/admin/SdkReleases.vue';
+import AdminSdkDocs from '../views/admin/SdkDocs.vue';
+import AdminSdkPrivacy from '../views/admin/SdkPrivacy.vue';
 import { useUserStore } from '../stores/user';
 
 const routes: RouteRecordRaw[] = [
@@ -151,6 +158,31 @@ const routes: RouteRecordRaw[] = [
         component: Profile,
         meta: { title: '个人中心', icon: 'UserFilled' },
       },
+      // SDK 管理（开发者视角）
+      {
+        path: 'sdk',
+        component: SdkHome,
+        name: 'SdkHome',
+        meta: { title: 'SDK 下载', icon: 'Box' },
+      },
+      {
+        path: 'sdk/docs',
+        name: 'SdkDocs',
+        component: SdkDocs,
+        meta: { title: '技术文档', icon: 'Reading', hidden: true },
+      },
+      {
+        path: 'sdk/privacy',
+        name: 'SdkPrivacy',
+        component: SdkPrivacy,
+        meta: { title: '隐私政策', icon: 'Lock', hidden: true },
+      },
+      {
+        path: 'sdk/history',
+        name: 'SdkHistory',
+        component: SdkHistory,
+        meta: { title: '版本历史', icon: 'Histogram', hidden: true },
+      },
       {
         path: 'admin/developers',
         name: 'AdminDevelopers',
@@ -162,6 +194,24 @@ const routes: RouteRecordRaw[] = [
         name: 'AdminReportMetric',
         component: AdminReportMetric,
         meta: { title: '指标字典', icon: 'DataLine', requiresAdmin: true },
+      },
+      {
+        path: 'admin/sdk/releases',
+        name: 'AdminSdkReleases',
+        component: AdminSdkReleases,
+        meta: { title: 'SDK 版本管理', icon: 'Box', requiresAdmin: true },
+      },
+      {
+        path: 'admin/sdk/docs',
+        name: 'AdminSdkDocs',
+        component: AdminSdkDocs,
+        meta: { title: 'SDK 文档管理', icon: 'Reading', requiresAdmin: true },
+      },
+      {
+        path: 'admin/sdk/privacy',
+        name: 'AdminSdkPrivacy',
+        component: AdminSdkPrivacy,
+        meta: { title: 'SDK 隐私政策', icon: 'Lock', requiresAdmin: true },
       },
     ],
   },

@@ -1,7 +1,7 @@
 import express, { Router } from 'express';
 import { db } from '../db';
 import { genPlacementId } from '../utils/id-generator';
-import { authMiddleware, getDeveloper, getDeveloperContext } from '../middleware/auth';
+import { authMiddleware, getDeveloperContext } from '../middleware/auth';
 import { success, fail } from '../utils/response';
 
 const router = Router();
@@ -9,7 +9,6 @@ const router = Router();
 // List placements
 router.get('/list', authMiddleware, async (req: express.Request, res: express.Response) => {
   try {
-    const { developerId } = getDeveloper(req);
     const { appId, appKey, status, format, page = 1, pageSize = 20 } = req.query as Record<string, string>;
 
     // List 阶段不过滤 developer_id：demo 数据全平台共享；create/update/delete 仍按 dev 校验

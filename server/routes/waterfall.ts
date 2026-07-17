@@ -50,7 +50,7 @@ router.get('/get', authMiddleware, async (req: express.Request, res: express.Res
 // Update waterfall config
 router.post('/update', authMiddleware, async (req: express.Request, res: express.Response) => {
   try {
-    const { placementId, trafficGroupId = 0, configName, config_name, description = null, isDefaultConfig, is_default_config, layers } = req.body;
+    const { placementId, configName, config_name, description = null, isDefaultConfig, is_default_config, layers } = req.body;
 
     if (!placementId) { fail(res, 400, '缺少 placementId'); return; }
     // layers 可省略：只更新元数据（config_name/description）
@@ -206,8 +206,6 @@ router.get('/list', authMiddleware, async (req: express.Request, res: express.Re
 
     // 2.5 dedup：同一 placement 业务码下历史脏数据可能同时存在 "58" + "pl_xxx" 两种 placement_id 写法
     // 仅按 traffic_group_id 维度保留 version 最大的那条（避免"一个广告位两个 v1"）
-    // 统计总数（dedup 前）
-    const totalRaw = (rawConfigs || []).length;
     const dedupMap = new Map<string, typeof rawConfigs[number]>();
     for (const c of (rawConfigs || [])) {
       const tgKey = String(c.traffic_group_id ?? '0');

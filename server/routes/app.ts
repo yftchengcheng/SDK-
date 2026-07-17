@@ -92,7 +92,6 @@ router.post('/upload-icon', authMiddleware, async (req: express.Request, res: ex
 // List apps
 router.get('/list', authMiddleware, async (req: express.Request, res: express.Response) => {
   try {
-    const { developerId } = getDeveloper(req);
     const { status, platform, keyword, page = 1, pageSize = 20 } = req.query as Record<string, string>;
 
     // List 阶段不过滤 developer_id：demo 数据全平台共享；update/delete/create 仍按 dev 校验

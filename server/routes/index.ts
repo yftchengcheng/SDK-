@@ -6,6 +6,7 @@ import adSourceRoutes from './ad-source';
 import waterfallRoutes from './waterfall';
 import trafficGroupRoutes from './traffic-group';
 import sdkRoutes from './sdk';
+import sdkCmsRoutes from './sdk-cms';
 import reportRoutes from './report';
 import reportMetricRoutes from './report-metric';
 import reportBoardRoutes from './report-board';
@@ -48,6 +49,7 @@ router.use('/api/v1/hal', halRoutes);
 
 // Public SDK routes
 router.use('/api/v1/sdk', sdkRoutes);
+router.use('/api/v1/sdk-cms', sdkCmsRoutes);
 
 // Public report endpoint
 router.use('/api/v1/report', reportRoutes);
