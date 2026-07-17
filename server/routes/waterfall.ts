@@ -17,10 +17,25 @@ router.get('/get', authMiddleware, async (req: express.Request, res: express.Res
 
     const groupId = trafficGroupId ? Number(trafficGroupId) : 0;
 
+    // 兼容 placementId 两种入参：integer (placement.id) 或 string business code (placement.placement_id 'pl_xxx')
+    // DB 中 waterfall_config.placement_id 存的是 business code（varchar），需要先反查 placement 表
+    const { data: placement, error: pErr } = await db.from('placement')
+      .select('id, placement_id')
+      .or(`placement_id.eq.${placementId},id.eq.${Number(placementId) || -1}`)
+      .maybeSingle();
+    if (pErr) throw pErr;
+    if (!placement) {
+      success(res, { config: null, layers: [] });
+      return;
+    }
+    const realPlacementId = String(placement.placement_id || placementId);
+    // 兼容历史脏数据：同一 placement 业务码下 placement_id 列可能存 "127"（number-as-string）或 "pl_xxx"（business code）
+    const pidCandidates = Array.from(new Set([realPlacementId, String(placement.id)]));
+
     // Get latest config
     const { data: config, error } = await db.from('waterfall_config')
       .select('*')
-      .eq('placement_id', placementId)
+      .in('placement_id', pidCandidates)
       .eq('traffic_group_id', groupId)
       .order('version', { ascending: false })
       .limit(1)
