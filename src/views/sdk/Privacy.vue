@@ -22,18 +22,45 @@
           <h2 class="privacy-title">{{ policy.title }}</h2>
           <div class="privacy-meta">
             <el-tag effect="plain" size="small">版本 {{ policy.version }}</el-tag>
+            <el-tag v-if="isExternal" effect="plain" size="small" type="warning">
+              <el-icon><Link /></el-icon> 外链
+            </el-tag>
             <el-tag effect="plain" size="small" type="success">生效中</el-tag>
             <span class="privacy-date">生效时间：{{ formatDate(policy.effective_date) }}</span>
           </div>
         </div>
-        <el-button v-if="!consented" type="primary" @click="onConsent">我已阅读并同意</el-button>
-        <el-button v-else type="success" disabled>
-          <el-icon><Check /></el-icon> 已同意
-        </el-button>
+        <div class="privacy-actions">
+          <el-button v-if="isExternal" :icon="Link" @click="openExternal">前往官方原文</el-button>
+          <el-button v-if="!consented" type="primary" @click="onConsent">我已阅读并同意</el-button>
+          <el-button v-else type="success" disabled>
+            <el-icon><Check /></el-icon> 已同意
+          </el-button>
+        </div>
       </div>
       <div class="privacy-divider" />
       <div v-if="policy.summary" class="privacy-summary">{{ policy.summary }}</div>
-      <div class="privacy-content">
+
+      <!-- 外链模式：iframe 嵌入 + fallback 提示 -->
+      <div v-if="isExternal" class="privacy-iframe-wrap">
+        <iframe
+          v-if="iframeVisible"
+          :src="policy.source_url"
+          class="privacy-iframe"
+          referrerpolicy="no-referrer-when-downgrade"
+          sandbox="allow-same-origin allow-scripts allow-popups allow-forms"
+          title="隐私政策原文"
+          @load="onIframeLoad"
+          @error="onIframeError"
+        />
+        <div v-else class="privacy-iframe-fallback">
+          <el-icon size="32" color="#94A3B8"><WarningFilled /></el-icon>
+          <p>无法在当前页内加载官方隐私政策。</p>
+          <el-button type="primary" :icon="Link" @click="openExternal">前往查看原文</el-button>
+        </div>
+      </div>
+
+      <!-- 内部内容 -->
+      <div v-else class="privacy-content">
         <div v-if="policy.content_format === 1" v-html="policy.content" />
         <div v-else v-html="renderMarkdown(policy.content || '')" />
       </div>
@@ -43,9 +70,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, onMounted } from 'vue';
+import { ref, computed, watch, onMounted } from 'vue';
 import { ElMessage } from 'element-plus';
-import { Cellphone, Iphone, Check } from '@element-plus/icons-vue';
+import { Cellphone, Iphone, Check, Link, WarningFilled } from '@element-plus/icons-vue';
 import MarkdownIt from 'markdown-it';
 import request from '@/utils/request';
 import { useUserStore } from '@/stores/user';
@@ -55,9 +82,10 @@ interface Policy {
   version: string;
   platform: 1 | 2 | null;
   title: string;
-  content_format: 1 | 2;
+  content_format: 1 | 2 | 3;
   content: string;
   summary?: string;
+  source_url?: string;
   effective_date?: string;
   status: number;
 }
@@ -68,6 +96,9 @@ const md = new MarkdownIt({ html: true, linkify: true, breaks: true });
 const activePlatform = ref<1 | 2>(1);
 const policy = ref<Policy | null>(null);
 const consented = ref(false);
+const iframeVisible = ref(true);
+
+const isExternal = computed(() => !!policy.value?.source_url);
 
 const renderMarkdown = (text: string) => md.render(text);
 
@@ -76,7 +107,30 @@ const formatDate = (date?: string): string => {
   return new Date(date).toLocaleDateString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit' });
 };
 
+const openExternal = () => {
+  if (!policy.value?.source_url) return;
+  window.open(policy.value.source_url, '_blank', 'noopener,noreferrer');
+};
+
+const onIframeLoad = (e: Event) => {
+  try {
+    // 同源检测：跨域 iframe 无法访问 contentDocument；非跨域 → 高度自适应
+    const doc = (e.target as HTMLIFrameElement).contentDocument;
+    if (doc?.body) {
+      const h = Math.max(doc.body.scrollHeight, doc.documentElement.scrollHeight);
+      (e.target as HTMLIFrameElement).style.height = `${h}px`;
+    }
+  } catch {
+    /* 跨域被禁止，忽略；固定高度生效 */
+  }
+};
+
+const onIframeError = () => {
+  iframeVisible.value = false;
+};
+
 const loadPolicy = async () => {
+  iframeVisible.value = true;
   try {
     const res: any = await request.get('/api/v1/sdk-cms/privacy/policy', { params: { platform: activePlatform.value } });
     policy.value = res.data;

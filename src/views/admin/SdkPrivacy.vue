@@ -19,11 +19,20 @@
           </template>
         </el-table-column>
         <el-table-column label="标题" prop="title" min-width="220" show-overflow-tooltip />
-        <el-table-column label="格式" width="80">
+        <el-table-column label="来源" width="90">
           <template #default="{ row }">
-            <el-tag :type="row.content_format === 1 ? 'warning' : 'info'" size="small" effect="plain">
+            <el-tag v-if="row.source_url" type="warning" size="small" effect="plain">
+              <el-icon><Link /></el-icon> 外链
+            </el-tag>
+            <el-tag v-else :type="row.content_format === 1 ? 'primary' : 'info'" size="small" effect="plain">
               {{ row.content_format === 1 ? 'HTML' : 'MD' }}
             </el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column v-if="hasExternalPolicy" label="外链地址" min-width="200" show-overflow-tooltip>
+          <template #default="{ row }">
+            <a v-if="row.source_url" :href="row.source_url" target="_blank" class="ext-link">{{ row.source_url }}</a>
+            <span v-else class="muted">—</span>
           </template>
         </el-table-column>
         <el-table-column label="生效时间" width="120">
@@ -68,12 +77,46 @@
             <el-radio :value="null">通用（全部平台）</el-radio>
           </el-radio-group>
         </el-form-item>
-        <el-form-item label="格式" prop="content_format">
-          <el-radio-group v-model="form.content_format">
-            <el-radio :value="1">HTML（富文本）</el-radio>
-            <el-radio :value="2">Markdown</el-radio>
+        <el-form-item label="内容来源" prop="source_type">
+          <el-radio-group v-model="form.source_type">
+            <el-radio :value="'internal'">内部内容（HTML / Markdown）</el-radio>
+            <el-radio :value="'external'">外部链接（跳转 / 嵌入官方页面）</el-radio>
           </el-radio-group>
         </el-form-item>
+        <template v-if="form.source_type === 'external'">
+          <el-form-item label="外链地址" prop="source_url">
+            <el-input v-model="form.source_url" placeholder="https://docs.example.com/privacy.html" clearable>
+              <template #append>
+                <el-button :disabled="!form.source_url" @click="previewExternal">预览</el-button>
+              </template>
+            </el-input>
+            <div class="form-hint">
+              开发者端默认在站内嵌入此页面（iframe）；用户也可"前往查看原文"打开新窗口。
+            </div>
+          </el-form-item>
+          <el-form-item label="摘要">
+            <el-input v-model="form.summary" type="textarea" :rows="2" placeholder="简短摘要（可选，展示在嵌入式页面顶部）" />
+          </el-form-item>
+        </template>
+        <template v-else>
+          <el-form-item label="格式" prop="content_format">
+            <el-radio-group v-model="form.content_format">
+              <el-radio :value="1">HTML（富文本）</el-radio>
+              <el-radio :value="2">Markdown</el-radio>
+            </el-radio-group>
+          </el-form-item>
+          <el-form-item label="摘要">
+            <el-input v-model="form.summary" type="textarea" :rows="2" placeholder="简短摘要（可选）" />
+          </el-form-item>
+          <el-form-item label="内容" prop="content">
+            <el-input
+              v-model="form.content"
+              type="textarea"
+              :rows="16"
+              :placeholder="form.content_format === 1 ? '支持 HTML' : '支持 Markdown'"
+            />
+          </el-form-item>
+        </template>
         <el-form-item label="生效时间" prop="effective_date">
           <el-date-picker v-model="form.effective_date" type="datetime" value-format="YYYY-MM-DDTHH:mm:ss" />
         </el-form-item>
@@ -82,17 +125,6 @@
             <el-radio :value="1">立即生效</el-radio>
             <el-radio :value="0">仅存档</el-radio>
           </el-radio-group>
-        </el-form-item>
-        <el-form-item label="摘要">
-          <el-input v-model="form.summary" type="textarea" :rows="2" placeholder="简短摘要（可选）" />
-        </el-form-item>
-        <el-form-item label="内容" prop="content">
-          <el-input
-            v-model="form.content"
-            type="textarea"
-            :rows="16"
-            :placeholder="form.content_format === 1 ? '支持 HTML' : '支持 Markdown'"
-          />
         </el-form-item>
       </el-form>
       <template #footer>
@@ -104,9 +136,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus';
-import { Plus } from '@element-plus/icons-vue';
+import { Plus, Link } from '@element-plus/icons-vue';
 import request from '@/utils/request';
 
 interface Policy {
@@ -114,13 +146,20 @@ interface Policy {
   version: string;
   platform: 1 | 2 | null;
   title: string;
-  content_format: 1 | 2;
+  content_format: 1 | 2 | 3;
   content: string;
   summary?: string;
+  source_url?: string;
   effective_date?: string;
   status: number;
   created_by?: string;
   created_at?: string;
+}
+
+type SourceType = 'internal' | 'external';
+
+interface FormState extends Partial<Policy> {
+  source_type: SourceType;
 }
 
 const policies = ref<Policy[]>([]);
@@ -131,26 +170,47 @@ const submitting = ref(false);
 const formRef = ref<FormInstance>();
 const editingId = ref<number | null>(null);
 
-const defaultForm = (): Partial<Policy> => ({
+const hasExternalPolicy = computed(() => policies.value.some(p => !!p.source_url));
+
+const defaultForm = (): FormState => ({
   version: '',
   title: '',
   platform: 1,
   content_format: 2,
   content: '',
   summary: '',
+  source_url: '',
+  source_type: 'internal',
   effective_date: new Date().toISOString().slice(0, 19),
   status: 1,
 });
 
-const form = ref<Partial<Policy>>(defaultForm());
+const form = ref<FormState>(defaultForm());
 
 const rules: FormRules = {
   version: [{ required: true, message: '请输入版本号', trigger: 'blur' }],
   title: [{ required: true, message: '请输入标题', trigger: 'blur' }],
-  content_format: [{ required: true, message: '请选择格式', trigger: 'change' }],
   effective_date: [{ required: true, message: '请选择生效时间', trigger: 'change' }],
   status: [{ required: true, message: '请选择状态', trigger: 'change' }],
-  content: [{ required: true, message: '请输入内容', trigger: 'blur' }],
+  source_url: [
+    {
+      validator: (_r, v, cb) => {
+        if (form.value.source_type === 'external' && !v) return cb(new Error('请输入外链地址'));
+        if (v && !/^https?:\/\//i.test(String(v))) return cb(new Error('外链必须以 http:// 或 https:// 开头'));
+        cb();
+      },
+      trigger: 'blur',
+    },
+  ],
+  content: [
+    {
+      validator: (_r, v, cb) => {
+        if (form.value.source_type === 'internal' && !v) return cb(new Error('请输入内容'));
+        cb();
+      },
+      trigger: 'blur',
+    },
+  ],
 };
 
 const formatDate = (date?: string): string => {
@@ -180,8 +240,16 @@ const openCreate = () => {
 const openEdit = (row: Policy) => {
   isEdit.value = true;
   editingId.value = row.id;
-  form.value = { ...row };
+  form.value = {
+    ...row,
+    source_type: row.source_url ? 'external' : 'internal',
+  };
   dialogVisible.value = true;
+};
+
+const previewExternal = () => {
+  if (!form.value.source_url) return;
+  window.open(form.value.source_url, '_blank', 'noopener,noreferrer');
 };
 
 const submit = async () => {
@@ -193,8 +261,25 @@ const submit = async () => {
   }
   submitting.value = true;
   try {
-    const payload: Partial<Policy> = { ...form.value };
-    // null 平台：转为 undefined（不传给 DB）
+    // 拆分 source_type → source_url / content_format
+    const isExternal = form.value.source_type === 'external';
+    const payload: Partial<Policy> = {
+      version: form.value.version,
+      title: form.value.title,
+      platform: form.value.platform,
+      summary: form.value.summary,
+      effective_date: form.value.effective_date,
+      status: form.value.status,
+    };
+    if (isExternal) {
+      payload.source_url = form.value.source_url;
+      payload.content = '';
+      payload.content_format = 3;
+    } else {
+      payload.source_url = '';
+      payload.content = form.value.content;
+      payload.content_format = form.value.content_format;
+    }
     if (payload.platform === null) delete payload.platform;
     if (isEdit.value && editingId.value) {
       await request.put(`/api/v1/sdk-cms/admin/privacy/${editingId.value}`, payload);
