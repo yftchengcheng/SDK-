@@ -39,18 +39,18 @@
         </div>
       </div></div>
       <div class="page-card">
-        <div class="page-table-wrap"><el-table :data="tableData" v-loading="loading" stripe style="width: 100%">
-        <el-table-column prop="is_read" label="" width="40">
+        <div class="page-table-wrap"><el-table :data="tableData" v-loading="loading" stripe style="width: 100%" align="center" header-align="center">
+        <el-table-column prop="is_read" label="" width="40" align="center" header-align="center">
           <template #default="{ row }">
             <span v-if="!row.is_read" style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#DC2626"></span>
           </template>
         </el-table-column>
-        <el-table-column prop="title" label="标题" min-width="240">
+        <el-table-column prop="title" label="标题" min-width="240" align="center" header-align="center">
           <template #default="{ row }">
             <span :class="{ 'text-secondary': row.is_read }" style="cursor:pointer" @click="handleRead(row)">{{ row.title }}</span>
           </template>
         </el-table-column>
-        <el-table-column prop="type" label="类型" width="120">
+        <el-table-column prop="type" label="类型" width="120" align="center" header-align="center">
           <template #default="{ row }">
             <span class="status-tag" :class="{
                 'status-tag--info': row.type === 1,
@@ -61,10 +61,10 @@
               }">{{ messageTypeLabel(row.type) }}</span>
           </template>
         </el-table-column>
-        <el-table-column prop="created_at" label="时间" width="170">
+        <el-table-column prop="created_at" label="时间" width="170" align="center" header-align="center">
           <template #default="{ row }">{{ formatTime(row.created_at) }}</template>
         </el-table-column>
-        <el-table-column label="操作" width="100" fixed="right">
+        <el-table-column label="操作" width="100" align="center" header-align="center">
           <template #default="{ row }">
             <el-button link type="primary" size="small" @click="handleRead(row)">查看</el-button>
           </template>
