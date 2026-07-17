@@ -141,9 +141,10 @@ import { ref, reactive, onMounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { TrendCharts, SetUp, DataAnalysis, CircleCheck } from '@element-plus/icons-vue'
-import request from '../../utils/request'
+import { useUserStore } from '../../stores/user'
 
 const router = useRouter()
+const userStore = useUserStore()
 const formRef = ref()
 const captchaCanvas = ref<HTMLCanvasElement>()
 const loading = ref(false)
@@ -248,15 +249,9 @@ async function handleLogin(): Promise<void> {
 
   loading.value = true
   try {
-    const res = await request.post('/api/v1/auth/login', {
-      email: form.email,
-      password: form.password
-    })
-    if (res.data?.token) {
-      localStorage.setItem('token', res.data.token)
-      ElMessage.success('登录成功')
-      router.push('/dashboard')
-    }
+    await userStore.login(form.email, form.password)
+    ElMessage.success('登录成功')
+    router.push('/dashboard')
   } catch (err: unknown) {
     const errorMsg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message || '登录失败'
     ElMessage.error(errorMsg)

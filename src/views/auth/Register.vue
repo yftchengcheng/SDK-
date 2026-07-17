@@ -185,9 +185,10 @@ import { ref, reactive, onMounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { TrendCharts, SetUp, DataAnalysis, CircleCheck, Connection, Link } from '@element-plus/icons-vue'
-import request from '../../utils/request'
+import { useUserStore } from '../../stores/user'
 
 const router = useRouter()
+const userStore = useUserStore()
 const formRef = ref()
 const captchaCanvas = ref<HTMLCanvasElement>()
 const loading = ref(false)
@@ -344,7 +345,13 @@ async function handleRegister(): Promise<void> {
       password: form.password
     })
     if (res.data?.token) {
+      // 同步 userStore（避免重新登录）
+      userStore.token = res.data.token
+      userStore.userInfo = res.data
+      userStore.role = res.data.role || 'developer'
       localStorage.setItem('token', res.data.token)
+      localStorage.setItem('userInfo', JSON.stringify(res.data))
+      localStorage.setItem('userRole', userStore.role)
       ElMessage.success('注册成功')
       router.push('/dashboard')
     }
