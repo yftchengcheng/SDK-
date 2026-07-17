@@ -12,33 +12,34 @@
         <el-button @click="markAllRead">全部已读</el-button>
       </div>
     </div>
-    <div class="page-filter">
-      <el-form :inline="true" :model="filter" class="page-filter-form" @submit.prevent>
-        <el-form-item label="消息类型">
-          <el-select v-model="filter.type" placeholder="全部" clearable @change="onSearch">
-            <el-option label="系统通知" :value="1" />
-            <el-option label="运营公告" :value="2" />
-            <el-option label="收益提醒" :value="3" />
-            <el-option label="异常告警" :value="4" />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="状态">
-          <el-select v-model="filter.isRead" placeholder="全部" clearable @change="onSearch">
-            <el-option label="未读" :value="0" />
-            <el-option label="已读" :value="1" />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="关键词">
-          <el-input v-model="filter.keyword" placeholder="搜索消息标题" clearable @keyup.enter="onSearch" @clear="onSearch" />
-        </el-form-item>
-      </el-form>
-      <div class="page-filter-actions">
-        <el-button @click="onReset">重置</el-button>
-        <el-button type="primary" :icon="Search" @click="onSearch">查询</el-button>
-      </div>
-    </div>
-    <div class="page-card">
-      <div class="page-table-wrap"><el-table :data="tableData" v-loading="loading" stripe style="width: 100%">
+    <div class="page-section-card">
+      <div class="page-card"><div class="page-filter">
+        <el-form :inline="true" :model="filter" class="page-filter-form" @submit.prevent>
+          <el-form-item label="消息类型">
+            <el-select v-model="filter.type" placeholder="全部" clearable @change="onSearch">
+              <el-option label="系统通知" :value="1" />
+              <el-option label="运营公告" :value="2" />
+              <el-option label="收益提醒" :value="3" />
+              <el-option label="异常告警" :value="4" />
+            </el-select>
+          </el-form-item>
+          <el-form-item label="状态">
+            <el-select v-model="filter.isRead" placeholder="全部" clearable @change="onSearch">
+              <el-option label="未读" :value="0" />
+              <el-option label="已读" :value="1" />
+            </el-select>
+          </el-form-item>
+          <el-form-item label="关键词">
+            <el-input v-model="filter.keyword" placeholder="搜索消息标题" clearable @keyup.enter="onSearch" @clear="onSearch" />
+          </el-form-item>
+        </el-form>
+        <div class="page-filter-actions">
+          <el-button @click="onReset">重置</el-button>
+          <el-button type="primary" :icon="Search" @click="onSearch">查询</el-button>
+        </div>
+      </div></div>
+      <div class="page-card">
+        <div class="page-table-wrap"><el-table :data="tableData" v-loading="loading" stripe style="width: 100%">
         <el-table-column prop="is_read" label="" width="40">
           <template #default="{ row }">
             <span v-if="!row.is_read" style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#DC2626"></span>
@@ -74,6 +75,7 @@
       v-model:page-size="pageSize"
       :total="total"
       @change="fetchList" />
+    </div>
     </div>
     <!-- Detail Dialog -->
     <el-dialog v-model="showDetail" :title="currentMsg.title" width="560px">
