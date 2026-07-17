@@ -556,19 +556,29 @@
 
 #### 顶部 KPI 卡片（4 个）
 
-- 横向并排，每个卡片宽 ~280px（视口 1920 视情况自适应）。
-- 卡片结构：标题 + 数值（大字号 28px）+ 同比/环比小标 + 迷你折线（7 天趋势）。
-- 4 个指标：**总收入（¥）** / **总展示（次）** / **总点击（次）** / **eCPM（¥）**。
+- 横向并排，4 列 grid（`gap-6`，每列等宽），固定 `240px` 高，圆角 12px，白底 + 1px `--color-border` 边 + `--shadow-sm`。
+- 卡片结构：label（13px 主色）+ period（11px 灰）+ 28px 收入数字（`#0F172A`）。**无迷你折线、无同比环比标签、无副指标**。
+- 4 张卡按固定顺序：**昨天 / 前天 / 本月 / 上月**，每张只展示该时段 `SUM(revenue)`。
 
-#### 主体（双列布局）
+#### 数据趋势区（整宽单段）
 
-- **左列**（60%）：收入趋势折线图（30 天 ECharts 折线 + 区域填充 + 工具栏）
-- **右列**（40%）：TOP 应用排行（柱状图横排，前 10 名）
+- 标题区：「数据趋势」+ 三联筛选器：**维度下拉**（app/placement/network/adType/region/os）+ **指标下拉**（revenue/impressions/clicks/requests/fills）+ **日期范围 daterange**（默认近 7 天，含今日）。
+- 主体：ECharts 折线图（整宽 ~960px × 360px），平滑曲线 + 区域渐变填充 + 横向网格 + 工具栏（保存图片 / 数据缩放 / 还原）。
 
-#### 筛选区
+#### TOP 排行网格（2×3 共 6 张）
 
-- 顶部筛选：时间范围（近 7 / 30 / 90 天）+ 应用（多选）
-- 联动刷新：所有图表同步
+- 6 个固定排行卡（不可增删），按以下固定顺序 2×3 网格：
+  1. TOP 应用（按 app_key）
+  2. TOP 广告位（按 placement_id）
+  3. TOP 网络（按 ad_source_id）
+  4. TOP 广告类型（按 ad_type）
+  5. TOP 地区（按 region）
+  6. TOP 系统（按 os）
+- 每张卡：标题 + 横排柱状图（前 10 名，按指标值降序）+ 「查看全部」链接（跳综合报表）。
+
+#### 顶部 Page Header
+
+- 标题「数据看板」+ 右侧刷新图标按钮（手动 reload 三段数据）。
 
 ![数据看板](public/prd/thumb/03-dashboard.png)
 
@@ -576,28 +586,47 @@
 
 | 接口 | 方法 | 说明 |
 |------|------|------|
-| `/api/v1/console/dashboard/overview` | GET | 4 个 KPI 数值 + 同比环比 |
-| `/api/v1/console/dashboard/trend` | GET | 30 天趋势数据（按天聚合） |
-| `/api/v1/console/dashboard/ranking/:dimension` | GET | 排行（dimension=app / ad_source / placement / region） |
+| `/api/v1/dashboard/overview` | GET | 4 张时段收入卡片（昨天/前天/本月/上月）|
+| `/api/v1/dashboard/trend` | GET | 数据趋势（维度 × 指标 × 日期范围，ECharts 折线数据）|
+| `/api/v1/dashboard/ranking/:dimension` | GET | TOP 排行（dimension=app/placement/network/adType/region/os）|
+| `/api/v1/dashboard/dimensions` | GET | 维度下拉选项枚举 |
+| `/api/v1/dashboard/metrics` | GET | 指标下拉选项枚举 |
+
+- 全部经 `authMiddleware` 鉴权；`developer_id` 从 JWT 取，**不**接受 query 覆盖。
+- 错误码：`4001` 无 token / `4003` token 过期 / `5001` DB error。
 
 #### 业务逻辑
 
-1. **KPI 聚合**：`SUM(revenue)` / `SUM(impressions)` / `SUM(clicks)` / `AVG(eCPM)`（eCPM = revenue * 1000 / impressions）。
-2. **同比**：`本周期 / 上一周期 - 1`；环比：`今日 vs 昨日`。
-3. **趋势**：按 `stat_date` group by，按 `app_key IN (...)` 过滤。
-4. **TOP 排行**：按 `SUM(revenue)` DESC，取前 N。
+1. **4 张时段收入卡**：并行查 4 个时间窗的 `SUM(revenue)`：
+   - 昨天 = `stat_date = CURRENT_DATE - 1`
+   - 前天 = `stat_date = CURRENT_DATE - 2`
+   - 本月 = `stat_date >= DATE_TRUNC('month', CURRENT_DATE)`（含今日）
+   - 上月 = `stat_date >= DATE_TRUNC('month', CURRENT_DATE - INTERVAL '1 month') AND stat_date < DATE_TRUNC('month', CURRENT_DATE)`
+2. **趋势**（trend 接口）：按 dimension 分类走不同数据源：
+   - 软维度（adType/region/os）：直接对 `report_daily` 按 `stat_date` group by 聚合 metric
+   - 硬维度（app/placement/network）：对 `report_daily` 按 dimension 关联表（app/placement/ad_source）id group by
+3. **TOP 排行**（ranking 接口）：与 trend 共享 dimensionConfig；按 `SUM(metric)` DESC 取前 `limit`（默认 10）。
+4. **今日数据**：因 report_daily T+1 写入，4 张卡**不展示**今日；趋势的日期范围 daterange 可含今日（今日点为 0）。
 
 #### 关键库表
 
-- **`report_daily`**（核心）：`(developer_id, app_key, placement_id, ad_source_id, stat_date, hour)` 复合唯一约束
-  - 关键字段：`requests` / `fills` / `impressions` / `clicks` / `revenue` / `region` / `os` / `ad_type`
-  - 索引建议：`(developer_id, stat_date)` / `(app_key, stat_date)` / `(placement_id, stat_date)`
+- **`report_daily`**（主表，趋势/排行/4 张卡都依赖）
+  - 复合唯一键：`(developer_id, app_key, placement_id, ad_source_id, stat_date, hour)`
+  - metric 字段：`requests` / `fills` / `impressions` / `clicks` / `revenue`（NUMERIC，eCPM 派生，**不存**）
+  - 软维度字段：`region` / `os` / `ad_type`
+  - 索引：`(developer_id, stat_date)` / `(app_key, stat_date)` / `(placement_id, stat_date)`
+- **`app`**（硬维度 1）：enrichNames 用，按 `app_key` group by 时取 `app_name`
+- **`placement`**（硬维度 2）：按 `placement_id` 取 `name`
+- **`ad_source`**（硬维度 3 = network）：按 `ad_source_id` 取 `source_name`
+- **`developer`**（过滤）：JWT 解出 `developer_id` 后 `WHERE developer_id = ?`
 
 #### 注意事项
 
-- 看板默认显示当前用户 `developer_id` 的所有数据，**不做权限隔离**（每个开发者只看到自己的数据）。
-- eCPM = revenue * 1000 / impressions，避免 `impressions = 0` 除零。
-- 同比环比在没有上一周期数据时显示 `--`。
+- 4 张卡**不展示**今日（T+1 延迟，4 张卡皆是历史时段；今日 point 永远为 0）。
+- eCPM = `SUM(revenue) * 1000 / SUM(impressions)`，在**前端**计算（接口只返 5 个原始 metric），`impressions = 0` 时返回 `--`。
+- DAU 指标**当前未实装**（看板 / 趋势 / 排行接口都不返 DAU）。早期文档描述的「DAU 是粗估：曝光用户数 ÷ 当日曝光」**未上线**，后续若实现，按 SDK 上报 `metric_id = 'dau'` 聚合。
+- 维度下拉 / 指标下拉的选项**前端不缓存**，每次开页调 `/dimensions` `/metrics` 拉最新枚举。
+- `dimensionConfig` 切换会自动 reload 趋势图（前端 watch + 重置 trend query）。
 
 ---
 
@@ -3719,9 +3748,11 @@ ALTER TABLE waterfall_config ADD COLUMN IF NOT EXISTS layers JSONB DEFAULT '[]':
 | 瀑布流 | `/api/v1/console/waterfall/list` | GET | ✅ |
 | 瀑布流 | `/api/v1/console/waterfall/update` | POST | ✅ |
 | 瀑布流 | `/api/v1/console/waterfall/history` | GET | ✅ |
-| 报表 | `/api/v1/console/dashboard/overview` | GET | ✅ |
-| 报表 | `/api/v1/console/dashboard/trend` | GET | ✅ |
-| 报表 | `/api/v1/console/dashboard/ranking/:dimension` | GET | ✅ |
+| 报表 | `/api/v1/dashboard/overview` | GET | ✅ |
+| 报表 | `/api/v1/dashboard/trend` | GET | ✅ |
+| 报表 | `/api/v1/dashboard/ranking/:dimension` | GET | ✅ |
+| 报表 | `/api/v1/dashboard/dimensions` | GET | ✅ |
+| 报表 | `/api/v1/dashboard/metrics` | GET | ✅ |
 | 报表 | `/api/v1/console/report/daily` | GET | ✅ |
 | 报表 | `/api/v1/console/report/export` | GET | ✅ |
 | 报表 | `/api/v1/console/report-aggregate/options` | POST | ✅ |
