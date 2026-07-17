@@ -6,7 +6,7 @@
   <el-dialog
     v-model="visible"
     title="指标设置"
-    width="900"
+    width="1100"
     :close-on-click-modal="false"
     class="metric-picker-dialog"
     @close="onClose"
