@@ -147,7 +147,7 @@ const routes: RouteRecordRaw[] = [
         meta: { title: '广告平台', icon: 'Share' },
       },
       {
-        path: 'message',
+        path: 'inbox',
         name: 'MessageCenter',
         component: MessageCenter,
         meta: { title: '消息中心', icon: 'Bell' },

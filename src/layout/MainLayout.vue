@@ -72,7 +72,7 @@
           <h2 class="page-title">{{ currentTitle }}</h2>
         </div>
         <div class="top-bar-right">
-          <div class="top-action" @click="$router.push('/message')">
+          <div class="top-action" @click="$router.push('/inbox')">
             <el-badge :value="unreadCount > 0 ? (unreadCount > 99 ? '99+' : unreadCount) : 0" :hidden="unreadCount === 0" :max="99">
               <el-icon :size="18"><Bell /></el-icon>
             </el-badge>
@@ -151,7 +151,7 @@ const baseMenuItems: MenuItem[] = [
     ],
   },
   { path: '/network', label: '广告平台', icon: Share },
-  { path: '/message', label: '消息中心', icon: Bell },
+  { path: '/inbox', label: '消息中心', icon: Bell },
   {
     path: '/sdk',
     label: 'SDK 管理',
