@@ -1,0 +1,21 @@
+import puppeteer from 'puppeteer';
+const browser = await puppeteer.launch({ headless: true, args: ['--no-sandbox'], executablePath: '/root/.cache/ms-playwright/chromium-1161/chrome-linux/chrome' });
+const page = await browser.newPage();
+await page.setViewport({ width: 1440, height: 900, deviceScaleFactor: 1 });
+const wait = (ms) => new Promise(r => setTimeout(r, ms));
+const loginRes = await fetch('http://localhost:5000/api/v1/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: 'yufutang@adtalos.com', password: 'Test123456' }) });
+const realToken = (await loginRes.json()).data?.token;
+await page.goto('http://localhost:5000/login', { waitUntil: 'domcontentloaded' });
+await wait(800);
+await page.evaluate((tk) => { localStorage.setItem('token', tk); document.cookie = `auth_token=${tk}; path=/`; }, realToken);
+await page.goto('http://localhost:5000/sdk/privacy', { waitUntil: 'domcontentloaded' });
+await wait(2500);
+const txt = await page.evaluate(() => {
+  const t = document.querySelector('.privacy-title')?.textContent?.trim();
+  const intro = document.querySelector('.privacy-intro')?.textContent?.trim();
+  return { title: t, intro: intro?.replace(/\s+/g, ' ') };
+});
+console.log(JSON.stringify(txt, null, 2));
+const hasYtads = (await page.content()).includes('YTads');
+console.log('contains YTads in dev page?', hasYtads);
+await browser.close();

@@ -3,7 +3,7 @@
     <div class="table-card mb-base">
       <div class="card-title">隐私政策</div>
       <p class="privacy-intro">
-        本页面展示 YTads 聚合 SDK 收集、使用、存储和保护用户个人信息的相关条款。<br />
+        本页面展示 新义 聚合 SDK 收集、使用、存储和保护用户个人信息的相关条款。<br />
         请仔细阅读，确保你的应用符合《个人信息保护法》及行业规范。
       </p>
       <el-radio-group v-model="activePlatform" size="default" class="privacy-tabs">

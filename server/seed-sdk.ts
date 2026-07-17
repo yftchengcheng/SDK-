@@ -653,13 +653,13 @@ const privacyPolicies = [
   {
     version: '1.1',
     platform: null,
-    title: 'YTads 隐私政策 v1.1',
+    title: '新义 隐私政策 v1.1',
     content_format: 2,
-    content: `# YTads 隐私政策
+    content: `# 新义 隐私政策
 
 **最后更新：2026 年 7 月 30 日**
 
-YTads 聚合广告 SDK 严格遵守《中华人民共和国个人信息保护法》、《App 违法违规收集使用个人信息行为认定方法》、GDPR、CCPA 等法律法规，制定本隐私政策。
+新义 聚合广告 SDK 严格遵守《中华人民共和国个人信息保护法》、《App 违法违规收集使用个人信息行为认定方法》、GDPR、CCPA 等法律法规，制定本隐私政策。
 
 ## 一、我们收集的信息
 
@@ -721,9 +721,9 @@ YTads 聚合广告 SDK 严格遵守《中华人民共和国个人信息保护法
   {
     version: '1.0',
     platform: null,
-    title: 'YTads 隐私政策 v1.0',
+    title: '新义 隐私政策 v1.0',
     content_format: 2,
-    content: `# YTads 隐私政策 v1.0
+    content: `# 新义 隐私政策 v1.0
 
 **生效日期：2026 年 5 月 1 日**
 

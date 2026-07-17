@@ -68,7 +68,7 @@
           <el-input v-model="form.version" placeholder="如 1.1 / 1.0" />
         </el-form-item>
         <el-form-item label="标题" prop="title">
-          <el-input v-model="form.title" placeholder="如 YTads 隐私政策 v1.1" />
+          <el-input v-model="form.title" placeholder="如 新义 隐私政策 v1.1" />
         </el-form-item>
         <el-form-item label="平台" prop="platform">
           <el-radio-group v-model="form.platform">
