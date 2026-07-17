@@ -3413,12 +3413,32 @@ html, body, #app {
   height: 36px;
   padding: 0 12px;
 }
+.page-table-wrap .el-table th.el-table__cell .cell {
+  width: 100% !important;
+  max-width: 100% !important;
+  display: flex !important;
+  align-items: center;
+  padding: 0 !important;
+  gap: 4px;
+  box-sizing: border-box;
+}
+.page-table-wrap .el-table th.el-table__cell .cell .sort-caret {
+  margin-left: auto;
+}
 .page-table-wrap .el-table td.el-table__cell {
   color: var(--color-slate-600, #475569);
   font-size: 13px;
   border-bottom: 1px solid var(--color-slate-100, #F1F5F9);
   height: 40px;
   padding: 0 12px;
+}
+.page-table-wrap .el-table td.el-table__cell .cell {
+  width: 100%;
+  display: block;
+  padding: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .page-table-wrap .el-table__empty-text {
   color: var(--color-slate-400, #94A3B8);

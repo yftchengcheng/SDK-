@@ -13,9 +13,9 @@
         :data="sortedData"
         v-loading="loading"
         stripe
-        :fit="false"
+        :fit="true"
         :max-height="tableMaxHeight"
-        style="width: 100%"
+        style="width: 100%; min-width: 100%"
         @sort-change="onSortChange"
       >
         <el-table-column
@@ -23,12 +23,15 @@
           :key="col.key"
           :prop="col.key"
           :label="col.label"
+          :min-width="col.minWidth"
           :width="col.width"
-          :min-width="col.width"
           :align="col.align || 'left'"
+          :header-align="col.align || 'left'"
           :fixed="col.fixed"
           :sortable="col.sortable"
-          :show-overflow-tooltip="true"
+          :header-cell-style="headerCellStyle"
+      :cell-style="cellStyle"
+      :show-overflow-tooltip="true"
         >
           <template #default="{ row }">
             <span :class="['cell-num', col.align === 'right' ? 'cell-num--right' : '']">
@@ -105,13 +108,61 @@ const emit = defineEmits<{
 
 onMounted(() => {
   loadMetricDict();
-  // 等到 table 渲染后再初始化 Sortable
-  requestAnimationFrame(() => initSortable());
+  injectCellAlignmentFix();
+  // 等到 table 渲染后再初始化 Sortable + scroll 同步
+  requestAnimationFrame(() => {
+    initSortable();
+    initScrollSync();
+  });
 });
 
 onBeforeUnmount(() => {
   destroySortable();
+  destroyScrollSync();
+  removeCellAlignmentFix();
 });
+
+// ---- 横向滚动同步（防止表头与数据错位） ----
+
+let scrollHandler: ((e: Event) => void) | null = null;
+let headerWrapper: HTMLElement | null = null;
+let bodyWrapper: HTMLElement | null = null;
+let headerSyncing = false;
+let bodySyncing = false;
+
+const initScrollSync = () => {
+  destroyScrollSync();
+  if (!tableWrapRef.value) return;
+  headerWrapper = tableWrapRef.value.querySelector('.el-table__header-wrapper');
+  bodyWrapper = tableWrapRef.value.querySelector('.el-table__body-wrapper');
+  if (!headerWrapper || !bodyWrapper) return;
+  // EP 默认会同步，但 table-layout:fixed 切换 fit:true 后某些时机会失效；这里加一道兜底
+  scrollHandler = (e: Event) => {
+    const target = e.target as HTMLElement;
+    const left = target.scrollLeft;
+    if (target === bodyWrapper && !headerSyncing) {
+      headerSyncing = true;
+      if (headerWrapper) headerWrapper.scrollLeft = left;
+      requestAnimationFrame(() => { headerSyncing = false; });
+    } else if (target === headerWrapper && !bodySyncing) {
+      bodySyncing = true;
+      if (bodyWrapper) bodyWrapper.scrollLeft = left;
+      requestAnimationFrame(() => { bodySyncing = false; });
+    }
+  };
+  bodyWrapper.addEventListener('scroll', scrollHandler);
+  headerWrapper.addEventListener('scroll', scrollHandler);
+};
+
+const destroyScrollSync = () => {
+  if (scrollHandler) {
+    if (bodyWrapper) bodyWrapper.removeEventListener('scroll', scrollHandler);
+    if (headerWrapper) headerWrapper.removeEventListener('scroll', scrollHandler);
+    scrollHandler = null;
+  }
+  headerWrapper = null;
+  bodyWrapper = null;
+};
 
 watch(
   () => [props.board.config?.dimensions?.join(','), props.board.config?.metrics?.join(',')].join('|'),
@@ -128,6 +179,37 @@ watch(
 const tableMaxHeight = computed(() => props.maxHeight);
 const tableWrapRef = ref<HTMLElement | null>(null);
 let sortableInstance: Sortable | null = null;
+
+// 强制表头与 body 单元格的 .cell 等宽，避免错位（EP 默认给 td.cell 内联 width 但 th.cell 没有）
+const headerCellStyle = (): Record<string, string> => ({
+  padding: '0 !important',
+});
+const cellStyle = (): Record<string, string> => ({
+  padding: '0 !important',
+});
+
+// 注入全局样式，强制 header 的 .cell 与 body 的 .cell 宽度一致
+let injectedStyle: HTMLStyleElement | null = null;
+const injectCellAlignmentFix = (): void => {
+  if (typeof document === 'undefined') return;
+  if (document.getElementById('report-table-cell-fix')) return;
+  const style = document.createElement('style');
+  style.id = 'report-table-cell-fix';
+  style.textContent = `
+    .el-table .el-table__cell > .cell {
+      box-sizing: border-box;
+      width: 100% !important;
+    }
+  `;
+  document.head.appendChild(style);
+  injectedStyle = style;
+};
+const removeCellAlignmentFix = (): void => {
+  if (injectedStyle) {
+    injectedStyle.remove();
+    injectedStyle = null;
+  }
+};
 
 // ---- 列定义 ----
 
