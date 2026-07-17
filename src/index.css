@@ -6581,11 +6581,14 @@ html, body, #app {
   background: #F8FAFC;
   display: flex;
   flex-direction: column;
+  min-height: 0; /* 关键：让 flex 子项可收缩触发滚动 */
+  overflow: hidden; /* 防止内容溢出 drawer 容器 */
 }
 
 /* 抽屉内滚动区 */
 .bnd-body {
-  flex: 1;
+  flex: 1 1 0;
+  min-height: 0; /* 关键：让自己可收缩触发滚动 */
   padding: 16px 20px;
   display: flex;
   flex-direction: column;
@@ -6647,6 +6650,7 @@ html, body, #app {
   border-radius: 8px;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
   overflow: hidden;
+  flex-shrink: 0; /* 不被 flex 父级压缩，触发 bnd-body 滚动 */
 }
 .bnd-card-head {
   display: flex;
