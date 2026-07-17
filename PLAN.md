@@ -1,843 +1,570 @@
-# PLAN.md — SDK聚合系统 开发计划
+# PLAN.md — SDK 聚合系统 产品规划与事实基准
 
-> **本文档为开发基准文件，每次开发前需对比校验，完成后根据实际情况迭代更新。**
+> **本文档是当前系统的「事实基准」**，所有页面/路由/接口/数据库表以**实际实现**为准。
 >
-> **校验规则**：
-> 1. 每进入一个阶段前，读取本文件确认待办清单
-> 2. 每完成一个步骤，更新对应行的 `[状态]` 为 `✅` 并填写实际产出
-> 3. 如发现计划与实际不符，追加「偏差记录」说明原因和调整方案
-> 4. 新增需求或发现遗漏时，补充到对应阶段并标注 `🆕`
+> 任何新 PRD 必须先核对本文档的「实际事实」章节，再展开。
+>
+> **维护原则**：
+> 1. 「实际事实」章节 = 当前代码/数据库的真实状态，每次代码变更同步更新
+> 2. 「已完成模块」 = 已经交付的功能总览
+> 3. 「下一步规划」 = 未来要做的事
+> 4. 老的"阶段 + ⬜ 待办"格式已废弃，不再使用
 
 ---
 
-### 1.1 前端
+## 一、产品定位
 
-| 类别 | 技术选型 | 版本 | 说明 |
-|------|---------|------|------|
-| **Framework** | Vue 3 (Composition API) | 3.x | `<script setup lang="ts">` |
-| **构建工具** | Vite | 7 | dev server 端口固定 5000 |
-| **Language** | TypeScript | 5.6 | strict + noImplicitAny |
-| **UI 组件** | Element Plus + @element-plus/icons-vue | 2.14 | CSS 从 `index.css` 顶部 `@import` |
-| **样式** | Tailwind CSS | 3.4 | Design Tokens 见 `DESIGN.md` |
-| **State** | Pinia | 3 | 持久化 token + userInfo |
-| **Router** | vue-router | 4 | 13 个路由 + 全局守卫 |
-| **Charts** | ECharts + vue-echarts | 6 | `'use client'` 避免 SSR |
-| **HTTP** | axios | — | 自动注入 JWT，401 跳转 |
-| **日期** | dayjs | — | — |
-| **字体** | Inter | — | DESIGN.md 指定 |
-| **图标** | @element-plus/icons-vue | — | SVG 矢量，**禁止 Emoji** |
+广告 SDK 聚合平台**管理后台** + **开发者 SDK 下载中心**，支持：
 
-### 1.2 后端
-
-| 类别 | 技术选型 | 版本 | 说明 |
-|------|---------|------|------|
-| **Runtime** | Node.js | 20+ | Express 4 |
-| **Language** | TypeScript | 5.6 | strict 模式 |
-| **运行（开发）** | tsx (watch) | — | `tsx watch server/server.ts` |
-| **运行（生产）** | tsup (CJS) | — | `tsup server/server.ts --format cjs` |
-| **Web 框架** | Express | 4 | HTTP + Vite dev middleware |
-| **Auth** | jsonwebtoken | — | HS256 / 7 天过期 / Bearer Token |
-| **密码哈希** | bcryptjs | — | — |
-| **Cache** | node-cache | — | 验证码 token |
-| **ID** | uuid | v4 | — |
-| **Database** | Supabase (PostgreSQL) | — | `@supabase/supabase-js`（service_role 直连） |
-| **对象存储** | S3 兼容 | — | Adapter 文件上传至 CDN（待集成） |
-
-### 1.3 工具链
-
-| 类别 | 技术选型 | 说明 |
-|------|---------|------|
-| **包管理** | pnpm | **唯一允许**，严禁 npm / yarn |
-| **Lint** | ESLint 9 + typescript-eslint 8 | `pnpm lint` |
-| **类型检查** | vue-tsc | `pnpm ts-check` |
-| **测试** | puppeteer | 截图回归（已用） |
-| **SDK** | coze-coding-dev-sdk | 集成能力（可选） |
-
-### 1.4 目录结构
-
-```
-.
-├── public/                 # 静态资源
-├── assets/                 # 设计资源
-├── src/                    # 前端源码
-│   ├── App.vue / main.ts
-│   ├── index.css           # 唯一全局样式（@import EP CSS + Tailwind）
-│   ├── router/             # vue-router 配置（13 个路由）
-│   ├── stores/             # Pinia
-│   ├── utils/              # axios 封装
-│   ├── layout/             # MainLayout.vue
-│   └── views/              # 13 个业务页面
-├── server/                 # Express 后端
-│   ├── server.ts / db.ts / vite.ts
-│   ├── middleware/auth.ts  # JWT 鉴权
-│   ├── routes/             # 13 个 REST 路由
-│   └── utils/              # supabase-client / response / id-generator
-├── scripts/                # 生命周期脚本
-├── .coze                   # 沙箱配置
-├── vite.config.ts
-├── tailwind.config.js
-├── tsconfig.json
-├── eslint.config.mjs
-├── package.json
-├── PLAN.md
-├── DESIGN.md
-└── AGENTS.md
-```
+1. **应用/广告位/瀑布流/广告源/流量分组管理** —— 开发者配置自己的接入
+2. **数据看板 / 综合报表 / 漏斗分析 / 用户行为 / 对账** —— 监控广告表现
+3. **广告平台 + 自定义 Adapter 对接 6 步流程** —— 上传 Adapter → 平台账号 → 数据上报 → 联调测试 → 上线 → 维护
+4. **SDK 下载中心** —— 开发者下载 Android/iOS SDK + 阅读技术文档 + 查看隐私政策
 
 ---
 
-## 二、数据库设计（14张表）
+## 二、实际事实（事实基准）
 
-### 2.1 核心业务表（9张）
+### 2.1 前端技术栈
 
-| # | 表名 | 说明 | 关键索引 | 状态 |
-|---|------|------|---------|------|
-| 1 | `developer` | 开发者表 | developer_id(UNIQUE), email(UNIQUE) | ⬜ |
-| 2 | `app` | 应用表 | developer_id, app_key(UNIQUE) | ⬜ |
-| 3 | `placement` | 广告位表 | app_key, placement_id(UNIQUE) | ⬜ |
-| 4 | `ad_source` | 广告网络源表 | network_code | ⬜ |
-| 5 | `waterfall_config` | 瀑布流配置主表 | placement_id, (placement_id+version+traffic_group_id)复合唯一 | ⬜ |
-| 6 | `waterfall_layer` | 瀑布流层级明细表 | config_id | ⬜ |
-| 7 | `traffic_group` | 流量分组表 | placement_id | ⬜ |
-| 8 | `report_daily` | 日报表聚合表 | (developer_id+app_key+placement_id+ad_source_id+stat_date)复合唯一 | ⬜ |
-| 9 | `message` | 消息表 | developer_id, is_read | ⬜ |
-
-### 2.2 被聚合SDK对接扩展表（5张）
-
-| # | 表名 | 说明 | 关键索引 | 状态 |
-|---|------|------|---------|------|
-| 10 | `ad_network_def` | 广告网络定义表（通用+自定义） | network_code(UNIQUE), created_by, network_type | ⬜ |
-| 11 | `ad_network_account` | 广告网络账号表 | network_def_id, developer_id | ⬜ |
-| 12 | `app_network_binding` | 应用关联广告网络表 | (app_key+account_id)复合唯一 | ⬜ |
-| 13 | `custom_adapter_version` | 自定义Adapter版本表 | network_def_id, status | ⬜ |
-| 14 | `custom_network_report` | 自定义网络数据上传表 | (developer_id+app_key+placement_id+network_def_id+stat_date)复合唯一 | ⬜ |
-
-### 2.3 新增表字段详情
-
-#### ad_network_def（广告网络定义表）
-
-| 字段 | 类型 | 说明 |
+| 类别 | 技术 | 版本 |
 |------|------|------|
-| id | serial PK | 内部主键 |
-| network_code | varchar(32) UNIQUE | CSJ/YLH/KS/BD/SIGMOB/CUSTOM_xxx |
-| network_name | varchar(50) | 网络显示名称 |
-| network_type | smallint | 1=通用(平台预置) 2=自定义 |
-| adapter_class_init | varchar(255) | 初始化Adapter类全路径 |
-| adapter_class_banner | varchar(255) | Banner Adapter类全路径 |
-| adapter_class_interstitial | varchar(255) | 插屏Adapter类全路径 |
-| adapter_class_rewarded | varchar(255) | 激励视频Adapter类全路径 |
-| adapter_class_native | varchar(255) | 原生Adapter类全路径 |
-| adapter_class_splash | varchar(255) | 开屏Adapter类全路径 |
-| supports_bidding | smallint DEFAULT 0 | 是否支持Client Bidding |
-| status | smallint DEFAULT 1 | 1=草稿 2=启用 3=禁用 |
-| created_by | varchar(32) | 创建者developer_id |
-| created_at / updated_at | timestamp | 时间戳 |
+| Framework | Vue 3 (Composition API) | 3.x |
+| 构建 | Vite | 7 |
+| Language | TypeScript | 5.6 (strict) |
+| UI 组件 | Element Plus + @element-plus/icons-vue | 2.14 |
+| 样式 | Tailwind CSS + 自定义 Design Tokens | 3.4 |
+| State | Pinia | 3 |
+| Router | vue-router | 4 |
+| Charts | ECharts + vue-echarts | 6 |
+| HTTP | axios | — |
+| 日期 | dayjs | — |
+| 字体 | Inter | — |
 
-#### ad_network_account（广告网络账号表）🆕
+### 2.2 后端技术栈
 
-| 字段 | 类型 | 说明 |
+| 类别 | 技术 | 说明 |
 |------|------|------|
-| id | serial PK | 内部主键 |
-| network_def_id | integer FK→ad_network_def.id | 所属广告网络 |
-| developer_id | varchar(32) | 所属开发者 |
-| account_name | varchar(50) | 账号名称 |
-| account_id | varchar(100) | 在自定义网络中的账号唯一标识 |
-| remark | text | 备注 |
-| status | smallint DEFAULT 1 | 1=启用 2=禁用 |
-| created_at / updated_at | timestamp | 时间戳 |
+| Runtime | Node.js 20+ / Express 4 | tsx watch（开发） / tsup CJS（生产）|
+| Language | TypeScript 5.6 | strict 模式 |
+| Auth | jsonwebtoken (HS256 / 7 天) | HttpOnly Cookie 优先，回退 Bearer |
+| 密码 | bcryptjs | — |
+| Database | Supabase (PostgreSQL) | `@supabase/supabase-js` service_role 直连 |
+| Cache | node-cache | 验证码 token |
+| SDK | coze-coding-dev-sdk | 集成能力 |
 
-#### app_network_binding（应用关联广告网络表）
+### 2.3 路由清单（vue-router）
 
-| 字段 | 类型 | 说明 |
-|------|------|------|
-| id | serial PK | 内部主键 |
-| app_key | varchar(32) | 关联应用 |
-| account_id | integer FK→ad_network_account.id | 关联的网络账号 |
-| network_app_id | varchar(100) | 在该广告网络的App ID |
-| extra_params | jsonb | **应用级参数**（Key-Value，如app_id/app_key/channel） |
-| status | smallint DEFAULT 1 | 1=启用 2=禁用 |
-| created_at / updated_at | timestamp | 时间戳 |
+#### 公共路由
 
-#### custom_adapter_version（Adapter版本表）
-
-| 字段 | 类型 | 说明 |
-|------|------|------|
-| id | serial PK | 内部主键 |
-| network_def_id | integer FK→ad_network_def.id | 关联网络 |
-| developer_id | varchar(32) | 上传者 |
-| version | varchar(20) | Adapter版本号 |
-| file_name | varchar(200) | 文件名 |
-| file_url | varchar(500) | CDN存储地址 |
-| file_size | bigint | 文件大小（字节） |
-| file_md5 | varchar(32) | 文件MD5校验 |
-| sdk_min_version | varchar(20) | 最低支持的聚合SDK版本 |
-| changelog | text | 版本更新说明 |
-| status | smallint DEFAULT 1 | 1=待审核 2=审核通过 3=审核拒绝 4=已上线 5=已下架 |
-| review_comment | varchar(500) | 审核意见 |
-| reviewed_at / reviewed_by | timestamp/varchar | 审核时间和审核人 |
-| online_at / offline_at | timestamp | 上线/下架时间 |
-
-#### custom_network_report（自定义网络数据上传表）
-
-| 字段 | 类型 | 说明 |
-|------|------|------|
-| id | serial PK | 内部主键 |
-| developer_id | varchar(32) | 开发者 |
-| app_key | varchar(32) | 应用 |
-| placement_id | varchar(32) | 广告位 |
-| network_def_id | integer | 广告网络 |
-| stat_date | date | 统计日期 |
-| impressions / clicks | integer | 展示/点击 |
-| revenue | numeric(10,4) | 收益 |
-| upload_type | smallint DEFAULT 1 | 1=API手动上传 2=API自动拉取 |
-
-### 2.4 RLS策略
-
-所有表以 `developer_id` 为顶层隔离，开发者只能操作/查看自己的数据。
-
----
-
-## 三、后端API接口清单（8大模块 35个接口）
-
-### 3.1 认证模块 `/api/v1/auth/`
-
-| 接口 | 方法 | 说明 | Token | 状态 |
-|------|------|------|-------|------|
-| `/api/v1/auth/register` | POST | 开发者注册（生成developer_id） | 无 | ⬜ |
-| `/api/v1/auth/login` | POST | 登录（返回JWT） | 无 | ⬜ |
-| `/api/v1/auth/logout` | POST | 登出 | JWT | ⬜ |
-| `/api/v1/auth/verify` | GET | 验证JWT有效性 | JWT | ⬜ |
-
-### 3.2 应用管理 `/api/v1/console/app/`
-
-| 接口 | 方法 | 说明 | 状态 |
+| Path | 名称 | 组件 | 说明 |
 |------|------|------|------|
-| `/api/v1/console/app/list` | GET | 应用列表 | ⬜ |
-| `/api/v1/console/app/create` | POST | 创建应用（生成app_key） | ⬜ |
-| `/api/v1/console/app/[id]` | GET/PATCH/DELETE | 应用详情/编辑/删除 | ⬜ |
+| `/login` | Login | `views/auth/Login.vue` | 登录页（标题"欢迎回来"）|
+| `/register` | Register | `views/auth/Register.vue` | 注册页（邮箱 + 验证码）|
 
-### 3.3 广告位管理 `/api/v1/console/placement/`
+#### 主控制台（开发者端 / 运营端共用）
 
-| 接口 | 方法 | 说明 | 状态 |
+| Path | 名称 | 组件 | 说明 |
 |------|------|------|------|
-| `/api/v1/console/placement/list` | GET | 广告位列表 | ⬜ |
-| `/api/v1/console/placement/create` | POST | 创建广告位（生成placement_id） | ⬜ |
-| `/api/v1/console/placement/[id]` | GET/PATCH/DELETE | 广告位详情/编辑/删除 | ⬜ |
+| `/` | — | 重定向到 `/dashboard` | — |
+| `/dashboard` | Index | `views/dashboard/Index.vue` | 数据看板（ECharts 多图）|
+| `/app` | App | `views/app/Index.vue` | 应用管理（CRUD + 频次/广告位/网络绑定 Drawer）|
+| `/placement` | Placement | `views/placement/Index.vue` | 广告位管理 |
+| `/aggregation/traffic-group` | TrafficGroup | `views/traffic-group/Index.vue` | 流量分组 |
+| `/aggregation/ad-source` | AdSource | `views/ad-source/Index.vue` | 广告源管理 |
+| `/aggregation/waterfall` | Waterfall | `views/waterfall/Index.vue` | 瀑布流配置（3 层 + 流量分组加载）|
+| `/report/overview` | Overview | `views/report/Overview.vue` | 综合报表（指标选择 + ECharts + 表格）|
+| `/report/funnel` | Funnel | `views/report/Funnel.vue` | 漏斗分析 |
+| `/report/behavior` | Behavior | `views/report/Behavior.vue` | 用户行为 |
+| `/reconciliation` | Reconciliation | `views/reconciliation/Index.vue` | 对账管理 |
+| `/network` | Network | `views/network/Index.vue` | 广告平台（Tabs：自定义网络 / Adapter / 账号 / 报告）|
+| `/message` | Message | `views/message/Index.vue` | 消息中心 |
+| `/sdk` | SDK Index | `views/sdk/Index.vue` | SDK 下载（Android/iOS Tab）|
+| `/sdk/docs` | SDK Docs | `views/sdk/Docs.vue` | 技术文档（左侧分类 + 右侧 markdown 渲染）|
+| `/sdk/history` | SDK History | `views/sdk/History.vue` | 版本历史时间线 |
+| `/sdk/privacy` | SDK Privacy | `views/sdk/Privacy.vue` | 隐私政策（外链 iframe + 跳转）|
+| `/profile` | Profile | `views/profile/Index.vue` | 个人中心 |
 
-### 3.4 瀑布流配置 `/api/v1/console/waterfall/`
+#### 管理端（admin 角色可见）
 
-| 接口 | 方法 | 说明 | 状态 |
+| Path | 名称 | 组件 | 说明 |
 |------|------|------|------|
-| `/api/v1/console/waterfall/get` | GET | 获取瀑布流配置 | ⬜ |
-| `/api/v1/console/waterfall/update` | POST | 更新瀑布流配置（版本递增） | ⬜ |
-| `/api/v1/console/adsource/list` | GET | 广告源列表 | ⬜ |
-| `/api/v1/console/adsource/create` | POST | 创建广告源 | ⬜ |
+| `/admin/developers` | Developers | `views/admin/Developers.vue` | 开发者管理（角色/状态）|
+| `/admin/report-metric` | ReportMetric | `views/admin/ReportMetric.vue` | 指标字典（CRUD + 分类）|
+| `/admin/sdk/releases` | SdkReleases | `views/admin/SdkReleases.vue` | SDK 版本管理（admin CRUD）|
+| `/admin/sdk/docs` | SdkDocs | `views/admin/SdkDocs.vue` | 文档管理（admin CRUD）|
+| `/admin/sdk/privacy` | SdkPrivacy | `views/admin/SdkPrivacy.vue` | 隐私政策管理（admin CRUD + 外链/内部切换）|
 
-### 3.5 数据报表 `/api/v1/console/report/`
+### 2.4 后端 API 清单
 
-| 接口 | 方法 | 说明 | 状态 |
-|------|------|------|------|
-| `/api/v1/console/report/dashboard` | GET | 看板数据（6指标+趋势） | ⬜ |
-| `/api/v1/console/report/daily` | GET | 日报表查询 | ⬜ |
-| `/api/v1/console/reconciliation` | GET | 对账数据 | ⬜ |
+#### 鉴权 (`/api/v1/auth`)
 
-### 3.6 消息中心 `/api/v1/console/message/`
-
-| 接口 | 方法 | 说明 | 状态 |
-|------|------|------|------|
-| `/api/v1/console/message/list` | GET | 消息列表 | ⬜ |
-| `/api/v1/console/message/[id]/read` | PATCH | 标记已读 | ⬜ |
-
-### 3.7 SDK对外接口
-
-| 接口 | 方法 | 说明 | 状态 |
-|------|------|------|------|
-| `/api/v1/sdk/config` | GET | SDK配置下发（含customAdapters+合并参数） | ⬜ |
-| `/api/v1/report` | POST | 数据批量上报（强制Token校验） | ⬜ |
-
-### 3.8 自定义广告网络管理 `/api/v1/console/network/`
-
-#### 3.8.1 步骤一：创建自定义广告网络
-
-| 接口 | 方法 | 说明 | 状态 |
-|------|------|------|------|
-| `/api/v1/console/network/custom/create` | POST | 创建自定义广告网络（含适配器类路径） | ⬜ |
-| `/api/v1/console/network/custom/update` | POST | 更新自定义网络信息 | ⬜ |
-| `/api/v1/console/network/custom/detail` | GET | 获取自定义网络详情 | ⬜ |
-| `/api/v1/console/network/custom/list` | GET | 获取开发者创建的自定义网络列表 | ⬜ |
-
-#### 3.8.2 步骤二：添加广告网络账号 🆕
-
-| 接口 | 方法 | 说明 | 状态 |
-|------|------|------|------|
-| `/api/v1/console/network/account/create` | POST | 在网络下添加账号 | ⬜ |
-| `/api/v1/console/network/account/list` | GET | 获取网络下账号列表 | ⬜ |
-| `/api/v1/console/network/account/[id]` | PATCH/DELETE | 编辑/删除账号 | ⬜ |
-
-#### 3.8.3 步骤三：关联应用与广告网络账号
-
-| 接口 | 方法 | 说明 | 状态 |
-|------|------|------|------|
-| `/api/v1/console/app/network/bind` | POST | 关联应用与网络账号（含应用级参数） | ⬜ |
-| `/api/v1/console/app/network/unbind` | POST | 解除关联 | ⬜ |
-| `/api/v1/console/app/network/list` | GET | 获取应用已关联的网络列表 | ⬜ |
-
-#### 3.8.4 步骤四：添加广告源/代码位
-
-| 接口 | 方法 | 说明 | 状态 |
-|------|------|------|------|
-| `/api/v1/console/adsource/create-custom` | POST | 创建自定义网络代码位（含代码位级参数slot_id等） | ⬜ |
-
-> 说明：代码位级参数存储在 `waterfall_layer` 的 `extra` 字段中，与广告源创建合并处理。
-
-#### 3.8.5 步骤五：适配器版本管理
-
-| 接口 | 方法 | 说明 | 状态 |
-|------|------|------|------|
-| `/api/v1/console/network/custom/adapter/upload` | POST | 上传自定义Adapter文件（→对象存储） | ⬜ |
-| `/api/v1/console/network/custom/adapter/versions` | GET | 获取Adapter版本列表 | ⬜ |
-| `/api/v1/console/network/custom/adapter/status` | PUT | 更新Adapter状态（审核通过/拒绝/下架） | ⬜ |
-
-#### 3.8.6 步骤六：数据查看与手动上传
-
-| 接口 | 方法 | 说明 | 状态 |
-|------|------|------|------|
-| `/api/v1/console/custom/report/upload` | POST | 手动上传自定义网络数据 | ⬜ |
-| `/api/v1/console/custom/report/query` | GET | 查询自定义网络数据 | ⬜ |
-
----
-
-## 四、被聚合SDK线上对接流程（6步完整方案）
-
-> 本部分详细描述自定义广告网络从创建到上线的完整流程，包含每个功能点的详细操作说明和参数传递机制。
-
-### 整体流程
-
-```
-步骤一：创建自定义广告网络
-    ↓
-步骤二：添加广告网络账号
-    ↓
-步骤三：关联应用与广告网络账号
-    ↓
-步骤四：添加广告源/代码位
-    ↓
-步骤五：客户端接入适配器
-    ↓
-步骤六：数据查看与手动上传
-```
-
-### 4.1 步骤一：创建自定义广告网络
-
-**操作入口**：Web控制台 → 应用管理 → 管理广告网络 → 自定义广告网络 → "创建自定义广告网络"
-
-**表单字段**：
-
-| 字段 | 必填 | 说明 | 示例 |
-|------|------|------|------|
-| 广告网络名称 | 是 | 瀑布流中显示的名称，≤30字符 | 我的ADN平台 |
-| 账号名称 | 是 | 该网络下第一个账号的标识，≤30字符 | 主账号 |
-| 初始化适配器类全路径 | 是 | SDK初始化类完整路径 | com.myadapter.MyInitAdapter |
-| Banner适配器类全路径 | 否 | Banner广告适配器类 | com.myadapter.MyBannerAdapter |
-| 插屏适配器类全路径 | 否 | 插屏广告适配器类 | com.myadapter.MyInterstitialAdapter |
-| 激励视频适配器类全路径 | 否 | 激励视频适配器类 | com.myadapter.MyRewardedAdapter |
-| 原生适配器类全路径 | 否 | 原生广告适配器类 | com.myadapter.MyNativeAdapter |
-| 开屏适配器类全路径 | 否 | 开屏广告适配器类 | com.myadapter.MySplashAdapter |
-| 是否支持客户端Bidding | 否 | 勾选可在Bidding层使用 | 勾选/不勾选 |
-
-**关键约束**：
-- 未填写的广告类型 → 瀑布流中不可选择该网络的该类型
-- 至少填写一种广告类型的适配器类路径
-- 类路径格式基础校验（包名.类名格式），不校验类是否存在
-
-**系统行为**：
-- 自动生成唯一 `network_code`：CUSTOM_ + 8位随机字符
-- 自动生成 Network Firm ID（SDK回调标识来源）
-- 同时创建第一个账号（使用填写的账号名称）
-- 创建后状态为"草稿"，需关联应用后才可被SDK使用
-
-### 4.2 步骤二：添加广告网络账号
-
-**操作入口**：自定义广告网络详情页 → 账号管理 → "添加账号"
-
-**表单字段**：
-
-| 字段 | 必填 | 说明 | 示例 |
-|------|------|------|------|
-| 账号名称 | 是 | 标识名称，≤30字符 | 开发者A |
-| 账号ID | 否 | 在自定义网络中的唯一标识 | dev_123456 |
-| 备注 | 否 | 额外说明信息 | 测试环境账号 |
-
-**账号用途**：
-- **关联应用**：每个应用关联一个账号，不同应用可使用不同账号
-- **数据隔离**：数据报表中可按账号维度筛选
-- **权限隔离**：不同账号的广告源配置互不影响
-
-**账号管理操作**：编辑 / 禁用（已关联应用不受影响）/ 删除（仅未关联应用时可删）
-
-### 4.3 步骤三：关联应用与广告网络账号
-
-**操作入口**：应用管理 → 选择目标应用 → 关联广告网络 → "添加关联"
-
-**前置条件**：已创建自定义广告网络 + 已添加账号 + 已在第三方网络创建应用并获得App ID
-
-**表单字段**：
-
-| 字段 | 必填 | 说明 | 示例 |
-|------|------|------|------|
-| 广告网络 | 是 | 选择已创建的自定义广告网络 | 我的ADN平台 |
-| 网络账号 | 是 | 选择该网络下的账号 | 主账号 |
-| 应用级参数 | 否 | Key-Value形式，SDK适配器可读取 | 见下方 |
-
-**应用级参数详解**：
-- 所有广告位共用的参数（如App ID、App Key、渠道ID等）
-- Key-Value键值对配置，建议不超过20个
-- Key命名规范：英文字母和下划线（如app_id、app_key）
-
-**应用级参数示例**：
-
-| Key | Value | 说明 |
-|-----|-------|------|
-| app_id | 1234567890 | 在自定义网络申请的App ID |
-| app_key | abcdefghijk | 在自定义网络申请的App Key |
-| channel | official | 渠道标识 |
-
-**系统行为**：
-- 参数存储到 `app_network_binding.extra_params`
-- SDK拉取配置时，将应用级参数放入配置JSON下发
-- 适配器从配置JSON中读取参数用于初始化第三方SDK
-- 关联完成后，该应用可在瀑布流中添加该网络的代码位
-
-**关联管理操作**：编辑（修改应用级参数）/ 禁用（瀑布流中该网络代码位返回错误）/ 解除关联（需确认无代码位使用）
-
-### 4.4 步骤四：添加广告源/代码位
-
-**操作入口**：瀑布流管理 → 选择广告位 → "添加代码位"
-
-**前置条件**：应用已关联自定义广告网络 + 已在第三方网络创建广告位并获得代码位ID
-
-**表单字段**：
-
-| 字段 | 必填 | 说明 | 示例 |
-|------|------|------|------|
-| 广告网络 | 是 | 下拉选择已关联到该应用的广告网络 | 我的ADN平台 |
-| 广告格式 | 是 | 自动过滤该网络支持的广告格式 | 激励视频 |
-| 广告源名称 | 是 | 自定义名称 | 我的ADN-激励视频主 |
-| 选择层级 | 是 | Bidding层/标准层/兜底层 | 标准层 |
-| 排序价格 | 条件必填 | 标准层必填，Bidding/兜底自动忽略 | 2.50 |
-| 超时时间 | 否 | 默认3000ms | 3000 |
-| 代码位级参数 | 条件必填 | 至少需要slot_id | 见下方 |
-
-**代码位级参数详解**：
-- 该代码位独有的参数（如代码位ID、奖励名称等）
-- 系统预设默认参数 `slot_id`（Key固定不可修改、Value必填、不可删除）
-- 可额外添加自定义Key-Value参数
-
-**代码位级参数示例**：
-
-| Key | Value | 说明 |
-|-----|-------|------|
-| slot_id | reward_12345 | 代码位ID（默认必填） |
-| reward_name | 金币 | 奖励名称 |
-| reward_amount | 100 | 奖励数量 |
-| ad_size | 640x360 | 广告尺寸 |
-
-**参数合并与传递**：
-
-```
-应用级参数（步骤三）+ 代码位级参数（本步骤）→ 合并 → 下发给SDK
-相同Key时，代码位级参数覆盖应用级参数
-```
-
-**合并示例**：
-```
-应用级参数：app_id→1234567890, app_key→abcdefg
-代码位级参数：slot_id→reward_12345, reward_name→金币
-合并后下发：app_id→1234567890, app_key→abcdefg, slot_id→reward_12345, reward_name→金币
-```
-
-**层级放置规则**：
-
-| 层级 | 可放置 | 特殊要求 |
-|------|--------|---------|
-| Bidding层 | ✅ | 网络必须支持Client Bidding，需配置超时 |
-| 标准层 | ✅ | 必须填写排序价格 |
-| 兜底层 | ✅ | 无需排序价格 |
-
-**重要限制**：不支持自动价格 / slot_id必填 / 应用需已关联
-
-### 4.5 步骤五：客户端接入适配器
-
-> 本步骤为开发者客户端操作，Web后台仅提供文档指引和Adapter下载。
-
-**需要实现的适配器类型**：
-
-| 适配器 | 对应接口 | 必须 |
-|--------|---------|------|
-| 初始化适配器 | SDK初始化 | ✅ |
-| 各广告格式适配器 | 至少一种广告格式 | ✅ |
-| Client Bidding适配器 | 实时出价接口 | ⚠️ 可选 |
-
-**适配器开发规范**：
-
-| 规范项 | 说明 |
-|--------|------|
-| 初始化核心方法 | `initializeADN(context, serverExtra)` — 从serverExtra读取应用级参数 |
-| 广告加载方法 | `loadAd(context, localExtra, serverExtra)` — 从serverExtra读取代码位级参数 |
-| 回调要求 | 加载成功/失败只能回调一次，不可重复 |
-| 线程要求 | 所有方法在主线程调用，适配器内部勿做耗时操作 |
-| 版本号 | 必须返回第三方SDK版本号，不可为空 |
-
-**Web后台提供的功能**：
-- Adapter接入规范文档页面
-- 各广告类型Demo下载
-- Adapter版本管理与上传/审核/下载
-
-### 4.6 步骤六：数据查看与手动上传
-
-**数据查看**：
-- 操作入口：Web控制台 → 数据报表 → 广告网络筛选 → 选择自定义网络
-- 可查看指标：请求量、填充量、填充率、展示量、点击量、点击率、预估收益
-- 筛选维度：时间、应用、广告位、广告网络账号
-
-**手动上传数据API**（适用于自定义网络未提供自动报表API的场景）：
-
-| 参数 | 必填 | 说明 |
-|------|------|------|
-| 应用Key | 是 | app_key |
-| 广告位ID | 是 | placement_id |
-| 广告网络标识 | 是 | network_code |
-| 统计日期 | 是 | YYYY-MM-DD |
-| 展示量 | 否 | 当日展示总数 |
-| 点击量 | 否 | 当日点击总数 |
-| 收益 | 否 | 建议保留4位小数 |
-
-**注意事项**：
-- 同一天同一广告源重复上传会覆盖
-- SDK数据与手动上传不一致时，以SDK数据为准
-- 建议每日定时上传保持连续性
-
-### 4.7 关键参数传递全流程
-
-```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                        参数配置与传递全流程                                 │
-├─────────────────────────────────────────────────────────────────────────────┤
-│                                                                             │
-│  第1步：创建自定义广告网络                                                   │
-│  ┌──────────────────────────────────────────────────────────────────────┐   │
-│  │  配置适配器类全路径（告诉SDK该调用哪个适配器类）                      │   │
-│  │  → 存入数据库 ad_network_def 表                                      │   │
-│  └──────────────────────────────────────────────────────────────────────┘   │
-│                              ↓                                              │
-│  第2步：添加广告网络账号（无参数传递，仅用于数据隔离）                      │
-│  ┌──────────────────────────────────────────────────────────────────────┐   │
-│  │  创建账号记录 → 存入 ad_network_account 表                           │   │
-│  └──────────────────────────────────────────────────────────────────────┘   │
-│                              ↓                                              │
-│  第3步：关联应用与广告网络账号                                               │
-│  ┌──────────────────────────────────────────────────────────────────────┐   │
-│  │  配置应用级参数：app_id, app_key, channel ...                       │   │
-│  │  → 存入 app_network_binding.extra_params 字段                       │   │
-│  └──────────────────────────────────────────────────────────────────────┘   │
-│                              ↓                                              │
-│  第4步：添加广告源/代码位                                                   │
-│  ┌──────────────────────────────────────────────────────────────────────┐   │
-│  │  配置代码位级参数：slot_id, reward_name, ad_size ...                │   │
-│  │  → 存入 waterfall_layer.extra 字段                                   │   │
-│  └──────────────────────────────────────────────────────────────────────┘   │
-│                              ↓                                              │
-│  第5步：合并参数并下发给SDK                                                 │
-│  ┌──────────────────────────────────────────────────────────────────────┐   │
-│  │  应用级参数 + 代码位级参数 → 合并 → 下发给SDK                       │   │
-│  │  （相同Key时，代码位级参数覆盖应用级参数）                           │   │
-│  └──────────────────────────────────────────────────────────────────────┘   │
-│                              ↓                                              │
-│  第6步：适配器读取参数                                                      │
-│  ┌──────────────────────────────────────────────────────────────────────┐   │
-│  │  SDK将合并后的参数传递给适配器                                        │   │
-│  │  适配器从参数中读取所需配置 → 调用第三方SDK                          │   │
-│  └──────────────────────────────────────────────────────────────────────┘   │
-│                                                                             │
-└─────────────────────────────────────────────────────────────────────────────┘
-```
-
----
-
-## 五、前端页面清单（14个页面）
-
-| # | 页面 | 路由 | 核心功能 | 状态 |
-|---|------|------|---------|------|
-| 1 | 登录 | `/login` | 邮箱+密码登录、忘记密码链接 | ⬜ |
-| 2 | 注册 | `/register` | 注册表单（含接入方式选择）、邮箱验证提示 | ⬜ |
-| 3 | Dashboard | `/dashboard` | 6个核心指标卡片 + 4张趋势图表 + 筛选条件 | ⬜ |
-| 4 | 应用管理 | `/apps` | 应用CRUD、app_key展示复制、状态切换 | ⬜ |
-| 5 | 广告位管理 | `/placements` | 广告位CRUD、placement_id展示复制、格式选择 | ⬜ |
-| 6 | 瀑布流配置 | `/waterfall` | 广告源管理、三层模型可视化编辑、拖拽排序、版本管理 | ⬜ |
-| 7 | 流量分组 | `/traffic-group` | 多维度规则配置、优先级管理、瀑布流绑定 | ⬜ |
-| 8 | 数据报表 | `/reports` | 日报表查询、下钻、时间筛选 | ⬜ |
-| 9 | 对账管理 | `/reconciliation` | SDK/API数据对比、差异率、导出Excel | ⬜ |
-| 10 | 消息中心 | `/messages` | 消息列表、分类筛选、已读/未读、红点提醒 | ⬜ |
-| 11 | 个人中心 | `/profile` | 信息管理、安全设置、Token展示、API管理、通知设置 | ⬜ |
-| 12 | 广告网络管理 | `/networks` | 通用网络（5家预置）+ 自定义网络CRUD + 账号管理 | ⬜ |
-| 13 | 网络账号管理 | `/networks/[id]/accounts` | 账号CRUD、启用/禁用、关联应用列表 | ⬜ |
-| 14 | Adapter版本管理 | `/networks/[id]/adapters` | Adapter文件上传、版本列表、审核操作、上线/下架 | ⬜ |
-
-### 5.1 应用网络关联（子页面）
-
-嵌入应用详情页 `/apps/[id]` 中作为"关联广告网络"Tab，非独立页面。表单包含应用级参数Key-Value编辑器。
-
-### 5.2 瀑布流配置改造
-
-添加代码位时：
-- 广告网络下拉列表动态展示 **通用网络 + 该应用已关联的自定义网络**
-- 自定义网络标注"自定义"标签
-- 选择自定义网络后，自动过滤该网络支持的广告格式
-- 预设 `slot_id` 必填参数 + 可添加自定义Key-Value参数
-
----
-
-## 六、公共组件清单
-
-| 组件 | 说明 | 复用页面 | 状态 |
-|------|------|---------|------|
-| `AppSidebar` | 侧边栏导航（蓝渐变 #1E3A8A→#1E40AF，宽200px） | 全局Layout | ⬜ |
-| `TopNav` | 顶部导航（面包屑+消息红点+用户头像） | 全局Layout | ⬜ |
-| `StatCard` | 统计指标卡片（数值18px/700 + 标签12px + 趋势箭头） | Dashboard | ⬜ |
-| `StatusTag` | 状态标签（配色见DESIGN.md状态标签配色表） | 多页面 | ⬜ |
-| `ModeTabs` | 胶囊切换（外壳#F1F5F9+激活白底#2563EB） | 筛选/切换 | ⬜ |
-| `TokenDisplay` | Token展示+一键复制 | 应用/广告位/个人中心 | ⬜ |
-| `DateRangePicker` | 日期范围选择器（快捷+自定义） | Dashboard/报表/对账 | ⬜ |
-| `WaterfallEditor` | 瀑布流三层可视化编辑器（Bidding/Standard/Fallback） | 瀑布流配置 | ⬜ |
-| `TrafficRuleEditor` | 流量分组规则编辑器（多维度AND组合） | 流量分组 | ⬜ |
-| `ConfirmDialog` | 二次确认弹窗 | 删除/重新生成Token | ⬜ |
-| `EmptyState` | 空状态占位 | 列表页 | ⬜ |
-| `AdapterUpload` | Adapter文件上传（拖拽+MD5校验+进度条） | Adapter版本管理 | ⬜ |
-| `NetworkSelector` | 广告网络选择器（通用+自定义，自定义标注标签） | 瀑布流配置 | ⬜ |
-| `ReviewPanel` | 审核操作面板（通过/拒绝/打回+意见填写） | Adapter版本管理 | ⬜ |
-| `SectionCard` | 表单分区卡片（标题14px/600+底部分割线#F1F5F9） | 表单页面 | ⬜ |
-| `KVEditor` 🆕 | Key-Value参数编辑器（添加/删除行，Key命名规范校验） | 应用关联/代码位添加 | ⬜ |
-| `AccountManager` 🆕 | 广告网络账号管理组件（列表+添加+编辑+禁用/启用） | 网络详情页 | ⬜ |
-
----
-
-## 七、开发阶段与步骤
-
-### 阶段1：基础设施
-
-| 步骤 | 内容 | 产出 | 状态 |
-|------|------|------|------|
-| 1.1 | 编写 DESIGN.md | DESIGN.md | ✅ |
-| 1.2 | 创建全部14张数据库表（Drizzle schema → db upgrade → RLS） | 14张表 + RLS策略 | ⬜ |
-| 1.3 | Supabase Client + ID生成器 + JWT工具 | supabase-client.ts, id-generator.ts, jwt.ts | ⬜ |
-| 1.4 | 全局样式定制（Design Tokens + 自定义组件样式 + Inter字体） | globals.css改造 | ⬜ |
-
-### 阶段2：认证系统
-
-| 步骤 | 内容 | 产出 | 状态 |
-|------|------|------|------|
-| 2.1 | 后端：注册/登录/登出/验证 API | 4个API路由 | ⬜ |
-| 2.2 | 前端：登录页 + 注册页 | 2个页面 | ⬜ |
-| 2.3 | 全局Layout：侧边栏 + 顶导航 + Auth中间件 + 消息红点 | AppLayout | ⬜ |
-
-### 阶段3：核心业务模块
-
-| 步骤 | 内容 | 产出 | 状态 |
-|------|------|------|------|
-| 3.1 | 应用管理：API + 页面 | 3个API + /apps页面 | ⬜ |
-| 3.2 | 广告位管理：API + 页面 | 3个API + /placements页面 | ⬜ |
-| 3.3 | 瀑布流配置：API + 编辑器 + 页面 | 4个API + /waterfall页面 | ⬜ |
-| 3.4 | 流量分组：逻辑 + 编辑器 + 页面 | /traffic-group页面 | ⬜ |
-
-### 阶段4：自定义广告网络模块（6步对接流程）
-
-| 步骤 | 内容 | 产出 | 状态 |
-|------|------|------|------|
-| 4.1 | 步骤一：创建自定义广告网络 — API + 页面 | 4个API + /networks页面 | ✅ |
-| 4.2 | 步骤二：广告网络账号管理 — API + 页面 | 5个API + /network Tab + AccountManager组件 | ✅ |
-| 4.3 | 步骤三：关联应用与网络账号 — API + 应用详情Tab | 3个API + KVEditor组件 + 应用关联Tab | ✅ |
-| 4.4 | 步骤四：添加广告源/代码位 — API + 瀑布流改造 | 1个API + 代码位级参数编辑 + 网络选择器改造 | ✅ |
-| 4.5 | 步骤五：Adapter版本管理 — 上传/审核API + 页面 | 3个API + /network Tab | ✅ |
-| 4.6 | 步骤六：数据查看与手动上传 — API | 2个API（已在报表模块覆盖） | ✅ |
-
-### 阶段5：数据与报表
-
-| 步骤 | 内容 | 产出 | 状态 |
-|------|------|------|------|
-| 5.1 | Dashboard：指标卡片 + 趋势图表 + 筛选 | 1个API + /dashboard页面 | ⬜ |
-| 5.2 | 数据报表：日报表 + 自定义网络数据 | 3个API + /reports页面 | ⬜ |
-| 5.3 | 对账管理：数据对比 + 差异率 | 1个API + /reconciliation页面 | ⬜ |
-
-### 阶段6：辅助模块
-
-| 步骤 | 内容 | 产出 | 状态 |
-|------|------|------|------|
-| 6.1 | 消息中心：API + 页面 + 红点 | 2个API + /messages页面 | ⬜ |
-| 6.2 | 个人中心：信息/安全/Token/API管理 | /profile页面 | ⬜ |
-| 6.3 | SDK对外接口：配置下发（含customAdapters+合并参数）+ 数据上报 | 2个API改造 | ⬜ |
-
-### 阶段7：验证与交付
-
-| 步骤 | 内容 | 状态 |
-|------|------|------|
-| 7.1 | 静态检查（ts-check + lint） | ⬜ |
-| 7.2 | 全量API冒烟测试（35个接口） | ⬜ |
-| 7.3 | 日志健康检查 + 交付 | ⬜ |
-
----
-
-## 八、关键设计决策
-
-| 决策点 | 方案 | 理由 |
+| Method | Path | 说明 |
 |--------|------|------|
-| JWT实现 | 自签JWT（jose库），HttpOnly Cookie | 无需外部Auth服务，适合中后台 |
-| Token生成 | 服务端 SecureRandom + Base62 | 严格遵循PRD规范，碰撞概率 ≈ 1/4.7×10²⁸ |
-| 瀑布流编辑 | 前端拖拽排序 + 三层可视化 | 直观配置Bidding/Standard/Fallback |
-| 图表渲染 | Recharts（CSR only，'use client'） | 避免SSR hydration问题 |
-| 数据隔离 | Supabase RLS + developer_id API层过滤 | 双重保障 |
-| Adapter文件存储 | 对象存储（S3兼容） | CDN分发，SDK按配置拉取指定版本 |
-| Adapter审核流程 | 状态机：待审核→审核通过→已上线→已下架 | 确保安全与质量 |
-| 配置下发改造 | /api/v1/sdk/config 响应增加 customAdapters + 合并参数 | SDK动态下载加载 + 参数传递 |
-| 参数合并规则 | 代码位级参数覆盖应用级参数（相同Key） | 代码位特有配置优先级更高 |
-| 广告网络账号 | 独立表 ad_network_account | 同一网络多账号，支持数据/权限隔离 |
-| 页面底色 | #F8FAFC（slate-50） | 设计规范 |
-| 侧边栏 | 蓝渐变 #1E3A8A → #1E40AF，宽200px | 设计规范 |
+| POST | `/register` | 邮箱注册（验证码）|
+| POST | `/login` | 登录（返回 JWT + 写入 HttpOnly Cookie）|
+| POST | `/logout` | 登出（清除 Cookie）|
+| GET | `/me` | 当前用户信息 |
+| PUT | `/profile` | 更新个人信息 |
+| PUT | `/password` | 修改密码 |
+| POST | `/api-token` | 生成 API Access Token（永久）|
+| POST | `/verify` | 验证 Token |
+| POST | `/send-captcha` | 发送邮箱验证码（公共）|
 
----
+#### 应用 (`/api/v1/console/app`)
 
-## 九、风险点与应对
-
-| 风险 | 应对 | 状态 |
-|------|------|------|
-| Supabase RLS配置复杂 | 严格按skill文档场景选择，逐步验证 | — |
-| 瀑布流拖拽排序实现 | 原生HTML5 Drag&Drop，避免额外依赖 | — |
-| Recharts SSR问题 | 图表组件'use client' + 动态import | — |
-| JWT安全 | HttpOnly + Secure + SameSite=Strict，7天有效期 | — |
-| Adapter文件上传大文件 | 对象存储支持分片上传，前端进度条+MD5校验 | — |
-| 自定义网络审核并发 | 乐观锁（版本号）防重复审核 | — |
-| 35个API接口易遗漏 | 按清单逐一测试，确保100%覆盖 | — |
-| SDK配置下发性能 | 配置缓存+增量更新（isFullUpdate标记） | — |
-| 参数合并Key冲突 | 代码位级参数覆盖应用级参数，明确优先级 | — |
-
----
-
-## 十、偏差记录
-
-> 开发过程中如发现计划与实际不符，在此记录。
-
-| 日期 | 阶段 | 偏差描述 | 调整方案 | 影响范围 |
-|------|------|---------|---------|---------|
-| — | — | — | — | — |
-| 2026-07-15 | 数据报表 V1 P0+P1 | 建表 report_metric_definition / report_board / report_funnel_metric_definition 3 张表 + seed 34 个综合指标 + 20 个漏斗指标；指标字典 CRUD 5 个 API（list / categories / create / update / delete）+ Admin UI 页面 `/admin/report-metric` + 侧边栏菜单接入（admin only）；E2E 测试通过（puppeteer 验证登录/列表/筛选/新建/删除）|
-
-| 2026-07-16 | 数据报表 V1 P2-P6 | ReportLayout 嵌套路由（/report/overview, /report/funnel, /report/behavior）；看版 CRUD 5 API + BoardConfigDialog；聚合 API `/report/aggregate` 完整实现（date/app/placement/format 维度 + node-cache 5min 缓存 + 漏斗/行为分支）；前端综合报表 4 种视图（表格/卡片/趋势/柱状）+ MetricPicker 弹窗 + ReportFilter 筛选器 + View Switcher；导出 CSV/Excel/PDF 三种格式；E2E 测试通过 |
----
-
-## 十一、迭代日志
-
-> 每次更新本文件时记录变更。
-
-| 日期 | 变更内容 |
-|------|---------|
-| 2026-07-07 | 初始创建，完整计划写入 |
-| 2026-07-07 | 优化：根据详细对接流程描述，新增ad_network_account表（14张表）、新增3个账号管理API（35个接口）、新增网络账号管理页面（14个页面）、新增KVEditor+AccountManager组件、细化6步对接流程含完整参数传递机制、更新阶段4为6步对应开发步骤 |
-| 2026-07-08 | 补全 12 项差距功能：①瀑布流拖拽排序（SortableJS）②自定义广告源创建入口 ③流量分组瀑布流绑定 ④Dashboard SDK/API 切换器 ⑤Profile 通知设置 ⑥报表 Excel 导出 ⑦对账 Excel 导出 ⑧Adapter MD5 + 进度条 ⑨HttpOnly Cookie 鉴权 + cookie-parser 中间件 ⑩Supabase RLS 14 张表策略 + `set_app_developer_id` RPC（migration 0005 蓝图） ⑪ReviewPanel 独立组件抽离 ⑫启动列名统一 TOKEN 化 |
-
----
-
-## 十二、数据报表模块 V1（综合报表 / 漏斗分析 / 用户行为）
-
-### 12.1 模块范围
-
-| 子模块 | 路径 | 状态 |
+| Method | Path | 说明 |
 |--------|------|------|
-| 综合报表 | `/report/overview` | V1 |
-| 漏斗分析 | `/report/funnel` | V1 |
-| 用户行为 | `/report/behavior` | V1（3 个子报表 Tab）|
+| GET | `/list` | 应用列表 |
+| POST | `/create` | 创建应用 |
+| GET | `/detail` | 应用详情 |
+| PUT | `/update` | 更新应用 |
+| PUT | `/toggle-status` | 启/停用 |
+| DELETE | `/delete` | 删除 |
+| POST | `/upload-icon` | 上传应用图标 |
+| GET | `/:id/frequency` | 频次配置详情 |
+| PUT | `/:id/frequency` | 更新频次配置 |
 
-**未纳入 V1**：小时报表 / 留存价值报表 / 交叉推广报表 / 离线报表中心 / 监控预警
+#### 广告位 (`/api/v1/console/placement`)
 
-### 12.2 新增表（3 张）
+| Method | Path | 说明 |
+|--------|------|------|
+| GET | `/list` | 列表 |
+| POST | `/create` | 创建 |
+| GET | `/detail` | 详情 |
+| PUT | `/update` | 更新 |
+| DELETE | `/delete` | 删除 |
 
-| 表名 | 用途 | 字段数 |
-|------|------|--------|
-| `report_metric_definition` | 指标字典（综合报表） | 16 |
-| `report_board` | 看版配置持久化 | 11 |
-| `report_funnel_metric_definition` | 漏斗专属指标字典 | 13 |
+#### 广告源 (`/api/v1/console/ad-source`)
 
-`report_daily` **V1 不动**，缺失字段通过 mock 兜底（V2 评估 ALTER）
+| Method | Path | 说明 |
+|--------|------|------|
+| GET | `/list` | 列表 |
+| POST | `/create` | 创建 |
+| PUT | `/update` | 更新 |
+| DELETE | `/delete` | 删除 |
+| GET | `/networks` | 可选广告平台列表（已绑定）|
+| POST | `/create-custom` | 关联自定义广告平台 |
 
-### 12.3 新增 API（18 个）
+#### 流量分组 (`/api/v1/console/traffic-group`)
 
-| 模块 | 端点 | 方法 |
-|------|------|------|
-| 指标字典 | `/report/metric/list` `/report/metric/categories` `/report/metric/create` `/report/metric/update/:id` `/report/metric/delete/:id` | GET/POST/PATCH/DELETE |
-| 看版 | `/report/board/list` `/report/board/create` `/report/board/update/:id` `/report/board/delete/:id` `/report/board/set-default/:id` `/report/board/reorder` | GET/POST/PATCH/DELETE |
-| 维度字典 | `/report/dimensions/options` | GET |
-| 综合聚合 | `/report/aggregate` | POST |
-| 漏斗 | `/report/funnel/metric/list` `/report/funnel/aggregate` `/report/funnel/trend` `/report/funnel/custom-rate` | GET/POST |
-| 行为 | `/report/behavior/show-frequency` `/report/behavior/user-value` `/report/behavior/usage-duration` `/report/behavior/metric/list` | GET/POST |
-| 导出 | `/report/export/csv` `/report/export/excel` `/report/export/pdf` | POST |
+| Method | Path | 说明 |
+|--------|------|------|
+| GET | `/list` | 列表（按 placement_id 过滤）|
+| POST | `/create` | 创建 |
+| PUT | `/update` | 更新 |
+| DELETE | `/delete/:id` | 删除 |
 
-### 12.4 新增页面（3 个）+ 组件（~14 个）
+#### 瀑布流 (`/api/v1/console/waterfall`)
 
-```
-src/views/report/
-├── Overview.vue             (综合报表)
-├── Funnel.vue               (漏斗分析)
-├── Behavior.vue             (用户行为 - 3 Tab)
-└── components/              (14 个)
-    ├── ReportFilterBar.vue
-    ├── ReportDimensionPicker.vue
-    ├── ReportMetricPicker.vue
-    ├── ReportViewSwitcher.vue
-    ├── ReportBoardList.vue
-    ├── ReportExportDialog.vue
-    ├── ReportTableView.vue
-    ├── ReportCardView.vue
-    ├── ReportTrendView.vue
-    ├── ReportBarView.vue
-    ├── FunnelChart.vue
-    ├── FunnelRateSidebar.vue
-    ├── FunnelTable.vue
-    ├── FunnelTrendChart.vue
-    ├── BehaviorTypeTabs.vue
-    ├── BehaviorMetricDropdown.vue
-    ├── BehaviorChart.vue
-    ├── BehaviorTable.vue
-    └── BehaviorDualMetricCompare.vue
-```
+| Method | Path | 说明 |
+|--------|------|------|
+| GET | `/get` | 当前配置（兼容 placement_id 数字+业务码双入参）|
+| GET | `/list` | 历史版本列表 |
+| POST | `/update` | 更新配置（双写：config.layers JSONB + waterfall_layer 表）|
+| GET | `/history` | 历史快照 |
 
-### 12.5 实施阶段（10.5d）
+#### 数据看板 (`/api/v1/console/dashboard`)
 
-| Phase | 内容 | 估时 | 状态 |
-|-------|------|------|------|
-| P0 | 建表 + seed 3 个字典 | 1d | ✅ 完成 |
-| P1 | 指标字典 CRUD + Admin UI | 1.5d | ✅ 完成 |
-| P2 | 看版 CRUD + 报告布局骨架（嵌套路由） | 2d | ✅ 完成 |
-| P3 | 聚合 API `/report/aggregate`（缓存+对比+级联）| 1.5d | ✅ 完成 |
-| P4 | 综合报表前端（指标弹窗+维度选择）| 1d | ✅ 完成 |
-| P5 | 4 种视图（表格/卡片/趋势/柱状）| 2d | ✅ 完成 |
-| P6 | 导出 CSV/Excel/PDF | 1.5d | ✅ 完成 |
-| P7 | 漏斗分析（11 步漏斗 + 5 个转化率 + 自定义公式）| 1d | ⏳ |
-| P8 | 用户行为（3 个子报表 + 双指标对比）| 1d | ⏳ |
+| Method | Path | 说明 |
+|--------|------|------|
+| GET | `/overview` | 核心指标聚合 |
+| GET | `/trend` | 趋势数据 |
+| GET | `/ranking/:dimension` | 排行榜（placement/source/app）|
 
-### 12.6 关键决策
+#### 综合报表 (`/api/v1/console/report`)
 
-- **指标字典后端动态可配**：Admin 可增/改/删非系统指标
-- **看版私有**：按 `developer_id` 隔离
-- **实时性**：今天 = 5min 实时（raw event + node-cache），其他 = T+1
-- **实际 vs 预估**：字段分离（`revenue` + `estimated_revenue`），指标字典标注 `value_type`
-- **筛选器级联**：App → Placement / Platform → Ad Source
-- **公式白名单**：漏斗自定义转化率仅支持 `event_a / event_b` 和 `event_a - event_b`
-- **PDF 渲染**：server-side puppeteer（沙箱已有 chromium）
-- **数据 mock**：V1 漏斗 + 用户行为用 mock 数据演示
+| Method | Path | 说明 |
+|--------|------|------|
+| POST | `/` | 旧版报表聚合（按维度 + 指标）|
+| GET | `/daily` | 每日明细 |
+| GET | `/export` | 导出 |
 
-### 12.7 与现有 report 路由的关系
+#### 报表-指标字典 (`/api/v1/console/report-metric`)
 
-| 现状 | 改造 |
-|------|------|
-| `/report` 现有路由 | 改 `/report/overview` |
-| `views/report/Index.vue` 现有单页 | 拆为 `Overview.vue` + `Funnel.vue` + `Behavior.vue` |
-| 6 个老 report API | 保留兼容，新逻辑走 `/report/aggregate` |
-| 侧边栏单条「数据报表」 | 改 sub-menu（参考刚做的「聚合管理」）|
+| Method | Path | 说明 |
+|--------|------|------|
+| GET | `/list` | 指标列表 |
+| GET | `/categories` | 指标分类 |
+| POST | `/create` | 创建指标 |
+| PATCH | `/update/:id` | 更新 |
+| DELETE | `/delete/:id` | 删除 |
+
+#### 报表-看板 (`/api/v1/console/report/board`)
+
+| Method | Path | 说明 |
+|--------|------|------|
+| GET | `/list` | 看板列表 |
+| GET | `/detail/:id` | 看板详情 |
+| POST | `/create` | 创建 |
+| PATCH | `/update/:id` | 更新 |
+| DELETE | `/delete/:id` | 删除 |
+| POST | `/duplicate/:id` | 复制 |
+
+#### 报表-聚合（核心）(`/api/v1/console/report`)
+
+| Method | Path | 说明 |
+|--------|------|------|
+| POST | `/aggregate/options` | 聚合选项（维度/指标/过滤）|
+| POST | `/aggregate` | 聚合查询 |
+| POST | `/aggregate/validate-formula` | 公式校验 |
+| GET | `/funnel/definition` | 漏斗定义 |
+| POST | `/export/csv` | CSV 导出 |
+| POST | `/export/excel` | Excel 导出 |
+| POST | `/export/pdf` | PDF 导出 |
+| GET | `/export/download/:filename` | 下载导出文件 |
+
+#### 对账 (`/api/v1/console/reconciliation`)
+
+| Method | Path | 说明 |
+|--------|------|------|
+| GET | `/list` | 对账单列表 |
+| POST | `/import` | 导入对账数据 |
+| GET | `/export` | 导出对账 |
+| POST | `/resolve` | 差异处理 |
+
+#### 消息 (`/api/v1/console/message`)
+
+| Method | Path | 说明 |
+|--------|------|------|
+| GET | `/list` | 消息列表 |
+| PUT | `/read` | 标记已读 |
+| PUT | `/read-all` | 全部已读 |
+| PUT | `/:id/read` | 单条已读 |
+| GET | `/unread-count` | 未读数 |
+
+#### 广告平台 (`/api/v1/console/network`)
+
+| Method | Path | 说明 |
+|--------|------|------|
+| GET | `/list` | 广告平台列表 |
+| GET | `/custom/list` | 自定义网络列表 |
+| POST | `/custom/create` | 创建自定义网络 |
+| POST | `/custom/update` | 更新自定义网络 |
+| PUT | `/custom/:id` | 更新（PK）|
+| DELETE | `/custom/:id` | 删除 |
+| GET | `/custom/detail` | 自定义网络详情 |
+| GET | `/custom/adapter/versions` | 自定义网络 Adapter 版本列表 |
+| POST | `/custom/adapter/upload` | 上传 Adapter |
+| PUT | `/custom/adapter/status` | 更新 Adapter 状态 |
+| DELETE | `/adapter/:id` | 删除 Adapter |
+| GET | `/adapter/list` | Adapter 列表 |
+| POST | `/adapter/upload` | 上传 Adapter（preset 网络）|
+| GET | `/adapter/download/:id` | 下载 Adapter |
+| POST | `/adapter/review/:id` | 审核 Adapter（PASS/REJECT）|
+| POST | `/app/bind` | 绑定应用到自定义网络 |
+| POST | `/app/unbind` | 解绑 |
+| GET | `/app/list` | 应用绑定列表 |
+| POST | `/custom/report/upload` | 上报自定义网络数据 |
+| GET | `/custom/report/query` | 查询自定义网络数据 |
+| POST | `/account/create` | 创建广告平台账号 |
+| GET | `/account/list` | 账号列表 |
+| GET | `/account/detail` | 账号详情 |
+| PUT | `/account/:id` | 更新账号 |
+| DELETE | `/account/:id` | 删除账号 |
+| POST | `/custom/upload-icon` | 自定义网络图标上传 |
+
+#### 个人中心 (`/api/v1/console/profile`)
+
+| Method | Path | 说明 |
+|--------|------|------|
+| GET | `/info` | 个人信息 |
+| PUT | `/info` | 更新信息 |
+| PUT | `/password` | 改密 |
+| POST | `/api-token` | 生成 API Token |
+| PATCH | `/api-token/expire` | Token 过期 |
+| GET | `/tokens` | Token 列表 |
+
+#### 管理 (`/api/v1/console/admin`)
+
+| Method | Path | 说明 |
+|--------|------|------|
+| GET | `/developers` | 开发者列表 |
+| PATCH | `/developers/:id/role` | 改角色 |
+| PATCH | `/developers/:id/status` | 改状态 |
+
+#### HAL (`/api/v1/hal`)
+
+| Method | Path | 说明 |
+|--------|------|------|
+| GET | `/config` | SDK 拉取配置 |
+
+#### SDK 内部接口 (`/api/v1/sdk`)
+
+| Method | Path | 说明 |
+|--------|------|------|
+| GET | `/config` | 同 HAL（合并）|
+
+#### SDK CMS 公开接口 (`/api/v1/sdk-cms`)
+
+| Method | Path | 说明 |
+|--------|------|------|
+| GET | `/releases` | 版本列表（按平台）|
+| GET | `/releases/latest` | 最新版本 |
+| GET | `/releases/:id` | 版本详情 |
+| POST | `/releases/:id/download` | 记录下载次数 |
+| GET | `/doc-categories` | 文档分类 |
+| GET | `/docs` | 文档列表 |
+| GET | `/docs/:id` | 文档详情 |
+| GET | `/privacy/policy` | 隐私政策（按 platform 过滤生效中）|
+| POST | `/privacy/consent` | 记录用户同意 |
+
+#### SDK CMS 管理接口 (`/api/v1/sdk-cms`)
+
+| Method | Path | 说明 |
+|--------|------|------|
+| GET | `/admin/releases` | 版本列表（全部）|
+| POST | `/admin/releases` | 创建版本 |
+| PUT | `/admin/releases/:id` | 更新 |
+| DELETE | `/admin/releases/:id` | 删除 |
+| GET | `/admin/docs` | 文档列表（全部）|
+| POST | `/admin/docs` | 创建文档 |
+| PUT | `/admin/docs/:id` | 更新 |
+| DELETE | `/admin/docs/:id` | 删除 |
+| GET | `/admin/privacy` | 政策列表（全部）|
+| POST | `/admin/privacy` | 创建政策 |
+| PUT | `/admin/privacy/:id` | 更新 |
+
+### 2.5 数据库表（27 张 = 13 业务核心 + 5 SDK 模块 + 4 报表 + 1 健康检查 + 4 辅助）
+
+#### 13 张核心业务表
+
+| # | 表名 | 关键字段 | 唯一约束 | 说明 |
+|---|------|---------|---------|------|
+| 1 | `developer` | developer_id, email, password, company, role, status, notify_* | developer_id / email | 开发者表 + 通知偏好 |
+| 2 | `app` | app_key, app_name, package_name, platform, status, frequency_config | app_key | 应用表（含频次配置 JSONB）|
+| 3 | `placement` | placement_id, name, format, status, bidding_type, screen_orientation | placement_id | 广告位表 |
+| 4 | `ad_source` | network_code, source_name, third_app_id, third_placement_id, is_custom, app_id, placement_id, network_def_id | — | 广告源表 |
+| 5 | `waterfall_config` | placement_id, version, traffic_group_id, status, **layers (JSONB)** | (placement_id+version+traffic_group_id) 复合 | 瀑布流配置主表 + layers JSONB 缓存 |
+| 6 | `waterfall_layer` | config_id, layer_type, ad_source_id, sort_price, timeout_ms, priority | — | 瀑布流层级明细表 |
+| 7 | `traffic_group` | placement_id, group_name, conditions(JSONB), priority, is_default, is_system, is_locked | — | 流量分组表 |
+| 8 | `report_daily` | developer_id, app_key, placement_id, ad_source_id, stat_date, hour, requests/fills/impressions/clicks/revenue, ad_type, region, os | (developer_id+app_key+placement_id+ad_source_id+stat_date+hour) 复合 | 每日聚合 |
+| 9 | `message` | developer_id, type, title, content, is_read | — | 消息表 |
+| 10 | `custom_adapter_version` | network_def_id, version, file_name, file_url, file_md5, status, review_comment, reviewed_by, reviewed_at | — | 自定义网络 Adapter 版本 |
+| 11 | `custom_network_report` | developer_id, app_key, placement_id, network_def_id, stat_date, impressions/clicks/revenue, upload_type | — | 自定义网络数据上报 |
+| 12 | `app_network_binding` | app_key, network_def_id, adapter_version_id, account_id, status, extra_params | — | 应用 × 网络 × 账号 绑定 |
+| 13 | `ad_network_def` | network_code, network_name, network_type, is_preset, system_type, supports_bidding, icon_url, adapter_class_*_android/ios | network_code | 广告平台定义（preset + custom）|
+
+#### 5 张 SDK 模块表
+
+| # | 表名 | 关键字段 | 说明 |
+|---|------|---------|------|
+| 14 | `sdk_release` | platform, version, version_code, changelog, download_url, file_md5, sdk_min_version, min_os_version, release_type, status, is_latest, is_force_update, release_date | SDK 版本（Android/iOS）|
+| 15 | `sdk_doc` | category_id, title, slug, content_format(1=HTML/2=MD), content, excerpt, is_published, is_featured | 技术文档 |
+| 16 | `sdk_doc_category` | name, code, description, icon, sort_order, is_active | 文档分类 |
+| 17 | `sdk_privacy_policy` | version, platform, title, content_format(1=HTML/2=MD/3=外链), content, summary, effective_date, status, **source_url** | 隐私政策（支持外链模式）|
+| 18 | `sdk_privacy_consent` | developer_id, privacy_id, ip_address, user_agent, consented_at | 隐私政策同意记录 |
+
+#### 4 张报表/对账表
+
+| # | 表名 | 关键字段 | 说明 |
+|---|------|---------|------|
+| 19 | `report_metric_definition` | code, name, category, sub_category, value_type, unit, format, formula, required_fields[], is_active, is_system | 指标字典（核心：可配置指标 + 公式）|
+| 20 | `report_funnel_metric_definition` | stage, code, name, is_event, event_index, formula | 漏斗指标 |
+| 21 | `report_board` | developer_id, name, report_type, is_default, is_hidden, config(JSONB), sort_order | 报表看板（保存自定义看板）|
+| 22 | `reconciliation` | developer_id, app_key, network_code, stat_date, expected_revenue, actual_revenue, diff, status | 对账表（待补全）|
+
+#### 5 张辅助/历史表
+
+| # | 表名 | 关键字段 | 说明 |
+|---|------|---------|------|
+| 23 | `health_check` | id, status, last_check_at | 服务健康检查 |
+| 24 | `ad_source_traffic_group` | — | 旧版 ad_source × traffic_group 关联（保留）|
+| 25 | `ad_network_account` | developer_id, network_def_id, app_id, account_name, account_id, credentials(JSONB), status, remark | **自定义网络/preset 网络账号管理** |
+| 26 | `hal_message` | — | HAL 消息（待用）|
+| 27 | `hal_session` / `hal_ticket` | — | HAL 会话（待用）|
+
+### 2.6 关键设计规范
+
+| 维度 | 规范 | 详细位置 |
+|------|------|---------|
+| 配色 | 主色蓝 #1E40AF / 侧边栏蓝渐变 / 底色 #F8FAFC | `DESIGN.md` |
+| 字体 | Inter (Google Fonts CN 域名) | `src/index.css` |
+| 圆角 | 8px 卡片 / 4px 按钮 | `DESIGN.md` |
+| 状态标签 | 蓝（已发布）/绿（运行中）/橙（待审）/红（停用） | `DESIGN.md` |
+| 响应式 | 桌面优先（≥1280px）| — |
+| 鉴权 | HttpOnly Cookie 优先 + Bearer Token 回退 | `server/middleware/auth.ts` |
+| API 响应 | `{ code, message, data }` | `server/utils/response.ts` |
+| 字段命名 | snake_case（Supabase 要求）| — |
+| 路径别名 | `@` → `src/` | `vite.config.ts` |
+| 端口 | 5000（`DEPLOY_RUN_PORT` 环境变量）| `.coze` |
+
+### 2.7 关键架构决策
+
+1. **瀑布流 layers 双写策略**：`waterfall_config.layers` JSONB + `waterfall_layer` 关联表双写，前端优先 JSONB 为空时回退关联表
+2. **placement_id 双入参兼容**：后端 `.in('placement_id', [pidStr, placementIdStr])` 兼容 number / business code
+3. **隐私政策三模式**：content_format 1=HTML / 2=Markdown / 3=外链（source_url 字段）
+4. **网络类型预置判断**：用 `ad_network_def.is_preset`，**不要用 `network_type`（被滥用）**
+5. **指标字典驱动**：综合报表 / 漏斗指标 / 看板全部从 `report_metric_definition` / `report_funnel_metric_definition` 读取
+6. **系统/默认/锁定流量分组**：`traffic_group.is_default` / `is_system` / `is_locked` 三态
+7. **SDK API Token**：7 天 JWT 用于 Web 端 HttpOnly Cookie；永久 API Token（`developer.api_access_token`）用于服务端 SDK 上报
+
+---
+
+## 三、已完成模块（按时间线）
+
+### 阶段 1：基础设施
+
+- ✅ 14 张核心表 + RLS 暂未启用
+- ✅ 鉴权（JWT + HttpOnly Cookie + 邮箱验证码注册）
+- ✅ 用户/应用/广告位/广告源 基础 CRUD
+- ✅ 13 个主控台页面
+
+### 阶段 2：数据可视化与业务深化
+
+- ✅ 数据看板（ECharts 多图）
+- ✅ 综合报表（指标字典驱动 + 公式校验 + 多维聚合）
+- ✅ 漏斗分析 / 用户行为
+- ✅ 对账管理（导入 / 导出 / 差异处理）
+- ✅ 瀑布流配置（3 层 + 流量分组 + 历史快照）
+- ✅ 报表看板（保存自定义看板 / 默认 / 复制）
+- ✅ 指标字典（admin CRUD + 系统/自定义）
+
+### 阶段 3：广告平台 + 自定义网络 6 步对接
+
+- ✅ 步骤 1：上传 Adapter（preset + custom 两路）
+- ✅ 步骤 2：广告平台账号（`ad_network_account` 表 + 5 API + NetworkAccountManager 弹窗 + 凭证查看 drawer + JSON 脱敏）
+- ✅ 步骤 3：数据上报格式（`custom_network_report` 表 + upload/query）
+- ✅ 步骤 4：联调测试（`/ad-source/create-custom` 关联自定义网络）
+- ✅ 步骤 5：上线（`/custom/adapter/status` + `/adapter/review/:id`）
+- ✅ 步骤 6：维护监控（`/custom/report/query` + 对账）
+
+### 阶段 4：管理后台
+
+- ✅ 开发者管理（角色/状态切换）
+- ✅ 指标字典（系统/自定义分类）
+- ✅ SDK 版本/文档/隐私政策 CRUD
+
+### 阶段 5：SDK 下载中心
+
+- ✅ 5 张 SDK 表（release / doc / doc_category / privacy_policy / privacy_consent）
+- ✅ 4 个开发者端页面（下载 / 文档 / 历史 / 隐私）
+- ✅ 3 个 admin 端页面（版本 / 文档 / 隐私）
+- ✅ 12+ SDK CMS API（公开 8 + admin 6）
+- ✅ 11 版本 + 5 分类 + 7 文档 + 2 政策 seed
+- ✅ 隐私政策外链模式（`source_url` 字段，开发者端 iframe 嵌入）
+
+### 阶段 6：UI 精修
+
+- ✅ 综合报表表头/数据整体居中对齐（`text-align: center` + flex `justify-content: center`）
+- ✅ 指标弹窗 6 列并行布局 + 字号缩到 12/11/10px
+- ✅ 指标弹窗 1100 宽 + 已选列与弹窗主体等高
+- ✅ 已选列超出可滚动（不再撑大弹窗）
+- ✅ 品牌名 YTads → 新义（隐私政策 / SDK 下载首页 / 标题文案）
+
+---
+
+## 四、关键交互模式（页面级）
+
+### 4.1 登录页
+
+- 标题「欢迎回来」+ 副标题「使用邮箱和密码登录到广告平台管理后台」
+- 邮箱 + 密码 + 记住我 + 忘记密码链接（暂未实现）
+- 底部「还没有账号？立即注册」
+
+### 4.2 应用管理
+
+- 列表：图标 + 名称 + AppKey + 平台 tag + 状态 + 操作
+- 创建/编辑 Drawer：基本 + 商店 + 法规 + 微信 + 频次 5 个分组
+- 频次：单独 FrequencyDrawer 弹窗（每 X 分钟最多 Y 次）
+- 关联广告位/网络：单独 Drawer，多选 + 列表
+
+### 4.3 瀑布流配置
+
+- 顶部：广告位下拉 + 流量分组下拉 + 当前 version 标签
+- 中部：3 个 Tab（Bidding / 瀑布 / 兜底），每层多 ad_source 拖拽排序
+- 底部：保存按钮 + 历史 version 列表（每行可「加载」回显到编辑面板）
+- 关键修复：placement_id 双入参兼容（数字 ID + 业务码 pl_xxx）
+- 「已加载」按钮：避免误把 `[]` 当作"无配置"
+
+### 4.4 综合报表
+
+- 顶部：指标选择 + 维度选择 + 时间范围 + 平台/系统/应用/广告位/广告源 筛选 + 查询
+- 中部：4 个核心指标卡片
+- 下部：ECharts 趋势图 + 表格
+- **关键修复**：表头/数据整体居中（不再错位）
+- 指标弹窗：6 列并行，1100 宽，已选列等高 + 超出可滚动
+
+### 4.5 广告平台 / 自定义网络
+
+- 4 个 Tab：自定义网络 / Adapter / 账号 / 数据上报
+- 自定义网络 Tab：列表 + 创建弹窗（基本 + 图标 + 状态）
+- Adapter Tab：版本列表 + 上传 + 审核（PASS/REJECT + 备注）
+- 账号 Tab：账号列表 + 创建/编辑（凭证字段 schema-driven 动态渲染 + 凭证查看 drawer + JSON 脱敏）
+- 数据上报 Tab：CSV 导入 + 查询
+
+### 4.6 SDK 下载中心
+
+- **下载首页**：hero + 平台 Tab（Android/iOS） + 最新版本卡片 + Changelog 折叠 + 下载按钮
+- **技术文档**：左侧分类（入门/集成/API 参考/高级/FAQ）+ 右侧 markdown 渲染 + 相关文章
+- **版本历史**：时间线（按版本倒序 + 平台 Tag + 强制更新 Tag）
+- **隐私政策**：检测 `source_url` 存在 → iframe 嵌入 + "前往官方原文"按钮（外链模式）；否则按 content_format 渲染
+
+### 4.7 管理后台
+
+- **开发者管理**：列表 + 角色 / 状态切换
+- **指标字典**：分类树 + 列表 + 创建 / 编辑（公式编辑器 + 必填字段 + 类型）
+- **SDK 版本管理**：列表 + 创建 / 编辑（平台 + 版本号 + Changelog + 下载 URL + MD5 + 强制更新）
+- **SDK 文档管理**：分类筛选 + 列表 + 富文本/Markdown 编辑
+- **SDK 隐私政策管理**：列表 + 创建 / 编辑（**内容来源切换：内部内容/外部链接** + 外链 URL 校验）
+
+---
+
+## 五、下一步规划（待办）
+
+### 5.1 短期（功能补完）
+
+| # | 任务 | 优先级 | 备注 |
+|---|------|-------|------|
+| 1 | reconciliation 表结构补全（当前字段可能缺失） | 高 | schema 审计 |
+| 2 | 消息通知实际触发链路（notify_* 偏好接入） | 中 | 现仅有偏好字段 |
+| 3 | HAL session/ticket 表实际启用 | 中 | 占位表 |
+| 4 | 自定义网络图标上传接入（custom/upload-icon 路由已实现，待 UI 联调）| 低 | — |
+| 5 | 报表导出格式扩展（已支持 csv/excel/pdf）| — | ✅ 已完成 |
+
+### 5.2 中期（产品迭代）
+
+| # | 任务 | 优先级 | 备注 |
+|---|------|-------|------|
+| 1 | 漏斗分析图表化（现以表格为主）| 中 | — |
+| 2 | 用户行为路径分析（funnel → behavior 联动）| 中 | — |
+| 3 | 对账差异智能标记（异常点检测）| 中 | — |
+| 4 | 报表看板共享 / 团队协作 | 低 | — |
+| 5 | SDK 集成示例代码生成（按平台/版本）| 低 | — |
+
+### 5.3 长期（架构演进）
+
+| # | 任务 | 优先级 | 备注 |
+|---|------|-------|------|
+| 1 | Supabase RLS 启用（当前用 service_role 绕过）| 高 | 安全审计 |
+| 2 | 对象存储接入（Adapter 文件当前为 URL 字段）| 中 | S3 兼容 |
+| 3 | SDK 实时数据上报 → Kafka → 实时看板 | 中 | — |
+| 4 | 多语言（i18n）| 低 | 当前中文为主 |
+
+---
+
+## 六、变更记录
+
+### 2026-07-18：PLAN.md 整体重构
+
+- 旧版本基于早期 12 模块设计，与当前实现偏差较大
+- 新版本以**当前实际代码/路由/API/DB 为事实基准**
+- 新增：5 张 SDK 模块表、4 张报表辅助表、27 张表完整字段说明
+- 新增：所有 API 端点完整列表（auth / app / placement / ad-source / traffic-group / waterfall / dashboard / report / report-metric / report-board / report-aggregate / reconciliation / message / network / profile / admin / hal / sdk / sdk-cms）
+- 新增：6 步对接流程落地状态
+- 新增：关键 UI 修复记录（表头居中 / 指标弹窗 6 列 / 已选列等高 / 品牌名替换）
+- 废弃：旧的"阶段 + ⬜ 待办"格式
+
+### 历史变更（摘要）
+
+- SDK 模块完整实施（11 版本 + 5 分类 + 7 文档 + 2 政策 seed）
+- 自定义网络 6 步对接全流程
+- 综合报表指标驱动 + 公式校验 + 多格式导出
+- 瀑布流 layers 双写 + placement_id 双入参兼容
+- 隐私政策外链模式
+- 品牌名 YTads → 新义（隐私政策 / SDK 下载首页）
+- 登录页标题改"欢迎回来"
+
+---
+
+> **下次更新时机**：每次代码变更后同步更新「实际事实」章节对应行。

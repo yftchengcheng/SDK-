@@ -216,82 +216,11 @@
 
 ## 实施差距分析（vs PLAN.md）
 
-### 1. 路由路径差异（命名习惯不同）
+**2026-07-18 PLAN.md 整体重构后，PLAN.md 与当前实现已完全一致，无实施差距。**
 
-| PLAN | 实际实现 | 备注 |
-|------|---------|------|
-| /apps | /app | 单数 |
-| /placements | /placement | 单数 |
-| /reports | /report | 单数 |
-| /messages | /message | 单数 |
-| /networks | /network | 单数 |
-| /networks/[id]/accounts | /network (tab 切换) | 子页改为 Tab |
-| /networks/[id]/adapters | /network (tab 切换) | 子页改为 Tab |
-| - | /ad-source | 独立页面（PLAN 整合到 waterfall） |
-
-### 2. 数据库表差距
-
-- **缺失 1 张表**：`ad_network_account`
-  - 用途：管理 6 步对接流程步骤二「广告平台账号」
-  - 字段预期：id, network_def_id, developer_id, account_name, app_id, credentials(JSON), status, created_at, updated_at
-  - 影响：步骤二账号管理功能无法落地
-
-### 3. API 接口差距（PLAN: 35 → 实际: ~50+，但缺 5 个核心）
-
-**已实现的核心接口**（覆盖 30/35）：
-- Auth: register/login/logout/me/profile/password/api-token（7）
-- App: list/create/update/delete/detail（6）
-- Placement: list/create/update/delete/detail（5）
-- AdSource: list/create/update/delete（4）
-- Waterfall: get/update/layers（3）
-- Traffic-Group: list/create/update/delete（4）
-- Network: custom (CRUD) + adapter (upload/versions/status) + report (upload/query) + app-binding（13+）
-- Report: overview/trend/source-comparison/placement-ranking/anomalies/daily（6）
-- Reconciliation: list/detail/export/confirm（4）
-- Message: list/read/unread-count（3+）
-- Profile / Dashboard / SDK: 完整
-
-**未实现的关键接口**（5 个）：
-| 接口 | 用途 | 优先级 |
-|------|------|--------|
-| `POST /api/v1/auth/verify` | JWT Token 验证 | 中 |
-| `POST /api/v1/console/adsource/create-custom` | 创建自定义广告源（关联自定义广告平台） | 高 |
-| `POST /api/v1/console/network/account/create` | 创建广告平台账号 | 高 |
-| `GET /api/v1/console/network/account/list` | 广告平台账号列表 | 高 |
-| `PATCH/DELETE /api/v1/console/network/account/[id]` | 编辑/删除账号 | 高 |
-
-### 4. 页面差距（PLAN: 14 → 实际: 13）
-
-- **未独立成页的 2 个**：
-  - `/networks/[id]/accounts` → 整合为 `/network` 的 Tab（账号管理）
-  - `/networks/[id]/adapters` → 整合为 `/network` 的 Tab（Adapter 管理）
-- 实际功能完整，但 URL 不够 RESTful
-
-### 5. 组件差距（PLAN 新增 2 个）
-
-- **已实现（升级版）**：
-  - `KVEditor` → 改用 `src/shared/network-schemas.ts` schema-driven 字段定义（`FieldDef` 类型：text/password/switch/currency/select/key-value/pub-key）
-  - `AccountManager` → 改用 `src/components/NetworkAccountManager.vue`（schema-driven 弹窗 + 凭证查看 drawer + JSON 脱敏）
-- **核心模式**：弹窗「凭证字段」分隔线后，由 `schemaFields` computed 根据所选平台动态渲染表单项，提交时所有字段打平进 `credentials` JSONB
-- 旧 `src/components/AccountManager.vue` 已删除（被 `NetworkAccountManager` 替代）
-
-### 6. 6 步对接流程落地情况
-
-| 步骤 | 名称 | 落地状态 | 备注 |
-|------|------|---------|------|
-| 1 | 上传 Adapter | ✅ 已实现 | network.ts upload 接口 |
-| 2 | 广告平台账号 | ✅ 已实现 | ad_network_account 表 + 5 个 API + /network Tab + NetworkAccountManager 组件 |
-| 3 | 数据上报格式 | ✅ 已实现 | custom/report/upload + custom_network_report 表 |
-| 4 | 联调测试 | ✅ 已实现 | /ad-source/create-custom（绑定到自定义广告平台）|
-| 5 | 上线 | ✅ 已实现 | /custom/adapter/status + review 接口（PASS/REJECT） |
-| 6 | 维护监控 | ✅ 已实现 | report/query + reconciliation |
-
-### 7. 优先级排序（已全部完成）
-
-1. **【完成】** 建表 `ad_network_account` + 5 个 API + 1 个页面 Tab
-2. **【完成】** `KVEditor` 组件（用于账号凭证 JSON 输入）
-3. **【完成】** `POST /api/v1/console/ad-source/create-custom`
-4. **【完成】** `POST /api/v1/auth/verify`
+> 历史差距（路由单复数、缺失 ad_network_account 表、5 个 API 缺失、组件 KVEditor/AccountManager 升级、6 步对接流程落地情况）已在新 PLAN.md 第二节「实际事实」和第三节「已完成模块」中完整沉淀。
+>
+> 任何新 PRD 先以新 PLAN.md 为准。AGENTS.md 聚焦工程规范（包管理 / Hydration / 鉴权 / DB 规范 / 日志）。
 
 ## 系统数据模型边界（造数据 / 硬编码必读）
 
