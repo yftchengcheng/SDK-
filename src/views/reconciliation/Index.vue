@@ -291,8 +291,9 @@ onMounted(() => {
           <el-button type="primary" :icon="Download" @click="handleExport">导出 CSV</el-button>
         </div>
       </div>
-
-      </div></div><div class="page-table-wrap"></div><div class="page-card"><div class="page-table-wrap"><el-table v-loading="loading" :data="list" border stripe size="default">
+      <div class="page-card">
+        <div class="page-table-wrap">
+          <el-table v-loading="loading" :data="list" border stripe size="default">
         <el-table-column prop="statDate" label="日期" width="110" />
         <el-table-column prop="appKey" label="应用" width="120" />
         <el-table-column prop="networkCode" label="广告平台" width="120" />
@@ -346,6 +347,8 @@ onMounted(() => {
         :total="total"
         @change="fetchList"
       />
+      </div>
+      </div>
     </div>
 
     <!-- 详情弹窗 -->
