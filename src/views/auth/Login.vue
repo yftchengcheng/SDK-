@@ -10,7 +10,7 @@
         </div>
 
         <!-- 标题 -->
-        <h1 class="auth-form-title">登录账号</h1>
+        <h1 class="auth-form-title">欢迎回来</h1>
         <p class="auth-form-subtitle">登录后即可管理您的应用与广告位</p>
 
         <!-- 表单 -->

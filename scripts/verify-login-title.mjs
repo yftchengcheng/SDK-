@@ -1,0 +1,11 @@
+import puppeteer from 'puppeteer';
+const browser = await puppeteer.launch({ headless: true, args: ['--no-sandbox'], executablePath: '/root/.cache/ms-playwright/chromium-1161/chrome-linux/chrome' });
+const page = await browser.newPage();
+await page.setViewport({ width: 1440, height: 900, deviceScaleFactor: 1 });
+const wait = (ms) => new Promise(r => setTimeout(r, ms));
+await page.goto('http://localhost:5000/login', { waitUntil: 'domcontentloaded' });
+await wait(1500);
+const title = await page.evaluate(() => document.querySelector('.auth-form-title')?.textContent?.trim());
+console.log('title =', JSON.stringify(title));
+await page.screenshot({ path: '/workspace/projects/public/sdk-screenshots/login-title.png', clip: { x: 0, y: 0, width: 1440, height: 700 } });
+await browser.close();
