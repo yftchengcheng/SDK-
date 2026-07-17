@@ -1365,9 +1365,8 @@ interface Condition {
 | `/api/v1/console/ad-source/delete` | DELETE | `?id=xxx` | `{ success }` |
 | `/api/v1/console/ad-source/networks` | GET | — | `{ list: [networkDef...] }` |
 | `/api/v1/console/ad-source/create-custom` | POST | `{ network_def_id, source_name, ... }` | `{ id }` |
-| `/api/v1/console/ad-source/:id/bind-groups` | GET | — | `{ list: [binding...] }` |
-| `/api/v1/console/ad-source/:id/bind-groups` | POST | `{ traffic_group_id, price, day_limit, hour_limit, interval_sec }` | `{ id }` |
-| `/api/v1/console/ad-source/:id/unbind-groups/:bindingId` | DELETE | — | `{ success }` |
+
+> 注：原计划中的「`/:id/bind-groups`（GET 列表 / POST 绑定）/ `/:id/unbind-groups/:bindingId`（DELETE 解绑）」端点在当前版本未实现。流量分组绑定当前通过 ad-source 的 update 端点带 `traffic_group_ids` 字段一次写入。
 
 #### 业务规则
 
@@ -2213,7 +2212,8 @@ interface Condition {
 | `/api/v1/console/reconciliation/import` | POST | FormData: file | `{ success, count, errors? }` |
 | `/api/v1/console/reconciliation/export` | GET | 筛选参数 | 文件流 |
 | `/api/v1/console/reconciliation/resolve` | POST | `{ id, comment? }` | `{ success }` |
-| `/api/v1/console/reconciliation/detail` | GET | `?id=xxx` | `{ sdk, api, diff }` |
+
+> 注：原计划中的「`/reconciliation/detail` GET」端点在当前版本未实现，差异查看通过 `resolve` POST 的 `?id=xxx` 携带参数或前端用 `list` 端点全量回显实现。
 
 #### 业务规则
 
@@ -2403,7 +2403,8 @@ interface Condition {
 | `/api/v1/console/network/account/create` | POST | 创建账号 |
 | `/api/v1/console/network/account/list` | GET | 账号列表 |
 | `/api/v1/console/network/account/:id` | PATCH / DELETE | 编辑 / 删除 |
-| `/api/v1/console/network/account/credential-schema` | GET | 获取凭证 schema |
+
+> 注：原计划中的「`/network/account/credential-schema` GET」端点在当前版本未实现。凭证 schema 当前以常量配置形式保存在前端（`adNetworkCredentials.ts` 或页面内联），不动态拉取。
 
 ### 12.4 关键库表
 
@@ -3886,7 +3887,7 @@ ALTER TABLE waterfall_config ADD COLUMN IF NOT EXISTS layers JSONB DEFAULT '[]':
 
 | 日期 | 版本 | 变更 |
 |------|------|------|
-| 2026-08-01 | v1.2.0 | 文档与代码对齐修复：① §3.1/§3.2 图形验证码改为「前端 Canvas 本地校验」+ 移除「`send-captcha` / `reset-password` 未上线端点描述」+ 错误码改为 HTTP 4xx 实际语义（无业务 code 字段）；② §4.2 路径修复 `/api/v1/dashboard` → `/api/v1/console/dashboard`（5 处）；③ §8 删除「`/waterfall/simulate`」未实现端点；④ §10.1.9 / §10.2.6 / §15.2.6 / §15.2.7 路径修复 `report-aggregate/*` → `report/aggregate/*` 与 `report/funnel/definition`（8 处）；⑤ §14.6 + 附录 A 删除不存在的 `console/profile/preset` 端点 + 补充 3 个实际端点（`PUT /info` / `PATCH /api-token/expire` / `GET /tokens` 已存在）+ 新增「双写端点说明」；⑥ 附录 A 路径前缀修复 `report-aggregate/*` → `report/aggregate/*` + 补全 22 个 network 端点 + 7 个 waterfall/traffic-group 端点 + 6 个 report/board 端点 + 22 个 sdk-cms/hal/sdk/report 端点 + 1 个 `/api/v1/report/daily`；总计从 75+ 扩到 110+；⑦ §15.1.3 / §15.1.4 标注「`admin/developers/:id/reset-password` / `admin/developers/invite` 当前未上线」 |
+| 2026-08-01 | v1.2.0 | 文档与代码对齐修复：① §3.1/§3.2 图形验证码改为「前端 Canvas 本地校验」+ 移除「`send-captcha` / `reset-password` 未上线端点描述」+ 错误码改为 HTTP 4xx 实际语义（无业务 code 字段）；② §4.2 路径修复 `/api/v1/dashboard` → `/api/v1/console/dashboard`（5 处）；③ §7/§8/§10/§11/§12 标注「未上线端点」（`ad-source/bind-groups` / `waterfall/simulate` / `reconciliation/detail` / `network/account/credential-schema`）；④ §10.1.9 / §10.2.6 / §15.2.6 / §15.2.7 路径修复 `report-aggregate/*` → `report/aggregate/*` 与 `report/funnel/definition`（8 处）；⑤ §14.6 + 附录 A 删除不存在的 `console/profile/preset` 端点 + 补充 3 个实际端点（`PUT /info` / `PATCH /api-token/expire` / `GET /tokens` 已存在）+ 新增「双写端点说明」；⑥ 附录 A 路径前缀修复 `report-aggregate/*` → `report/aggregate/*` + 补全 22 个 network 端点 + 6 个 report/board 端点 + 22 个 sdk-cms/hal/sdk 端点 + 1 个 `/api/v1/report/daily`；总计从 75+ 扩到 110+；⑦ §15.1.3 / §15.1.4 标注「`admin/developers/:id/reset-password` / `admin/developers/invite` 当前未上线」 |
 | 2026-07-31 | v1.0.0 | 初版 PRD，覆盖 13 个业务模块 + 鉴权 + 22 张表 + 75+ 接口 |
 | 2026-07-18 | v1.1.0 | 增量更新：① §2.4 新增「表格整体居中」全平台规范；② §10.1.6 明细表对齐规则修正（原"表头左/数据右"错误描述）；③ §10.1.8 新增「指标弹窗」子节（6 列 × 12 分类 / 1100×578 / 已选列固定高+滚动）；④ §10.3 指标选择弹窗描述修正（实为 12 分类 6 列布局，非 7 个 checkbox）；⑤ **§20 SDK 中心** 新章（4 开发者端页面：Index / Docs / Privacy / History）；⑥ **§21 admin SDK 管理** 新章（3 页面 + 隐私政策外链模式 source_url）；⑦ 隐私政策 `content_format=3` 新增枚举值「外链」；⑧ API 参考下 `YTAdRequest 参数说明` → `Request 参数说明`（保留 SDK 类名 `YTAdRequest` 作为技术标识）|
 | 未来 | — | 待补：邮件 / 短信集成、RLS、多级审核、Web Vitals 监控、GDPR 合规等 |
