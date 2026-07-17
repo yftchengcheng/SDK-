@@ -279,6 +279,17 @@
 - **涨跌幅**：▲▼ 三角（`::before`）+ `#059669` / `#DC2626` / `#94A3B8`
 - **分页**：容器 `#FAFBFC` + 圆角 `0 0 10px 10px` + 顶部 `1px #F1F5F9` + padding `12px 20px`；`el-pagination` 属性：`background small layout="total, sizes, prev, pager, next, jumper"`
 
+#### 表格「整体居中」规范（2026-07-18 升级 · 全平台统一）
+
+- **所有数据列（含维度列）**：`align: 'center'` + `headerAlign: 'center'`
+- **CSS 兜底**（写在 `index.css`）：`.el-table .el-table__cell > .cell { display: flex; justify-content: center; align-items: center; width: 100%; }`
+- **数字列**：`font-variant-numeric: tabular-nums`（等宽数字，小数点对齐）
+- ❌ **反模式（已修复）**：
+  - 表头左对齐 + 数据右对齐 → 视觉错位 14-28px
+  - 仅指标列右对齐 + 维度列左对齐 → 指标对齐了但维度全乱
+  - 单一使用 `text-align: right`（EP 内部 cell 强制 `width: 138px` 会导致 th/td 宽度不一致）
+- ✅ **正确**：全局 flex 居中方案，所有列统一
+
 #### 关键避坑（Element Plus + Tailwind + Vite）
 
 - EP CSS 必须从 `src/index.css` 顶部 `@import "element-plus/theme-chalk/index.css"`（**必须在 `@tailwind` 之前**）— 火山引擎 CDN 会拦截 Vite 注入的 EP CSS，导致 SyntaxError。
@@ -1736,10 +1747,18 @@ interface Condition {
 - 请求数 / 填充数 / 展示数 / 点击数 / 展示率 / 点击率 / CTR / 预估收益 / eCPM
 
 **操作**：
-- 列勾选：右上角「列设置」按钮
+- 列勾选：右上角「列设置」按钮 → 打开「指标弹窗」（详见 10.1.8）
 - 排序：点击表头
 - 导出：右上角「导出 CSV / Excel」按钮
 - 分页：pageSize = 20
+
+**表格对齐规则**（重要 · 2026-07-18 修复后）：
+- **所有列（含维度列）均采用「整体居中」对齐**：`align: 'center'` + `headerAlign: 'center'`
+- ❌ 禁止：表头左对齐 + 数据右对齐（视觉错位 14-28px）
+- ❌ 禁止：仅指标列右对齐 + 维度列左对齐（指标对齐了但维度全乱）
+- ✅ 正确：表头与数据、所有维度与指标列均统一 `text-align: center`
+- 数字列渲染：`font-variant-numeric: tabular-nums`（等宽数字，避免小数点对不齐）
+- 单元格实现：`el-table__cell > .cell` 强制 `display: flex; justify-content: center; align-items: center; width: 100%`
 
 #### 10.1.7 功能架构
 
@@ -1781,6 +1800,68 @@ interface Condition {
 2. **大表性能**：`report_daily` 数据量大，必须带 `developer_id + stat_date` 索引
 3. **导出**走流式响应（chunked transfer）
 4. **「广告平台」下拉从 `ad_network_def` 拉**，**禁止用 `network_type` 字段判断**（被滥用），改用 `is_preset`
+
+#### 10.1.8 指标弹窗（列设置 · 2026-07-18 升级）
+
+##### 触发位置
+明细表右上角「列设置」按钮 → 打开 `MetricPicker` 弹窗（`width="1100"`）。
+
+##### UI 说明
+
+```
+┌────────────────────────────────────────────────────────────────────┐
+│  指标选择                                              [X 关闭]     │
+├────────────────────────────────────────────────────────────────────┤
+│  ┌──────────────────────── mp-main 高度固定 420 ────────────────┐  │
+│  │  ┌──────────────  mp-cats (6 列) ──────────────┐ ┌─已选─┐    │  │
+│  │  │ 基础指标 6  │ 转化率 4  │ 展示 5  │ 点击 4 │ ... │ 已选列│    │  │
+│  │  │ [✓] 请求数  │ [ ] 展示率│ [ ] 展示│ [ ] 点击│     │  12项 │    │  │
+│  │  │ [ ] 填充数  │ [ ] 点击率│ [ ] 收益│ [ ] CTR│     │ ────┐│    │  │
+│  │  │ ...        │ ...      │ ...    │ ...    │     │ 请求数││    │  │
+│  │  │           │          │        │        │     │ 展示数││    │  │
+│  │  │           │          │        │        │     │ ...   ││    │  │
+│  │  └─────────────────────────────────────────────┘ └───┬─┘    │  │
+│  └─────────────────────────────────────────────────────┴──────┘  │
+│                       [取消]   [确认]                              │
+└────────────────────────────────────────────────────────────────────┘
+```
+
+- **弹窗尺寸**：宽 `1100px`（容纳 6 列指标，每列 118px），高 `auto`（按内容）
+- **主区** `.mp-main`：`display: grid; grid-template-columns: 1fr 220px; height: 420px; overflow: hidden`
+- **左：指标分类网格** `.mp-cats`：`grid-template-columns: repeat(6, 1fr); height: 100%`
+  - 每个分类下 4-6 个指标 checkbox
+  - 分类标题：12px / 600 / `--color-primary-700`
+  - 指标名：11px；指标说明 tip：10px / `#94A3B8`
+- **右：已选指标列** `.mp-side`：
+  - 标题「已选」+ 当前数量
+  - 列表容器 `.mp-side-list`：`flex: 1 1 0; min-height: 0; overflow-y: auto`
+  - **关键：选 51 个指标不撑大弹窗**（`scrollHeight > clientHeight` 时自动出现滚动条）
+  - 单项：标签 + 删除按钮
+- **底部**：取消 + 确认按钮
+
+##### 业务规则
+
+1. **6 列布局**：每列固定 118px，12 个分类 × 4-6 指标 = 48-72 个指标全展示
+2. **滚动而非撑高**：`.mp-main` `height: 420px` + `overflow: hidden` 限制总高度，已选列通过 `flex: 1 1 0; min-height: 0` 内部滚动
+3. **指标分类来源**：`report_metric_definition` 表（category 字段 + sort_order）
+4. **取消勾选 → 趋势图对应线条 + 表格对应列同时隐藏**
+5. **跨页签同步**：综合报表 / 漏斗分析 / 用户行为 Tab 共用同一 `MetricPicker`，选择后实时同步所有 Tab 展示
+
+##### 关键库表
+
+- **`report_metric_definition`**：
+  - `category`（基础/转化率/展示/点击/收益/单价/...）
+  - `code` / `name` / `tip`（说明）
+  - `unit`（count/percent/money/ratio）
+  - `formula`（派生指标公式）
+  - `sort_order`（每分类内排序）
+
+##### 注意事项
+
+1. **弹窗宽度必须 ≥ 880px**：6 列 × 118px = 708 + 220（已选列）+ gap，否则指标名截断
+2. **不要**把 `mp-main` 改成 `min-height`：会导致已选列内容撑大弹窗（51 项 → 弹窗 2073px）
+3. **不要**在已选列用 `max-height: 480px`：会破坏 flex 收缩，`overflow: auto` 不生效
+4. **子项高度**：`.mp-cat-item` 行高 `28px`（紧凑），多行 tip 用 `line-clamp: 2`
 
 ---
 
@@ -1981,9 +2062,10 @@ interface Condition {
    - seededRandom（基于 placement_id 哈希）
    - 保证刷新数据稳定
 2. **指标选择**：
-   - 弹窗 7 个 checkbox
-   - 默认全选
-   - 取消勾选 → 趋势图对应线条 + 表格对应列同时隐藏
+   - 弹窗采用与综合报表一致的「6 列布局指标弹窗」（详见 10.1.8）
+   - 12 个分类 × 4-6 指标 = 48-72 个指标可勾选
+   - 默认全选；取消勾选 → 趋势图对应线条 + 表格对应列同时隐藏
+   - 选 51 个指标不撑大弹窗（已选列内部滚动）
 3. **维度选择**（仅 value Tab）：与指标选择类似
 4. **差异计算**（duration）：`diff = main - compare`，`diffPct = diff / compare * 100`
 
@@ -3380,6 +3462,222 @@ ALTER TABLE waterfall_config ADD COLUMN IF NOT EXISTS layers JSONB DEFAULT '[]':
 
 ---
 
+## 20. SDK 中心（开发者端）
+
+> **定位**：开发者接入 SDK 的官方门户。包含 4 个页面：下载首页 / 技术文档 / 隐私政策 / 版本历史。所有页面顶部继承 `<MainLayout>` 公共导航 + 左侧「SDK 中心」菜单组。
+
+### 20.1 SDK 下载首页（`src/views/sdk/Index.vue`，路由 `/sdk`）
+
+#### UI 说明
+
+- **顶部 Hero 区**：
+  - eyebrow 文字「**新义 聚合 SDK**」（品牌名，原"YTads 聚合 SDK"已废弃）
+  - 主标题 + 副标题
+  - 平台切换 Tab：「Android」「iOS」（默认 Android）
+  - 主下载按钮（大）：当前 Tab 最新版本 + 文件大小 + `window.open(download_url)`
+- **当前版本卡片**（Tab 下方）：
+  - 版本号（如 `6.0.9`）+ 发布时间 + 包大小 + MD5
+  - 依赖项（Gradle / CocoaPods 代码块）
+  - 「下载 SDK」主按钮
+- **Changelog 折叠区**（每个版本一条）：
+  - 标题（版本号 + 发布时间）+ 新增/修复/优化三栏变更说明
+  - 默认展开最新 1 条，其余折叠
+- **集成指南入口**：底部 3 个跳转卡（快速接入 / API 参考 / 常见问题）
+
+#### 业务逻辑
+
+1. 页面挂载 → `GET /api/v1/sdk-cms/releases/latest?platform={1|2}&channel=stable` 获取当前 Tab 最新版本
+2. 切换 Tab → 重新请求对应平台最新版本
+3. 点「下载」→ 校验登录态 → `window.open(release.download_url)` 直接下载
+4. Changelog 展开 → 拉取该版本完整 `changelog` 字段
+
+#### 关键库表
+
+- `sdk_release`（核心 11+ 字段：version, platform, channel, status, download_url, file_size, md5, changelog, released_at, created_by）
+- `developer`（登录态）
+
+#### 注意事项
+
+- iOS SDK 包名 `YTads-iOS-*.zip`（**保留**作为包文件名 / URL，不替换为"新义-iOS"）
+- Android SDK 类名 `YTAdView` / `YTAdRequest` / `YTAdSize` 等 SDK API 类名**保留**（技术标识，非品牌）
+
+---
+
+### 20.2 SDK 技术文档（`src/views/sdk/Docs.vue`，路由 `/sdk/docs`）
+
+#### UI 说明
+
+- **左栏 分类列表**（280px 宽，5 个分类 + 文档数）：快速开始 / Android 集成 / iOS 集成 / API 参考 / 常见问题
+- **右栏 文档详情**：
+  - 顶部：面包屑（SDK 中心 / 文档 / 当前分类）
+  - 标题 / 最后更新时间 / 浏览数
+  - **Markdown 渲染**（`markdown-it` + 高亮 + 目录 TOC）
+  - 底部：「上一篇 / 下一篇」翻页
+
+#### 业务逻辑
+
+1. 挂载 → `GET /api/v1/sdk-cms/docs/categories` 拉分类 + 计数
+2. 默认选第一个分类 → `GET /api/v1/sdk-cms/docs?category_id={id}` 拉该分类下文档列表
+3. 点文档 → `GET /api/v1/sdk-cms/docs/{id}` 拉 Markdown 内容
+4. Markdown 编译：自动生成 TOC、代码高亮（vue-prism-component）、表格响应式
+
+#### 关键库表
+
+- `sdk_doc_category`（id, name, sort_order, status）
+- `sdk_doc`（id, category_id, title, slug, content(MD), view_count, sort_order, status）
+
+#### 注意事项
+
+- 「API 参考」下有且仅 1 篇文档，标题原"YTAdRequest 参数说明"已删除品牌前缀「YTAd」→ 现为「**Request 参数说明**」（2026-07-18 更新）
+- 文档 `content` 中仍包含 `YTAdRequest` / `YTAdSize` 等真实 SDK 类名示例，**不删**（技术标识）
+
+---
+
+### 20.3 SDK 隐私政策（`src/views/sdk/Privacy.vue`，路由 `/sdk/privacy`）
+
+#### UI 说明
+
+- **顶部**：版本号 tag + 生效日期 + 摘要（如「v1.1 主要更新：增加 iOS Privacy Manifest 说明」）
+- **外链 tag**：生效中政策若 `source_url` 非空 → 标题旁显示橙底「**外链**」tag + 顶部「**前往官方原文**」按钮（新窗跳转）
+- **内容区**（互斥两种模式）：
+  1. **外链模式**（`source_url` 非空）：iframe 嵌入 `https://docs.mobrtb.com/sdk_privacy.html`，720px 高，sandbox = `allow-same-origin allow-scripts allow-popups allow-forms`
+  2. **内部模式**（`source_url` 为空）：按 `content_format` 渲染（1=HTML 直接注入 / 2=Markdown 编译）
+- **历史版本**：底部折叠区，可切换查看 v1.0 / v1.1 等历史快照
+
+#### 业务逻辑
+
+1. 挂载 → `GET /api/v1/sdk-cms/privacy/policy?platform={1|2}` 拉生效政策
+2. 检测 `source_url` 字段：
+   - 非空 → 渲染外链 tag + iframe + 跳转按钮
+   - 空 → 按 `content_format` 渲染内部内容
+3. 切换历史版本 → 重新请求对应版本
+
+#### 关键库表
+
+- `sdk_privacy_policy`（id, version, platform, title, content_format, content, summary, source_url, effective_date, status）
+
+#### 注意事项
+
+- **外链模式**（2026-07-18 升级）：当 `source_url` 存在时，**优先**外链渲染；`content` 字段此时可空
+- `content_format` 枚举新增值 **3 = 外链**（与 1=HTML / 2=Markdown 并列）
+- 当前生效政策 v1.1 的 `source_url` = `https://docs.mobrtb.com/sdk_privacy.html`（已落地）
+- iframe 加载失败时降级：显示「前往查看原文」按钮（避免 X-Frame-Options 拦截）
+
+---
+
+### 20.4 SDK 版本历史（`src/views/sdk/History.vue`，路由 `/sdk/history`）
+
+#### UI 说明
+
+- **时间线布局**（垂直 timeline）：最新版本在上
+- 每条记录：版本号 + 平台 tag（Android/iOS）+ 发布时间 + channel tag（stable/beta）+ 变更摘要（点击展开完整 changelog）
+- 顶部筛选条：平台 / channel / 时间范围
+
+#### 业务逻辑
+
+1. 挂载 → `GET /api/v1/sdk-cms/releases?platform=&channel=&from=&to=` 拉历史列表
+2. 展开 changelog → 拉该条 `changelog` 全文
+3. 「下载历史版本」→ 直接 `window.open(download_url)`
+
+#### 关键库表
+
+- `sdk_release`（同 20.1，按 `status=1` + `released_at DESC` 排序）
+
+---
+
+## 21. 管理后台 · SDK 模块（`/admin/*`）
+
+> **定位**：admin 端 SDK 资源的 CRUD 后台。共 3 个页面 + 1 个新增的"内容来源切换"模式。顶部继承 admin 主布局，左侧菜单组「SDK 管理」。
+
+### 21.1 版本发布管理（`src/views/admin/SdkReleases.vue`，路由 `/admin/sdk/releases`）
+
+#### UI 说明
+
+- **顶部操作栏**：搜索框（按 version / changelog 关键词）+ 「+ 新建版本」按钮
+- **主表格**（居中对齐，按 §2.4 规范）：
+  - 版本号 / 平台 / channel / 状态 / 文件大小 / 发布时间 / 操作
+  - 状态：已发布（绿）/ 灰测中（黄）/ 已下架（灰）tag
+  - 操作：「编辑 / 复制链接 / 下架」三按钮
+- **新建/编辑弹窗**：
+  - 必填：version, platform(1/2), channel(stable/beta), download_url, file_size, md5, changelog, status, released_at
+  - 自动生成 slug + 校验 version 唯一性
+
+#### 业务逻辑
+
+1. 列表 → `GET /api/v1/sdk-cms/admin/releases?...`
+2. 新建/编辑 → `POST /api/v1/sdk-cms/admin/releases`（含权限校验 `authMiddleware`）
+3. 下架 → `PATCH /api/v1/sdk-cms/admin/releases/{id}` 仅更新 `status=0`
+
+#### 关键库表
+
+- `sdk_release`（同 20.1）
+
+---
+
+### 21.2 文档管理（`src/views/admin/SdkDocs.vue`，路由 `/admin/sdk/docs`）
+
+#### UI 说明
+
+- **左栏 分类管理**（可增删改分类：name / sort_order / status）
+- **右栏 文档列表**（按当前选中分类筛选）：
+  - 标题 / 排序 / 浏览数 / 状态 / 操作
+  - 「+ 新建文档」按钮
+- **编辑弹窗**：
+  - 必填：title, category_id, content(Markdown), sort_order, status
+  - 实时预览：左右分屏（左侧 Markdown 编辑器，右侧编译预览）
+
+#### 业务逻辑
+
+1. 分类增删改 → `POST/PUT/DELETE /api/v1/sdk-cms/admin/doc-categories/{id}`
+2. 文档 CRUD → `POST/PUT/DELETE /api/v1/sdk-cms/admin/docs/{id}`
+3. 编辑器：textarea + markdown-it 编译预览
+
+#### 关键库表
+
+- `sdk_doc_category` / `sdk_doc`
+
+---
+
+### 21.3 隐私政策管理（`src/views/admin/SdkPrivacy.vue`，路由 `/admin/sdk/privacy`）
+
+#### UI 说明
+
+- **顶部操作栏**：「+ 新建政策」按钮
+- **主表格**：
+  - 版本号 / 平台 / 来源（**内/外链** tag）/ 标题 / 生效日期 / 状态 / 操作
+  - 来源列：外链模式显示橙底「外链」tag，内嵌模式显示蓝底「内部」tag
+  - 外链模式额外列：URL（可点击跳转，截断省略）
+- **新建/编辑弹窗**（核心：内容来源切换）：
+  - 顶部「**内容来源**」radio 单选：`内部内容（HTML/Markdown）` / `外部链接`
+  - 选**外链**时：
+    - 显示 `外链 URL` 输入框（必填，校验 `http(s)://` 开头）
+    - 显示「预览」按钮（右侧新窗打开）
+    - 显示 `摘要` 输入框（顶部展示用）
+    - 隐藏「内容格式」radio + `content` 大文本框
+  - 选**内部**时：
+    - 显示「内容格式」radio（HTML / Markdown）
+    - 显示 `content` 大文本框
+    - `source_url` 字段自动置空
+
+#### 业务逻辑
+
+1. 内容来源切换 → 控制表单字段显隐（`v-if`），提交时根据 source_type 派发
+2. 选外链提交：`POST { version, source_url, summary, status, content_format=3, content='', effective_date }`
+3. 选内部提交：`POST { version, source_url='', content, content_format(1/2), summary, status, effective_date }`
+4. 后端 `POST /api/v1/sdk-cms/admin/privacy` 已支持两种模式（共用端点）
+
+#### 关键库表
+
+- `sdk_privacy_policy`（同 20.3）
+
+#### 注意事项
+
+- **外链模式**（2026-07-18 升级）：admin 端表单新增 source_type 切换，DB 加 `source_url` 列，`content` 改为 nullable（默认 ''）
+- `content_format` 枚举值 **3 = 外链**（与 1=HTML / 2=Markdown 并列）
+- 当前生效政策 v1.1 已是外链模式，URL = `https://docs.mobrtb.com/sdk_privacy.html`
+
+---
+
 ## 附录 A：完整接口清单
 
 | 模块 | 接口 | 方法 | 鉴权 |
@@ -3496,5 +3794,6 @@ ALTER TABLE waterfall_config ADD COLUMN IF NOT EXISTS layers JSONB DEFAULT '[]':
 | 日期 | 版本 | 变更 |
 |------|------|------|
 | 2026-07-31 | v1.0.0 | 初版 PRD，覆盖 13 个业务模块 + 鉴权 + 22 张表 + 75+ 接口 |
+| 2026-07-18 | v1.1.0 | 增量更新：① §2.4 新增「表格整体居中」全平台规范；② §10.1.6 明细表对齐规则修正（原"表头左/数据右"错误描述）；③ §10.1.8 新增「指标弹窗」子节（6 列 × 12 分类 / 1100×578 / 已选列固定高+滚动）；④ §10.3 指标选择弹窗描述修正（实为 12 分类 6 列布局，非 7 个 checkbox）；⑤ **§20 SDK 中心** 新章（4 开发者端页面：Index / Docs / Privacy / History）；⑥ **§21 admin SDK 管理** 新章（3 页面 + 隐私政策外链模式 source_url）；⑦ 隐私政策 `content_format=3` 新增枚举值「外链」；⑧ API 参考下 `YTAdRequest 参数说明` → `Request 参数说明`（保留 SDK 类名 `YTAdRequest` 作为技术标识）|
 | 未来 | — | 待补：邮件 / 短信集成、RLS、多级审核、Web Vitals 监控、GDPR 合规等 |
 
