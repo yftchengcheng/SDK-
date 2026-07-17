@@ -217,7 +217,7 @@ const buildColumnsFromBoard = (): Column[] => {
   const cols: Column[] = [];
   const dimensions = props.board.config?.dimensions || [];
   for (const d of dimensions) {
-    cols.push({ key: d, label: DIM_LABELS[d] || d, minWidth: 140, width: 140, fixed: 'left', kind: 'dim' });
+    cols.push({ key: d, label: DIM_LABELS[d] || d, minWidth: 140, width: 140, fixed: 'left', align: 'center', headerAlign: 'center', kind: 'dim' });
   }
   const metrics = props.board.config?.metrics || [];
   for (const m of metrics) {
@@ -226,8 +226,8 @@ const buildColumnsFromBoard = (): Column[] => {
       key: m,
       label: name,
       minWidth: 140, width: 140,
-      align: 'right',
-      headerAlign: 'right',
+      align: 'center',
+      headerAlign: 'center',
       format: metricFormatOf(m) || 'number',
       sortable: 'custom',
       kind: 'metric',

@@ -3418,7 +3418,7 @@ html, body, #app {
   max-width: 100% !important;
   display: flex !important;
   align-items: center;
-  justify-content: flex-end;   /* 表头与数据 cell 同列右对齐 */
+  justify-content: center;        /* 整体居中（用户要求）：表头与数据都居中对齐 */
   padding: 0 !important;
   gap: 4px;
   box-sizing: border-box;
