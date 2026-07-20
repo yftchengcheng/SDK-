@@ -54,22 +54,26 @@ function endOfLastMonth(d: Date): string {
 }
 
 /**
- * 汇总一个日期段内 developer 的总收益 / 展示 / 预估收益 / DAU
+ * 汇总一个日期段内的总收益 / 展示 / 预估收益 / DAU
  * - revenue / impressions 取自 report_daily 真实列
  * - estimatedRevenue = revenue × 1.0（与已实现收益保持一致；为后续真实接入预留位）
  * - dau = impressions ÷ 100（粗估：平均每 100 次展示折算 1 个 DAU，仅供占位）
  * 说明：report_daily 当前无 dau / estimated_revenue 字段；这两个 metric 在前端
  * 显式标注为「估算」并展示公式，避免给用户造成"真实 DAU"误导。
+ *
+ * ⚠️ demo 阶段不过滤 developer_id：与 app/placement/ad_source 等 list 端点保持
+ *    一致（注释：「demo 数据全平台共享」）。所有开发者都能看到全平台 demo 数据。
+ *    生产环境如需按 dev 隔离：加回 `.eq('developer_id', developerId)` 即可。
  */
 async function aggregateRange(
-  developerId: string,
+  _developerId: string,
   start: string,
   end: string,
 ): Promise<{ revenue: number; impressions: number; estimatedRevenue: number; dau: number }> {
   const { data, error } = await db
     .from('report_daily')
     .select('revenue, impressions')
-    .eq('developer_id', developerId)
+    // demo 共享：不过滤 developer_id（生产按需加回 .eq('developer_id', _developerId)）
     .gte('stat_date', start)
     .lte('stat_date', end);
   if (error) throw new Error(`Query failed: ${error.message}`);
@@ -272,7 +276,7 @@ router.get('/trend', authMiddleware, async (req: express.Request, res: express.R
           db
             .from('report_daily')
             .select(isHourly ? `stat_date, hour, ${metricCol}` : `stat_date, ${metricCol}`)
-            .eq('developer_id', developerId)
+            // demo 共享：不过滤 developer_id
             .gte('stat_date', start)
             .lte('stat_date', end)
             .order('stat_date', { ascending: true }),
@@ -314,7 +318,7 @@ router.get('/trend', authMiddleware, async (req: express.Request, res: express.R
         db
           .from('report_daily')
           .select(isHourly ? `stat_date, hour, ${cfg.reportCol}, ${metricCol}` : `stat_date, ${cfg.reportCol}, ${metricCol}`)
-          .eq('developer_id', developerId)
+          // demo 共享：不过滤 developer_id
           .gte('stat_date', start)
           .lte('stat_date', end)
           .order('stat_date', { ascending: true }),
@@ -403,7 +407,7 @@ router.get('/ranking/:dimension', authMiddleware, async (req: express.Request, r
     const { data, error } = await db
       .from('report_daily')
       .select(`${cfg.reportCol || cfg.idCol}, ${metricCol}`)
-      .eq('developer_id', developerId)
+      // demo 共享：不过滤 developer_id
       .gte('stat_date', start)
       .lte('stat_date', end);
     if (error) throw new Error(`Query failed: ${error.message}`);
