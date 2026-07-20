@@ -102,6 +102,37 @@
       </main>
     </div>
     <HalWidget />
+
+    <!-- 退出登录确认弹窗 -->
+    <el-dialog
+      v-model="logoutDialogVisible"
+      width="420px"
+      align-center
+      :show-close="false"
+      :close-on-click-modal="true"
+      class="logout-dialog"
+      @closed="onLogoutDialogClosed"
+    >
+      <div class="logout-dialog__icon-wrap">
+        <span class="logout-dialog__icon-ring"></span>
+        <span class="logout-dialog__icon-ring logout-dialog__icon-ring--2"></span>
+        <div class="logout-dialog__icon">
+          <el-icon :size="26"><SwitchButton /></el-icon>
+        </div>
+      </div>
+      <h3 class="logout-dialog__title">确认退出登录？</h3>
+      <p class="logout-dialog__desc">您将退出当前账号，需要重新登录才能继续使用</p>
+      <div class="logout-dialog__account">
+        <el-icon :size="13"><User /></el-icon>
+        <span>{{ userStore.userInfo?.email || '当前用户' }}</span>
+      </div>
+      <template #footer>
+        <div class="logout-dialog__footer">
+          <el-button class="logout-dialog__btn-cancel" @click="onLogoutCancel">再看看</el-button>
+          <el-button class="logout-dialog__btn-confirm" :loading="logoutLoading" @click="onLogoutConfirm">退出登录</el-button>
+        </div>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -192,6 +223,8 @@ const menuItems = computed<MenuItem[]>(() => {
 });
 const isCollapsed = ref(false);
 const unreadCount = ref(0);
+const logoutDialogVisible = ref(false);
+const logoutLoading = ref(false);
 
 // 父级菜单展开状态（聚合管理）
 const expandedGroups = ref<Record<string, boolean>>({});
@@ -255,11 +288,28 @@ watch(
 
 const handleCommand = (command: string) => {
   if (command === 'logout') {
-    userStore.logout();
-    router.push('/login');
+    logoutDialogVisible.value = true;
   } else if (command === 'profile') {
     router.push('/profile');
   }
+};
+
+const onLogoutCancel = () => {
+  if (logoutLoading.value) return;
+  logoutDialogVisible.value = false;
+};
+
+const onLogoutConfirm = async () => {
+  logoutLoading.value = true;
+  // 让动画/微任务先跑一拍再执行销毁，避免 loading 状态来不及显示
+  await new Promise((r) => setTimeout(r, 220));
+  userStore.logout();
+  router.push('/login');
+  // 路由跳转后弹窗仍可能短暂残留，由 onClosed 兜底兜底清理 loading
+};
+
+const onLogoutDialogClosed = () => {
+  logoutLoading.value = false;
 };
 
 const fetchUnreadCount = async () => {

@@ -11931,3 +11931,190 @@ html, body, #app {
   margin: 12px 0 20px;
   font-size: 14px;
 }
+
+/* ===== 退出登录确认弹窗 ===== */
+.logout-dialog {
+  --logout-radius: 12px;
+}
+.logout-dialog .el-dialog__header {
+  display: none;
+}
+.logout-dialog .el-dialog__body {
+  padding: 32px 32px 12px;
+}
+.logout-dialog .el-dialog__footer {
+  padding: 4px 32px 32px;
+}
+.logout-dialog .el-dialog__header + .el-dialog__body {
+  /* EP 24 padding-top fallback */
+  padding-top: 32px;
+}
+
+/* 入场动画：缩放 + 渐入 */
+.logout-dialog .el-overlay-dialog {
+  overflow: hidden;
+}
+.logout-dialog .el-dialog {
+  border-radius: var(--logout-radius);
+  box-shadow:
+    0 20px 25px -5px rgba(15, 23, 42, 0.10),
+    0 8px 10px -6px rgba(15, 23, 42, 0.06);
+  overflow: hidden;
+}
+.logout-dialog.dialog-fade-enter-active .el-dialog,
+.logout-dialog.dialog-fade-leave-active .el-dialog {
+  transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.18s ease;
+}
+.logout-dialog.dialog-fade-enter-from .el-dialog,
+.logout-dialog.dialog-fade-leave-to .el-dialog {
+  transform: scale(0.94) translateY(6px);
+  opacity: 0;
+}
+
+/* icon 区 */
+.logout-dialog__icon-wrap {
+  position: relative;
+  width: 72px;
+  height: 72px;
+  margin: 0 auto 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.logout-dialog__icon-ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: #FEE2E2;
+  opacity: 0.5;
+  animation: logout-ring-pulse 2.4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+.logout-dialog__icon-ring--2 {
+  animation-delay: 0.8s;
+}
+.logout-dialog__icon {
+  position: relative;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #EF4444 0%, #DC2626 100%);
+  color: #FFFFFF;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow:
+    0 8px 16px -4px rgba(220, 38, 38, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.18);
+}
+@keyframes logout-ring-pulse {
+  0% {
+    transform: scale(0.85);
+    opacity: 0.55;
+  }
+  70% {
+    transform: scale(1.35);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1.35);
+    opacity: 0;
+  }
+}
+
+/* 文案 */
+.logout-dialog__title {
+  margin: 0 0 8px;
+  text-align: center;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--color-slate-900, #0F172A);
+  letter-spacing: 0.2px;
+}
+.logout-dialog__desc {
+  margin: 0 0 14px;
+  text-align: center;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--color-slate-500, #64748B);
+}
+.logout-dialog__account {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  margin: 0 auto;
+  border-radius: 999px;
+  background: var(--color-slate-50, #F8FAFC);
+  border: 1px solid var(--color-slate-200, #E2E8F0);
+  color: var(--color-slate-600, #475569);
+  font-size: 12px;
+  font-weight: 500;
+  max-width: 100%;
+  /* 居中容器：用 flex parent */
+}
+.logout-dialog .el-dialog__body {
+  text-align: center;
+}
+.logout-dialog__account {
+  display: inline-flex;
+}
+.logout-dialog__account .el-icon {
+  color: var(--color-slate-400, #94A3B8);
+}
+.logout-dialog__account span {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 260px;
+}
+
+/* 底部按钮 */
+.logout-dialog__footer {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+}
+.logout-dialog__footer .el-button {
+  flex: 1;
+  height: 38px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  margin: 0;
+  transition: all 0.18s ease;
+}
+.logout-dialog__btn-cancel {
+  background: var(--color-slate-50, #F8FAFC);
+  border: 1px solid var(--color-slate-200, #E2E8F0);
+  color: var(--color-slate-700, #334155);
+}
+.logout-dialog__btn-cancel:hover {
+  background: var(--color-slate-100, #F1F5F9);
+  border-color: var(--color-slate-300, #CBD5E1);
+  color: var(--color-slate-900, #0F172A);
+}
+.logout-dialog__btn-confirm {
+  background: linear-gradient(135deg, #EF4444 0%, #DC2626 100%);
+  border: none;
+  color: #FFFFFF;
+  box-shadow: 0 2px 6px -1px rgba(220, 38, 38, 0.25);
+}
+.logout-dialog__btn-confirm:hover {
+  background: linear-gradient(135deg, #DC2626 0%, #B91C1C 100%);
+  box-shadow: 0 4px 10px -2px rgba(220, 38, 38, 0.35);
+  transform: translateY(-1px);
+}
+.logout-dialog__btn-confirm:active {
+  transform: translateY(0);
+}
+.logout-dialog__btn-confirm.is-loading {
+  background: linear-gradient(135deg, #EF4444 0%, #DC2626 100%);
+  opacity: 0.85;
+}
+
+/* 暗角遮罩更柔和 */
+.logout-dialog ~ .el-overlay {
+  background-color: rgba(15, 23, 42, 0.45);
+  backdrop-filter: blur(2px);
+}
+
