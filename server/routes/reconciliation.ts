@@ -8,26 +8,34 @@ const router = Router();
 // Get reconciliation data
 router.get('/list', authMiddleware, async (req: express.Request, res: express.Response) => {
   try {
-    const { developerId } = getDeveloper(req);
     const { appKey, networkCode, startDate, endDate, page = 1, pageSize = 20 } = req.query as Record<string, string>;
 
     const today = new Date();
     const start = startDate || new Date(today.getTime() - 30 * 86400000).toISOString().split('T')[0];
     const end = endDate || today.toISOString().split('T')[0];
 
-    // Get SDK reported data
-    let sdkQuery = db.from('report_daily').select('*').eq('developer_id', developerId).gte('stat_date', start).lte('stat_date', end);
+    // demo 共享：全平台 report_daily 都可参与对账（生产按需加回 .eq('developer_id', _developerId)）
+    let sdkQuery = db.from('report_daily').select('*').gte('stat_date', start).lte('stat_date', end);
     if (appKey) sdkQuery = sdkQuery.eq('app_key', appKey);
 
     const { data: sdkData, error: sdkError } = await sdkQuery;
     if (sdkError) throw new Error(`SDK query failed: ${sdkError.message}`);
 
-    // Get custom network reported data (as "API" side data for comparison)
-    let apiQuery = db.from('custom_network_report').select('*').eq('developer_id', developerId).gte('stat_date', start).lte('stat_date', end);
+    // demo 共享：全平台 custom_network_report 都可参与对账（生产按需加回 .eq('developer_id', _developerId)）
+    let apiQuery = db.from('custom_network_report').select('*').gte('stat_date', start).lte('stat_date', end);
     if (appKey) apiQuery = apiQuery.eq('app_key', appKey);
 
     const { data: apiData, error: apiError } = await apiQuery;
     if (apiError) throw new Error(`API query failed: ${apiError.message}`);
+
+    // 关键：report_daily.ad_source_id 是 ad_source.id（377-406），
+    // custom_network_report.network_def_id 是 ad_network_def.id（1-5），
+    // 两表 key 维度不同 → 需要 ad_source 表建 id→network_def_id 映射
+    const { data: adSourceRows } = await db.from('ad_source').select('id,network_def_id');
+    const adSourceIdToDefId: Record<number, number> = {};
+    for (const r of (adSourceRows || [])) {
+      adSourceIdToDefId[Number(r.id)] = Number(r.network_def_id);
+    }
 
     // Build reconciliation by combining data
     const reconciliationMap: Record<string, {
@@ -42,10 +50,12 @@ router.get('/list', authMiddleware, async (req: express.Request, res: express.Re
     }> = {};
 
     for (const row of (sdkData || [])) {
-      const key = `${row.app_key}_${row.placement_id}_${row.ad_source_id}_${row.stat_date}`;
+      // ad_source_id → network_def_id 映射后作 key
+      const networkDefId = adSourceIdToDefId[Number(row.ad_source_id)] ?? Number(row.ad_source_id);
+      const key = `${row.app_key}_${row.placement_id}_${networkDefId}_${row.stat_date}`;
       if (!reconciliationMap[key]) {
         reconciliationMap[key] = {
-          networkDefId: Number(row.ad_source_id),
+          networkDefId,
           statDate: row.stat_date as string,
           appKey: row.app_key as string,
           placementId: row.placement_id as string,
@@ -171,17 +181,16 @@ router.post('/import', authMiddleware, async (req: express.Request, res: express
 // Export reconciliation data as CSV
 router.get('/export', authMiddleware, async (req: express.Request, res: express.Response) => {
   try {
-    const { developerId } = getDeveloper(req);
     const { startDate, endDate } = req.query as Record<string, string>;
 
     const today = new Date();
     const start = startDate || new Date(today.getTime() - 30 * 86400000).toISOString().split('T')[0];
     const end = endDate || today.toISOString().split('T')[0];
 
+    // demo 共享：导出全平台 custom_network_report（生产按需加回 .eq('developer_id', _developerId)）
     const { data, error } = await db
       .from('custom_network_report')
       .select('*')
-      .eq('developer_id', developerId)
       .gte('stat_date', start)
       .lte('stat_date', end)
       .order('stat_date', { ascending: false });
@@ -243,7 +252,6 @@ router.get('/export', authMiddleware, async (req: express.Request, res: express.
 // Resolve a reconciliation dispute (mark as resolved with comment)
 router.post('/resolve', authMiddleware, async (req: express.Request, res: express.Response) => {
   try {
-    const { developerId } = getDeveloper(req);
     const { appKey, placementId, networkDefId, statDate, comment } = req.body as {
       appKey: string;
       placementId: string;
@@ -256,14 +264,13 @@ router.post('/resolve', authMiddleware, async (req: express.Request, res: expres
       return fail(res, 400, '缺少必填参数');
     }
 
-    // Mark custom_network_report as resolved by appending a comment in changelog field via update
+    // demo 共享：解决全平台 custom_network_report 的争议（生产按需加回 .eq('developer_id', _developerId)）
     const { data, error } = await db
       .from('custom_network_report')
       .update({
         upload_type: 3, // 3 = resolved/disputed adjustment
         updated_at: new Date().toISOString(),
       })
-      .eq('developer_id', developerId)
       .eq('app_key', appKey)
       .eq('placement_id', placementId)
       .eq('network_def_id', Number(networkDefId))

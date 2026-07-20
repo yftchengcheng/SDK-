@@ -42,8 +42,9 @@ const importForm = reactive({
 const uploadRef = ref()
 
 // 查询
+// 默认日期范围：demo 数据实际重叠区间（custom_network_report 仅 2026-07-10~07-16 有数据）
 const query = reactive({
-  statDate: ['', ''] as [string, string],
+  statDate: ['2026-07-10', '2026-07-16'] as [string, string],
   appKey: '',
   status: '' as '' | 'pending' | 'matched' | 'disputed' | 'resolved',
 })
