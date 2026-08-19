@@ -577,7 +577,7 @@ router.post('/export-sdk-policy', authMiddleware, async (req: express.Request, r
     // 校验 appKeys 属于当前 dev
     const { data: ownedApps, error: appErr } = await db
       .from('app')
-      .select('app_key, app_name, sdk_version')
+      .select('app_key, app_name')
       .eq('developer_id', developerId)
       .in('app_key', appKeys);
     if (appErr) throw new Error(`App lookup failed: ${appErr.message}`);
