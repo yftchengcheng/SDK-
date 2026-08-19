@@ -1,7 +1,7 @@
 <template>
   <el-dialog
-    :model-value="modelValue"
-    @update:model-value="$emit('update:modelValue', $event)"
+    :model-value="visible"
+    @update:model-value="$emit('update:visible', $event)"
     title="导出SDK预置策略"
     width="720px"
     :close-on-click-modal="false"
@@ -133,13 +133,13 @@ interface CandidateItem {
 }
 
 const props = defineProps<{
-  modelValue: boolean;
+  visible: boolean;
   app?: AppItem | null;
   extraApps?: AppItem[]; // 多选导出时的额外应用
 }>();
 
 const emit = defineEmits<{
-  (e: 'update:modelValue', val: boolean): void;
+  (e: 'update:visible', val: boolean): void;
 }>();
 
 const form = reactive({
@@ -246,12 +246,12 @@ async function loadCandidates(): Promise<void> {
 watch(
   () => selectedApps.value.map((a) => a.app_key).join(','),
   () => {
-    if (props.modelValue) void loadCandidates();
+    if (props.visible) void loadCandidates();
   },
 );
 
 function handleCancel(): void {
-  emit('update:modelValue', false);
+  emit('update:visible', false);
 }
 
 async function handleConfirm(): Promise<void> {
@@ -283,7 +283,7 @@ async function handleConfirm(): Promise<void> {
     const { downloadUrl, filename } = res.data;
     ElMessage.success('策略生成成功，开始下载');
     await downloadFile(downloadUrl, filename);
-    emit('update:modelValue', false);
+    emit('update:visible', false);
   } catch (err) {
     console.error('export error', err);
     const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message

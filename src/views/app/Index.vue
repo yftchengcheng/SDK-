@@ -11,11 +11,6 @@
       </div>
       <div class="page-header-actions">
         <el-button :icon="DataLine" @click="goReport">数据报表</el-button>
-        <el-button
-          :icon="Download"
-          :disabled="!currentAppKey"
-          @click="openExportSdkPolicy"
-        >导出SDK预置策略</el-button>
         <el-button type="primary" :icon="Plus" @click="openCreateApp">创建应用</el-button>
       </div>
     </div>
@@ -453,7 +448,6 @@ import {
   Plus, Search, Cellphone, Lock, Setting, Cpu, Edit,
   CopyDocument, DataLine, ArrowRight, QuestionFilled, Connection, Link,
   Histogram, Crop, TakeawayBox, Iphone, User, Money, TrendCharts, CaretTop, CaretBottom,
-  Key, Download,
 } from '@element-plus/icons-vue';
 import { useUserStore } from '../../stores/user';
 import AppDrawer from './components/AppDrawer.vue';
