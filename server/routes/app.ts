@@ -695,6 +695,7 @@ router.post('/export-sdk-policy', authMiddleware, async (req: express.Request, r
       sdkVersion,
       effectVersion: effectVersion || '',
       appPolicies,
+      generatedAt: new Date().toISOString(),
     });
     const safeSdk = sdkVersion.replace(/\./g, '_');
     const ts = new Date()

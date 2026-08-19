@@ -42,6 +42,8 @@ export interface ManifestJson {
  * 简单 semver 比较：a >= b
  * 接受 1.0.0 / 6.4.58 形式
  */
+export const SDK_VERSION_MIN = '6.0.0';
+
 export function semverGte(a: string, b: string): boolean {
   const pa = a.split('.').map((n) => Number.parseInt(n, 10) || 0);
   const pb = b.split('.').map((n) => Number.parseInt(n, 10) || 0);
