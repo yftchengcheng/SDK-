@@ -417,6 +417,8 @@
     <ExportSdkPolicyDialog
       v-model:visible="exportSdkDialogVisible"
       :app-key="currentAppKey"
+      :app-name="currentApp?.app_name"
+      :app-platform="currentApp?.platform"
     />
 
     <!-- ============ 关联广告平台 Drawer ============ -->
