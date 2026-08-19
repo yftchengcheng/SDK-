@@ -141,7 +141,7 @@
           </div>
           <div class="app-detail-header-actions">
             <el-button :icon="Setting" @click="openFrequencyDrawer">频次设置</el-button>
-            <el-button :icon="Cpu" @click="ElMessage.info('SDK 预置策略开发中')">SDK预置策略</el-button>
+            <el-button :icon="Cpu" @click="openExportSdkPolicy">SDK预置策略</el-button>
             <el-button type="primary" :icon="Edit" @click="openEditApp">编辑应用</el-button>
           </div>
         </div>
