@@ -179,6 +179,19 @@
         </div>
       </div>
     </section>
+
+    <template #footer>
+      <div class="policy-footer">
+        <div class="policy-footer__meta">
+          <el-icon class="policy-footer__icon"><InfoFilled /></el-icon>
+          <span>已选 {{ rightList.length }} 个广告位</span>
+        </div>
+        <div class="policy-footer__actions">
+          <el-button @click="handleCancel">取消</el-button>
+          <el-button type="primary" :loading="exporting" :icon="Download" @click="handleConfirm">导出策略</el-button>
+        </div>
+      </div>
+    </template>
   </el-dialog>
 </template>
 
@@ -243,6 +256,7 @@ const effectVersions = ref<Array<{ value: string; label: string }>>([]);
 const candidates = ref<CandidateItem[]>([]);
 const rightList = ref<CandidateItem[]>([]);
 const submitting = ref(false);
+const exporting = ref(false);
 
 const selectedApps = computed<AppItem[]>(() => {
   const list: AppItem[] = [];
@@ -386,6 +400,7 @@ async function handleConfirm(): Promise<void> {
     return;
   }
   submitting.value = true;
+  exporting.value = true;
   try {
     const payload = {
       sdkVersion: form.sdkVersion,
@@ -433,6 +448,7 @@ async function handleConfirm(): Promise<void> {
     ElMessage.error(msg);
   } finally {
     submitting.value = false;
+    exporting.value = false;
   }
 }
 </script>
