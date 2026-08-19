@@ -254,9 +254,15 @@
                 </el-form-item>
 
                 <el-form-item label="模版样式" prop="template_style" class="span-2">
-                  <template #label><span class="required-mark">*</span><span>模版样式</span></template>
+                  <template #label>
+                    <span class="required-mark">*</span>
+                    <span>模版样式</span>
+                    <el-tag size="small" :type="isSDK ? 'success' : 'info'" effect="light" style="margin-left: 6px">
+                      {{ isSDK ? 'SDK 模板' : 'API 模板' }}
+                    </el-tag>
+                  </template>
                   <el-select v-model="editForm.template_style" placeholder="请选择模版样式" style="width: 100%">
-                    <el-option v-for="t in templateOptions" :key="t.value" :label="t.label" :value="t.value" />
+                    <el-option v-for="t in currentTemplateOptions" :key="t.value" :label="t.label" :value="t.value" />
                   </el-select>
                 </el-form-item>
               </div>
@@ -313,7 +319,8 @@ const adSizeOptions = enumOptions('placement.ad_size');
 const materialOptions = enumOptions('placement.material_type');
 const autoPlayOptions = enumOptions('placement.auto_play');
 
-const templateOptions = [
+// API 接入（accessType=2）的原生模板样式：value 1-13
+const apiTemplateOptions = [
   { value: 1,  label: '1图1文' },
   { value: 2,  label: '1图2文' },
   { value: 3,  label: '1图3文' },
@@ -328,6 +335,18 @@ const templateOptions = [
   { value: 12, label: '1视频1封面1图标2文' },
   { value: 13, label: '1视频1封面' },
 ];
+
+// SDK 接入（accessType=1）的原生模板样式：value 14-17
+// SDK 由 SDK 端自行渲染素材，模板描述「图/文」的相对位置关系即可
+const sdkTemplateOptions = [
+  { value: 14, label: '上图下文' },
+  { value: 15, label: '上文下图' },
+  { value: 16, label: '左图右文' },
+  { value: 17, label: '左文右图' },
+];
+
+// 根据当前开发者接入方式返回对应的下拉选项
+const currentTemplateOptions = computed(() => (isSDK.value ? sdkTemplateOptions : apiTemplateOptions));
 
 const findLabel = (options: { value: number; label: string }[], v: number | null | undefined) =>
   options.find(o => o.value === v)?.label || '--';
