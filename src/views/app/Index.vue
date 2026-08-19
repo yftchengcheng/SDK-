@@ -11,6 +11,11 @@
       </div>
       <div class="page-header-actions">
         <el-button :icon="DataLine" @click="goReport">数据报表</el-button>
+        <el-button
+          :icon="Download"
+          :disabled="!currentAppKey"
+          @click="openExportSdkPolicy"
+        >导出SDK预置策略</el-button>
         <el-button type="primary" :icon="Plus" @click="openCreateApp">创建应用</el-button>
       </div>
     </div>
@@ -414,6 +419,11 @@
       :app-key="currentAppKey"
     />
 
+    <ExportSdkPolicyDialog
+      v-model:visible="exportSdkDialogVisible"
+      :app-key="currentAppKey"
+    />
+
     <!-- ============ 关联广告平台 Drawer ============ -->
     <BindNetworkDrawer
       v-if="currentApp"
@@ -443,12 +453,13 @@ import {
   Plus, Search, Cellphone, Lock, Setting, Cpu, Edit,
   CopyDocument, DataLine, ArrowRight, QuestionFilled, Connection, Link,
   Histogram, Crop, TakeawayBox, Iphone, User, Money, TrendCharts, CaretTop, CaretBottom,
-  Key,
+  Key, Download,
 } from '@element-plus/icons-vue';
 import { useUserStore } from '../../stores/user';
 import AppDrawer from './components/AppDrawer.vue';
 import PlacementDrawer from './components/PlacementDrawer.vue';
 import FrequencyDrawer from './components/FrequencyDrawer.vue';
+import ExportSdkPolicyDialog from './components/ExportSdkPolicyDialog.vue';
 import EnumTag from '../../components/EnumTag.vue';
 
 const router = useRouter();
@@ -726,6 +737,10 @@ const placementDrawerVisible = ref(false);
 const editPlacementPayload = ref<any>(null);
 const openCreatePlacement = () => { editPlacementPayload.value = null; placementDrawerVisible.value = true; };
 const onPlacementSaved = () => { placementDrawerVisible.value = false; fetchPlacements(); };
+
+// ========== 导出 SDK 预置策略 ==========
+const exportSdkDialogVisible = ref(false);
+const openExportSdkPolicy = () => { exportSdkDialogVisible.value = true; };
 
 // ========== 路由跳转 ==========
 const goReport = () => router.push('/report');

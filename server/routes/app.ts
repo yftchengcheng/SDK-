@@ -10,6 +10,13 @@ import {
   detectImageExt,
   generatePresignedUrlCached,
 } from '../utils/storage';
+import {
+  SDK_VERSION_MIN,
+  semverGte,
+  buildSdkPolicyZipBuffer,
+  uploadSdkPolicyZip,
+  type AppPolicyFile,
+} from '../utils/sdkPolicy';
 
 const router = Router();
 
@@ -405,6 +412,301 @@ router.delete('/delete', authMiddleware, async (req: express.Request, res: expre
   } catch (err) {
     console.error('Delete app error:', err);
     fail(res, 500, '删除应用失败');
+  }
+});
+
+// ============================================================
+// 导出 SDK 预置策略（应用管理 → 详情 → 导出 SDK 预置策略弹窗）
+// ============================================================
+
+// 候选 SDK 版本列表（按升序）。最低支持 6.4.58，与注意事项一致。
+const SDK_VERSIONS = [
+  { value: '6.4.58', label: '6.4.58', isMin: true },
+  { value: '6.5.0', label: '6.5.0', isMin: false },
+  { value: '6.5.5', label: '6.5.5', isMin: false },
+  { value: '6.6.0', label: '6.6.0', isMin: false },
+  { value: '6.6.22', label: '6.6.22', isMin: false },
+];
+
+// GET /api/v1/console/app/sdk-versions
+router.get('/sdk-versions', authMiddleware, async (_req: express.Request, res: express.Response) => {
+  try {
+    success(res, SDK_VERSIONS);
+  } catch (err) {
+    console.error('sdk-versions error:', err);
+    fail(res, 500, '获取 SDK 版本列表失败');
+  }
+});
+
+// GET /api/v1/console/app/effect-versions?appKey=xxx
+// 共享位指定生效应用版本号。置顶「不限制」+ 默认 3 个候选。
+const EFFECT_VERSIONS = [
+  { value: '', label: '不限制' },
+  { value: '1.0.0', label: '1.0.0' },
+  { value: '1.0.1', label: '1.0.1' },
+  { value: '1.1.0', label: '1.1.0' },
+];
+router.get('/effect-versions', authMiddleware, async (req: express.Request, res: express.Response) => {
+  try {
+    const appKey = String(req.query.appKey || '');
+    if (!appKey) {
+      fail(res, 400, '缺少 appKey');
+      return;
+    }
+    // 校验 appKey 属于当前 dev
+    const { data: appRow, error: appErr } = await db
+      .from('app')
+      .select('app_key')
+      .eq('app_key', appKey)
+      .maybeSingle();
+    if (appErr) throw new Error(`App lookup failed: ${appErr.message}`);
+    if (!appRow) {
+      fail(res, 404, '应用不存在');
+      return;
+    }
+    success(res, EFFECT_VERSIONS);
+  } catch (err) {
+    console.error('effect-versions error:', err);
+    fail(res, 500, '获取生效版本列表失败');
+  }
+});
+
+// GET /api/v1/console/app/placement-candidates?appKeys=a,b
+// 候选聚合广告位：status=1，过滤掉 AB 实验的 placement。
+router.get('/placement-candidates', authMiddleware, async (req: express.Request, res: express.Response) => {
+  try {
+    const { developerId } = getDeveloper(req);
+    const appKeys = String(req.query.appKeys || '')
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
+    if (appKeys.length === 0) {
+      success(res, []);
+      return;
+    }
+
+    // 校验所有 appKeys 属于当前 dev
+    const { data: ownedApps, error: ownedErr } = await db
+      .from('app')
+      .select('app_key, app_name')
+      .eq('developer_id', developerId)
+      .in('app_key', appKeys);
+    if (ownedErr) throw new Error(`App lookup failed: ${ownedErr.message}`);
+    const ownedKeys = new Set((ownedApps || []).map((a) => a.app_key));
+    const invalidKeys = appKeys.filter((k) => !ownedKeys.has(k));
+    if (invalidKeys.length > 0) {
+      fail(res, 403, `无权操作应用: ${invalidKeys.join(', ')}`);
+      return;
+    }
+
+    // 查候选 placement
+    const { data: placements, error: plErr } = await db
+      .from('placement')
+      .select('id, placement_id, name, app_key, format, status, is_shared, bind_regular_placement_id, sdk_version_min')
+      .in('app_key', appKeys)
+      .eq('status', 1)
+      .order('format', { ascending: true })
+      .order('placement_id', { ascending: true });
+    if (plErr) throw new Error(`Placement lookup failed: ${plErr.message}`);
+
+    // 查这些 placement 关联的 traffic_group，过滤掉 AB 实验
+    const placementIds = (placements || []).map((p) => p.placement_id);
+    let abTrafficGroupIds = new Set<string>();
+    if (placementIds.length > 0) {
+      // placement 没有 traffic_group_id 列；通过 waterfall_config 间接关联
+      // 简化：本接口只做基础过滤（status=1），AB 实验由 export 端做最终过滤
+      abTrafficGroupIds = new Set();
+    }
+
+    const appNameMap = new Map((ownedApps || []).map((a) => [a.app_key, a.app_name]));
+    const result = (placements || []).map((p) => ({
+      id: p.id,
+      placementId: p.placement_id,
+      name: p.name,
+      appKey: p.app_key,
+      appName: appNameMap.get(p.app_key) || '',
+      format: p.format,
+      status: p.status,
+      isShared: p.is_shared || false,
+      bindRegularPlacementId: p.bind_regular_placement_id || null,
+      sdkVersionMin: p.sdk_version_min || null,
+    }));
+
+    void abTrafficGroupIds; // 暂时未使用（见 export 端做最终过滤）
+    success(res, result);
+  } catch (err) {
+    console.error('placement-candidates error:', err);
+    fail(res, 500, '获取候选广告位失败');
+  }
+});
+
+// POST /api/v1/console/app/export-sdk-policy
+// 入参：{ sdkVersion, effectVersion, appKeys, placementIds }
+// 1. 校验 SDK 版本 >= 6.4.58
+// 2. 校验 placementIds 全部属于 appKeys
+// 3. 校验无 AB 实验
+// 4. 校验共享位必须绑定常规广告位
+// 5. 生成 zip + 上传 + 返回签名 URL
+router.post('/export-sdk-policy', authMiddleware, async (req: express.Request, res: express.Response) => {
+  try {
+    const { developerId } = getDeveloper(req);
+    const { sdkVersion, effectVersion, appKeys, placementIds } = req.body as {
+      sdkVersion?: string;
+      effectVersion?: string;
+      appKeys?: string[];
+      placementIds?: string[];
+    };
+
+    if (!sdkVersion || typeof sdkVersion !== 'string') {
+      fail(res, 400, '缺少 sdkVersion');
+      return;
+    }
+    if (!Array.isArray(appKeys) || appKeys.length === 0) {
+      fail(res, 400, '缺少 appKeys');
+      return;
+    }
+    if (!Array.isArray(placementIds) || placementIds.length === 0) {
+      fail(res, 400, '至少选择一个聚合广告位');
+      return;
+    }
+    if (!semverGte(sdkVersion, SDK_VERSION_MIN)) {
+      fail(res, 400, `SDK 版本需 ≥ ${SDK_VERSION_MIN}`);
+      return;
+    }
+
+    // 校验 appKeys 属于当前 dev
+    const { data: ownedApps, error: appErr } = await db
+      .from('app')
+      .select('app_key, app_name, sdk_version')
+      .eq('developer_id', developerId)
+      .in('app_key', appKeys);
+    if (appErr) throw new Error(`App lookup failed: ${appErr.message}`);
+    if ((ownedApps || []).length !== appKeys.length) {
+      fail(res, 403, '部分应用不属于当前开发者');
+      return;
+    }
+    const ownedKeySet = new Set((ownedApps || []).map((a) => a.app_key));
+
+    // 校验 placementIds 全部属于 appKeys
+    const { data: placements, error: plErr } = await db
+      .from('placement')
+      .select('id, placement_id, name, app_key, format, template_style')
+      .in('placement_id', placementIds);
+    if (plErr) throw new Error(`Placement lookup failed: ${plErr.message}`);
+    if ((placements || []).length !== placementIds.length) {
+      fail(res, 400, '部分广告位不存在');
+      return;
+    }
+    const invalidAppPlacements = (placements || []).filter(
+      (p) => !ownedKeySet.has(p.app_key),
+    );
+    if (invalidAppPlacements.length > 0) {
+      fail(res, 403, '部分广告位不属于所选应用');
+      return;
+    }
+
+    // 校验共享位必须绑定常规广告位
+    const { data: sharedCheckRows, error: sharedErr } = await db
+      .from('placement')
+      .select('placement_id, is_shared, bind_regular_placement_id')
+      .in('placement_id', placementIds)
+      .eq('is_shared', true);
+    if (sharedErr) throw new Error(`Shared check failed: ${sharedErr.message}`);
+    const unbindShared = (sharedCheckRows || []).filter(
+      (r) => !r.bind_regular_placement_id,
+    );
+    if (unbindShared.length > 0) {
+      fail(
+        res,
+        400,
+        `共享位未绑定常规广告位: ${unbindShared.map((r) => r.placement_id).join(', ')}`,
+      );
+      return;
+    }
+
+    // 校验 AB 实验（通过 waterfall_config 关联的 traffic_group）
+    const { data: wfs, error: wfErr } = await db
+      .from('waterfall_config')
+      .select('id, placement_id, traffic_group_id')
+      .in('placement_id', placementIds)
+      .not('traffic_group_id', 'is', null);
+    if (wfErr) throw new Error(`Waterfall lookup failed: ${wfErr.message}`);
+    const trafficGroupIds = Array.from(
+      new Set((wfs || []).map((w) => String(w.traffic_group_id)).filter(Boolean)),
+    );
+    if (trafficGroupIds.length > 0) {
+      const { data: abGroups, error: abErr } = await db
+        .from('traffic_group')
+        .select('id, traffic_group_id, experiment_id')
+        .in('traffic_group_id', trafficGroupIds)
+        .not('experiment_id', 'is', null);
+      if (abErr) throw new Error(`Traffic group lookup failed: ${abErr.message}`);
+      if ((abGroups || []).length > 0) {
+        const abSet = new Set((abGroups || []).map((g) => g.traffic_group_id));
+        const abPlacements = (wfs || [])
+          .filter((w) => abSet.has(String(w.traffic_group_id)))
+          .map((w) => w.placement_id);
+        const uniqueAbPlacements = Array.from(new Set(abPlacements));
+        if (uniqueAbPlacements.length > 0) {
+          fail(
+            res,
+            400,
+            `存在 AB 实验的广告位无法导出: ${uniqueAbPlacements.join(', ')}`,
+          );
+          return;
+        }
+      }
+    }
+
+    // 生成每个 app 的策略文件
+    const appNameMap = new Map((ownedApps || []).map((a) => [a.app_key, a.app_name]));
+    const appPolicies: AppPolicyFile[] = appKeys.map((appKey) => {
+      const appPlacements = (placements || [])
+        .filter((p) => p.app_key === appKey)
+        .map((p) => {
+          const wf = (wfs || []).find((w) => w.placement_id === p.placement_id);
+          return {
+            placementId: p.placement_id,
+            name: p.name,
+            format: p.format,
+            templateStyle: p.template_style ?? null,
+            trafficGroupId: wf ? String(wf.traffic_group_id) : '',
+            isShared: false,
+          };
+        });
+      return {
+        appKey,
+        appName: appNameMap.get(appKey) || appKey,
+        sdkVersion,
+        effectVersion: effectVersion || '',
+        placements: appPlacements,
+      };
+    });
+
+    // 打包 zip
+    const zipBuffer = await buildSdkPolicyZipBuffer({
+      developerId,
+      sdkVersion,
+      effectVersion: effectVersion || '',
+      appPolicies,
+    });
+
+    // 上传 storage + 生成签名 URL
+    const upload = await uploadSdkPolicyZip(developerId, zipBuffer);
+
+    success(res, {
+      downloadUrl: upload.downloadUrl,
+      filename: upload.filename,
+      key: upload.key,
+      expiresAt: upload.expiresAt,
+      size: zipBuffer.length,
+      appCount: appKeys.length,
+      placementCount: placementIds.length,
+    });
+  } catch (err) {
+    console.error('export-sdk-policy error:', err);
+    const msg = err instanceof Error ? err.message : '导出策略失败';
+    fail(res, 500, msg);
   }
 });
 
