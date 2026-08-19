@@ -187,6 +187,7 @@ import {
   Cellphone, Search, Document, Picture, Upload, FullScreen, Files,
   Tools, ArrowDown, InfoFilled,
 } from '@element-plus/icons-vue';
+import { useUserStore } from '../../../stores/user';
 
 const props = defineProps<{
   visible: boolean;
@@ -208,6 +209,7 @@ const loading = ref(false);
 const submitting = ref(false);
 const formRef = ref<FormInstance>();
 const advancedOpen = ref(false);
+const userStore = useUserStore();
 
 const storeOptionsAll = [
   { value: 'google-play', label: 'Google Play', platform: 1 },
@@ -350,7 +352,7 @@ const resetForm = () => {
   form.authSubaccount = '';
   form.packageName = '';
   form.orientation = 2;
-  form.accessType = 1;
+  form.accessType = (userStore.userInfo?.accessType as number) ?? 1;
   form.requestTimeout = 5000;
   form.wechatAppId = '';
   form.wechatUniversalLink = '';
