@@ -309,3 +309,98 @@
 | 生产启动 | `node dist-server/server.js` | 仅 Express，端口 5000 |
 | 沙箱启动 | 由 `.coze` + `scripts/*.sh` 管理 | `dev.sh` 杀端口 → `tsx watch` |
 | 静态检查 | `pnpm lint` / `pnpm ts-check` | ts-check 用 vue-tsc |
+
+---
+
+## 开发边界规范（MUST READ BEFORE ANY CHANGE）
+
+> ⚠️ **任何代码改动前必读本章节**。本章节定义 8 条边界 + 4 层执行机制，违反任一条都视为不达标。
+
+### 1. UI 调整三档分级（MUST）
+
+| 档位 | 触发条件 | 必走流程 |
+|------|---------|---------|
+| **微调** | 颜色/字号/间距/单 class 改名/单属性改 | 直接改 + 立即验证 |
+| **结构调整** | 加 section/卡片/容器/移动区块/新组件 | 先出**文字版布局**（保留/改动清单）→ 用户 ack → 改 |
+| **重写** | template > 50 行 或 CSS > 100 行 | 先出 **HTML 原型**（用 design-canvas skill）→ 用户 ack 视觉 → 才动代码 |
+
+**判定**：先估改动行数（`git diff --stat` 预演）再选档。
+
+### 2. 开发前对齐（结构调整及以上 MUST）
+
+动手前必须输出**对齐文档**，包含：
+- **保留元素清单**：哪些不动（组件名/样式名）
+- **改动元素清单**：哪些改、为什么改
+- **视觉锚点**：参考截图/网站/风格词
+- **DESIGN.md 约束**：涉及哪些 design token
+- **验收标准**：用户能具体看到什么效果
+
+**用户 ack 后才进 in_progress**。未 ack 不要动手。
+
+### 3. dev 服务守护红线（MUST NEVER VIOLATE）
+
+- ❌ **永远不** `pkill -9 -f "tsx"` / `pkill -9 -f "node"`（会误杀 sandbox 守护进程）
+- ❌ **永远不** `pkill -f "server\.ts"`（会误杀 dev 服务）
+- ✅ 杀指定 PID：`kill -9 <pid>`（先 `ps aux | grep` 拿 PID）
+- ✅ server.ts 改动后：`kill -USR1 <tsx_watch_pid>` 触发 reload（不杀进程）
+- ✅ dev 真死透时**主动告知**用户从 IDE 重启 preview，**不**硬拉
+- ✅ 端口 5000 无人 listen 时**立即告知**，不绕过 sandbox 用 exec_shell background 跑
+
+### 4. 单次任务大小硬上限（MUST）
+
+- 单次改动：template ≤ 50 行 + CSS ≤ 100 行
+- 超过 → **write_todos 拆步骤**，每步独立可回退
+- 改 3 个文件以上无 `pnpm lint` + `pnpm ts-check` PASSED → **暂停交付**
+
+### 5. runtime 验证四件套（缺一不可，MUST）
+
+每次标"完成"前必须全部 PASSED：
+- ✅ `pnpm ts-check` 退出码 0
+- ✅ `pnpm lint --quiet` 退出码 0
+- ✅ `test_run` service_probe ready
+- ✅ **带 auth cookie 真接口冒烟**（不是空跑，要传真实 body）
+
+**不只测路由存在**（401 也算"存在"），必须测**业务数据**返回正常。
+
+### 6. 后端接口测试规范（MUST）
+
+- 新接口必须**带真实 cookie + 真实 data** 跑 200 OK
+- **不只测路由存在**（401 也算"存在"），要测**业务数据**
+- 任何原生包（archiver/zip/pdf 解析等）先**读 package.json**确认 ESM/CJS：
+  - ESM-only → 用 `await import('xxx')` dynamic import
+  - CJS → 用 `require('xxx')` 或 `import * as xxx from 'xxx'`
+- DB schema 字段先**查 information_schema**确认列名存在再写查询
+
+### 7. 失败升级机制（MUST）
+
+- 同 bug 修 **3 次**未过 → 暂停自动修复，**主动呼叫用户**（不闷头改）
+- 改动 > 5 个文件无 lint/ts-check PASSED → 暂停交付
+- runtime 验证缺 1 项 → 暂停，告知缺什么
+- 不**假设**"应该 work"——能验就验
+
+### 8. 透明沟通原则（MUST）
+
+- 任何**无法验证**的事**主动告知**（dev 死了、sandbox 限制等）
+- 不**粉饰** PASSED（ts-check 过 ≠ 功能过）
+- **不替用户做决定**——架构/边界/取舍类问题先列方案让用户选
+
+### 9. 自检 Checklist 脚本（自动化保障）
+
+任何标"完成"前**必跑** `scripts/dev-checklist.sh`，自动 6 项检查：
+
+```bash
+bash scripts/dev-checklist.sh
+```
+
+输出示例：
+```
+[1/6] ts-check ... PASSED
+[2/6] lint ... PASSED
+[3/6] dev 服务存活 ... READY (PID 12345)
+[4/6] 改动行数 ... 23 行（< 50）
+[5/6] 改动文件数 ... 2 个（< 5）
+[6/6] 接口冒烟 ... 4/4 200 OK
+✅ 全部 PASSED，可交付
+```
+
+任何一项 FAIL → **不许标完成**。

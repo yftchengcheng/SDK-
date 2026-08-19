@@ -254,7 +254,7 @@ router.get('/overview', authMiddleware, async (req: express.Request, res: expres
 // ============================================================================
 router.get('/trend', authMiddleware, async (req: express.Request, res: express.Response) => {
   try {
-    const { developerId } = getDeveloper(req);
+    const { developerId: _developerId } = getDeveloper(req);
     const { dimension, metric, startDate, endDate } = req.query as Record<string, string>;
 
     const m = (metric || 'revenue') as string;
@@ -384,7 +384,7 @@ router.get('/trend', authMiddleware, async (req: express.Request, res: express.R
 // ============================================================================
 router.get('/ranking/:dimension', authMiddleware, async (req: express.Request, res: express.Response) => {
   try {
-    const { developerId } = getDeveloper(req);
+    const { developerId: _developerId } = getDeveloper(req);
     const dim = req.params.dimension as string;
     const { metric, startDate, endDate, limit } = req.query as Record<string, string>;
 
