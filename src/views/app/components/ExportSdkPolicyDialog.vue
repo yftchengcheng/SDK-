@@ -1,5 +1,6 @@
 <template>
   <el-dialog
+    :z-index="10000"
     custom-class="policy-dialog"
     :model-value="visible"
     @update:model-value="$emit('update:visible', $event)"
@@ -308,10 +309,11 @@ async function loadSdkVersions(): Promise<void> {
 }
 
 async function loadEffectVersions(): Promise<void> {
-  if (!props.app) return;
+  const firstAppKey = selectedApps.value[0]?.app_key;
+  if (!firstAppKey) return;
   try {
     const res = await request.get<{ value: string; label: string }[]>(
-      `/api/v1/console/app/effect-versions?appKey=${encodeURIComponent(props.app.app_key)}`,
+      `/api/v1/console/app/effect-versions?appKey=${encodeURIComponent(firstAppKey)}`,
     );
     effectVersions.value = res.data || [];
   } catch (err) {
