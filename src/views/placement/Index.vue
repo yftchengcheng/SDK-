@@ -56,6 +56,13 @@
               <div class="cell-name">{{ row.app_name }}</div>
             </template>
           </el-table-column>
+          <el-table-column prop="access_type" label="对接方式" width="100">
+            <template #default="{ row }">
+              <span :class="['access-tag', (row.access_type ?? 1) === 1 ? 'access-tag--sdk' : 'access-tag--api']">
+                {{ (row.access_type ?? 1) === 1 ? 'SDK 接入' : 'API 接入' }}
+              </span>
+            </template>
+          </el-table-column>
           <el-table-column prop="format" label="广告形式" width="100">
             <template #default="{ row }"><span class="status-tag status-tag--neutral">{{ formatLabel(row.format) }}</span></template>
           </el-table-column>
@@ -112,6 +119,16 @@
               </el-icon>
               <span>{{ isEdit ? '编辑广告位' : '创建广告位' }}</span>
               <el-tag v-if="isEdit" type="warning" effect="light" size="small">编辑模式</el-tag>
+              <el-tag
+                v-if="currentAccessTypeDisplay"
+                :type="isSDK ? 'success' : 'info'"
+                effect="light"
+                size="small"
+                style="margin-left: 4px"
+                :title="isEdit ? '对接方式继承自所属应用' : '对接方式继承自所属应用，创建后锁定'"
+              >
+                {{ currentAccessTypeDisplay }}
+              </el-tag>
             </h1>
             <p class="page-form-header-subtitle">
               {{ isEdit ? '修改广告位信息，保存后立即生效' : '填写以下信息以创建一个新广告位' }}
@@ -373,8 +390,17 @@ const isEdit = ref(false);
 const submitting = ref(false);
 const formRef = ref<FormInstance>();
 
-// 当前开发者接入方式：1=SDK / 2=API
-const isSDK = computed(() => (userStore.userInfo?.accessType ?? 1) !== 2);
+// 当前广告位的对接方式：1=SDK / 2=API
+// 继承链：developer.access_type → app.access_type → placement.access_type
+// - 创建态：选 app 时自动取 currentApp.access_type
+// - 编辑态：取后端返回的 row.access_type（placement 创建时锁定的快照）
+const editFormAccessType = ref<number>(1);
+const currentAccessTypeDisplay = computed(() => {
+  const t = editFormAccessType.value;
+  if (!t) return '';
+  return t === 1 ? 'SDK 接入' : 'API 接入';
+});
+const isSDK = computed(() => editFormAccessType.value !== 2);
 
 // 当前选中的应用（用于广告位名称自动生成）
 const currentApp = computed(() => appList.value.find(a => a.app_key === editForm.app_key) || null);
@@ -462,6 +488,9 @@ const fetchList = async () => {
 const onAppChange = () => {
   // 切换应用时清空广告位名称，避免遗留与新应用不匹配的内容
   editForm.name = '';
+  // 同步当前 placement 的对接方式（继承自 app.access_type）
+  const app = appList.value.find(a => a.app_key === editForm.app_key);
+  editFormAccessType.value = app?.access_type ?? 1;
 };
 
 const onFormatChange = () => {
@@ -477,6 +506,7 @@ const onFormatChange = () => {
 const openCreate = () => {
   isEdit.value = false;
   Object.assign(editForm, defaultForm());
+  editFormAccessType.value = 1; // 创建态默认值：SDK；选 app 后会被 onAppChange 覆盖
   drawerVisible.value = false;
   drawerVisible.value = true;
 };
@@ -498,6 +528,8 @@ const handleEdit = (row: any) => {
     auto_play: row.auto_play ?? null,
     template_style: row.template_style ?? null,
   });
+  // 编辑态：直接用 row.access_type（placement 创建时锁定的快照，不被 app 后续修改影响）
+  editFormAccessType.value = row.access_type ?? 1;
   drawerVisible.value = false;
   drawerVisible.value = true;
 };

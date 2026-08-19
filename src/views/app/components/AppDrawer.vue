@@ -136,10 +136,14 @@
         </div>
         <el-form v-show="advancedOpen" :model="form" label-position="top" class="ad-form">
           <el-form-item label="对接方式">
-            <el-radio-group v-model="form.accessType">
+            <el-radio-group v-model="form.accessType" :disabled="isEdit">
               <el-radio-button :value="1">SDK 对接</el-radio-button>
               <el-radio-button :value="2">API 对接</el-radio-button>
             </el-radio-group>
+            <div class="ad-form-help">
+              <el-icon :size="12"><InfoFilled /></el-icon>
+              <span>对接方式继承自所属开发者账号（注册时锁定），创建应用后不可修改</span>
+            </div>
           </el-form-item>
           <el-form-item label="请求超时（毫秒）">
             <el-input-number v-model="form.requestTimeout" :min="500" :max="10000" :step="500" />
@@ -181,7 +185,7 @@ import { ElMessage, type FormInstance } from 'element-plus';
 import request from '../../../utils/request';
 import {
   Cellphone, Search, Document, Picture, Upload, FullScreen, Files,
-  Tools, ArrowDown,
+  Tools, ArrowDown, InfoFilled,
 } from '@element-plus/icons-vue';
 
 const props = defineProps<{

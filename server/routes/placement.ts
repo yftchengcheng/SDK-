@@ -47,7 +47,7 @@ router.get('/list', authMiddleware, async (req: express.Request, res: express.Re
 // Create placement
 router.post('/create', authMiddleware, async (req: express.Request, res: express.Response) => {
   try {
-    const { developerId, accessType } = await getDeveloperContext(req);
+    const { developerId } = await getDeveloperContext(req);
     const {
       appKey, name, format,
       biddingType, screenOrientation, adSize, materialType, videoMute, autoPlay, templateStyle,
@@ -58,22 +58,24 @@ router.post('/create', authMiddleware, async (req: express.Request, res: express
       return;
     }
 
-    // Verify app belongs to developer
-    const { data: app } = await db.from('app').select('app_key').eq('app_key', appKey).eq('developer_id', developerId).maybeSingle();
+    // Verify app belongs to developer; 对接方式继承自 app.access_type（app 又继承自 dev.access_type）
+    const { data: app } = await db.from('app').select('app_key, access_type').eq('app_key', appKey).eq('developer_id', developerId).maybeSingle();
     if (!app) {
       fail(res, 403, '无权操作该应用');
       return;
     }
+    const appAccessType = app.access_type ?? 1;
 
     const placementId = genPlacementId();
 
-    // API 接入(accessType=2) 时不允许填写 screen_orientation / video_mute / auto_play
-    const isSDK = accessType !== 2;
+    // API 接入(appAccessType=2) 时不允许填写 screen_orientation / video_mute / auto_play
+    const isSDK = appAccessType !== 2;
     const insertData: Record<string, unknown> = {
       app_key: appKey,
       placement_id: placementId,
       name,
       format,
+      access_type: appAccessType,
     };
     if (biddingType !== undefined && biddingType !== null) insertData.bidding_type = biddingType;
     if (isSDK && screenOrientation !== undefined && screenOrientation !== null) insertData.screen_orientation = screenOrientation;
@@ -121,7 +123,7 @@ router.get('/detail', authMiddleware, async (req: express.Request, res: express.
 // Update placement
 router.put('/update', authMiddleware, async (req: express.Request, res: express.Response) => {
   try {
-    const { accessType } = await getDeveloperContext(req);
+    const { developerId } = await getDeveloperContext(req);
     const {
       placementId, name, format, status,
       biddingType, screenOrientation, adSize, materialType, videoMute, autoPlay, templateStyle,
@@ -132,7 +134,31 @@ router.put('/update', authMiddleware, async (req: express.Request, res: express.
       return;
     }
 
-    const isSDK = accessType !== 2;
+    // 校验 placement 归属；对接方式从 placement 自身的 access_type 读（不读 dev）
+    const { data: existing, error: existErr } = await db
+      .from('placement')
+      .select('access_type, app_key')
+      .eq('placement_id', placementId)
+      .maybeSingle();
+    if (existErr) throw new Error(`Query failed: ${existErr.message}`);
+    if (!existing) {
+      fail(res, 404, '广告位不存在');
+      return;
+    }
+    // 验证 app 归属当前 dev
+    const { data: app, error: appErr } = await db
+      .from('app')
+      .select('app_key')
+      .eq('app_key', existing.app_key)
+      .eq('developer_id', developerId)
+      .maybeSingle();
+    if (appErr) throw new Error(`Query failed: ${appErr.message}`);
+    if (!app) {
+      fail(res, 403, '无权操作该广告位');
+      return;
+    }
+
+    const isSDK = (existing.access_type ?? 1) !== 2;
     const updateData: Record<string, unknown> = { updated_at: new Date().toISOString() };
     if (name !== undefined) updateData.name = name;
     if (format !== undefined) updateData.format = format;
@@ -144,6 +170,7 @@ router.put('/update', authMiddleware, async (req: express.Request, res: express.
     if (isSDK && videoMute !== undefined) updateData.video_mute = videoMute ? 1 : 0;
     if (isSDK && autoPlay !== undefined) updateData.auto_play = autoPlay ? 1 : 0;
     if (templateStyle !== undefined) updateData.template_style = templateStyle;
+    // access_type 锁定：placement 创建后不允许改对接方式（即使 app 后改也不影响已建 placement）
 
     const { error } = await db.from('placement').update(updateData).eq('placement_id', placementId);
     if (error) throw new Error(`Update failed: ${error.message}`);

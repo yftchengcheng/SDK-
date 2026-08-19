@@ -62,6 +62,14 @@
                 effect="plain"
                 :force-type="app.platform === 1 ? 'info' : 'success'"
               />
+              <span
+                v-if="app.access_type"
+                :class="['access-tag', app.access_type === 1 ? 'access-tag--sdk' : 'access-tag--api']"
+                style="font-size: 10px; line-height: 16px; padding: 0 6px;"
+                :title="app.access_type === 1 ? 'SDK 接入' : 'API 接入'"
+              >
+                {{ app.access_type === 1 ? 'SDK' : 'API' }}
+              </span>
             </div>
             <div class="app-master-item-token" @click.stop="copyText(app.app_key)" :title="app.app_key">
               <el-icon :size="10"><Key /></el-icon>
@@ -95,6 +103,13 @@
                   :value="currentApp.platform"
                   :force-type="currentApp.platform === 1 ? 'info' : 'success'"
                 />
+                <span
+                  v-if="currentApp.access_type"
+                  :class="['access-tag', currentApp.access_type === 1 ? 'access-tag--sdk' : 'access-tag--api']"
+                  :title="`对接方式继承自所属开发者账号：${userStore.userInfo?.accessType === 1 ? 'SDK 接入' : 'API 接入'}`"
+                >
+                  {{ currentApp.access_type === 1 ? 'SDK 接入' : 'API 接入' }}
+                </span>
                 <EnumTag dim="app.status" :value="currentApp.status" />
                 <el-tag v-if="currentApp.store_listed" effect="light" type="warning" size="small">已上架</el-tag>
               </div>
