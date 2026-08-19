@@ -183,12 +183,17 @@
     <template #footer>
       <div class="policy-footer">
         <div class="policy-footer__meta">
-          <el-icon class="policy-footer__icon"><InfoFilled /></el-icon>
-          <span>已选 {{ rightList.length }} 个广告位</span>
+          <span class="policy-footer__chip" :class="{ 'is-active': rightList.length > 0 }">
+            <el-icon class="policy-footer__chip-icon"><Check /></el-icon>
+            <span class="policy-footer__chip-label">已选</span>
+            <span class="policy-footer__chip-num">{{ rightList.length }}</span>
+            <span class="policy-footer__chip-unit">个广告位</span>
+          </span>
+          <span v-if="rightList.length > 0" class="policy-footer__hint">点击上方"加载"按钮可继续选择</span>
         </div>
         <div class="policy-footer__actions">
           <el-button @click="handleCancel">取消</el-button>
-          <el-button type="primary" :loading="exporting" :icon="Download" @click="handleConfirm">导出策略</el-button>
+          <el-button type="primary" :loading="exporting" :icon="Download" :disabled="rightList.length === 0" @click="handleConfirm">导出策略</el-button>
         </div>
       </div>
     </template>
