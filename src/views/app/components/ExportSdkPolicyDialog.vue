@@ -175,12 +175,24 @@
         </div>
       </div>
     </section>
+  </el-dialog>
 </template>
 
 <script setup lang="ts">
 import { reactive, ref, computed, watch } from 'vue';
 import { ElMessage } from 'element-plus';
-import { CopyDocument, ArrowRight, ArrowLeft } from '@element-plus/icons-vue';
+import {
+  Download,
+  InfoFilled,
+  Box,
+  CopyDocument,
+  DocumentRemove,
+  ArrowRight,
+  ArrowLeft,
+  DArrowRight,
+  DArrowLeft,
+  Plus,
+} from '@element-plus/icons-vue';
 import request from '@/utils/request';
 import { downloadFile } from '@/utils/download';
 
