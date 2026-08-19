@@ -13,8 +13,8 @@ import {
 import {
   SDK_VERSION_MIN,
   semverGte,
-  buildSdkPolicyZipBuffer,
-  uploadSdkPolicyZip,
+  buildSdkPolicyJsonBuffer,
+  // uploadSdkPolicyZip 已废弃（改为直传 JSON body，零依赖）
   type AppPolicyFile,
 } from '../utils/sdkPolicy';
 
@@ -689,26 +689,31 @@ router.post('/export-sdk-policy', authMiddleware, async (req: express.Request, r
       };
     });
 
-    // 打包 zip
-    const zipBuffer = await buildSdkPolicyZipBuffer({
+    // 打包为单文件 JSON（不依赖 archiver / zip / storage 上传）
+    const jsonBuffer = await buildSdkPolicyJsonBuffer({
       developerId,
       sdkVersion,
       effectVersion: effectVersion || '',
       appPolicies,
     });
+    const safeSdk = sdkVersion.replace(/\./g, '_');
+    const ts = new Date()
+      .toISOString()
+      .replace(/[-:T.Z]/g, '')
+      .slice(0, 14);
+    const filename = `sdk_policy_v${safeSdk}_${ts}.json`;
 
-    // 上传 storage + 生成签名 URL
-    const upload = await uploadSdkPolicyZip(developerId, zipBuffer);
-
-    success(res, {
-      downloadUrl: upload.downloadUrl,
-      filename: upload.filename,
-      key: upload.key,
-      expiresAt: upload.expiresAt,
-      size: zipBuffer.length,
-      appCount: appKeys.length,
-      placementCount: placementIds.length,
-    });
+    // 直接以 application/json 流式下发，前端 fetch + blob 触发下载
+    res.setHeader('Content-Type', 'application/json; charset=utf-8');
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="${filename}"; filename*=UTF-8''${encodeURIComponent(filename)}`,
+    );
+    res.setHeader('Content-Length', String(jsonBuffer.length));
+    res.setHeader('X-App-Count', String(appKeys.length));
+    res.setHeader('X-Placement-Count', String(placementIds.length));
+    res.status(200).end(jsonBuffer);
+    return;
   } catch (err) {
     console.error('export-sdk-policy error:', err);
     const msg = err instanceof Error ? err.message : '导出策略失败';

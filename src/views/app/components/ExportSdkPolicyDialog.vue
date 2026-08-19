@@ -368,14 +368,38 @@ async function handleConfirm(): Promise<void> {
       appKeys: selectedApps.value.map((a) => a.app_key),
       placementIds: rightList.value.map((r) => r.placementId),
     };
-    const res = await request.post<{
-      downloadUrl: string;
-      filename: string;
-      expiresAt: number;
-    }>('/api/v1/console/app/export-sdk-policy', payload);
-    const { downloadUrl, filename } = res.data;
-    ElMessage.success('策略生成成功，开始下载');
-    await downloadFile(downloadUrl, filename);
+    const apiBase = (window as { __API_BASE__?: string }).__API_BASE__ || '';
+    const tokenFromCookie = (() => {
+      const m = document.cookie.match(/(?:^|;\s*)auth_token=([^;]+)/);
+      return m ? decodeURIComponent(m[1]) : '';
+    })();
+    const resp = await fetch(`${apiBase}/api/v1/console/app/export-sdk-policy`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(tokenFromCookie ? { Authorization: `Bearer ${tokenFromCookie}` } : {}),
+      },
+      credentials: 'include',
+      body: JSON.stringify(payload),
+    });
+    if (!resp.ok) {
+      const errText = await resp.text();
+      throw new Error(`HTTP ${resp.status}: ${errText.slice(0, 200)}`);
+    }
+    // 解析 Content-Disposition 拿 filename
+    const disposition = resp.headers.get('Content-Disposition') || '';
+    const m = disposition.match(/filename\*?=(?:UTF-8'')?["']?([^"';]+)/i);
+    const filename = m ? decodeURIComponent(m[1]) : `sdk_policy_v${payload.sdkVersion}_${Date.now()}.json`;
+    const blob = await resp.blob();
+    const blobUrl = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = blobUrl;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(blobUrl);
+    ElMessage.success(`策略生成成功，已下载 ${filename}`);
     emit('update:visible', false);
   } catch (err) {
     console.error('export error', err);
