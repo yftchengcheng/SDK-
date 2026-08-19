@@ -6241,6 +6241,23 @@ html, body, #app {
   line-height: 1.5;
 }
 
+/* app/PlacementDrawer.vue 顶部：对接方式继承提示条 */
+.pd-access-hint {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  margin: 0 0 16px 0;
+  background: linear-gradient(135deg, rgba(30, 64, 175, 0.04) 0%, rgba(59, 130, 246, 0.04) 100%);
+  border: 1px solid rgba(59, 130, 246, 0.12);
+  border-radius: 8px;
+}
+.pd-access-hint__text {
+  font-size: 12px;
+  color: #475569;
+  line-height: 1.5;
+}
+
 .ad-input-with-button { display: flex; gap: 8px; }
 .ad-input-with-button .el-input { flex: 1; }
 .ad-inline-alert { margin-top: 6px; }

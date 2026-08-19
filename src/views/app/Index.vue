@@ -335,6 +335,17 @@
                 <el-table-column prop="bidding_type" label="竞价类型" width="100" align="center" header-align="center">
                   <template #default="{ row }">{{ biddingLabel(row.bidding_type) }}</template>
                 </el-table-column>
+                <el-table-column prop="access_type" label="对接方式" width="110" align="center" header-align="center">
+                  <template #default="{ row }">
+                    <span
+                      v-if="row.access_type"
+                      :class="['access-tag', row.access_type === 1 ? 'access-tag--sdk' : 'access-tag--api']"
+                    >
+                      {{ row.access_type === 1 ? 'SDK 接入' : 'API 接入' }}
+                    </span>
+                    <span v-else>—</span>
+                  </template>
+                </el-table-column>
                 <el-table-column prop="screen_orientation" label="屏幕方向" width="110" align="center" header-align="center">
                   <template #default="{ row }">
                     <span class="orientation-tag" v-if="row.screen_orientation">

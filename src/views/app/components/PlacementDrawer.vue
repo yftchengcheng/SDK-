@@ -7,6 +7,15 @@
     :close-on-click-modal="false"
   >
     <div class="pd-body" v-loading="loading">
+      <!-- drawer 头部：展示对接方式（继承自所属应用） -->
+      <div v-if="currentAccessType" class="pd-access-hint">
+        <span :class="['access-tag', currentAccessType === 1 ? 'access-tag--sdk' : 'access-tag--api']">
+          {{ accessTypeLabel }}
+        </span>
+        <span class="pd-access-hint__text">
+          模版样式将按所属应用的对接方式自动切换{{ currentAccessType === 1 ? '（SDK 4 种）' : '（API 13 种）' }}
+        </span>
+      </div>
       <!-- 区块 1：基础信息 -->
       <section class="pd-section">
         <div class="pd-section-head">
@@ -111,7 +120,7 @@
 
           <el-form-item label="模版样式" prop="templateStyle" class="span-2">
             <el-select v-model="form.templateStyle" placeholder="请选择模版样式" style="width: 100%">
-              <el-option v-for="t in templateOptions" :key="t.value" :label="t.label" :value="t.value" />
+              <el-option v-for="t in currentTemplateOptions" :key="t.value" :label="t.label" :value="t.value" />
             </el-select>
           </el-form-item>
         </el-form>
@@ -172,8 +181,26 @@ const orientationFormRef = ref<FormInstance>();
 const materialFormRef = ref<FormInstance>();
 const nativeFormRef = ref<FormInstance>();
 
-// 接入方式：1=SDK / 2=API
-const isSDK = computed(() => (userStore.userInfo?.accessType ?? 1) !== 2);
+// 接入方式：1=SDK / 2=API —— 创建态读所属应用 access_type（应用已从 dev 继承），
+// 编辑态读该 placement 自己的 access_type 快照（placement 锁定不可改）
+const isSDK = computed(() => {
+  const at = isEdit.value
+    ? props.editPlacement?.access_type
+    : currentAppInfo.value?.access_type;
+  return (at ?? 1) !== 2;
+});
+// 当前对街方式的展示（0=未态、1=SDK、2=API）
+const currentAccessType = computed<number | null>(() =>
+  isEdit.value
+    ? (props.editPlacement?.access_type ?? null)
+    : (currentAppInfo.value?.access_type ?? null)
+);
+const accessTypeLabel = computed(() => {
+  const v = currentAccessType.value;
+  if (v === 1) return 'SDK 接入';
+  if (v === 2) return 'API 接入';
+  return '未识别';
+});
 
 // ========== 通用 options（与 /placement 页完全一致） ==========
 const formatOptions = [
@@ -205,7 +232,8 @@ const autoPlayOptions = [
   { value: 2, label: '仅WIFI' },
   { value: 3, label: '点击播放' },
 ];
-const templateOptions = [
+// API 接入的模版样式（原有 13 种）
+const apiTemplateOptions = [
   { value: 1,  label: '1图1文' },
   { value: 2,  label: '1图2文' },
   { value: 3,  label: '1图3文' },
@@ -220,6 +248,15 @@ const templateOptions = [
   { value: 12, label: '1视频1封面1图标2文' },
   { value: 13, label: '1视频1封面' },
 ];
+// SDK 接入的模版样式（4 种）
+const sdkTemplateOptions = [
+  { value: 14, label: '上图下文' },
+  { value: 15, label: '上文下图' },
+  { value: 16, label: '左图右文' },
+  { value: 17, label: '左文右图' },
+];
+// 按当前接入方式动态切换下拉选项
+const currentTemplateOptions = computed(() => (isSDK.value ? sdkTemplateOptions : apiTemplateOptions));
 
 // ========== 条件显示 computed（与 /placement 页一致） ==========
 const showOrientation = computed(() => {
@@ -287,6 +324,7 @@ interface FormState {
   videoMute: number;
   autoPlay: number | null;
   templateStyle: number | null;
+  accessType: number | null; // 锁定继承自所属应用，不允许手动改
 }
 
 const form = reactive<FormState>({
@@ -300,6 +338,7 @@ const form = reactive<FormState>({
   videoMute: 0,
   autoPlay: null,
   templateStyle: null,
+  accessType: null,
 });
 
 // 基础信息校验（始终生效）
@@ -351,6 +390,8 @@ const resetForm = () => {
   form.videoMute = 0;
   form.autoPlay = null;
   form.templateStyle = null;
+  // 创建态：accessType 自动继承自所属应用，不可手动改
+  form.accessType = currentAppInfo.value?.access_type ?? null;
 };
 
 const fillFromEdit = (row: any) => {
@@ -364,6 +405,8 @@ const fillFromEdit = (row: any) => {
   form.videoMute = row.video_mute ?? 0;
   form.autoPlay = row.auto_play ?? null;
   form.templateStyle = row.template_style ?? null;
+  // 编辑态：accessType 走 placement 自己的快照（来自创建时继承的应用，锁定）
+  form.accessType = row.access_type ?? null;
 };
 
 watch(() => props.visible, async (v) => {
@@ -421,6 +464,10 @@ const buildPayload = () => {
   }
   if (showNativeFields.value && form.templateStyle !== null) {
     payload.templateStyle = form.templateStyle;
+  }
+  // 对接方式：透传 accessType（后端会按所属应用 access_type 锁定，create 时会覆盖）
+  if (form.accessType !== null) {
+    payload.accessType = form.accessType;
   }
   return payload;
 };
