@@ -1,7 +1,6 @@
 <template>
   <el-dialog
     :z-index="10000"
-    custom-class="policy-dialog"
     :model-value="visible"
     @update:model-value="$emit('update:visible', $event)"
     width="760px"
@@ -10,6 +9,10 @@
     :show-close="true"
     destroy-on-close
     align-center
+    header-class="policy-dialog__header"
+    body-class="policy-dialog__body"
+    footer-class="policy-dialog__footer"
+    modal-class="policy-dialog__mask"
     @open="handleOpen"
   >
     <template #header>
@@ -278,6 +281,26 @@ function formatLabel(fmt: number): string {
 function copyText(text: string): void {
   void navigator.clipboard?.writeText(text);
   ElMessage.success('已复制');
+}
+
+const AVATAR_BG_GRADIENTS: string[][] = [
+  ['#1E3A8A', '#3B82F6'],
+  ['#0F766E', '#14B8A6'],
+  ['#7C3AED', '#A78BFA'],
+  ['#B45309', '#F59E0B'],
+  ['#BE123C', '#F43F5E'],
+  ['#166534', '#22C55E'],
+  ['#0369A1', '#38BDF8'],
+  ['#9D174D', '#EC4899'],
+];
+
+function avatarBg(seed: string): string {
+  let hash = 0;
+  for (let i = 0; i < seed.length; i++) {
+    hash = (hash * 31 + seed.charCodeAt(i)) >>> 0;
+  }
+  const [a, b] = AVATAR_BG_GRADIENTS[hash % AVATAR_BG_GRADIENTS.length];
+  return `background: linear-gradient(135deg, ${a} 0%, ${b} 100%);`;
 }
 
 function moveToRight(item: CandidateItem): void {

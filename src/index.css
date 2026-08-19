@@ -12158,18 +12158,18 @@ html, body, #app {
  * =========================================================== */
 
 /* 弹窗整体 —— 取消 el-dialog 默认 padding，由内部 section 接管 */
-.policy-dialog.el-dialog {
+.el-dialog.is-align-center {
   border-radius: 12px;
   overflow: hidden;
 }
-.policy-dialog.el-dialog .el-dialog__header {
+.el-dialog.is-align-center .el-dialog__header {
   padding: 0;
   margin: 0;
 }
-.policy-dialog.el-dialog .el-dialog__body {
+.el-dialog.is-align-center .el-dialog__body {
   padding: 0 24px 8px;
 }
-.policy-dialog.el-dialog .el-dialog__footer {
+.el-dialog.is-align-center .el-dialog__footer {
   padding: 12px 24px 20px;
   border-top: 1px solid #EEF2F7;
   background: #FAFBFC;
