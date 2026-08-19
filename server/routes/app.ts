@@ -635,25 +635,31 @@ router.post('/export-sdk-policy', authMiddleware, async (req: express.Request, r
       new Set((wfs || []).map((w) => String(w.traffic_group_id)).filter(Boolean)),
     );
     if (trafficGroupIds.length > 0) {
-      const { data: abGroups, error: abErr } = await db
-        .from('traffic_group')
-        .select('id, traffic_group_id, experiment_id')
-        .in('traffic_group_id', trafficGroupIds)
-        .not('experiment_id', 'is', null);
-      if (abErr) throw new Error(`Traffic group lookup failed: ${abErr.message}`);
-      if ((abGroups || []).length > 0) {
-        const abSet = new Set((abGroups || []).map((g) => g.traffic_group_id));
-        const abPlacements = (wfs || [])
-          .filter((w) => abSet.has(String(w.traffic_group_id)))
-          .map((w) => w.placement_id);
-        const uniqueAbPlacements = Array.from(new Set(abPlacements));
-        if (uniqueAbPlacements.length > 0) {
-          fail(
-            res,
-            400,
-            `存在 AB 实验的广告位无法导出: ${uniqueAbPlacements.join(', ')}`,
-          );
-          return;
+      // traffic_group 表用 id (bigint) 作为主键，关联 waterfall_config.traffic_group_id
+      const trafficGroupIdNums = trafficGroupIds
+        .map((id) => Number(id))
+        .filter((n) => !Number.isNaN(n));
+      if (trafficGroupIdNums.length > 0) {
+        const { data: abGroups, error: abErr } = await db
+          .from('traffic_group')
+          .select('id, experiment_id')
+          .in('id', trafficGroupIdNums)
+          .not('experiment_id', 'is', null);
+        if (abErr) throw new Error(`Traffic group lookup failed: ${abErr.message}`);
+        if ((abGroups || []).length > 0) {
+          const abSet = new Set((abGroups || []).map((g) => Number(g.id)));
+          const abPlacements = (wfs || [])
+            .filter((w) => abSet.has(Number(w.traffic_group_id)))
+            .map((w) => w.placement_id);
+          const uniqueAbPlacements = Array.from(new Set(abPlacements));
+          if (uniqueAbPlacements.length > 0) {
+            fail(
+              res,
+              400,
+              `存在 AB 实验的广告位无法导出: ${uniqueAbPlacements.join(', ')}`,
+            );
+            return;
+          }
         }
       }
     }

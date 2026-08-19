@@ -3,8 +3,18 @@
  * - 负责生成聚合策略 zip（每 app 一个 json）
  * - 上传对象存储并返回签名 URL
  */
-// archiver 是 CJS 包，esModuleInterop 已开但 @types/archiver 8 不提供 default export
-import * as archiver from 'archiver';
+// archiver 8 是 ESM-only 包（"type": "module"），且 API 变化：
+//   - 旧: archiver('zip', options) 或 archiver.create('zip', options)
+//   - 新: new ZipArchive(options) 子类（Archiver 基类不会初始化 _format/_module）
+// 用 dynamic import 异步加载，返回 ZipArchive 构造函数
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let archiverPromise: Promise<any> | null = null;
+function loadArchiver(): Promise<any> {
+  if (!archiverPromise) {
+    archiverPromise = import('archiver').then((m: any) => m.ZipArchive);
+  }
+  return archiverPromise;
+}
 import { Writable } from 'node:stream';
 import { getStorage } from './storage';
 
@@ -46,7 +56,12 @@ export interface BuildZipInput {
 }
 
 /** 把策略内容打包成 zip buffer */
-export function buildSdkPolicyZipBuffer(input: BuildZipInput): Promise<Buffer> {
+export async function buildSdkPolicyZipBuffer(input: BuildZipInput): Promise<Buffer> {
+  // archiver 8 是 ESM-only 类（Archiver），用 new
+  const Archiver = await loadArchiver();
+  if (!Archiver) {
+    throw new Error('archiver 加载失败');
+  }
   return new Promise((resolve, reject) => {
     const chunks: Buffer[] = [];
     // archiver 写入到自定义 writable（收集 chunks）
@@ -56,9 +71,7 @@ export function buildSdkPolicyZipBuffer(input: BuildZipInput): Promise<Buffer> {
         cb();
       },
     });
-    // archiver 是 CJS 包，ts namespace import 后需要 (archiver as any) 才能调用
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const archive = (archiver as any)('zip', { zlib: { level: 9 } });
+    const archive = new Archiver({ zlib: { level: 9 } });
     archive.on('error', reject);
     archive.pipe(sink);
 
