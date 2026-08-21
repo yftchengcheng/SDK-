@@ -12729,3 +12729,89 @@ html, body, #app {
   opacity: 0.5;
   cursor: not-allowed;
 }
+/* 广告位字段明细表 */
+.pd-field-details {
+  margin: 6px 0 18px;
+  padding: 14px 16px;
+  background: linear-gradient(180deg, #FAFBFC 0%, #F8FAFC 100%);
+  border: 1px solid #E2E8F0;
+  border-radius: 8px;
+}
+.pd-field-details__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+.pd-field-details__title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: #1E40AF;
+  font-weight: 600;
+}
+.pd-field-details__title .el-icon {
+  color: #3B82F6;
+  font-size: 14px;
+}
+.pd-field-details__legend {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.pd-legend {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 500;
+}
+.pd-legend--sdk {
+  background: #DBEAFE;
+  color: #1D4ED8;
+  border: 1px solid #93C5FD;
+}
+.pd-legend--api {
+  background: #D1FAE5;
+  color: #047857;
+  border: 1px solid #6EE7B7;
+}
+.pd-legend--required {
+  background: #FEE2E2;
+  color: #B91C1C;
+  border: 1px solid #FCA5A5;
+}
+.pd-field-details__table {
+  border-radius: 6px;
+  overflow: hidden;
+}
+.pd-field-details__table .el-table__row:last-child td {
+  border-bottom: none;
+}
+.pd-ok {
+  color: #10B981;
+  font-size: 16px;
+}
+.pd-na {
+  color: #CBD5E1;
+  font-size: 14px;
+}
+.pd-req {
+  color: #EF4444;
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1;
+}
+.pd-field-details__table :deep(.el-table__cell) {
+  padding: 8px 0;
+}
+.pd-field-details__table :deep(th.el-table__cell) {
+  background: #F1F5F9 !important;
+  color: #475569;
+  font-weight: 600;
+  font-size: 12px;
+}

@@ -47,6 +47,41 @@
             <div class="pd-form-help">{{ formatHelpText }}</div>
           </el-form-item>
 
+          <section class="pd-field-details">
+            <div class="pd-field-details__header">
+              <div class="pd-field-details__title">
+                <el-icon><InfoFilled /></el-icon>
+                <span>字段明细表 — 当前广告形式（{{ ['未知', '横幅', '插屏', '开屏', '原生', '视频'][form.format] || '未知' }}）在当前对接方式（{{ form.accessType === 1 ? 'SDK' : 'API' }}）下需配置以下字段</span>
+              </div>
+              <div class="pd-field-details__legend">
+                <span class="pd-legend pd-legend--sdk">SDK</span>
+                <span class="pd-legend pd-legend--api">API</span>
+                <span class="pd-legend pd-legend--required">*必填</span>
+              </div>
+            </div>
+            <el-table :data="formatFieldDetails" border size="small" class="pd-field-details__table" :show-header="true">
+              <el-table-column prop="name" label="字段名" width="140" align="left" />
+              <el-table-column label="SDK" width="60" align="center">
+                <template #default="{ row }">
+                  <el-icon v-if="row.sdk" class="pd-ok"><CircleCheckFilled /></el-icon>
+                  <span v-else class="pd-na">—</span>
+                </template>
+              </el-table-column>
+              <el-table-column label="API" width="60" align="center">
+                <template #default="{ row }">
+                  <el-icon v-if="row.api" class="pd-ok"><CircleCheckFilled /></el-icon>
+                  <span v-else class="pd-na">—</span>
+                </template>
+              </el-table-column>
+              <el-table-column label="必填" width="60" align="center">
+                <template #default="{ row }">
+                  <span v-if="row.required" class="pd-req">*</span>
+                  <span v-else class="pd-na">—</span>
+                </template>
+              </el-table-column>
+              <el-table-column prop="note" label="备注" min-width="220" align="left" />
+            </el-table>
+          </section>
           <el-form-item label="竞价类型" prop="biddingType">
             <el-radio-group v-model="form.biddingType">
               <el-radio-button :value="1">固价</el-radio-button>
@@ -153,7 +188,7 @@ import { ElMessage, type FormInstance, type FormRules } from 'element-plus';
 import request from '../../../utils/request';
 import { useUserStore } from '../../../stores/user';
 import {
-  InfoFilled, Cellphone, Crop, Picture, VideoCamera, Promotion,
+  InfoFilled, Cellphone, Crop, Picture, VideoCamera, Promotion, CircleCheckFilled,
 } from '@element-plus/icons-vue';
 
 const props = defineProps<{
@@ -327,6 +362,45 @@ interface FormState {
   accessType: number | null; // 锁定继承自所属应用，不允许手动改
 }
 
+
+// 字段明细表：当前 format × 当前 accessType 需展示的字段
+const formatFieldDetails = computed<{ name: string; required: boolean; sdk: boolean; api: boolean; note: string }[]>(() => {
+  // 通用基础字段
+  const base = [
+    { name: '广告位名称', required: true, sdk: true, api: true, note: '媒体简称-应用名-系统-广告形式' },
+    { name: '广告形式', required: true, sdk: true, api: true, note: '创建后不可修改' },
+    { name: '竞价类型', required: true, sdk: true, api: true, note: '客户端竞价 / 服务端竞价' },
+  ];
+  // 按 format 区分扩展字段
+  const byFormat: Record<number, typeof base> = {
+    1: [ // 横幅
+      { name: '屏幕方向', required: true, sdk: true, api: true, note: '竖屏 / 横屏 / 不限' },
+    ],
+    2: [ // 插屏
+      { name: '屏幕方向', required: true, sdk: true, api: true, note: '竖屏 / 横屏 / 不限' },
+      { name: '广告展示大小', required: true, sdk: true, api: true, note: '300×250 / 320×480 等' },
+      { name: '素材形式', required: true, sdk: true, api: true, note: '图片 / 视频' },
+      { name: '视频静音', required: true, sdk: true, api: true, note: '是 / 否' },
+      { name: '自动播放', required: true, sdk: true, api: true, note: '是 / 否' },
+    ],
+    3: [ // 开屏
+      { name: '屏幕方向', required: true, sdk: true, api: true, note: '竖屏 / 横屏 / 不限' },
+    ],
+    4: [ // 原生
+      { name: '屏幕方向', required: true, sdk: true, api: true, note: '竖屏 / 横屏 / 不限' },
+      { name: '素材形式', required: true, sdk: true, api: true, note: '图片 / 视频' },
+      { name: '模版样式', required: true, sdk: true, api: true, note: 'SDK: 4 种样式 / API: 13 种样式' },
+      { name: '视频静音', required: true, sdk: true, api: true, note: '是 / 否' },
+      { name: '自动播放', required: true, sdk: true, api: true, note: '是 / 否' },
+    ],
+    5: [ // 视频
+      { name: '屏幕方向', required: true, sdk: true, api: true, note: '竖屏 / 横屏 / 不限' },
+      { name: '视频静音', required: true, sdk: true, api: true, note: '是 / 否' },
+      { name: '自动播放', required: true, sdk: true, api: true, note: '是 / 否' },
+    ],
+  };
+  return [...base, ...(byFormat[form.format] || [])];
+});
 const form = reactive<FormState>({
   appKey: '',
   name: '',
