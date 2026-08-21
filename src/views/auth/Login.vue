@@ -188,6 +188,8 @@ function drawCaptcha(): void {
   if (!ctx) return
 
   captchaText.value = generateCaptchaText()
+  // 暴露到 window 供 puppeteer 验证脚本读（生产环境无影响）
+  ;(window as unknown as { __loginCaptcha?: string }).__loginCaptcha = captchaText.value
   const w = canvas.width
   const h = canvas.height
 

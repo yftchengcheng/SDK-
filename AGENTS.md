@@ -427,3 +427,50 @@ bash scripts/dev-checklist.sh
 
 **正例**：
 - 自检 4/6 PASSED + 2/6 FAILED → 「❌ 还有 2 项没过：dev 服务挂了 / 接口真冒烟跳过。需用户从 IDE 重启 preview 后再跑一次自检」
+
+---
+
+## 字典表使用规范（2026-08-21 起 MUST）
+
+> **任何 enum / 字段定义 / 业务规则的"显示名"都必须从字典表读，禁止硬编码。**
+
+### 字典表清单
+
+| 表 | 用途 | 行数 | 读取入口 |
+|------|------|------|---------|
+| `enum_dict` | 通用枚举 code→label 翻译 | 108 | `dictCache.getEnumLabel(code, value)` / `getEnumItems(code)` |
+| `placement_field_def` | 广告位字段规则（按 format × access_type 维度） | 56 | `dictCache.getPlacementFieldList(format, accessType)` |
+| `app_field_def` | 应用字段默认值 + 必填 | 7 | `dictCache.getAppFieldDef(fieldName)` |
+| `report_metric_definition` | 报表指标字典（已有，保留） | — | — |
+| `ad_network_def` | 广告平台字典（准字典，保留） | — | — |
+
+### 4 条铁律
+
+1. **禁止硬编码枚举 label**（`'自有' / 'SDK' / '横幅'`）
+   - ❌ `const label = { 1: '自有', 2: '联运' }[value]`
+   - ✅ `const label = dictCache.getEnumLabel('app.access_type', value)`
+2. **禁止前端 hardcoded 字段必填规则**（`showXxx` / `formatFieldDetails`）
+   - ✅ 改成 `dictCache.getPlacementFieldList(format, accessType)` 动态渲染
+3. **禁止硬编码 enum-labels.ts 风格**的常量文件
+   - 兼容期（过渡）：`enum-labels.ts` 仅作为 **fallback**（接口失败时用）
+4. **新字段 / 新枚举必须先建字典表行 + seed** 再写代码
+   - 流程：`exec_sql` 加行 → `seed-*.ts` 同步 → 代码读 dictCache
+
+### 兼容性兜底
+
+`enum-labels.ts` 保留作为离线 fallback（接口 500 时降级用），但生产环境必须优先走 dictCache。
+
+### 字典变更 checklist
+
+- [ ] `exec_sql` 加字典行 / DDL
+- [ ] `scripts/dict/seed-*.ts` 同步（避免下次 reset 丢数据）
+- [ ] `pnpm ts-check` + `pnpm lint` PASSED
+- [ ] `bash scripts/dict/verify-e2e.mjs` 9/9 PASSED
+- [ ] AGENTS.md（本章节）记录新增表/字段
+
+### 验证脚本
+
+```bash
+# 9 项验证：3 张字典表行数 + 6 个接口冒烟
+ADMIN_COOKIE="auth_token=<token>" node scripts/dict/verify-e2e.mjs
+```

@@ -187,6 +187,7 @@ import { ref, reactive, computed, watch, nextTick } from 'vue';
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus';
 import request from '../../../utils/request';
 import { useUserStore } from '../../../stores/user';
+import { dictCache } from '../../../utils/dict-cache';
 import {
   InfoFilled, Cellphone, Crop, Picture, VideoCamera, Promotion, CircleCheckFilled,
 } from '@element-plus/icons-vue';
@@ -363,44 +364,37 @@ interface FormState {
 }
 
 
-// 字段明细表：当前 format × 当前 accessType 需展示的字段
-const formatFieldDetails = computed<{ name: string; required: boolean; sdk: boolean; api: boolean; note: string }[]>(() => {
-  // 通用基础字段
-  const base = [
-    { name: '广告位名称', required: true, sdk: true, api: true, note: '媒体简称-应用名-系统-广告形式' },
-    { name: '广告形式', required: true, sdk: true, api: true, note: '创建后不可修改' },
-    { name: '竞价类型', required: true, sdk: true, api: true, note: '客户端竞价 / 服务端竞价' },
+// 字段明细表：当前 format × 当前 accessType 需展示的字段（**从 dictCache 拉取**）
+const formatFieldDetails = ref<{ name: string; fieldType: string; required: boolean; sdk: boolean; api: boolean; note: string }[]>([]);
+const loadFormatFieldDetails = () => {
+  const format = form.format;
+  const accessType = currentAccessType.value;
+  if (!format || !accessType) { formatFieldDetails.value = []; return; }
+  // 从 dictCache 同步拉取当前 (format, accessType) 的字段定义
+  const fields = dictCache.getPlacementFieldList(format, accessType) || [];
+  // 拉取另一 accessType 用于对比展示（SDK vs API 列）
+  const otherAccessType = accessType === 1 ? 2 : 1;
+  const otherFields = dictCache.getPlacementFieldList(format, otherAccessType) || [];
+  const base: typeof formatFieldDetails.value = [
+    { name: '广告位名称', fieldType: 'input', required: true, sdk: true, api: true, note: '媒体简称-应用名-系统-广告形式' },
+    { name: '广告形式', fieldType: 'select', required: true, sdk: true, api: true, note: '创建后不可修改' },
+    { name: '竞价类型', fieldType: 'radio', required: true, sdk: true, api: true, note: '客户端竞价 / 服务端竞价' },
   ];
-  // 按 format 区分扩展字段
-  const byFormat: Record<number, typeof base> = {
-    1: [ // 横幅
-      { name: '屏幕方向', required: true, sdk: true, api: true, note: '竖屏 / 横屏 / 不限' },
-    ],
-    2: [ // 插屏
-      { name: '屏幕方向', required: true, sdk: true, api: true, note: '竖屏 / 横屏 / 不限' },
-      { name: '广告展示大小', required: true, sdk: true, api: true, note: '300×250 / 320×480 等' },
-      { name: '素材形式', required: true, sdk: true, api: true, note: '图片 / 视频' },
-      { name: '视频静音', required: true, sdk: true, api: true, note: '是 / 否' },
-      { name: '自动播放', required: true, sdk: true, api: true, note: '是 / 否' },
-    ],
-    3: [ // 开屏
-      { name: '屏幕方向', required: true, sdk: true, api: true, note: '竖屏 / 横屏 / 不限' },
-    ],
-    4: [ // 原生
-      { name: '屏幕方向', required: true, sdk: true, api: true, note: '竖屏 / 横屏 / 不限' },
-      { name: '素材形式', required: true, sdk: true, api: true, note: '图片 / 视频' },
-      { name: '模版样式', required: true, sdk: true, api: true, note: 'SDK: 4 种样式 / API: 13 种样式' },
-      { name: '视频静音', required: true, sdk: true, api: true, note: '是 / 否' },
-      { name: '自动播放', required: true, sdk: true, api: true, note: '是 / 否' },
-    ],
-    5: [ // 视频
-      { name: '屏幕方向', required: true, sdk: true, api: true, note: '竖屏 / 横屏 / 不限' },
-      { name: '视频静音', required: true, sdk: true, api: true, note: '是 / 否' },
-      { name: '自动播放', required: true, sdk: true, api: true, note: '是 / 否' },
-    ],
-  };
-  return [...base, ...(byFormat[form.format] || [])];
-});
+  const detailRows = fields.map((f) => ({
+    name: f.display_name,
+    fieldType: f.field_type,
+    required: f.required,
+    sdk: true, // 当前 accessType 必有
+    api: otherAccessType === 2 ? (otherFields || []).some((x) => x.field_name === f.field_name) : false,
+    note: f.note ?? '',
+  }));
+  formatFieldDetails.value = [...base, ...detailRows];
+};
+watch(
+  () => [form.format, currentAccessType.value, currentAppInfo.value] as const,
+  () => { void loadFormatFieldDetails(); },
+  { immediate: true, deep: true },
+);
 const form = reactive<FormState>({
   appKey: '',
   name: '',

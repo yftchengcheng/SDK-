@@ -148,6 +148,39 @@
             label-position="top"
             @submit.prevent
           >
+            <!-- 字段明细表（**从 dictCache 拉取**）-->
+            <section class="pd-field-details">
+              <div class="pd-field-details__header">
+                <div class="pd-field-details__title">
+                  <el-icon><InfoFilled /></el-icon>
+                  <span>字段明细表 — 当前广告形式（{{ ['未知', '横幅', '插屏', '开屏', '原生', '视频'][editForm.format] || '未知' }}）在当前对接方式（{{ editFormAccessType === 1 ? 'SDK' : 'API' }}）下需配置以下字段</span>
+                </div>
+                <div class="pd-field-details__legend">
+                  <span><el-icon class="pd-ok"><CircleCheckFilled /></el-icon> 需配置</span>
+                  <span><span class="pd-req">*</span> 必填</span>
+                </div>
+              </div>
+              <el-table :data="formatFieldDetails" border size="small" class="pd-field-details__table" :show-header="true">
+                <el-table-column prop="display_name" label="字段名" min-width="100" align="left" header-align="left" />
+                <el-table-column prop="field_type" label="类型" min-width="70" align="center" header-align="center" />
+                <el-table-column label="SDK" min-width="55" align="center" header-align="center">
+                  <template #default="{ row }">
+                    <el-icon v-if="row.sdk" class="pd-ok"><CircleCheckFilled /></el-icon>
+                  </template>
+                </el-table-column>
+                <el-table-column label="API" min-width="55" align="center" header-align="center">
+                  <template #default="{ row }">
+                    <el-icon v-if="row.api" class="pd-ok"><CircleCheckFilled /></el-icon>
+                  </template>
+                </el-table-column>
+                <el-table-column label="必填" min-width="55" align="center" header-align="center">
+                  <template #default="{ row }">
+                    <span v-if="row.required" class="pd-req">*</span>
+                  </template>
+                </el-table-column>
+              </el-table>
+            </section>
+
             <!-- 区块 1：基础信息 -->
             <section class="page-form-section">
               <div class="page-form-section-header">
@@ -314,7 +347,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from 'vue';
+import { ref, reactive, computed, onMounted, watch } from 'vue';
 import TablePagination from '@/components/TablePagination.vue';
 import request from '../../utils/request';
 import { ElMessage, ElMessageBox } from 'element-plus';
@@ -322,8 +355,9 @@ import type { FormInstance, FormRules } from 'element-plus';
 import dayjs from 'dayjs';
 import { useUserStore } from '../../stores/user';
 import { ENUM_DIMS, enumLabel, enumOptions } from '../../shared/enum-labels';
+import { dictCache } from '../../utils/dict-cache';
 import EnumTag from '../../components/EnumTag.vue';
-import { Plus, Search, RefreshLeft, Edit, InfoFilled, Monitor, Picture, VideoCamera, Close, Check, Key } from '@element-plus/icons-vue';
+import { Plus, Search, RefreshLeft, Edit, InfoFilled, Monitor, Picture, VideoCamera, Close, Check, Key, CircleCheckFilled } from '@element-plus/icons-vue';
 
 const userStore = useUserStore();
 
@@ -388,6 +422,35 @@ const drawerVisible = ref(false);
 const drawerSize = '720px';
 const isEdit = ref(false);
 const submitting = ref(false);
+
+// 字段明细表：当前 format × 当前 accessType 从 dictCache 动态拉取
+const formatFieldDetails = ref<{ name: string; fieldType: string; required: boolean; sdk: boolean; api: boolean; note: string }[]>([]);
+const reloadFormatFieldDetails = async () => {
+  const format = editForm.format;
+  const accessType = editFormAccessType.value;
+  if (!format || !accessType) { formatFieldDetails.value = []; return; }
+  // 主动等 dictCache 准备好（首次访问）
+  await dictCache.loadPlacementFieldDef();
+  const fields = dictCache.getPlacementFieldList(format, accessType) || [];
+  const otherAccessType = accessType === 1 ? 2 : 1;
+  const otherFields = dictCache.getPlacementFieldList(format, otherAccessType) || [];
+  const base = [
+    { name: '广告位名称', fieldType: 'input', required: true, sdk: true, api: true, note: '媒体简称-应用名-系统-广告形式' },
+    { name: '广告形式', fieldType: 'select', required: true, sdk: true, api: true, note: '创建后不可修改' },
+    { name: '竞价类型', fieldType: 'radio', required: true, sdk: true, api: true, note: '客户端竞价 / 服务端竞价' },
+  ];
+  formatFieldDetails.value = [
+    ...base,
+    ...fields.map((f) => ({
+      name: f.display_name,
+      fieldType: f.field_type,
+      required: f.required,
+      sdk: true,
+      api: otherAccessType === 2 ? (otherFields || []).some((x) => x.field_name === f.field_name) : false,
+      note: f.note ?? '',
+    })),
+  ];
+};
 const formRef = ref<FormInstance>();
 
 // 当前广告位的对接方式：1=SDK / 2=API
@@ -453,6 +516,15 @@ const defaultForm = () => ({
 });
 
 const editForm = reactive(defaultForm());
+
+// 字段明细表首次加载（dictCache 在 main.ts 已预加载，此处只保证 trigger）
+void reloadFormatFieldDetails();
+// 监听 format / accessType 变化重新加载
+watch(
+  () => [editForm.format, editFormAccessType.value] as const,
+  () => { void reloadFormatFieldDetails(); },
+  { deep: true },
+);
 
 const formRules: FormRules = {
   app_key: [{ required: true, message: '请选择应用', trigger: 'change' }],

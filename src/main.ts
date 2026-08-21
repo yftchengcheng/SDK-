@@ -10,6 +10,7 @@ import * as ElementPlusIconsVue from '@element-plus/icons-vue';
 import App from './App.vue';
 import router from './router';
 import { createPinia } from 'pinia';
+import { dictCache } from './utils/dict-cache';
 import './index.css';
 
 console.log('[main.ts] All imports resolved');
@@ -85,3 +86,9 @@ window.addEventListener('unhandledrejection', (event: PromiseRejectionEvent) => 
 });
 
 app.mount('#app');
+
+// 应用启动时异步加载字典缓存（不阻塞首屏，5min TTL 自动刷新）
+console.log('[dictCache] preloading...');
+void dictCache.loadEnums().then(() => console.log('[dictCache] enums loaded'));
+// placement/app field def 用 lazy 加载（drawer 打开时按 format+accessType 拉取）
+dictCache.ensureAppFieldDefLoaded().then(() => console.log('[dictCache] app fields loaded'));
