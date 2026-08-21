@@ -601,6 +601,47 @@
 - 删除前必须先解除所有 placement / network 绑定（前端禁用按钮）
 - iOS 必填字段：`bundle_id`（包名校验格式）
 
+#### 5.2.4 广告位字段规则（placement_field_def 字典表，42 行）
+
+> **维度**：`(format, access_type)` 二维矩阵
+> - `format`：`1=横幅 / 2=插屏 / 3=开屏 / 4=原生 / 5=激励视频`
+> - `access_type`：`1=SDK / 2=API`（继承自开发者账号，注册后不可改）
+>
+> **数据源**：`placement_field_def` 表（5 format × 2 access，42 行 seed）— 表结构由后端 `scripts/dict/seed-placement-field-def.ts` 维护
+>
+> **前端调用**：`dictCache.getPlacementFieldList(format, accessType)`（TTL 5min 单例缓存）
+>
+> **后端接口**：`GET /api/v1/dict/placement-field-def?format=1&accessType=1` → `{ items: [...] }`
+
+**字段规则矩阵**：
+
+| format | access=SDK | access=API |
+|--------|------------|------------|
+| 1 横幅 | ad_size / refresh_interval / show_close（3 字段） | ad_size / refresh_interval / show_close（3 字段） |
+| 2 插屏 | ad_size / material_type / show_close / close_delay / **screen_orientation**（5 字段） | ad_size / material_type / show_close / close_delay（4 字段） |
+| 3 开屏 | skip_time / show_skip / material_type / **screen_orientation**（4 字段） | skip_time / show_skip / material_type（3 字段） |
+| 4 原生 | template_style / material_type / **video_mute** / **auto_play** / **screen_orientation**（5 字段） | template_style / material_type（2 字段） |
+| 5 视频 | ad_size / material_type / reward_amount / reward_unit / skip_allowed / close_delay / **screen_orientation**（7 字段） | ad_size / material_type / reward_amount / reward_unit / skip_allowed / close_delay（6 字段） |
+
+**SDK 专有字段**（API 接入不出现，3 个）：
+
+| 字段名 | 出现 format | 取值 |
+|--------|------------|------|
+| `screen_orientation` 屏幕方向 | 2 插屏 / 3 开屏 / 4 原生 / 5 视频 | 0=竖屏 / 1=横屏 / 2=横竖兼容 |
+| `video_mute` 视频静音 | 4 原生 | 0=否 / 1=是 |
+| `auto_play` 自动播放 | 4 原生 | 1=总是 / 2=仅WIFI / 3=点击播放 |
+
+**业务规则**：
+- 创建广告位时 `access_type` 从 `developer.access_type` 继承（注册时锁定）
+- 编辑时 `access_type` 不可改（沿用创建值）
+- 字段明细表 UI 在 placement/Index.vue drawer 顶部展示
+- 字典表行变更后 5 分钟内生效（TTL 自动刷新）
+
+**注意事项**：
+- `template_style` 13 选 1（1图1文/1图2文/1图3文/1图1图标1文/1图1图标2文/3图1文/1图标2文/3图1图标2文/1图1图标2文1按钮/图片/1视频1封面1文/1视频1封面1图标2文/1视频1封面）
+- `ad_size` 取值随 format 变化：横幅=横幅/中幅/插屏位，插屏=半屏/全屏/优选，视频=竖版/横版
+- `material_type` 取值随 format 变化：插屏=图片/视频/视频+图片，开屏=图片/视频，原生=图片/视频/视频+图片，视频=图片/视频/视频+图片
+
 ### 5.3 广告位管理（placement）
 
 **UI 说明**
