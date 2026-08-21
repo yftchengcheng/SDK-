@@ -455,8 +455,8 @@ const formRef = ref<FormInstance>();
 
 // 当前广告位的对接方式：1=SDK / 2=API
 // 继承链：developer.access_type → app.access_type → placement.access_type
-// - 创建态：选 app 时自动取 currentApp.access_type
-// - 编辑态：取后端返回的 row.access_type（placement 创建时锁定的快照）
+// 对接方式（1=SDK / 2=API）= 账号的对接方式，不可改
+// 来自 userStore.userInfo.accessType（developer.access_type 列）
 const editFormAccessType = ref<number>(1);
 const currentAccessTypeDisplay = computed(() => {
   const t = editFormAccessType.value;
@@ -562,7 +562,10 @@ const onAppChange = () => {
   editForm.name = '';
   // 同步当前 placement 的对接方式（继承自 app.access_type）
   const app = appList.value.find(a => a.app_key === editForm.app_key);
-  editFormAccessType.value = app?.access_type ?? 1;
+  // 对接方式（SDK/API）= 账号的对接方式，不可改
+  // 注：app.access_type 是「自有/联运/合作」，与对接方式（SDK/API）不同维度
+  const devAccessType = userStore.userInfo?.accessType ?? 1;
+  editFormAccessType.value = devAccessType;
 };
 
 const onFormatChange = () => {
@@ -578,7 +581,7 @@ const onFormatChange = () => {
 const openCreate = () => {
   isEdit.value = false;
   Object.assign(editForm, defaultForm());
-  editFormAccessType.value = 1; // 创建态默认值：SDK；选 app 后会被 onAppChange 覆盖
+  editFormAccessType.value = userStore.userInfo?.accessType ?? 1; // 账号对接方式
   drawerVisible.value = false;
   drawerVisible.value = true;
 };

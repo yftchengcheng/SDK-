@@ -36,7 +36,7 @@ async function main() {
   const enumN = (await supabase.from('enum_dict').select('*', { count: 'exact', head: true })).count;
   log(enumN >= 107, `enum_dict 行数: ${enumN} (>= 107)`);
   const pfdN = (await supabase.from('placement_field_def').select('*', { count: 'exact', head: true })).count;
-  log(pfdN >= 56, `placement_field_def 行数: ${pfdN} (>= 80)`);
+  log(pfdN >= 42, `placement_field_def 行数: ${pfdN} (>= 42)`);
   const afdN = (await supabase.from('app_field_def').select('*', { count: 'exact', head: true })).count;
   log(afdN >= 7, `app_field_def 行数: ${afdN} (>= 30)`);
 
@@ -53,7 +53,7 @@ async function main() {
   });
   const j2 = await res2.json();
   const pfdRows = j2.data?.items || [];
-  log(res2.status === 200 && pfdRows.length >= 3, `GET /dict/placement-field-def?format=1&accessType=1 200 + 行数 ${pfdRows.length} (>= 3)`);
+  log(res2.status === 200 && pfdRows.length >= 3, `GET /dict/placement-field-def?format=1\&accessType=1 200 + 行数 ${pfdRows.length} (>= 3)`);
 
   // format=4 (原生) vs format=1 (横幅) 应该不同
   const res2b = await fetch(`${BASE}/api/v1/dict/placement-field-def?format=4&accessType=1`, {

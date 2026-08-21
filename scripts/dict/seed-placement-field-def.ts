@@ -1,161 +1,142 @@
-/**
- * 阶段 1.3: placement_field_def seed
- * 5 format × 2 access_type × 6~8 字段 ≈ 80 行
- * 字段规则来源：
- *   - 后端 INSERT (server/routes/placement.ts) — 权威必填规则
- *   - PlacementDrawer form 默认值 — 同步默认值
- */
+// scripts/dict/seed-placement-field-def.ts
+// 重建 placement_field_def 字段规则
+// 二维矩阵：format × access_type（1=SDK / 2=API）
+// 来源：用户描述"广告位管理-创建广告位：SDK对接" + 真实前端字段
+// 删除了之前错误的 4 个 api_* 字段（属于 ad_network 不属于 placement）
+
 import { createClient } from '@supabase/supabase-js';
 import * as dotenv from 'dotenv';
 import { fileURLToPath } from 'url';
 import { dirname, resolve } from 'path';
+import { v4 as uuidv4 } from 'uuid';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
-dotenv.config({ path: resolve(__dirname, '../../.env'), quiet: true });
-dotenv.config({ path: resolve(__dirname, '../../.env.local'), quiet: true, override: true });
-
-const supabase = createClient(
-  process.env.COZE_SUPABASE_URL || '',
-  process.env.COZE_SUPABASE_SERVICE_ROLE_KEY || '',
-  { auth: { persistSession: false } },
+const envPath = resolve(__dirname, '../../.env');
+dotenv.config({ path: envPath });
+const supabaseClient = createClient(
+  process.env.COZE_SUPABASE_URL!,
+  process.env.COZE_SUPABASE_SERVICE_ROLE_KEY!,
+  { auth: { persistSession: false } }
 );
 
-type FieldRow = {
-  format: number;
-  access_type: number;
+interface FieldRow {
   field_name: string;
   display_name: string;
-  field_type: 'input' | 'select' | 'radio' | 'switch';
+  field_type: 'select' | 'radio' | 'input' | 'switch';
   required: boolean;
-  options_json: Array<{ value: number | string; label: string }>;
+  options_json: { value: number | string; label: string }[];
   sort_order: number;
-  note: string | null;
-};
-
-const BANNER: Array<Omit<FieldRow, 'format' | 'access_type'>> = [
-  { field_name: 'ad_size', display_name: '广告位尺寸', field_type: 'select', required: true,
-    options_json: [{ value: 1, label: '640x100' }, { value: 2, label: '728x90' }, { value: 3, label: '300x250' }], sort_order: 1, note: null },
-  { field_name: 'refresh_interval', display_name: '刷新间隔（秒）', field_type: 'input', required: false,
-    options_json: [], sort_order: 2, note: '0=不刷新' },
-  { field_name: 'show_close', display_name: '是否显示关闭按钮', field_type: 'switch', required: false,
-    options_json: [], sort_order: 3, note: null },
-];
-
-const INTERSTITIAL: Array<Omit<FieldRow, 'format' | 'access_type'>> = [
-  { field_name: 'ad_size', display_name: '广告位尺寸', field_type: 'select', required: true,
-    options_json: [{ value: 1, label: '半屏' }, { value: 2, label: '全屏' }, { value: 3, label: '优选' }], sort_order: 1, note: null },
-  { field_name: 'material_type', display_name: '素材形式', field_type: 'select', required: true,
-    options_json: [{ value: 1, label: '图片' }, { value: 2, label: '视频' }, { value: 3, label: '视频+图片' }], sort_order: 2, note: null },
-  { field_name: 'show_close', display_name: '是否显示关闭按钮', field_type: 'switch', required: false,
-    options_json: [], sort_order: 3, note: null },
-  { field_name: 'close_delay', display_name: '关闭按钮延迟（秒）', field_type: 'input', required: false,
-    options_json: [], sort_order: 4, note: '0=立即可关' },
-];
-
-const SPLASH: Array<Omit<FieldRow, 'format' | 'access_type'>> = [
-  { field_name: 'skip_time', display_name: '跳过倒计时（秒）', field_type: 'input', required: true,
-    options_json: [], sort_order: 1, note: null },
-  { field_name: 'show_skip', display_name: '是否显示跳过', field_type: 'switch', required: false,
-    options_json: [], sort_order: 2, note: null },
-  { field_name: 'material_type', display_name: '素材形式', field_type: 'select', required: true,
-    options_json: [{ value: 1, label: '图片' }, { value: 2, label: '视频' }], sort_order: 3, note: null },
-];
-
-const NATIVE: Array<Omit<FieldRow, 'format' | 'access_type'>> = [
-  { field_name: 'template_style', display_name: '模版样式', field_type: 'select', required: true,
-    options_json: [
-      { value: 1, label: '1图1文' }, { value: 2, label: '1图2文' }, { value: 3, label: '1图3文' },
-      { value: 4, label: '1图1图标1文' }, { value: 5, label: '1图1图标2文' },
-      { value: 6, label: '3图1文' }, { value: 7, label: '1图标2文' }, { value: 8, label: '3图1图标2文' },
-      { value: 9, label: '1图1图标2文1按钮' }, { value: 10, label: '图片' },
-      { value: 11, label: '1视频1封面1文' }, { value: 12, label: '1视频1封面1图标2文' },
-      { value: 13, label: '1视频1封面' },
-    ], sort_order: 1, note: null },
-  { field_name: 'auto_play', display_name: '自动播放', field_type: 'select', required: false,
-    options_json: [{ value: 1, label: '总是' }, { value: 2, label: '仅WiFi' }, { value: 3, label: '点击播放' }], sort_order: 2, note: '视频模版有效' },
-];
-
-const REWARDED: Array<Omit<FieldRow, 'format' | 'access_type'>> = [
-  { field_name: 'ad_size', display_name: '广告位尺寸', field_type: 'select', required: true,
-    options_json: [{ value: 1, label: '竖版' }, { value: 2, label: '横版' }], sort_order: 1, note: null },
-  { field_name: 'material_type', display_name: '素材形式', field_type: 'select', required: true,
-    options_json: [{ value: 1, label: '图片' }, { value: 2, label: '视频' }, { value: 3, label: '视频+图片' }], sort_order: 2, note: null },
-  { field_name: 'reward_amount', display_name: '激励数量', field_type: 'input', required: true,
-    options_json: [], sort_order: 3, note: '用户看完广告获得奖励的数量' },
-  { field_name: 'reward_unit', display_name: '激励单位', field_type: 'input', required: true,
-    options_json: [], sort_order: 4, note: '如"金币/积分"' },
-  { field_name: 'skip_allowed', display_name: '是否可跳过', field_type: 'switch', required: false,
-    options_json: [], sort_order: 5, note: null },
-  { field_name: 'close_delay', display_name: '关闭按钮延迟（秒）', field_type: 'input', required: false,
-    options_json: [], sort_order: 6, note: '0=立即可关' },
-];
-
-// API 接入方式的额外字段（API 多了 server_callback_url / request_param 等）
-const API_EXTRA: Array<Omit<FieldRow, 'format' | 'access_type'>> = [
-  { field_name: 'api_endpoint', display_name: '服务端接口地址', field_type: 'input', required: true,
-    options_json: [], sort_order: 90, note: 'API 接入必填' },
-  { field_name: 'api_method', display_name: '请求方法', field_type: 'radio', required: true,
-    options_json: [{ value: 'GET', label: 'GET' }, { value: 'POST', label: 'POST' }], sort_order: 91, note: null },
-  { field_name: 'api_auth_header', display_name: '鉴权 Header', field_type: 'input', required: false,
-    options_json: [], sort_order: 92, note: '如 "Authorization: Bearer xxx"' },
-  { field_name: 'api_callback_url', display_name: '曝光/点击回调', field_type: 'input', required: false,
-    options_json: [], sort_order: 93, note: null },
-];
-
-const FORMAT_MAP: Record<number, Array<Omit<FieldRow, 'format' | 'access_type'>>> = {
-  1: BANNER,
-  2: INTERSTITIAL,
-  3: SPLASH,
-  4: NATIVE,
-  5: REWARDED,
-};
-
-function buildRows(): FieldRow[] {
-  const rows: FieldRow[] = [];
-  for (const [formatStr, baseFields] of Object.entries(FORMAT_MAP)) {
-    const format = Number(formatStr);
-    // SDK 接入
-    for (const f of baseFields) {
-      rows.push({ ...f, format, access_type: 1 });
-    }
-    // API 接入：基础字段 + API 扩展字段
-    for (const f of baseFields) {
-      rows.push({ ...f, format, access_type: 2 });
-    }
-    for (const f of API_EXTRA) {
-      rows.push({ ...f, format, access_type: 2 });
-    }
-  }
-  return rows;
+  note?: string;
 }
 
-async function main() {
-  const rows = buildRows();
-  console.log(`[seed-pfd] building ${rows.length} rows...`);
-  // 1) 清空
-  const { error: delErr } = await supabase.from('placement_field_def').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-  if (delErr) { console.error('[seed-pfd] delete failed:', delErr); process.exit(1); }
-  // 2) 插入
-  const BATCH = 50;
-  let inserted = 0;
-  for (let i = 0; i < rows.length; i += BATCH) {
-    const batch = rows.slice(i, i + BATCH);
-    const { error } = await supabase.from('placement_field_def').insert(batch);
-    if (error) { console.error(`[seed-pfd] batch ${i} failed:`, error); process.exit(1); }
-    inserted += batch.length;
+// 工具：拼 radio/select options
+const opts = (rows: [number | string, string][]) =>
+  rows.map(([value, label]) => ({ value, label }));
+
+// === 各 format 字段集（SDK + API） ===
+// 字段只与 format 有关；access_type 决定该字段是否出现
+
+// format=1 横幅
+const F1_SDK: FieldRow[] = [
+  { field_name: 'ad_size', display_name: '广告展示大小', field_type: 'radio', required: true, options_json: opts([[1, '横幅 640x100'], [2, '中幅 300x250'], [3, '中幅 728x90']]), sort_order: 1 },
+  { field_name: 'refresh_interval', display_name: '刷新间隔（秒）', field_type: 'input', required: false, options_json: [], sort_order: 2, note: '0=不刷新' },
+  { field_name: 'show_close', display_name: '是否显示关闭按钮', field_type: 'switch', required: false, options_json: [], sort_order: 3 },
+];
+const F1_API: FieldRow[] = F1_SDK; // API 接入字段集相同
+
+// format=2 插屏
+const F2_SDK: FieldRow[] = [
+  { field_name: 'ad_size', display_name: '广告展示大小', field_type: 'radio', required: true, options_json: opts([[1, '半屏'], [2, '全屏'], [3, '优选']]), sort_order: 1 },
+  { field_name: 'material_type', display_name: '素材形式', field_type: 'radio', required: true, options_json: opts([[1, '图片'], [2, '视频'], [3, '视频+图片']]), sort_order: 2 },
+  { field_name: 'show_close', display_name: '是否显示关闭按钮', field_type: 'switch', required: false, options_json: [], sort_order: 3 },
+  { field_name: 'close_delay', display_name: '关闭按钮延迟（秒）', field_type: 'input', required: false, options_json: [], sort_order: 4, note: '0=立即可关' },
+  { field_name: 'screen_orientation', display_name: '屏幕方向', field_type: 'radio', required: true, options_json: opts([[0, '竖屏'], [1, '横屏'], [2, '横竖兼容']]), sort_order: 5, note: '仅 SDK 接入' },
+];
+const F2_API: FieldRow[] = F2_SDK.filter(f => f.field_name !== 'screen_orientation');
+
+// format=3 开屏
+const F3_SDK: FieldRow[] = [
+  { field_name: 'skip_time', display_name: '跳过倒计时（秒）', field_type: 'input', required: true, options_json: [], sort_order: 1 },
+  { field_name: 'show_skip', display_name: '是否显示跳过', field_type: 'switch', required: false, options_json: [], sort_order: 2 },
+  { field_name: 'material_type', display_name: '素材形式', field_type: 'radio', required: true, options_json: opts([[1, '图片'], [2, '视频']]), sort_order: 3 },
+  { field_name: 'screen_orientation', display_name: '屏幕方向', field_type: 'radio', required: true, options_json: opts([[0, '竖屏'], [1, '横屏'], [2, '横竖兼容']]), sort_order: 4, note: '仅 SDK 接入' },
+];
+const F3_API: FieldRow[] = F3_SDK.filter(f => f.field_name !== 'screen_orientation');
+
+// format=4 原生
+const F4_SDK: FieldRow[] = [
+  { field_name: 'template_style', display_name: '模版样式', field_type: 'radio', required: true, options_json: opts([
+    [1, '1图1文'], [2, '1图2文'], [3, '1图3文'], [4, '1图1图标1文'], [5, '1图1图标2文'],
+    [6, '3图1文'], [7, '1图标2文'], [8, '3图1图标2文'], [9, '1图1图标2文1按钮'],
+    [10, '图片'], [11, '1视频1封面1文'], [12, '1视频1封面1图标2文'], [13, '1视频1封面'],
+  ]), sort_order: 1 },
+  { field_name: 'material_type', display_name: '素材形式', field_type: 'radio', required: true, options_json: opts([[1, '图片'], [2, '视频'], [3, '视频+图片']]), sort_order: 2 },
+  { field_name: 'video_mute', display_name: '视频静音', field_type: 'radio', required: false, options_json: opts([[0, '否'], [1, '是']]), sort_order: 3, note: '仅 SDK 接入' },
+  { field_name: 'auto_play', display_name: '自动播放', field_type: 'radio', required: false, options_json: opts([[1, '总是'], [2, '仅WIFI'], [3, '点击播放']]), sort_order: 4, note: '仅 SDK 接入' },
+  { field_name: 'screen_orientation', display_name: '屏幕方向', field_type: 'radio', required: true, options_json: opts([[0, '竖屏'], [1, '横屏'], [2, '横竖兼容']]), sort_order: 5, note: '仅 SDK 接入' },
+];
+const F4_API: FieldRow[] = F4_SDK.filter(f => !['video_mute', 'auto_play', 'screen_orientation'].includes(f.field_name));
+
+// format=5 激励视频
+const F5_SDK: FieldRow[] = [
+  { field_name: 'ad_size', display_name: '广告展示大小', field_type: 'radio', required: true, options_json: opts([[1, '竖版'], [2, '横版']]), sort_order: 1 },
+  { field_name: 'material_type', display_name: '素材形式', field_type: 'radio', required: true, options_json: opts([[1, '图片'], [2, '视频'], [3, '视频+图片']]), sort_order: 2 },
+  { field_name: 'reward_amount', display_name: '激励数量', field_type: 'input', required: true, options_json: [], sort_order: 3 },
+  { field_name: 'reward_unit', display_name: '激励单位', field_type: 'input', required: true, options_json: [], sort_order: 4, note: '如"金币"或"积分"' },
+  { field_name: 'skip_allowed', display_name: '是否可跳过', field_type: 'switch', required: false, options_json: [], sort_order: 5 },
+  { field_name: 'close_delay', display_name: '关闭按钮延迟（秒）', field_type: 'input', required: false, options_json: [], sort_order: 6, note: '0=立即可关' },
+  { field_name: 'screen_orientation', display_name: '屏幕方向', field_type: 'radio', required: true, options_json: opts([[0, '竖屏'], [1, '横屏'], [2, '横竖兼容']]), sort_order: 7, note: '仅 SDK 接入' },
+];
+const F5_API: FieldRow[] = F5_SDK.filter(f => f.field_name !== 'screen_orientation');
+
+const MATRIX: { format: number; access_type: number; rows: FieldRow[] }[] = [
+  { format: 1, access_type: 1, rows: F1_SDK },
+  { format: 1, access_type: 2, rows: F1_API },
+  { format: 2, access_type: 1, rows: F2_SDK },
+  { format: 2, access_type: 2, rows: F2_API },
+  { format: 3, access_type: 1, rows: F3_SDK },
+  { format: 3, access_type: 2, rows: F3_API },
+  { format: 4, access_type: 1, rows: F4_SDK },
+  { format: 4, access_type: 2, rows: F4_API },
+  { format: 5, access_type: 1, rows: F5_SDK },
+  { format: 5, access_type: 2, rows: F5_API },
+];
+
+async function seed() {
+  const inserts: any[] = [];
+  for (const m of MATRIX) {
+    for (const r of m.rows) {
+      inserts.push({
+        id: uuidv4(),
+        format: m.format,
+        access_type: m.access_type,
+        field_name: r.field_name,
+        display_name: r.display_name,
+        field_type: r.field_type,
+        required: r.required,
+        options_json: r.options_json,
+        sort_order: r.sort_order,
+        note: r.note ?? null,
+        is_active: true,
+      });
+    }
   }
-  console.log(`[seed-pfd] done: ${inserted}/${rows.length} rows`);
-  // 3) 校验
-  const { count } = await supabase.from('placement_field_def').select('id', { count: 'exact', head: true });
-  const { data: byFormat } = await supabase.from('placement_field_def').select('format,access_type');
-  const stats: Record<string, number> = {};
-  for (const r of byFormat ?? []) {
-    const k = `${r.format}:${r.access_type}`;
-    stats[k] = (stats[k] ?? 0) + 1;
+  console.log(`准备插入 ${inserts.length} 行 placement_field_def...`);
+  const { data, error } = await supabaseClient
+    .from('placement_field_def')
+    .insert(inserts)
+    .select('id');
+  if (error) {
+    console.error('❌ 插入失败:', error);
+    process.exit(1);
   }
-  console.log('[seed-pfd] breakdown:', stats);
-  console.log(`[seed-pfd] table count: ${count}`);
+  console.log(`✅ 成功插入 ${data.length} 行`);
+  const { count } = await supabaseClient.from('placement_field_def').select('*', { count: 'exact', head: true });
+  console.log(`📊 placement_field_def 总行数: ${count}`);
 }
 
-main().catch((e) => { console.error(e); process.exit(1); });
+seed().catch(err => {
+  console.error('❌ seed 失败:', err);
+  process.exit(1);
+});
